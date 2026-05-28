@@ -1,0 +1,353 @@
+:root {
+  color-scheme: dark;
+  --ink: #f8fbff;
+  --muted: #b7c9d8;
+  --panel: rgba(9, 16, 28, 0.62);
+  --stroke: rgba(255, 255, 255, 0.18);
+  --hot: #ff5c6c;
+  --gold: #f7c65d;
+  --green: #8fe39b;
+  --cyan: #76d7ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 156, 98, 0.18), transparent 24%),
+    linear-gradient(140deg, #172033 0%, #233f58 38%, #7a7c77 70%, #2a2631 100%);
+  color: var(--ink);
+  font-family: "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+}
+
+.shell {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(10px, 2vw, 24px);
+}
+
+.stage {
+  position: relative;
+  width: min(100%, calc((100vh - 20px) * 1.7647));
+  max-width: 1240px;
+  aspect-ratio: 960 / 544;
+  border: 1px solid var(--stroke);
+  background: #111927;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.hud {
+  position: absolute;
+  inset: 18px 18px auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  pointer-events: none;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.brand,
+.meters,
+.hud-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand {
+  min-width: 0;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.mark {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  border-radius: 4px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--cyan), var(--gold));
+  box-shadow: 0 0 18px rgba(118, 215, 255, 0.8);
+}
+
+.dash-meter,
+.stamina-meter {
+  width: 74px;
+  height: 10px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(6, 12, 22, 0.42);
+}
+
+.dash-meter span,
+.stamina-meter span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+}
+
+.dash-meter span {
+  background: linear-gradient(90deg, var(--cyan), #fff6a7);
+}
+
+.stamina-meter span {
+  background: linear-gradient(90deg, var(--green), var(--gold));
+}
+
+.counter {
+  min-width: 54px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(8, 13, 24, 0.46);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.debug-panel {
+  position: absolute;
+  left: 18px;
+  top: 64px;
+  min-width: 208px;
+  max-width: min(320px, calc(100% - 36px));
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 12, 20, 0.68);
+  color: #dff5ff;
+  font: 12px/1.45 "Cascadia Mono", Consolas, monospace;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+.debug-panel.hidden {
+  display: none;
+}
+
+
+.hud-actions {
+  display: flex;
+  align-items: center;
+}
+
+.icon-button,
+.mini-button {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(7, 12, 20, 0.48);
+  color: #f8fbff;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 18px;
+  pointer-events: auto;
+}
+
+.mini-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 18px;
+}
+
+.icon-button:hover,
+.mini-button:hover {
+  background: rgba(118, 215, 255, 0.22);
+}
+
+.settings-panel {
+  position: absolute;
+  top: 64px;
+  right: 18px;
+  width: min(260px, calc(100% - 36px));
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(7, 12, 20, 0.76);
+  color: #f8fbff;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  z-index: 4;
+}
+
+.settings-panel.hidden {
+  display: none;
+}
+
+.settings-head,
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.settings-head {
+  margin-bottom: 12px;
+}
+
+.settings-head strong,
+.control-row span {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.control-row {
+  min-height: 36px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.control-row input[type="range"] {
+  width: 132px;
+  accent-color: var(--cyan);
+}
+
+.control-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cyan);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 22px;
+  background: rgba(8, 13, 21, 0.35);
+  backdrop-filter: blur(2px);
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.overlay h1 {
+  margin: 0;
+  color: #fff7df;
+  font-size: clamp(44px, 8vw, 92px);
+  line-height: 0.95;
+  letter-spacing: 0;
+  text-shadow: 0 10px 35px rgba(0, 0, 0, 0.52);
+}
+
+.primary {
+  min-width: 124px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 4px;
+  background: linear-gradient(180deg, #ffdf7a, #f08a57);
+  color: #24160d;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
+}
+
+.primary:focus-visible,
+.touch button:focus-visible {
+  outline: 3px solid rgba(118, 215, 255, 0.9);
+  outline-offset: 3px;
+}
+
+.touch {
+  position: absolute;
+  inset: auto 18px 18px 18px;
+  display: none;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.touch-cluster {
+  display: flex;
+  gap: 10px;
+}
+
+.touch button {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.23);
+  border-radius: 8px;
+  background: rgba(8, 13, 22, 0.48);
+  color: #f8fbff;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch button:active,
+.touch button.active {
+  background: rgba(118, 215, 255, 0.38);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+@media (pointer: coarse), (max-width: 760px) {
+  .shell {
+    padding: 0;
+  }
+
+  .stage {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    aspect-ratio: auto;
+    border: 0;
+  }
+
+  .touch {
+    display: flex;
+  }
+
+  .settings-panel {
+    right: 12px;
+    top: 58px;
+  }
+
+  .hud {
+    inset: 12px 12px auto 12px;
+  }
+
+  .brand span:last-child {
+    max-width: 34vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dash-meter,
+  .stamina-meter {
+    width: 48px;
+  }
+}

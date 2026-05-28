@@ -1,0 +1,10 @@
+{
+  "name": "summit-spark",
+  "version": "0.1.0",
+  "description": "Original precision platformer prototype with dash-generated light trails.",
+  "private": true,
+  "scripts": {
+    "start": "node game-server.js",
+    "check": "node --check summit-spark.js && node --check game-server.js"
+  }
+}

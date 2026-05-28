@@ -36,6 +36,7 @@
   const COYOTE_TIME = 0.105;
   const JUMP_BUFFER_TIME = 0.115;
   const DASH_BUFFER_TIME = 0.13;
+  const DASH_AIM_MEMORY = 0.085;
   const CORNER_CORRECTION = 6;
   const DASH_CORNER_CORRECTION = 5;
   const JUMP_CUT_MULTIPLIER = 0.52;
@@ -50,9 +51,23 @@
 
   const SOLID = new Set(["#"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
-  const JUMP_CODES = new Set(["Space"]);
-  const DASH_CODES = new Set(["KeyX", "KeyE", "ShiftLeft", "ShiftRight"]);
-  const BLOCKED_CODES = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
+  const JUMP_CODES = new Set(["Space", "KeyC", "KeyJ"]);
+  const DASH_CODES = new Set(["KeyX", "KeyK", "ShiftLeft", "ShiftRight", "KeyE"]);
+  const GRAB_CODES = new Set(["KeyZ", "KeyL", "ControlLeft", "ControlRight", "KeyV"]);
+  const START_CODES = new Set(["Enter", ...JUMP_CODES, ...DASH_CODES]);
+  const BLOCKED_CODES = new Set([
+    ...JUMP_CODES,
+    ...DASH_CODES,
+    ...GRAB_CODES,
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+    "Enter",
+    "KeyR",
+    "KeyO",
+    "F3"
+  ]);
 
   const maps = [
     [
@@ -173,6 +188,9 @@
   let shakePower = 0;
   let fps = 60;
   let settingsVisible = false;
+  let lastAimX = 1;
+  let lastAimY = 0;
+  let lastAimTimer = 0;
   const settings = { shake: SHAKE_INTENSITY, calmEffects: true };
   let totalLumens = maps.reduce((total, rows) => {
     return total + rows.join("").split("").filter((tile) => tile === "L").length;
@@ -229,7 +247,7 @@
     if (event.code === "KeyO" && firstPress) {
       toggleSettings();
     }
-    if (!started && ["Space", "Enter", "KeyX", "ShiftLeft", "ShiftRight"].includes(event.code)) {
+    if (!started && START_CODES.has(event.code)) {
       begin();
     }
     if (event.code === "KeyR" && firstPress && started) {
@@ -364,6 +382,9 @@
       respawnX: spawn.x,
       respawnY: spawn.y
     });
+    lastAimX = player.facing;
+    lastAimY = 0;
+    lastAimTimer = 0;
   }
 
   function seedHair() {
@@ -435,6 +456,7 @@
     }
 
     const input = getInput();
+    updateLastAim(input, dt);
     if (input.x !== 0) {
       player.facing = input.x;
     }
@@ -531,6 +553,16 @@
     addSnow(player.x + (player.wallDir > 0 ? player.w : 0), player.y + player.h * 0.35, 1);
   }
 
+  function updateLastAim(input, dt) {
+    if (input.x !== 0 || input.y !== 0) {
+      lastAimX = input.x;
+      lastAimY = input.y;
+      lastAimTimer = DASH_AIM_MEMORY;
+      return;
+    }
+    lastAimTimer = Math.max(0, lastAimTimer - dt);
+  }
+
   function jump() {
     if (player.jumpBuffer <= 0) return;
 
@@ -556,6 +588,10 @@
   function startDash(input) {
     let dx = input.x;
     let dy = input.y;
+    if (dx === 0 && dy === 0 && lastAimTimer > 0) {
+      dx = lastAimX;
+      dy = lastAimY;
+    }
     if (dx === 0 && dy === 0) dx = player.facing;
     const len = Math.hypot(dx, dy) || 1;
     dx /= len;
@@ -814,7 +850,7 @@
     const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.right;
     const up = keys.has("ArrowUp") || keys.has("KeyW");
     const down = keys.has("ArrowDown") || keys.has("KeyS");
-    const grab = keys.has("KeyC") || keys.has("KeyZ") || keys.has("ControlLeft") || keys.has("ControlRight") || touch.grab;
+    const grab = keyHeldAny(GRAB_CODES) || touch.grab;
     return {
       x: right ? 1 : left ? -1 : 0,
       y: down ? 1 : up ? -1 : 0,
@@ -829,6 +865,13 @@
   function justPressedAny(codes) {
     for (const code of codes) {
       if (pressed.has(code)) return true;
+    }
+    return false;
+  }
+
+  function keyHeldAny(codes) {
+    for (const code of codes) {
+      if (keys.has(code)) return true;
     }
     return false;
   }
@@ -929,7 +972,7 @@
   }
 
   function jumpHeld() {
-    return keys.has("Space") || touch.jump;
+    return keyHeldAny(JUMP_CODES) || touch.jump;
   }
 
   function currentGravity() {

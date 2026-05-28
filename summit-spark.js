@@ -37,8 +37,14 @@
   const JUMP_BUFFER_TIME = 0.115;
   const DASH_BUFFER_TIME = 0.13;
   const DASH_AIM_MEMORY = 0.085;
+  const SPARK_HOP_WINDOW = 0.11;
+  const SPARK_HOP_X = 345;
+  const SPARK_HOP_Y = 430;
   const CORNER_CORRECTION = 6;
   const DASH_CORNER_CORRECTION = 5;
+  const WALL_NEUTRAL_X = 230;
+  const WALL_CLIMB_X = 170;
+  const WALL_JUMP_LOCK_TIME = 0.09;
   const JUMP_CUT_MULTIPLIER = 0.52;
   const DEATH_RETRY_TIME = 0.26;
   const DASH_HITSTOP = 0.018;
@@ -211,10 +217,16 @@
     dashes: 1,
     dashTimer: 0,
     dashCooldown: 0,
+    dashDirX: 1,
+    dashDirY: 0,
     ghostTimer: 0,
     coyote: 0,
     jumpBuffer: 0,
     dashBuffer: 0,
+    sparkHopTimer: 0,
+    sparkHopDirX: 1,
+    sparkHopDirY: 0,
+    wallJumpLock: 0,
     deadTimer: 0,
     respawnRoom: 0,
     respawnX: 0,
@@ -373,10 +385,16 @@
       dashes: 1,
       dashTimer: 0,
       dashCooldown: 0,
+      dashDirX: 1,
+      dashDirY: 0,
       ghostTimer: 0,
       coyote: 0,
       jumpBuffer: 0,
       dashBuffer: 0,
+      sparkHopTimer: 0,
+      sparkHopDirX: 1,
+      sparkHopDirY: 0,
+      wallJumpLock: 0,
       deadTimer: 0,
       respawnRoom: roomIndex,
       respawnX: spawn.x,
@@ -466,10 +484,13 @@
     player.wallDir = getWallDir();
     player.coyote = player.wasGrounded ? COYOTE_TIME : Math.max(0, player.coyote - dt);
     player.dashCooldown = Math.max(0, player.dashCooldown - dt);
+    player.sparkHopTimer = Math.max(0, player.sparkHopTimer - dt);
+    player.wallJumpLock = Math.max(0, player.wallJumpLock - dt);
 
     if (player.onGround || player.wasGrounded) {
       player.stamina = MAX_STAMINA;
       player.dashes = 1;
+      player.sparkHopTimer = 0;
     }
 
     const wantsDash = player.dashBuffer > 0 && player.dashes > 0 && player.dashCooldown <= 0;
@@ -487,6 +508,7 @@
       if (player.dashTimer <= 0) {
         player.vx *= 0.78;
         player.vy *= 0.62;
+        armSparkHop();
       }
     } else {
       runGroundAir(input, dt);
@@ -525,15 +547,20 @@
   }
 
   function runGroundAir(input, dt) {
-    const target = input.x * MOVE_SPEED;
-    const turning = input.x !== 0 && Math.abs(player.vx) > 24 && Math.sign(player.vx) !== Math.sign(target);
-    const accel = turning ? TURN_ACCEL : player.wasGrounded ? ACCEL : AIR_ACCEL;
-    player.vx = approach(player.vx, target, accel * dt);
-    if (input.x !== 0 && Math.abs(player.vx - target) < 3) {
-      player.vx = target;
-    }
-    if (input.x === 0 && player.wasGrounded) {
-      player.vx = approach(player.vx, 0, FRICTION * dt);
+    const preservingLaunch = player.wallJumpLock > 0 && !player.wasGrounded && Math.abs(player.vx) > MOVE_SPEED;
+    if (!preservingLaunch) {
+      const lockedAgainstPush = player.wallJumpLock > 0 && input.x !== 0 && Math.sign(player.vx) !== input.x;
+      const moveX = lockedAgainstPush ? 0 : input.x;
+      const target = moveX * MOVE_SPEED;
+      const turning = moveX !== 0 && Math.abs(player.vx) > 24 && Math.sign(player.vx) !== Math.sign(target);
+      const accel = turning ? TURN_ACCEL : player.wasGrounded ? ACCEL : AIR_ACCEL;
+      player.vx = approach(player.vx, target, accel * dt);
+      if (moveX !== 0 && Math.abs(player.vx - target) < 3) {
+        player.vx = target;
+      }
+      if (moveX === 0 && player.wasGrounded) {
+        player.vx = approach(player.vx, 0, FRICTION * dt);
+      }
     }
 
     if (player.wallDir !== 0 && !player.wasGrounded && player.vy > 190) {
@@ -563,7 +590,7 @@
     lastAimTimer = Math.max(0, lastAimTimer - dt);
   }
 
-  function jump() {
+  function jump(input) {
     if (player.jumpBuffer <= 0) return;
 
     if (player.coyote > 0 || player.wasGrounded) {
@@ -575,14 +602,46 @@
       return;
     }
 
+    if (player.sparkHopTimer > 0 && player.dashTimer <= 0) {
+      sparkHop();
+      return;
+    }
+
     if (player.wallDir !== 0) {
-      player.vx = -player.wallDir * WALL_JUMP_X;
-      player.vy = -JUMP * 0.96;
+      const away = input.x === -player.wallDir;
+      const climbJump = input.grab && player.stamina > 0;
+      const push = climbJump ? WALL_CLIMB_X : away ? WALL_JUMP_X : WALL_NEUTRAL_X;
+      const lift = climbJump ? JUMP * (input.y > 0 ? 0.9 : 1.02) : away ? JUMP * 0.96 : JUMP * 0.91;
+      player.vx = -player.wallDir * push;
+      player.vy = -lift;
       player.jumpBuffer = 0;
       player.facing = -player.wallDir;
+      player.wallJumpLock = WALL_JUMP_LOCK_TIME;
+      if (climbJump) player.stamina = Math.max(0, player.stamina - 0.18);
       shake(0.04, 1.35);
-      burst(player.x + (player.wallDir > 0 ? player.w : 0), player.y + player.h * 0.55, "#e9f7ff", 9, 190);
+      burst(player.x + (player.wallDir > 0 ? player.w : 0), player.y + player.h * 0.55, climbJump ? palette.green : "#e9f7ff", 9, 190);
     }
+  }
+
+  function sparkHop() {
+    const dir = player.sparkHopDirX || player.facing;
+    if (dir !== 0) {
+      player.vx = Math.sign(dir) * Math.max(Math.abs(player.vx), SPARK_HOP_X);
+    }
+    player.vy = Math.min(player.vy, -SPARK_HOP_Y);
+    player.jumpBuffer = 0;
+    player.sparkHopTimer = 0;
+    player.wallJumpLock = WALL_JUMP_LOCK_TIME;
+    hitStopTimer = Math.max(hitStopTimer, 0.012);
+    burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 12, 220);
+    burst(player.x + player.w / 2, player.y + player.h, palette.cyan, 8, 180);
+  }
+
+  function armSparkHop() {
+    if (player.wasGrounded || player.onGround || player.deadTimer > 0) return;
+    player.sparkHopTimer = SPARK_HOP_WINDOW;
+    player.sparkHopDirX = player.dashDirX;
+    player.sparkHopDirY = player.dashDirY;
   }
 
   function startDash(input) {
@@ -601,6 +660,9 @@
     player.dashes -= 1;
     player.dashTimer = DASH_TIME;
     player.dashCooldown = 0.07;
+    player.dashDirX = dx;
+    player.dashDirY = dy;
+    player.sparkHopTimer = 0;
     player.ghostTimer = 0;
     player.dashBuffer = 0;
     player.coyote = 0;
@@ -827,6 +889,12 @@
     player.stamina = MAX_STAMINA;
     player.dashTimer = 0;
     player.dashCooldown = 0;
+    player.dashDirX = player.facing;
+    player.dashDirY = 0;
+    player.sparkHopTimer = 0;
+    player.sparkHopDirX = player.facing;
+    player.sparkHopDirY = 0;
+    player.wallJumpLock = 0;
     player.ghostTimer = 0;
     player.deadTimer = 0;
     ghosts.length = 0;
@@ -1167,9 +1235,31 @@
     drawEntities(time);
     drawParticles();
     drawGhosts();
+    drawSparkCue(time);
     if (player.deadTimer <= 0) drawPlayer(time);
     ctx.restore();
     drawVignette();
+  }
+
+  function drawSparkCue(time) {
+    if (player.sparkHopTimer <= 0 || player.deadTimer > 0) return;
+    const cx = player.x + player.w / 2;
+    const cy = player.y + player.h / 2;
+    const charge = player.sparkHopTimer / SPARK_HOP_WINDOW;
+    ctx.save();
+    ctx.globalAlpha = 0.18 + charge * 0.42;
+    ctx.strokeStyle = "#f8fbff";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = palette.cyan;
+    ctx.shadowBlur = settings.calmEffects ? 8 : 16;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 18 + Math.sin(time * 28) * 1.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = palette.cyan;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 11 + charge * 4, -Math.PI * 0.2, Math.PI * 1.25);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawBackground(time) {
@@ -1532,6 +1622,7 @@
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}`,
+      `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}`,
       `stamina ${(player.stamina * 100).toFixed(0)}  deaths ${deathCount}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
       `trails ${lightTrails.length}  shake ${settings.shake.toFixed(2)}`

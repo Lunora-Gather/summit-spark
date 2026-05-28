@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>山巅微光</title>
+  <link rel="stylesheet" href="summit-spark.css">
+</head>
+<body>
+  <main class="shell" aria-label="山巅微光游戏">
+    <section class="stage">
+      <canvas id="game" width="960" height="544" aria-label="山巅微光"></canvas>
+
+      <div class="hud" aria-hidden="true">
+        <div class="brand">
+          <span class="mark"></span>
+          <span>山巅微光</span>
+        </div>
+        <div class="meters">
+          <div class="dash-meter" title="冲刺">
+            <span></span>
+          </div>
+          <div class="stamina-meter" title="体力">
+            <span></span>
+          </div>
+          <div class="counter" id="lumenCount">0/0</div>
+        </div>
+        <button class="icon-button" id="settingsButton" type="button" aria-label="Options">&#9881;</button>
+      </div>
+
+      <pre class="debug-panel hidden" id="debugPanel" aria-hidden="true"></pre>
+
+      <section class="settings-panel hidden" id="settingsPanel" aria-label="Options" aria-hidden="true">
+        <div class="settings-head">
+          <strong>&#35774;&#32622;</strong>
+          <button class="mini-button" id="settingsClose" type="button" aria-label="Close">&times;</button>
+        </div>
+        <label class="control-row">
+          <span>&#38663;&#21160;</span>
+          <input id="shakeSlider" type="range" min="0" max="1" step="0.05" value="0">
+        </label>
+        <label class="control-row">
+          <span>&#35843;&#35797;</span>
+          <input id="debugToggle" type="checkbox">
+        </label>
+        <label class="control-row">
+          <span>&#26580;&#21644;&#29305;&#25928;</span>
+          <input id="calmEffectsToggle" type="checkbox" checked>
+        </label>
+      </section>
+
+      <div class="overlay" id="overlay">
+        <h1>山巅微光</h1>
+        <button class="primary" id="startButton" type="button">开始</button>
+      </div>
+
+      <div class="touch" aria-label="触控">
+        <div class="touch-cluster">
+          <button type="button" data-touch="left" aria-label="左">‹</button>
+          <button type="button" data-touch="right" aria-label="右">›</button>
+        </div>
+        <div class="touch-cluster">
+          <button type="button" data-touch="grab" aria-label="抓墙">✦</button>
+          <button type="button" data-touch="jump" aria-label="跳跃">↥</button>
+          <button type="button" data-touch="dash" aria-label="冲刺">◆</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="summit-spark.js"></script>
+</body>
+</html>

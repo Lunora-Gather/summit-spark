@@ -8,6 +8,7 @@
   const lumenCount = document.getElementById("lumenCount");
   const roomCount = document.getElementById("roomCount");
   const splitTimeText = document.getElementById("splitTime");
+  const flowCountText = document.getElementById("flowCount");
   const runTimeText = document.getElementById("runTime");
   const deathCountText = document.getElementById("deathCount");
   const debugPanel = document.getElementById("debugPanel");
@@ -53,6 +54,12 @@
   const WALL_COYOTE_TIME = 0.105;
   const FAST_FALL_MAX = 900;
   const FAST_FALL_GRAVITY_MULT = 1.42;
+  const UPDRAFT_FORCE = 2150;
+  const UPDRAFT_RISE_SPEED = 500;
+  const PRISM_RESET_TIME = 4.8;
+  const OVERDRIVE_TIME = 1.05;
+  const OVERDRIVE_DASH_MULT = 1.12;
+  const OVERDRIVE_RUN_MULT = 1.1;
   const JUMP_CUT_MULTIPLIER = 0.52;
   const DEATH_RETRY_TIME = 0.26;
   const DASH_HITSTOP = 0.018;
@@ -76,6 +83,12 @@
   const ROOM_BEST_FLASH_TIME = 1.15;
   const SETTINGS_KEY = "summit-spark-settings";
   const ACTION_PULSE_TIME = 0.22;
+  const BEST_FLOW_KEY = "summit-spark-best-flow";
+  const FLOW_DECAY_TIME = 1.9;
+  const FLOW_DECAY_RATE = 38;
+  const FLOW_POPUP_TIME = 0.62;
+  const NEAR_MISS_COOLDOWN = 0.48;
+  const ECHO_RECALL_COOLDOWN = 0.32;
 
   const SOLID = new Set(["#"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
@@ -91,6 +104,7 @@
       grab: ["KeyC", "ControlLeft", "ControlRight", "KeyL", "KeyV"]
     }
   };
+  const RECALL_CODES = new Set(["KeyQ", "Backspace"]);
   const ALL_ACTION_CODES = new Set(Object.values(CONTROL_PRESETS).flatMap((preset) => [
     ...preset.jump,
     ...preset.dash,
@@ -106,11 +120,13 @@
     "Enter",
     "KeyR",
     "KeyT",
+    "KeyQ",
+    "Backspace",
     "KeyO",
     "F3"
   ]);
 
-  const ROOM_TARGETS = [9.5, 10.5, 10.5, 12.5, 13.5, 15.0];
+  const ROOM_TARGETS = [9.5, 10.5, 10.5, 12.5, 13.5, 15.0, 15.8, 16.5, 17.2, 19.0];
 
   const maps = [
     [
@@ -224,6 +240,82 @@
       "........^^^^...........####...",
       "........####..................",
       "....................T.........",
+      ".........................####.",
+      "##############################"
+    ],
+    [
+      "..............................",
+      ".........................L....",
+      "......................#####...",
+      "..............................",
+      "..................U...........",
+      "..............#####...........",
+      "..........................R...",
+      ".........U............####....",
+      ".....#####....................",
+      "..............................",
+      "..M...........U..........A....",
+      "#####......#####.......####...",
+      "..............................",
+      "........^^^^..................",
+      "........####..........U.......",
+      "..............................",
+      "###########################..."
+    ],
+    [
+      "..............................",
+      "........................L.....",
+      ".....................#####....",
+      ".................B............",
+      "..............####............",
+      "..............................",
+      "......A.................R.....",
+      ".....####............#####....",
+      "..............................",
+      "..P.......B........A..........",
+      "#####...#####....#####........",
+      "..............................",
+      "............^^^^..............",
+      "............####.......B......",
+      "....U..................####...",
+      "..............................",
+      "##########################...."
+    ],
+    [
+      "..............................",
+      ".........................L....",
+      ".....................#####....",
+      "..............................",
+      "......M...........B...........",
+      ".....####......####...........",
+      "..........................R...",
+      "..P.......A.............####..",
+      "#####.........................",
+      ".............U................",
+      ".........#######..............",
+      "........................A.....",
+      ".....B........^^^^.....####...",
+      "....####......####............",
+      "....................U.........",
+      ".........................####.",
+      "#######################......."
+    ],
+    [
+      "..............................",
+      "..............................",
+      "....................L.........",
+      ".................#####........",
+      "..............................",
+      "......A......B...........R....",
+      ".....####..#####......####....",
+      "..............................",
+      "..P.........U.................",
+      "#####....#####.........A......",
+      "..............................",
+      "............^^^^..............",
+      "............####.......B......",
+      "....M...............#####.....",
+      ".........A....................",
       ".........................H....",
       "##############################"
     ]
@@ -262,6 +354,18 @@
   const keys = new Set();
   const pressed = new Set();
   const touchPressed = new Set();
+  const gamepadPressed = new Set();
+  let gamepadHeld = new Set();
+  const gamepadInput = {
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    jump: false,
+    dash: false,
+    grab: false,
+    recall: false
+  };
   const touch = {
     left: false,
     right: false,
@@ -289,6 +393,7 @@
   let bestTime = readBestTime();
   let bestRoomTimes = readRoomBests();
   let bestRoomPaths = readRoomPaths();
+  let bestFlow = readBestFlow();
   let collected = new Set();
   let debugVisible = false;
   let hitStopTimer = 0;
@@ -306,6 +411,15 @@
   let bestRelayChain = 0;
   let relayPopupTimer = 0;
   let roomBestFlashTimer = 0;
+  let flowScore = 0;
+  let flowPeak = 0;
+  let flowTimer = 0;
+  let flowPopupTimer = 0;
+  let flowLabel = "";
+  let nearMissCooldown = 0;
+  let echoAnchor = null;
+  let recallCooldown = 0;
+  let recallPulseTimer = 0;
   const settings = readSettings();
   const actionPulse = {
     jump: 0,
@@ -331,6 +445,7 @@
     wallDir: 0,
     wallCoyote: 0,
     wallCoyoteDir: 0,
+    overdrive: 0,
     stamina: MAX_STAMINA,
     dashes: 1,
     dashTimer: 0,
@@ -392,8 +507,12 @@
     if (event.code === "KeyT" && firstPress && started && !won) {
       restartCurrentRoom();
     }
+    if (RECALL_CODES.has(event.code) && firstPress && started && !won) {
+      recallToAnchor();
+    }
     if (debugVisible && firstPress && event.code.startsWith("Digit")) {
-      const target = Number(event.code.slice(5)) - 1;
+      const digit = Number(event.code.slice(5));
+      const target = digit === 0 ? 9 : digit - 1;
       if (target >= 0 && target < maps.length) jumpToRoom(target);
     }
   });
@@ -424,6 +543,8 @@
     keys.clear();
     pressed.clear();
     touchPressed.clear();
+    gamepadPressed.clear();
+    gamepadHeld.clear();
     resetActionPulses();
     writeSettings();
     focusGame();
@@ -464,6 +585,9 @@
       lumens: [],
       refills: [],
       relays: [],
+      updrafts: [],
+      prisms: [],
+      anchors: [],
       checkpoints: [],
       springs: [],
       goal: null,
@@ -494,6 +618,18 @@
         }
         if (tile === "A") {
           entities.relays.push({ x: cx, y: cy, ready: true, timer: 0, bob: Math.random() * 6, pulse: 0 });
+          tiles[y][x] = ".";
+        }
+        if (tile === "U") {
+          entities.updrafts.push({ x: x * TILE, y: y * TILE, w: TILE, h: TILE * 4, bob: Math.random() * 6, pulse: 0 });
+          tiles[y][x] = ".";
+        }
+        if (tile === "B") {
+          entities.prisms.push({ x: cx, y: cy, ready: true, timer: 0, bob: Math.random() * 6, pulse: 0 });
+          tiles[y][x] = ".";
+        }
+        if (tile === "M") {
+          entities.anchors.push({ x: cx, y: cy, pulse: 0 });
           tiles[y][x] = ".";
         }
         if (tile === "T") {
@@ -528,6 +664,7 @@
       wallDir: 0,
       wallCoyote: 0,
       wallCoyoteDir: 0,
+      overdrive: 0,
       stamina: MAX_STAMINA,
       dashes: 1,
       dashTimer: 0,
@@ -586,6 +723,11 @@
     relayChainTimer = 0;
     relayPopupTimer = 0;
     roomBestFlashTimer = 0;
+    resetFlow();
+    echoAnchor = null;
+    recallCooldown = 0;
+    recallPulseTimer = 0;
+    nearMissCooldown = 0;
     resetActionPulses();
     overlay.classList.add("hidden");
     resetToStart(0);
@@ -610,6 +752,11 @@
     relayChainTimer = 0;
     relayPopupTimer = 0;
     roomBestFlashTimer = 0;
+    resetFlow();
+    echoAnchor = null;
+    recallCooldown = 0;
+    recallPulseTimer = 0;
+    nearMissCooldown = 0;
     resetActionPulses();
     overlay.classList.add("hidden");
     started = true;
@@ -624,6 +771,12 @@
     lastTime = now;
     fps = fps * 0.9 + (dt > 0 ? (1 / dt) * 0.1 : 0);
     updateGlobalEffects(dt);
+    if (!started || won) {
+      updateGamepad();
+      if (!started && (gamepadPressed.has("jump") || gamepadPressed.has("dash"))) {
+        begin();
+      }
+    }
 
     if (started && !won) {
       update(dt);
@@ -637,6 +790,7 @@
     render(now / 1000);
     pressed.clear();
     touchPressed.clear();
+    gamepadPressed.clear();
     requestAnimationFrame(frame);
   }
 
@@ -686,6 +840,7 @@
     player.dashCooldown = Math.max(0, player.dashCooldown - dt);
     player.sparkHopTimer = Math.max(0, player.sparkHopTimer - dt);
     player.wallJumpLock = Math.max(0, player.wallJumpLock - dt);
+    player.overdrive = Math.max(0, player.overdrive - dt);
     updateInputCues(input);
 
     if (player.onGround || player.wasGrounded) {
@@ -730,7 +885,7 @@
       burst(player.x + player.w / 2, player.y + player.h, "#e9f7ff", 4, 90);
     }
     resolveRoomTransition();
-    updateEntities(dt);
+    updateEntities(dt, input);
     updateHair(dt);
     updateParticles(dt);
     updateGhosts(dt);
@@ -740,14 +895,18 @@
   }
 
   function updateBuffers(dt) {
+    updateGamepad();
     player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
     player.dashBuffer = Math.max(0, player.dashBuffer - dt);
 
-    if (justPressedAny(actionCodes("jump")) || touchPressed.has("jump")) {
+    if (justPressedAny(actionCodes("jump")) || touchPressed.has("jump") || gamepadPressed.has("jump")) {
       player.jumpBuffer = JUMP_BUFFER_TIME;
     }
-    if (justPressedAny(actionCodes("dash")) || touchPressed.has("dash")) {
+    if (justPressedAny(actionCodes("dash")) || touchPressed.has("dash") || gamepadPressed.has("dash")) {
       player.dashBuffer = DASH_BUFFER_TIME;
+    }
+    if (gamepadPressed.has("recall") && started && !won) {
+      recallToAnchor();
     }
   }
 
@@ -756,9 +915,11 @@
     if (!preservingLaunch) {
       const lockedAgainstPush = player.wallJumpLock > 0 && input.x !== 0 && Math.sign(player.vx) !== input.x;
       const moveX = lockedAgainstPush ? 0 : input.x;
-      const target = moveX * MOVE_SPEED;
+      const speedMult = player.overdrive > 0 ? OVERDRIVE_RUN_MULT : 1;
+      const target = moveX * MOVE_SPEED * speedMult;
       const turning = moveX !== 0 && Math.abs(player.vx) > 24 && Math.sign(player.vx) !== Math.sign(target);
-      const accel = turning ? TURN_ACCEL : player.wasGrounded ? ACCEL : AIR_ACCEL;
+      const accelMult = player.overdrive > 0 ? 1.12 : 1;
+      const accel = (turning ? TURN_ACCEL : player.wasGrounded ? ACCEL : AIR_ACCEL) * accelMult;
       player.vx = approach(player.vx, target, accel * dt);
       if (moveX !== 0 && Math.abs(player.vx - target) < 3) {
         player.vx = target;
@@ -802,6 +963,7 @@
       player.vy = -JUMP;
       player.jumpBuffer = 0;
       player.coyote = 0;
+      addFlow(4, "jump");
       shake(0.035, 1.1);
       burst(player.x + player.w / 2, player.y + player.h, "#e9f7ff", 8, 150);
       return;
@@ -826,6 +988,7 @@
       player.wallCoyote = 0;
       player.wallCoyoteDir = 0;
       if (climbJump) player.stamina = Math.max(0, player.stamina - 0.18);
+      addFlow(climbJump ? 8 : 6, climbJump ? "climb" : "wall");
       shake(0.04, 1.35);
       burst(player.x + (wallJumpDir > 0 ? player.w : 0), player.y + player.h * 0.55, climbJump ? palette.green : "#e9f7ff", 9, 190);
     }
@@ -840,6 +1003,7 @@
     player.jumpBuffer = 0;
     player.sparkHopTimer = 0;
     player.wallJumpLock = WALL_JUMP_LOCK_TIME;
+    addFlow(12, "spark");
     hitStopTimer = Math.max(hitStopTimer, 0.012);
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 12, 220);
     burst(player.x + player.w / 2, player.y + player.h, palette.cyan, 8, 180);
@@ -863,8 +1027,9 @@
     const len = Math.hypot(dx, dy) || 1;
     dx /= len;
     dy /= len;
-    player.vx = dx * DASH_SPEED;
-    player.vy = dy * DASH_SPEED;
+    const dashSpeed = DASH_SPEED * (player.overdrive > 0 ? OVERDRIVE_DASH_MULT : 1);
+    player.vx = dx * dashSpeed;
+    player.vy = dy * dashSpeed;
     player.dashes -= 1;
     player.dashTimer = DASH_TIME;
     player.dashCooldown = 0.07;
@@ -875,6 +1040,7 @@
     player.dashBuffer = 0;
     player.coyote = 0;
     player.facing = dx === 0 ? player.facing : Math.sign(dx);
+    addFlow(player.overdrive > 0 ? 8 : 5, player.overdrive > 0 ? "over" : "dash");
     hitStopTimer = Math.max(hitStopTimer, DASH_HITSTOP);
     shake(0.08, 2.4);
     addGhost(0.48);
@@ -891,16 +1057,38 @@
     }
   }
 
-  function updateEntities(dt) {
+  function updateEntities(dt, input) {
     const box = getPlayerBox();
 
     for (const lumen of room.entities.lumens) {
       if (!lumen.taken && distRectPoint(box, lumen.x, lumen.y) < 22) {
         lumen.taken = true;
         collected.add(lumen.id);
+        addFlow(18, "lumen");
         burst(lumen.x, lumen.y, palette.gold, 22, 250);
       }
       lumen.bob += dt * 4;
+    }
+
+    for (const updraft of room.entities.updrafts) {
+      updraft.bob += dt * 5.2;
+      updraft.pulse = Math.max(0, updraft.pulse - dt);
+      const field = {
+        x: updraft.x - 10,
+        y: Math.max(0, updraft.y - TILE * 2.4),
+        w: updraft.w + 20,
+        h: updraft.h + TILE * 0.9
+      };
+      if (aabb(box, field)) {
+        const center = field.x + field.w / 2;
+        const pull = Math.max(-1, Math.min(1, (center - (player.x + player.w / 2)) / 34));
+        const downResist = input.y > 0 ? 0.72 : 1;
+        player.vy = Math.max(-UPDRAFT_RISE_SPEED, player.vy - UPDRAFT_FORCE * downResist * dt);
+        player.vx += pull * 60 * dt;
+        player.stamina = Math.min(MAX_STAMINA, player.stamina + 0.22 * dt);
+        updraft.pulse = 0.26;
+        if (Math.random() < 0.35) addSnow(center + (Math.random() - 0.5) * 26, field.y + field.h - 8, 1);
+      }
     }
 
     for (const refill of room.entities.refills) {
@@ -915,6 +1103,7 @@
         player.dashes = 1;
         player.stamina = MAX_STAMINA;
         player.dashCooldown = 0;
+        addFlow(14, "refill");
         burst(refill.x, refill.y, palette.cyan, 26, 310);
       }
     }
@@ -940,10 +1129,44 @@
         player.sparkHopDirX = player.vx === 0 ? player.facing : Math.sign(player.vx);
         player.sparkHopDirY = Math.sign(player.vy);
         player.vy = Math.min(player.vy, -140 - Math.min(90, chain * 18));
+        addFlow(22 + chain * 8, chain >= 3 ? "chain" : "relay");
         burst(relay.x, relay.y, "#f8fbff", 8 + chain * 2, 220 + chain * 18);
         burst(relay.x, relay.y, chain >= 3 ? palette.gold : palette.cyan, 18 + chain * 3, 330 + chain * 20);
       } else if (relay.ready && distRectPoint(box, relay.x, relay.y) < 30) {
         relay.pulse = Math.max(relay.pulse, 0.08);
+      }
+    }
+
+    for (const prism of room.entities.prisms) {
+      prism.bob += dt * 3.8;
+      prism.pulse = Math.max(0, prism.pulse - dt);
+      if (!prism.ready) {
+        prism.timer -= dt;
+        if (prism.timer <= 0) prism.ready = true;
+      }
+      const speed = Math.hypot(player.vx, player.vy);
+      const charged = player.dashTimer > 0 || player.sparkHopTimer > 0 || player.overdrive > 0 || speed >= RELAY_TRIGGER_SPEED;
+      if (prism.ready && charged && distRectPoint(box, prism.x, prism.y) < 30) {
+        const aimX = input.x || lastAimX || player.facing;
+        const aimY = input.y || lastAimY;
+        const len = Math.hypot(aimX, aimY) || 1;
+        const dx = aimX / len;
+        const dy = aimY / len;
+        prism.ready = false;
+        prism.timer = PRISM_RESET_TIME;
+        prism.pulse = 0.5;
+        player.overdrive = OVERDRIVE_TIME;
+        player.dashes = 1;
+        player.dashCooldown = 0;
+        player.stamina = MAX_STAMINA;
+        player.vx += dx * 180;
+        player.vy = Math.min(player.vy + dy * 150, -160);
+        addFlow(34, "prism");
+        hitStopTimer = Math.max(hitStopTimer, 0.014);
+        burst(prism.x, prism.y, "#f8fbff", 12, 260);
+        burst(prism.x, prism.y, palette.gold, 26, 390);
+      } else if (prism.ready && distRectPoint(box, prism.x, prism.y) < 34) {
+        prism.pulse = Math.max(prism.pulse, 0.1);
       }
     }
 
@@ -953,6 +1176,21 @@
         player.respawnX = checkpoint.x - player.w / 2;
         player.respawnY = checkpoint.y + TILE / 2 - player.h;
         glow(checkpoint.x, checkpoint.y, palette.green);
+      }
+    }
+
+    for (const anchor of room.entities.anchors) {
+      anchor.pulse = Math.max(0, anchor.pulse - dt);
+      if (distRectPoint(box, anchor.x, anchor.y) < 26) {
+        const next = { room: roomIndex, x: anchor.x - player.w / 2, y: anchor.y + TILE / 2 - player.h };
+        const changed = !echoAnchor || echoAnchor.room !== next.room || Math.abs(echoAnchor.x - next.x) > 1 || Math.abs(echoAnchor.y - next.y) > 1;
+        echoAnchor = next;
+        anchor.pulse = 0.3;
+        recallPulseTimer = Math.max(recallPulseTimer, 0.35);
+        if (changed) {
+          addFlow(10, "echo");
+          burst(anchor.x, anchor.y, palette.green, 14, 220);
+        }
       }
     }
 
@@ -971,19 +1209,27 @@
     if (room.entities.goal && distRectPoint(box, room.entities.goal.x, room.entities.goal.y) < 28) {
       won = true;
       const isBest = completeRun();
-      overlay.innerHTML = `<h1>登顶</h1><p>${formatTime(runTime)}${isBest ? "  BEST" : ""} · D ${deathCount} · Relay ${bestRelayChain}</p><button class="primary" id="restartButton" type="button">再来</button>`;
+      overlay.innerHTML = `<h1>登顶</h1><p>${formatTime(runTime)}${isBest ? "  BEST" : ""} · D ${deathCount} · Relay ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><button class="primary" id="restartButton" type="button">再来</button>`;
       overlay.classList.remove("hidden");
       document.getElementById("restartButton").addEventListener("click", hardReset);
       burst(room.entities.goal.x, room.entities.goal.y, palette.gold, 64, 420);
     }
 
-    if (touchingHazard(box) || player.y > H + 80) {
+    const hazard = touchingHazard(box);
+    if (!hazard && nearMissCooldown <= 0 && Math.hypot(player.vx, player.vy) > 320 && nearHazard(box, 10)) {
+      nearMissCooldown = NEAR_MISS_COOLDOWN;
+      addFlow(16, "edge");
+      burst(player.x + player.w / 2, player.y + player.h / 2, palette.hot, 5, 150);
+    }
+
+    if (hazard || player.y > H + 80) {
       die();
     }
   }
 
   function completeRun() {
     recordRoomBest(roomIndex);
+    addFlow(120, "summit");
     if (bestTime <= 0 || runTime < bestTime) {
       bestTime = runTime;
       writeBestTime(bestTime);
@@ -1012,6 +1258,42 @@
     relayPopupTimer = 0;
   }
 
+  function addFlow(amount, label) {
+    const chainBonus = flowTimer > 0 ? 1.18 : 1;
+    flowScore = Math.min(999, flowScore + amount * chainBonus);
+    flowPeak = Math.max(flowPeak, flowScore);
+    if (flowPeak > bestFlow) {
+      bestFlow = flowPeak;
+      writeBestFlow(bestFlow);
+    }
+    flowTimer = FLOW_DECAY_TIME;
+    flowPopupTimer = FLOW_POPUP_TIME;
+    flowLabel = label;
+  }
+
+  function updateFlow(dt) {
+    flowTimer = Math.max(0, flowTimer - dt);
+    flowPopupTimer = Math.max(0, flowPopupTimer - dt);
+    if (flowTimer <= 0 && flowScore > 0) {
+      flowScore = Math.max(0, flowScore - FLOW_DECAY_RATE * dt);
+    }
+  }
+
+  function resetFlow() {
+    flowScore = 0;
+    flowPeak = 0;
+    flowTimer = 0;
+    flowPopupTimer = 0;
+    flowLabel = "";
+  }
+
+  function breakFlow() {
+    flowScore = 0;
+    flowTimer = 0;
+    flowPopupTimer = 0;
+    flowLabel = "";
+  }
+
   function readBestTime() {
     try {
       return Number(localStorage.getItem(BEST_TIME_KEY) || 0);
@@ -1025,6 +1307,22 @@
       localStorage.setItem(BEST_TIME_KEY, String(value));
     } catch {
       // Best time is a bonus; gameplay should keep working without storage.
+    }
+  }
+
+  function readBestFlow() {
+    try {
+      return Number(localStorage.getItem(BEST_FLOW_KEY) || 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  function writeBestFlow(value) {
+    try {
+      localStorage.setItem(BEST_FLOW_KEY, String(Math.floor(value)));
+    } catch {
+      // Flow bests are optional practice data.
     }
   }
 
@@ -1053,6 +1351,7 @@
     writeRoomBests();
     saveRoomPath(index);
     roomBestFlashTimer = ROOM_BEST_FLASH_TIME;
+    addFlow(42, "pb");
     burst(player.x + player.w / 2, player.y + player.h / 2, palette.gold, 14, 210);
     return true;
   }
@@ -1081,7 +1380,8 @@
       x: Math.round(point.x * 10) / 10,
       y: Math.round(point.y * 10) / 10,
       dash: Boolean(point.dash),
-      spark: Boolean(point.spark)
+      spark: Boolean(point.spark),
+      over: Boolean(point.over)
     }));
     writeRoomPaths();
   }
@@ -1202,8 +1502,11 @@
       player.respawnRoom = roomIndex;
       player.respawnX = 26;
       player.respawnY = Math.min(player.y, H - TILE * 3);
+      echoAnchor = null;
+      recallPulseTimer = 0;
       clearRecentPath();
       clearRoomPath();
+      addFlow(26, "split");
       burst(28, player.y + player.h / 2, palette.cyan, 10, 170);
     }
     if (player.x < -player.w - 3 && roomIndex > 0) {
@@ -1215,6 +1518,8 @@
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
       player.respawnY = Math.min(player.y, H - TILE * 3);
+      echoAnchor = null;
+      recallPulseTimer = 0;
       clearRecentPath();
       clearRoomPath();
       burst(W - 28, player.y + player.h / 2, palette.cyan, 10, 170);
@@ -1226,6 +1531,7 @@
     deathCount += 1;
     addDeathMark();
     resetRelayChain();
+    breakFlow();
     player.deadTimer = DEATH_RETRY_TIME;
     hitStopTimer = Math.max(hitStopTimer, DEATH_HITSTOP);
     shake(0.2, 6.4);
@@ -1253,6 +1559,7 @@
     player.wallJumpLock = 0;
     player.wallCoyote = 0;
     player.wallCoyoteDir = 0;
+    player.overdrive = 0;
     player.ghostTimer = 0;
     player.deadTimer = 0;
     roomTime = 0;
@@ -1271,6 +1578,7 @@
     deathCount += 1;
     addDeathMark();
     resetRelayChain();
+    breakFlow();
     hitStopTimer = 0;
     shake(0.08, 3.4);
     burst(player.x + player.w / 2, player.y + player.h / 2, palette.hot, 18, 240);
@@ -1282,6 +1590,7 @@
     deathCount += 1;
     addDeathMark();
     resetRelayChain();
+    breakFlow();
     room = parseRoom(roomIndex);
     const checkpoint = room.entities.checkpoints[0];
     const target = checkpoint
@@ -1298,6 +1607,7 @@
       wallDir: 0,
       wallCoyote: 0,
       wallCoyoteDir: 0,
+      overdrive: 0,
       stamina: MAX_STAMINA,
       dashes: 1,
       dashTimer: 0,
@@ -1353,11 +1663,11 @@
   }
 
   function getInput() {
-    const left = keys.has("ArrowLeft") || keys.has("KeyA") || touch.left;
-    const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.right;
-    const up = keys.has("ArrowUp") || keys.has("KeyW");
-    const down = keys.has("ArrowDown") || keys.has("KeyS");
-    const grab = keyHeldAny(actionCodes("grab")) || touch.grab;
+    const left = keys.has("ArrowLeft") || keys.has("KeyA") || touch.left || gamepadInput.left;
+    const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.right || gamepadInput.right;
+    const up = keys.has("ArrowUp") || keys.has("KeyW") || gamepadInput.up;
+    const down = keys.has("ArrowDown") || keys.has("KeyS") || gamepadInput.down;
+    const grab = keyHeldAny(actionCodes("grab")) || touch.grab || gamepadInput.grab;
     return {
       x: right ? 1 : left ? -1 : 0,
       y: down ? 1 : up ? -1 : 0,
@@ -1395,6 +1705,65 @@
     if (isActionCode(code, "grab")) {
       actionPulse.grab = ACTION_PULSE_TIME;
     }
+  }
+
+  function updateGamepad() {
+    const pads = typeof navigator !== "undefined" && navigator.getGamepads ? navigator.getGamepads() : [];
+    const pad = Array.from(pads).find(Boolean);
+    const nextHeld = new Set();
+
+    for (const key of Object.keys(gamepadInput)) {
+      gamepadInput[key] = false;
+    }
+
+    if (pad) {
+      const ax = Math.abs(pad.axes[0] || 0) > 0.28 ? pad.axes[0] : 0;
+      const ay = Math.abs(pad.axes[1] || 0) > 0.28 ? pad.axes[1] : 0;
+      const pressedButton = (index, threshold = 0.5) => Boolean(pad.buttons[index]?.pressed || pad.buttons[index]?.value > threshold);
+      gamepadInput.left = ax < -0.28 || pressedButton(14);
+      gamepadInput.right = ax > 0.28 || pressedButton(15);
+      gamepadInput.up = ay < -0.28 || pressedButton(12);
+      gamepadInput.down = ay > 0.28 || pressedButton(13);
+      gamepadInput.jump = pressedButton(0);
+      gamepadInput.dash = pressedButton(1) || pressedButton(2) || pressedButton(7, 0.35);
+      gamepadInput.grab = pressedButton(4) || pressedButton(5) || pressedButton(6, 0.35);
+      gamepadInput.recall = pressedButton(3) || pressedButton(8);
+
+      for (const action of ["jump", "dash", "grab", "recall"]) {
+        if (gamepadInput[action]) nextHeld.add(action);
+      }
+    }
+
+    for (const action of nextHeld) {
+      if (!gamepadHeld.has(action)) {
+        gamepadPressed.add(action);
+        if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
+      }
+    }
+    gamepadHeld = nextHeld;
+  }
+
+  function recallToAnchor() {
+    if (!echoAnchor || echoAnchor.room !== roomIndex || recallCooldown > 0 || player.deadTimer > 0) return;
+    player.x = echoAnchor.x;
+    player.y = echoAnchor.y;
+    player.vx = 0;
+    player.vy = 0;
+    player.dashes = 1;
+    player.stamina = MAX_STAMINA;
+    player.dashTimer = 0;
+    player.dashCooldown = 0;
+    player.sparkHopTimer = 0;
+    player.wallJumpLock = 0;
+    player.wallCoyote = 0;
+    player.wallCoyoteDir = 0;
+    player.overdrive = 0;
+    recallCooldown = ECHO_RECALL_COOLDOWN;
+    recallPulseTimer = 0.42;
+    hitStopTimer = Math.max(hitStopTimer, 0.012);
+    resetRelayChain();
+    clearRecentPath();
+    burst(player.x + player.w / 2, player.y + player.h / 2, palette.green, 20, 260);
   }
 
   function actionCodes(action) {
@@ -1542,7 +1911,7 @@
   }
 
   function jumpHeld() {
-    return keyHeldAny(actionCodes("jump")) || touch.jump;
+    return keyHeldAny(actionCodes("jump")) || touch.jump || gamepadInput.jump;
   }
 
   function currentGravity(input) {
@@ -1558,6 +1927,10 @@
 
   function updateGlobalEffects(dt) {
     roomBestFlashTimer = Math.max(0, roomBestFlashTimer - dt);
+    nearMissCooldown = Math.max(0, nearMissCooldown - dt);
+    recallCooldown = Math.max(0, recallCooldown - dt);
+    recallPulseTimer = Math.max(0, recallPulseTimer - dt);
+    updateFlow(dt);
     for (const key of Object.keys(actionPulse)) {
       actionPulse[key] = Math.max(0, actionPulse[key] - dt);
     }
@@ -1614,6 +1987,25 @@
 
   function touchingHazard(box) {
     const inset = { x: box.x + 4, y: box.y + 3, w: box.w - 8, h: box.h - 6 };
+    const minX = Math.max(0, Math.floor(inset.x / TILE));
+    const maxX = Math.min(COLS - 1, Math.floor((inset.x + inset.w - 1) / TILE));
+    const minY = Math.max(0, Math.floor(inset.y / TILE));
+    const maxY = Math.min(ROWS - 1, Math.floor((inset.y + inset.h - 1) / TILE));
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        if (HAZARDS.has(room.tiles[y]?.[x])) return true;
+      }
+    }
+    return false;
+  }
+
+  function nearHazard(box, padding) {
+    const inset = {
+      x: box.x - padding,
+      y: box.y - padding,
+      w: box.w + padding * 2,
+      h: box.h + padding * 2
+    };
     const minX = Math.max(0, Math.floor(inset.x / TILE));
     const maxX = Math.min(COLS - 1, Math.floor((inset.x + inset.w - 1) / TILE));
     const minY = Math.max(0, Math.floor(inset.y / TILE));
@@ -1713,7 +2105,8 @@
       x: player.x + player.w / 2,
       y: player.y + player.h / 2,
       dash: player.dashTimer > 0,
-      spark: player.sparkHopTimer > 0
+      spark: player.sparkHopTimer > 0,
+      over: player.overdrive > 0
     };
     for (const point of recentPath) {
       point.age += PATH_SAMPLE_INTERVAL;
@@ -1793,6 +2186,7 @@
     drawGhosts();
     drawSparkCue(time);
     drawInputCues(time);
+    drawFlowCue(time);
     drawRelayChainCue(time);
     drawRoomBestCue();
     if (player.deadTimer <= 0) drawPlayer(time);
@@ -1943,6 +2337,28 @@
     }
   }
 
+  function drawFlowCue(time) {
+    if (player.deadTimer > 0 || flowPopupTimer <= 0 || flowScore <= 0) return;
+    const t = flowPopupTimer / FLOW_POPUP_TIME;
+    const cx = player.x + player.w / 2;
+    const cy = player.y - 48 - (1 - t) * 12;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 1.25);
+    ctx.font = "800 13px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = flowScore >= 160 ? palette.gold : palette.cyan;
+    ctx.shadowBlur = 9;
+    ctx.fillStyle = flowScore >= 160 ? palette.gold : "#f8fbff";
+    ctx.fillText(`${flowLabel.toUpperCase()} ${Math.floor(flowScore)}`, cx, cy);
+    ctx.strokeStyle = flowScore >= 160 ? palette.gold : palette.cyan;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, player.y + player.h / 2, 28 + Math.sin(time * 20) * 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawBackground(time) {
     const gradient = ctx.createLinearGradient(0, 0, 0, H);
     gradient.addColorStop(0, palette.skyTop);
@@ -2066,8 +2482,8 @@
   }
 
   function drawRelayRoutes(time) {
-    if (room.entities.relays.length === 0) return;
-    const relays = [...room.entities.relays].sort((a, b) => a.x - b.x || a.y - b.y);
+    if (room.entities.relays.length === 0 && room.entities.prisms.length === 0) return;
+    const relays = [...room.entities.relays, ...room.entities.prisms].sort((a, b) => a.x - b.x || a.y - b.y);
     const start = room.entities.checkpoints[0] || {
       x: room.entities.start.x + player.w / 2,
       y: room.entities.start.y + player.h / 2
@@ -2119,8 +2535,8 @@
     for (let i = 0; i < path.length; i += 8) {
       const point = path[i];
       const pulse = 1 + Math.sin(time * 5 + i) * 0.16;
-      ctx.globalAlpha = point.dash || point.spark ? 0.72 : 0.42;
-      ctx.fillStyle = point.spark ? "#fff0a0" : point.dash ? palette.cyan : palette.gold;
+      ctx.globalAlpha = point.dash || point.spark || point.over ? 0.72 : 0.42;
+      ctx.fillStyle = point.over ? palette.green : point.spark ? "#fff0a0" : point.dash ? palette.cyan : palette.gold;
       ctx.fillRect(point.x - 2 * pulse, point.y - 2 * pulse, 4 * pulse, 4 * pulse);
     }
     ctx.restore();
@@ -2147,6 +2563,10 @@
   }
 
   function drawEntities(time) {
+    for (const updraft of room.entities.updrafts) {
+      drawUpdraft(updraft, time);
+    }
+
     for (const checkpoint of room.entities.checkpoints) {
       const pulse = 0.7 + Math.sin(time * 5) * 0.12;
       ctx.save();
@@ -2194,6 +2614,14 @@
       drawRelay(relay, time);
     }
 
+    for (const prism of room.entities.prisms) {
+      drawPrism(prism, time);
+    }
+
+    for (const anchor of room.entities.anchors) {
+      drawAnchor(anchor, time);
+    }
+
     if (room.entities.goal) {
       const goal = room.entities.goal;
       drawDiamond(goal.x, goal.y + Math.sin(time * 4) * 5, 19, "#fff0a0", time);
@@ -2205,6 +2633,39 @@
       ctx.fill();
       ctx.restore();
     }
+  }
+
+  function drawUpdraft(updraft, time) {
+    const pulse = updraft.pulse > 0 ? updraft.pulse / 0.26 : 0;
+    const x = updraft.x + updraft.w / 2;
+    const top = Math.max(0, updraft.y - TILE * 2.4);
+    const bottom = updraft.y + updraft.h * 0.75;
+    ctx.save();
+    ctx.globalAlpha = 0.26 + pulse * 0.22;
+    ctx.strokeStyle = palette.cyan;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.shadowColor = palette.cyan;
+    ctx.shadowBlur = settings.calmEffects ? 4 : 9;
+    for (let i = -1; i <= 1; i++) {
+      const wave = Math.sin(time * 4.2 + i * 1.7 + updraft.bob) * 5;
+      ctx.beginPath();
+      ctx.moveTo(x + i * 8 + wave, bottom);
+      ctx.bezierCurveTo(x + i * 11 - wave, bottom - 38, x + i * 5 + wave, top + 44, x + i * 10, top);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(248,251,255,0.72)";
+    ctx.beginPath();
+    ctx.moveTo(x, top - 4 - pulse * 4);
+    ctx.lineTo(x + 9, top + 10);
+    ctx.lineTo(x + 3, top + 8);
+    ctx.lineTo(x + 3, top + 23);
+    ctx.lineTo(x - 3, top + 23);
+    ctx.lineTo(x - 3, top + 8);
+    ctx.lineTo(x - 9, top + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 
   function drawRelay(relay, time) {
@@ -2232,6 +2693,58 @@
     ctx.stroke();
     ctx.fillStyle = relay.ready ? "rgba(248,251,255,0.9)" : "rgba(248,251,255,0.24)";
     ctx.fillRect(-2, -2, 4, 4);
+    ctx.restore();
+  }
+
+  function drawPrism(prism, time) {
+    const y = prism.y + Math.sin(prism.bob) * 3;
+    const active = prism.ready ? 1 : 0.22;
+    const pulse = prism.pulse > 0 ? prism.pulse / 0.5 : 0;
+    ctx.save();
+    ctx.translate(prism.x, y);
+    ctx.globalAlpha = 0.32 + active * 0.58;
+    ctx.shadowColor = palette.gold;
+    ctx.shadowBlur = prism.ready ? 18 : 6;
+    ctx.rotate(-time * 1.35);
+    ctx.strokeStyle = prism.ready ? palette.gold : "rgba(247, 198, 93, 0.34)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -15 - pulse * 8);
+    ctx.lineTo(14 + pulse * 6, 0);
+    ctx.lineTo(0, 15 + pulse * 8);
+    ctx.lineTo(-14 - pulse * 6, 0);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.rotate(time * 2.4);
+    ctx.fillStyle = prism.ready ? "rgba(255,240,160,0.7)" : "rgba(255,240,160,0.2)";
+    ctx.fillRect(-4, -4, 8, 8);
+    ctx.restore();
+  }
+
+  function drawAnchor(anchor, time) {
+    const active = echoAnchor && echoAnchor.room === roomIndex && Math.abs(echoAnchor.x + player.w / 2 - anchor.x) < 2;
+    const pulse = Math.max(anchor.pulse / 0.3, recallPulseTimer / 0.42);
+    ctx.save();
+    ctx.translate(anchor.x, anchor.y);
+    ctx.globalAlpha = active ? 0.9 : 0.55;
+    ctx.shadowColor = palette.green;
+    ctx.shadowBlur = active ? 15 : 7;
+    ctx.strokeStyle = active ? palette.green : "rgba(143,227,155,0.62)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14 + pulse * 8 + Math.sin(time * 4) * 1.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -12);
+    ctx.lineTo(9, 0);
+    ctx.lineTo(0, 12);
+    ctx.lineTo(-9, 0);
+    ctx.closePath();
+    ctx.stroke();
+    if (active) {
+      ctx.fillStyle = "rgba(143,227,155,0.42)";
+      ctx.fillRect(-3, -3, 6, 6);
+    }
     ctx.restore();
   }
 
@@ -2339,11 +2852,25 @@
     const y = player.y;
     const cx = x + player.w / 2;
     const step = Math.sin(time * 15) * Math.min(1, Math.abs(player.vx) / MOVE_SPEED);
-    const coat = player.dashes > 0 ? "#2fc7d6" : "#6f8fa8";
-    const coatDark = player.dashes > 0 ? "#146d86" : "#304d63";
-    const hairColor = player.dashes > 0 ? "#ff657d" : "#78cfff";
+    const over = player.overdrive > 0;
+    const coat = over ? "#f7c65d" : player.dashes > 0 ? "#2fc7d6" : "#6f8fa8";
+    const coatDark = over ? "#9f6a1b" : player.dashes > 0 ? "#146d86" : "#304d63";
+    const hairColor = over ? "#8fe39b" : player.dashes > 0 ? "#ff657d" : "#78cfff";
 
     ctx.save();
+
+    if (over) {
+      ctx.globalAlpha = 0.22 + Math.sin(time * 18) * 0.06;
+      ctx.strokeStyle = palette.gold;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = palette.gold;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(cx, y + player.h / 2, 19, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+    }
 
     ctx.lineWidth = 4;
     ctx.lineCap = "round";
@@ -2460,9 +2987,11 @@
     lumenCount.textContent = `${found}/${totalLumens}`;
     roomCount.textContent = `${roomIndex + 1}/${maps.length}${grade ? ` ${grade}` : ""}`;
     splitTimeText.textContent = formatTime(roomTime);
+    if (flowCountText) flowCountText.textContent = `F ${Math.floor(flowPeak || flowScore)}`;
     runTimeText.textContent = formatTime(runTime);
     deathCountText.textContent = `D ${deathCount}`;
     splitTimeText.classList.toggle("best", roomBest > 0 && roomTime > 0 && roomTime <= roomBest);
+    flowCountText?.classList.toggle("best", bestFlow > 0 && Math.floor(flowPeak) >= Math.floor(bestFlow));
     runTimeText.classList.toggle("best", bestTime > 0 && runTime > 0 && runTime <= bestTime);
     dashFill.style.transform = `scaleX(${player.dashes > 0 ? 1 : 0.12})`;
     staminaFill.style.transform = `scaleX(${Math.max(0.08, player.stamina / MAX_STAMINA)})`;
@@ -2495,11 +3024,13 @@
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}  wc ${player.wallCoyote.toFixed(3)}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}`,
-      `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}`,
+      `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}`,
       `relay chain ${relayChain}  best ${bestRelayChain}`,
-      `stamina ${(player.stamina * 100).toFixed(0)}  deaths ${deathCount}`,
+      `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
+      `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
-      `trails ${lightTrails.length}  relays ${room.entities.relays.length}  shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}`
+      `trails ${lightTrails.length}  relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}`,
+      `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}`
     ].join("\n");
   }
 

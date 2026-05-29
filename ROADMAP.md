@@ -22,7 +22,7 @@ Build an original precision platformer whose identity is not imitation, but mast
 ## Next Milestones
 
 1. Movement depth: tune spark hop, wall jump lock, corner correction, and grounded recovery.
-2. Practice feedback: show run time, deaths, room count, recent death marks, and short death trajectory replays.
+2. Practice feedback: show run time, split time, room PBs, best-route ghosts, deaths, room count, recent death marks, short death trajectory replays, and fast room restart.
 3. Teaching vertical slice: expand the route so each mechanic has a room that teaches it.
 4. Light relay mechanic: tune non-solid, timed relays and relay-chain feedback that reward fast spark movement without enabling hovering.
 5. Presentation pass: add action cues, better player states, and successful-tech feedback.
@@ -35,3 +35,4 @@ Build an original precision platformer whose identity is not imitation, but mast
 - Every new powerful mechanic needs a cooldown, cost, route constraint, or room-authored limit.
 - A room should be readable before it is difficult.
 - Restart speed matters as much as spectacle.
+- Practice data should help the player improve without adding menu friction.

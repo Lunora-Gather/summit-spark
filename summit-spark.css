@@ -122,6 +122,7 @@ canvas {
   background: rgba(8, 13, 24, 0.46);
   font-size: 13px;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 

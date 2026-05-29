@@ -7,6 +7,7 @@
   const overlay = document.getElementById("overlay");
   const lumenCount = document.getElementById("lumenCount");
   const roomCount = document.getElementById("roomCount");
+  const splitTimeText = document.getElementById("splitTime");
   const runTimeText = document.getElementById("runTime");
   const deathCountText = document.getElementById("deathCount");
   const debugPanel = document.getElementById("debugPanel");
@@ -62,9 +63,13 @@
   const RELAY_TRIGGER_SPEED = 390;
   const RELAY_CHAIN_TIME = 1.35;
   const BEST_TIME_KEY = "summit-spark-best-time";
+  const ROOM_BESTS_KEY = "summit-spark-room-bests";
+  const ROOM_PATHS_KEY = "summit-spark-room-paths";
   const PATH_SAMPLE_INTERVAL = 0.045;
   const RECENT_PATH_SECONDS = 1.55;
   const DEATH_REPLAY_LIFE = 5.2;
+  const MAX_ROOM_PATH_POINTS = 260;
+  const ROOM_BEST_FLASH_TIME = 1.15;
 
   const SOLID = new Set(["#"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
@@ -82,6 +87,7 @@
     "ArrowRight",
     "Enter",
     "KeyR",
+    "KeyT",
     "KeyO",
     "F3"
   ]);
@@ -251,6 +257,7 @@
   const deathMarks = [];
   const deathReplays = [];
   const recentPath = [];
+  const roomPath = [];
   let roomIndex = 0;
   let room = null;
   let started = false;
@@ -258,7 +265,10 @@
   let lastTime = performance.now();
   let deathCount = 0;
   let runTime = 0;
+  let roomTime = 0;
   let bestTime = readBestTime();
+  let bestRoomTimes = readRoomBests();
+  let bestRoomPaths = readRoomPaths();
   let collected = new Set();
   let debugVisible = false;
   let hitStopTimer = 0;
@@ -275,6 +285,7 @@
   let relayChainTimer = 0;
   let bestRelayChain = 0;
   let relayPopupTimer = 0;
+  let roomBestFlashTimer = 0;
   const settings = { shake: SHAKE_INTENSITY, calmEffects: true };
   let totalLumens = maps.reduce((total, rows) => {
     return total + rows.join("").split("").filter((tile) => tile === "L").length;
@@ -348,6 +359,9 @@
       }
     } else if (won && event.code === "KeyR") {
       hardReset();
+    }
+    if (event.code === "KeyT" && firstPress && started && !won) {
+      restartCurrentRoom();
     }
     if (debugVisible && firstPress && event.code.startsWith("Digit")) {
       const target = Number(event.code.slice(5)) - 1;
@@ -458,7 +472,10 @@
   function resetToStart(index) {
     roomIndex = index;
     room = parseRoom(roomIndex);
-    const spawn = room.entities.start;
+    const checkpoint = room.entities.checkpoints[0];
+    const spawn = checkpoint
+      ? { x: checkpoint.x - player.w / 2, y: checkpoint.y + TILE / 2 - player.h }
+      : room.entities.start;
     Object.assign(player, {
       x: spawn.x,
       y: spawn.y,
@@ -509,6 +526,7 @@
     collected = new Set();
     deathCount = 0;
     runTime = 0;
+    roomTime = 0;
     won = false;
     hitStopTimer = 0;
     shakeTimer = 0;
@@ -519,10 +537,12 @@
     deathMarks.length = 0;
     deathReplays.length = 0;
     recentPath.length = 0;
+    roomPath.length = 0;
     pathSampleTimer = 0;
     relayChain = 0;
     relayChainTimer = 0;
     relayPopupTimer = 0;
+    roomBestFlashTimer = 0;
     overlay.classList.add("hidden");
     resetToStart(0);
     updateHud();
@@ -532,6 +552,7 @@
     collected = new Set();
     deathCount = 0;
     runTime = 0;
+    roomTime = 0;
     won = false;
     hitStopTimer = 0;
     ghosts.length = 0;
@@ -539,10 +560,12 @@
     deathMarks.length = 0;
     deathReplays.length = 0;
     recentPath.length = 0;
+    roomPath.length = 0;
     pathSampleTimer = 0;
     relayChain = 0;
     relayChainTimer = 0;
     relayPopupTimer = 0;
+    roomBestFlashTimer = 0;
     overlay.classList.add("hidden");
     started = true;
     resetToStart(index);
@@ -574,6 +597,7 @@
 
   function update(dt) {
     runTime += dt;
+    roomTime += dt;
     updateDeathMarks(dt);
     updateRelayChain(dt);
 
@@ -900,6 +924,7 @@
   }
 
   function completeRun() {
+    recordRoomBest(roomIndex);
     if (bestTime <= 0 || runTime < bestTime) {
       bestTime = runTime;
       writeBestTime(bestTime);
@@ -942,6 +967,70 @@
     } catch {
       // Best time is a bonus; gameplay should keep working without storage.
     }
+  }
+
+  function readRoomBests() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(ROOM_BESTS_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed.map((value) => Number(value) || 0) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeRoomBests() {
+    try {
+      localStorage.setItem(ROOM_BESTS_KEY, JSON.stringify(bestRoomTimes));
+    } catch {
+      // Split times are optional practice data.
+    }
+  }
+
+  function recordRoomBest(index) {
+    if (roomTime <= 0) return false;
+    const current = bestRoomTimes[index] || 0;
+    if (current > 0 && roomTime >= current) return false;
+    bestRoomTimes[index] = roomTime;
+    writeRoomBests();
+    saveRoomPath(index);
+    roomBestFlashTimer = ROOM_BEST_FLASH_TIME;
+    burst(player.x + player.w / 2, player.y + player.h / 2, palette.gold, 14, 210);
+    return true;
+  }
+
+  function readRoomPaths() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(ROOM_PATHS_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeRoomPaths() {
+    try {
+      localStorage.setItem(ROOM_PATHS_KEY, JSON.stringify(bestRoomPaths));
+    } catch {
+      // Best paths are optional practice data.
+    }
+  }
+
+  function saveRoomPath(index) {
+    const path = roomPath.filter((point) => point.room === index);
+    if (path.length < 2) return;
+    bestRoomPaths[index] = downsamplePath(path, MAX_ROOM_PATH_POINTS).map((point) => ({
+      x: Math.round(point.x * 10) / 10,
+      y: Math.round(point.y * 10) / 10,
+      dash: Boolean(point.dash),
+      spark: Boolean(point.spark)
+    }));
+    writeRoomPaths();
+  }
+
+  function downsamplePath(path, maxPoints) {
+    if (path.length <= maxPoints) return path;
+    const step = (path.length - 1) / (maxPoints - 1);
+    return Array.from({ length: maxPoints }, (_, i) => path[Math.round(i * step)]);
   }
 
   function moveAxis(axis, amount) {
@@ -1045,14 +1134,17 @@
 
   function resolveRoomTransition() {
     if (player.x > W + 3 && roomIndex < maps.length - 1) {
+      recordRoomBest(roomIndex);
       roomIndex += 1;
       room = parseRoom(roomIndex);
       lightTrails.length = 0;
       player.x = -player.w + 4;
+      roomTime = 0;
       player.respawnRoom = roomIndex;
       player.respawnX = 26;
       player.respawnY = Math.min(player.y, H - TILE * 3);
       clearRecentPath();
+      clearRoomPath();
       burst(28, player.y + player.h / 2, palette.cyan, 10, 170);
     }
     if (player.x < -player.w - 3 && roomIndex > 0) {
@@ -1060,10 +1152,12 @@
       room = parseRoom(roomIndex);
       lightTrails.length = 0;
       player.x = W - 5;
+      roomTime = 0;
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
       player.respawnY = Math.min(player.y, H - TILE * 3);
       clearRecentPath();
+      clearRoomPath();
       burst(W - 28, player.y + player.h / 2, palette.cyan, 10, 170);
     }
   }
@@ -1100,10 +1194,12 @@
     player.wallJumpLock = 0;
     player.ghostTimer = 0;
     player.deadTimer = 0;
+    roomTime = 0;
     ghosts.length = 0;
     lightTrails.length = 0;
     shards.length = 0;
     clearRecentPath();
+    clearRoomPath();
     resetRelayChain();
     seedHair();
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 16, 230);
@@ -1118,6 +1214,55 @@
     shake(0.08, 3.4);
     burst(player.x + player.w / 2, player.y + player.h / 2, palette.hot, 18, 240);
     respawn();
+  }
+
+  function restartCurrentRoom() {
+    if (player.deadTimer > 0) return;
+    deathCount += 1;
+    addDeathMark();
+    resetRelayChain();
+    room = parseRoom(roomIndex);
+    const checkpoint = room.entities.checkpoints[0];
+    const target = checkpoint
+      ? { x: checkpoint.x - player.w / 2, y: checkpoint.y + TILE / 2 - player.h }
+      : room.entities.start;
+    Object.assign(player, {
+      x: target.x,
+      y: target.y,
+      vx: 0,
+      vy: 0,
+      facing: 1,
+      onGround: false,
+      wasGrounded: false,
+      wallDir: 0,
+      stamina: MAX_STAMINA,
+      dashes: 1,
+      dashTimer: 0,
+      dashCooldown: 0,
+      dashDirX: 1,
+      dashDirY: 0,
+      ghostTimer: 0,
+      coyote: 0,
+      jumpBuffer: 0,
+      dashBuffer: 0,
+      sparkHopTimer: 0,
+      sparkHopDirX: 1,
+      sparkHopDirY: 0,
+      wallJumpLock: 0,
+      deadTimer: 0,
+      respawnRoom: roomIndex,
+      respawnX: target.x,
+      respawnY: target.y
+    });
+    roomTime = 0;
+    hitStopTimer = 0;
+    ghosts.length = 0;
+    lightTrails.length = 0;
+    shards.length = 0;
+    clearRecentPath();
+    clearRoomPath();
+    seedHair();
+    burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 12, 210);
   }
 
   function addDeathMark() {
@@ -1285,6 +1430,7 @@
   }
 
   function updateGlobalEffects(dt) {
+    roomBestFlashTimer = Math.max(0, roomBestFlashTimer - dt);
     if (shakeTimer > 0) {
       shakeTimer = Math.max(0, shakeTimer - dt);
       if (shakeTimer === 0) {
@@ -1432,25 +1578,33 @@
     pathSampleTimer -= dt;
     if (pathSampleTimer > 0) return;
     pathSampleTimer = PATH_SAMPLE_INTERVAL;
-    recentPath.push({
+    const sample = {
       room: roomIndex,
       x: player.x + player.w / 2,
       y: player.y + player.h / 2,
-      age: 0,
       dash: player.dashTimer > 0,
       spark: player.sparkHopTimer > 0
-    });
+    };
     for (const point of recentPath) {
       point.age += PATH_SAMPLE_INTERVAL;
     }
+    recentPath.push({ ...sample, age: 0 });
+    roomPath.push(sample);
     while (recentPath.length > 0 && recentPath[0].age > RECENT_PATH_SECONDS) {
       recentPath.shift();
+    }
+    while (roomPath.length > MAX_ROOM_PATH_POINTS * 2) {
+      roomPath.shift();
     }
   }
 
   function clearRecentPath() {
     recentPath.length = 0;
     pathSampleTimer = 0;
+  }
+
+  function clearRoomPath() {
+    roomPath.length = 0;
   }
 
   function burst(x, y, color, count, speed) {
@@ -1499,6 +1653,8 @@
     ctx.save();
     ctx.translate(offset.x, offset.y);
     drawTiles(time);
+    drawBestRoomPath(time);
+    drawRelayRoutes(time);
     drawLightTrails(time);
     drawEntities(time);
     drawDeathReplays();
@@ -1507,6 +1663,7 @@
     drawGhosts();
     drawSparkCue(time);
     drawRelayChainCue(time);
+    drawRoomBestCue();
     if (player.deadTimer <= 0) drawPlayer(time);
     ctx.restore();
     drawVignette();
@@ -1551,6 +1708,28 @@
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(cx, player.y + player.h / 2, 22 + Math.sin(time * 22) * 1.4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawRoomBestCue() {
+    if (roomBestFlashTimer <= 0 || player.deadTimer > 0) return;
+    const t = roomBestFlashTimer / ROOM_BEST_FLASH_TIME;
+    const cx = player.x + player.w / 2;
+    const cy = player.y - 31 - (1 - t) * 10;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 1.4);
+    ctx.font = "800 16px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = palette.gold;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = palette.gold;
+    ctx.fillText("PB", cx, cy);
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, player.y + player.h / 2, 24 + (1 - t) * 10, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -1674,6 +1853,87 @@
       ctx.closePath();
       ctx.fill();
     }
+    ctx.restore();
+  }
+
+  function drawRelayRoutes(time) {
+    if (room.entities.relays.length === 0) return;
+    const relays = [...room.entities.relays].sort((a, b) => a.x - b.x || a.y - b.y);
+    const start = room.entities.checkpoints[0] || {
+      x: room.entities.start.x + player.w / 2,
+      y: room.entities.start.y + player.h / 2
+    };
+    const finish = room.entities.goal || room.entities.refills[0] || { x: W - 24, y: H - TILE * 2.4 };
+    const points = [start, ...relays, finish];
+    ctx.save();
+    ctx.setLineDash([7, 9]);
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowColor = palette.cyan;
+    ctx.shadowBlur = settings.calmEffects ? 5 : 11;
+    ctx.strokeStyle = `rgba(118, 215, 255, ${settings.calmEffects ? 0.24 : 0.34})`;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      const wave = Math.sin(time * 2.2 + i * 0.7) * 4;
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2 + wave;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(midX, midY, b.x, b.y);
+      ctx.stroke();
+      drawRouteArrow(a.x, a.y, b.x, b.y, i);
+    }
+    ctx.restore();
+  }
+
+  function drawBestRoomPath(time) {
+    const path = bestRoomPaths[roomIndex];
+    if (!Array.isArray(path) || path.length < 2) return;
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.setLineDash([3, 7]);
+    ctx.strokeStyle = "rgba(247, 198, 93, 0.38)";
+    ctx.shadowColor = palette.gold;
+    ctx.shadowBlur = settings.calmEffects ? 4 : 9;
+    ctx.beginPath();
+    path.forEach((point, index) => {
+      if (index === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (let i = 0; i < path.length; i += 8) {
+      const point = path[i];
+      const pulse = 1 + Math.sin(time * 5 + i) * 0.16;
+      ctx.globalAlpha = point.dash || point.spark ? 0.72 : 0.42;
+      ctx.fillStyle = point.spark ? "#fff0a0" : point.dash ? palette.cyan : palette.gold;
+      ctx.fillRect(point.x - 2 * pulse, point.y - 2 * pulse, 4 * pulse, 4 * pulse);
+    }
+    ctx.restore();
+  }
+
+  function drawRouteArrow(ax, ay, bx, by, index) {
+    const t = 0.56;
+    const x = ax + (bx - ax) * t;
+    const y = ay + (by - ay) * t;
+    const angle = Math.atan2(by - ay, bx - ax);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.setLineDash([]);
+    ctx.fillStyle = index % 2 === 0 ? "rgba(248,251,255,0.52)" : "rgba(118,215,255,0.52)";
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-5, -5);
+    ctx.lineTo(-2, 0);
+    ctx.lineTo(-5, 5);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   }
 
@@ -1988,8 +2248,11 @@
     const found = collected.size;
     lumenCount.textContent = `${found}/${totalLumens}`;
     roomCount.textContent = `${roomIndex + 1}/${maps.length}`;
+    splitTimeText.textContent = formatTime(roomTime);
     runTimeText.textContent = formatTime(runTime);
     deathCountText.textContent = `D ${deathCount}`;
+    const roomBest = bestRoomTimes[roomIndex] || 0;
+    splitTimeText.classList.toggle("best", roomBest > 0 && roomTime > 0 && roomTime <= roomBest);
     runTimeText.classList.toggle("best", bestTime > 0 && runTime > 0 && runTime <= bestTime);
     dashFill.style.transform = `scaleX(${player.dashes > 0 ? 1 : 0.12})`;
     staminaFill.style.transform = `scaleX(${Math.max(0.08, player.stamina / MAX_STAMINA)})`;
@@ -2008,6 +2271,7 @@
     if (!debugVisible) return;
     debugPanel.textContent = [
       `fps ${Math.round(fps)}  room ${roomIndex + 1}/${maps.length}`,
+      `time ${formatTime(runTime)}  split ${formatTime(roomTime)} best ${formatTime(bestRoomTimes[roomIndex] || 0)}`,
       `pos ${player.x.toFixed(1)}, ${player.y.toFixed(1)}`,
       `vel ${player.vx.toFixed(1)}, ${player.vy.toFixed(1)}`,
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}`,

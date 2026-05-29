@@ -60,7 +60,11 @@
   const DEATH_MARK_LIFE = 4.5;
   const RELAY_RESET_TIME = 4.2;
   const RELAY_TRIGGER_SPEED = 390;
+  const RELAY_CHAIN_TIME = 1.35;
   const BEST_TIME_KEY = "summit-spark-best-time";
+  const PATH_SAMPLE_INTERVAL = 0.045;
+  const RECENT_PATH_SECONDS = 1.55;
+  const DEATH_REPLAY_LIFE = 5.2;
 
   const SOLID = new Set(["#"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
@@ -245,6 +249,8 @@
   const ghosts = [];
   const lightTrails = [];
   const deathMarks = [];
+  const deathReplays = [];
+  const recentPath = [];
   let roomIndex = 0;
   let room = null;
   let started = false;
@@ -264,6 +270,11 @@
   let lastAimX = 1;
   let lastAimY = 0;
   let lastAimTimer = 0;
+  let pathSampleTimer = 0;
+  let relayChain = 0;
+  let relayChainTimer = 0;
+  let bestRelayChain = 0;
+  let relayPopupTimer = 0;
   const settings = { shake: SHAKE_INTENSITY, calmEffects: true };
   let totalLumens = maps.reduce((total, rows) => {
     return total + rows.join("").split("").filter((tile) => tile === "L").length;
@@ -506,6 +517,12 @@
     ghosts.length = 0;
     lightTrails.length = 0;
     deathMarks.length = 0;
+    deathReplays.length = 0;
+    recentPath.length = 0;
+    pathSampleTimer = 0;
+    relayChain = 0;
+    relayChainTimer = 0;
+    relayPopupTimer = 0;
     overlay.classList.add("hidden");
     resetToStart(0);
     updateHud();
@@ -520,6 +537,12 @@
     ghosts.length = 0;
     lightTrails.length = 0;
     deathMarks.length = 0;
+    deathReplays.length = 0;
+    recentPath.length = 0;
+    pathSampleTimer = 0;
+    relayChain = 0;
+    relayChainTimer = 0;
+    relayPopupTimer = 0;
     overlay.classList.add("hidden");
     started = true;
     resetToStart(index);
@@ -540,6 +563,7 @@
       updateParticles(dt);
       updateGhosts(dt);
       updateDeathMarks(dt);
+      updateRelayChain(dt);
     }
 
     render(now / 1000);
@@ -551,6 +575,7 @@
   function update(dt) {
     runTime += dt;
     updateDeathMarks(dt);
+    updateRelayChain(dt);
 
     if (hitStopTimer > 0) {
       hitStopTimer = Math.max(0, hitStopTimer - dt);
@@ -630,6 +655,7 @@
     updateParticles(dt);
     updateGhosts(dt);
     updateLightTrails(dt);
+    samplePlayerPath(dt);
     updateHud();
   }
 
@@ -820,18 +846,19 @@
       const speed = Math.hypot(player.vx, player.vy);
       const charged = player.dashTimer > 0 || player.sparkHopTimer > 0 || speed >= RELAY_TRIGGER_SPEED;
       if (relay.ready && charged && distRectPoint(box, relay.x, relay.y) < 26) {
+        const chain = scoreRelayChain();
         relay.ready = false;
         relay.timer = RELAY_RESET_TIME;
-        relay.pulse = 0.3;
+        relay.pulse = Math.min(0.46, 0.24 + chain * 0.045);
         player.dashes = 1;
         player.dashCooldown = 0;
         player.stamina = MAX_STAMINA;
         player.sparkHopTimer = Math.max(player.sparkHopTimer, SPARK_HOP_WINDOW * 0.72);
         player.sparkHopDirX = player.vx === 0 ? player.facing : Math.sign(player.vx);
         player.sparkHopDirY = Math.sign(player.vy);
-        player.vy = Math.min(player.vy, -140);
-        burst(relay.x, relay.y, "#f8fbff", 12, 220);
-        burst(relay.x, relay.y, palette.cyan, 22, 340);
+        player.vy = Math.min(player.vy, -140 - Math.min(90, chain * 18));
+        burst(relay.x, relay.y, "#f8fbff", 8 + chain * 2, 220 + chain * 18);
+        burst(relay.x, relay.y, chain >= 3 ? palette.gold : palette.cyan, 18 + chain * 3, 330 + chain * 20);
       } else if (relay.ready && distRectPoint(box, relay.x, relay.y) < 30) {
         relay.pulse = Math.max(relay.pulse, 0.08);
       }
@@ -879,6 +906,26 @@
       return true;
     }
     return false;
+  }
+
+  function scoreRelayChain() {
+    relayChain = relayChainTimer > 0 ? relayChain + 1 : 1;
+    relayChainTimer = RELAY_CHAIN_TIME;
+    relayPopupTimer = 0.68;
+    bestRelayChain = Math.max(bestRelayChain, relayChain);
+    return relayChain;
+  }
+
+  function updateRelayChain(dt) {
+    relayChainTimer = Math.max(0, relayChainTimer - dt);
+    relayPopupTimer = Math.max(0, relayPopupTimer - dt);
+    if (relayChainTimer <= 0) relayChain = 0;
+  }
+
+  function resetRelayChain() {
+    relayChain = 0;
+    relayChainTimer = 0;
+    relayPopupTimer = 0;
   }
 
   function readBestTime() {
@@ -1005,6 +1052,7 @@
       player.respawnRoom = roomIndex;
       player.respawnX = 26;
       player.respawnY = Math.min(player.y, H - TILE * 3);
+      clearRecentPath();
       burst(28, player.y + player.h / 2, palette.cyan, 10, 170);
     }
     if (player.x < -player.w - 3 && roomIndex > 0) {
@@ -1015,6 +1063,7 @@
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
       player.respawnY = Math.min(player.y, H - TILE * 3);
+      clearRecentPath();
       burst(W - 28, player.y + player.h / 2, palette.cyan, 10, 170);
     }
   }
@@ -1023,6 +1072,7 @@
     if (player.deadTimer > 0 || won) return;
     deathCount += 1;
     addDeathMark();
+    resetRelayChain();
     player.deadTimer = DEATH_RETRY_TIME;
     hitStopTimer = Math.max(hitStopTimer, DEATH_HITSTOP);
     shake(0.2, 6.4);
@@ -1053,6 +1103,8 @@
     ghosts.length = 0;
     lightTrails.length = 0;
     shards.length = 0;
+    clearRecentPath();
+    resetRelayChain();
     seedHair();
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 16, 230);
   }
@@ -1061,6 +1113,7 @@
     if (player.deadTimer > 0) return;
     deathCount += 1;
     addDeathMark();
+    resetRelayChain();
     hitStopTimer = 0;
     shake(0.08, 3.4);
     burst(player.x + player.w / 2, player.y + player.h / 2, palette.hot, 18, 240);
@@ -1068,6 +1121,18 @@
   }
 
   function addDeathMark() {
+    const points = recentPath
+      .filter((point) => point.room === roomIndex)
+      .map((point) => ({ ...point }));
+    if (points.length > 2) {
+      deathReplays.push({
+        room: roomIndex,
+        points,
+        life: DEATH_REPLAY_LIFE,
+        max: DEATH_REPLAY_LIFE
+      });
+      while (deathReplays.length > 4) deathReplays.shift();
+    }
     deathMarks.push({
       room: roomIndex,
       x: player.x + player.w / 2,
@@ -1076,6 +1141,7 @@
       max: DEATH_MARK_LIFE
     });
     while (deathMarks.length > 12) deathMarks.shift();
+    clearRecentPath();
   }
 
   function getInput() {
@@ -1355,6 +1421,36 @@
       deathMarks[i].life -= dt;
       if (deathMarks[i].life <= 0) deathMarks.splice(i, 1);
     }
+    for (let i = deathReplays.length - 1; i >= 0; i--) {
+      deathReplays[i].life -= dt;
+      if (deathReplays[i].life <= 0) deathReplays.splice(i, 1);
+    }
+  }
+
+  function samplePlayerPath(dt) {
+    if (player.deadTimer > 0 || won) return;
+    pathSampleTimer -= dt;
+    if (pathSampleTimer > 0) return;
+    pathSampleTimer = PATH_SAMPLE_INTERVAL;
+    recentPath.push({
+      room: roomIndex,
+      x: player.x + player.w / 2,
+      y: player.y + player.h / 2,
+      age: 0,
+      dash: player.dashTimer > 0,
+      spark: player.sparkHopTimer > 0
+    });
+    for (const point of recentPath) {
+      point.age += PATH_SAMPLE_INTERVAL;
+    }
+    while (recentPath.length > 0 && recentPath[0].age > RECENT_PATH_SECONDS) {
+      recentPath.shift();
+    }
+  }
+
+  function clearRecentPath() {
+    recentPath.length = 0;
+    pathSampleTimer = 0;
   }
 
   function burst(x, y, color, count, speed) {
@@ -1405,10 +1501,12 @@
     drawTiles(time);
     drawLightTrails(time);
     drawEntities(time);
+    drawDeathReplays();
     drawDeathMarks(time);
     drawParticles();
     drawGhosts();
     drawSparkCue(time);
+    drawRelayChainCue(time);
     if (player.deadTimer <= 0) drawPlayer(time);
     ctx.restore();
     drawVignette();
@@ -1431,6 +1529,28 @@
     ctx.strokeStyle = palette.cyan;
     ctx.beginPath();
     ctx.arc(cx, cy, 11 + charge * 4, -Math.PI * 0.2, Math.PI * 1.25);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawRelayChainCue(time) {
+    if (relayPopupTimer <= 0 || relayChain <= 1 || player.deadTimer > 0) return;
+    const t = relayPopupTimer / 0.68;
+    const cx = player.x + player.w / 2;
+    const cy = player.y - 16 - (1 - t) * 12;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 1.35);
+    ctx.font = "800 18px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = palette.cyan;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = relayChain >= 3 ? palette.gold : "#f8fbff";
+    ctx.fillText(`x${relayChain}`, cx, cy);
+    ctx.strokeStyle = relayChain >= 3 ? palette.gold : palette.cyan;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, player.y + player.h / 2, 22 + Math.sin(time * 22) * 1.4, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -1672,6 +1792,34 @@
     }
   }
 
+  function drawDeathReplays() {
+    for (const replay of deathReplays) {
+      if (replay.room !== roomIndex || replay.points.length < 2) continue;
+      const fade = Math.max(0, replay.life / replay.max);
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = `rgba(255, 92, 108, ${0.2 + fade * 0.38})`;
+      ctx.shadowColor = palette.hot;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      replay.points.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      for (let i = 0; i < replay.points.length; i += 2) {
+        const point = replay.points[i];
+        ctx.globalAlpha = fade * (point.dash || point.spark ? 0.76 : 0.42);
+        ctx.fillStyle = point.spark ? "#fff0a0" : point.dash ? palette.cyan : palette.hot;
+        ctx.fillRect(point.x - 2, point.y - 2, 4, 4);
+      }
+      ctx.restore();
+    }
+  }
+
   function drawDiamond(x, y, radius, color, time) {
     ctx.save();
     ctx.translate(x, y);
@@ -1866,6 +2014,7 @@
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}`,
+      `relay chain ${relayChain}  best ${bestRelayChain}`,
       `stamina ${(player.stamina * 100).toFixed(0)}  deaths ${deathCount}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
       `trails ${lightTrails.length}  relays ${room.entities.relays.length}  shake ${settings.shake.toFixed(2)}`

@@ -241,6 +241,17 @@ canvas {
   accent-color: var(--cyan);
 }
 
+.control-row select {
+  width: 132px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  background: rgba(6, 12, 22, 0.72);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
 .control-row input[type="checkbox"] {
   width: 18px;
   height: 18px;

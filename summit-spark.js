@@ -17,6 +17,7 @@
   const shakeSlider = document.getElementById("shakeSlider");
   const debugToggle = document.getElementById("debugToggle");
   const calmEffectsToggle = document.getElementById("calmEffectsToggle");
+  const controlPresetSelect = document.getElementById("controlPreset");
   const dashFill = document.querySelector(".dash-meter span");
   const staminaFill = document.querySelector(".stamina-meter span");
 
@@ -49,6 +50,9 @@
   const WALL_NEUTRAL_X = 230;
   const WALL_CLIMB_X = 170;
   const WALL_JUMP_LOCK_TIME = 0.09;
+  const WALL_COYOTE_TIME = 0.105;
+  const FAST_FALL_MAX = 900;
+  const FAST_FALL_GRAVITY_MULT = 1.42;
   const JUMP_CUT_MULTIPLIER = 0.52;
   const DEATH_RETRY_TIME = 0.26;
   const DASH_HITSTOP = 0.018;
@@ -70,17 +74,31 @@
   const DEATH_REPLAY_LIFE = 5.2;
   const MAX_ROOM_PATH_POINTS = 260;
   const ROOM_BEST_FLASH_TIME = 1.15;
+  const SETTINGS_KEY = "summit-spark-settings";
+  const ACTION_PULSE_TIME = 0.22;
 
   const SOLID = new Set(["#"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
-  const JUMP_CODES = new Set(["Space", "KeyC", "KeyJ"]);
-  const DASH_CODES = new Set(["KeyX", "KeyK", "ShiftLeft", "ShiftRight", "KeyE"]);
-  const GRAB_CODES = new Set(["KeyZ", "KeyL", "ControlLeft", "ControlRight", "KeyV"]);
-  const START_CODES = new Set(["Enter", ...JUMP_CODES, ...DASH_CODES]);
+  const CONTROL_PRESETS = {
+    comfort: {
+      jump: ["Space", "KeyC", "KeyJ"],
+      dash: ["KeyX", "KeyK", "ShiftLeft", "ShiftRight", "KeyE"],
+      grab: ["KeyZ", "KeyL", "ControlLeft", "ControlRight", "KeyV"]
+    },
+    classic: {
+      jump: ["Space", "KeyZ", "KeyJ"],
+      dash: ["KeyX", "ShiftLeft", "ShiftRight", "KeyK"],
+      grab: ["KeyC", "ControlLeft", "ControlRight", "KeyL", "KeyV"]
+    }
+  };
+  const ALL_ACTION_CODES = new Set(Object.values(CONTROL_PRESETS).flatMap((preset) => [
+    ...preset.jump,
+    ...preset.dash,
+    ...preset.grab
+  ]));
+  const START_CODES = new Set(["Enter", ...ALL_ACTION_CODES]);
   const BLOCKED_CODES = new Set([
-    ...JUMP_CODES,
-    ...DASH_CODES,
-    ...GRAB_CODES,
+    ...ALL_ACTION_CODES,
     "ArrowUp",
     "ArrowDown",
     "ArrowLeft",
@@ -91,6 +109,8 @@
     "KeyO",
     "F3"
   ]);
+
+  const ROOM_TARGETS = [9.5, 10.5, 10.5, 12.5, 13.5, 15.0];
 
   const maps = [
     [
@@ -286,7 +306,14 @@
   let bestRelayChain = 0;
   let relayPopupTimer = 0;
   let roomBestFlashTimer = 0;
-  const settings = { shake: SHAKE_INTENSITY, calmEffects: true };
+  const settings = readSettings();
+  const actionPulse = {
+    jump: 0,
+    dash: 0,
+    grab: 0,
+    fall: 0,
+    wall: 0
+  };
   let totalLumens = maps.reduce((total, rows) => {
     return total + rows.join("").split("").filter((tile) => tile === "L").length;
   }, 0);
@@ -302,6 +329,8 @@
     onGround: false,
     wasGrounded: false,
     wallDir: 0,
+    wallCoyote: 0,
+    wallCoyoteDir: 0,
     stamina: MAX_STAMINA,
     dashes: 1,
     dashTimer: 0,
@@ -371,7 +400,7 @@
 
   window.addEventListener("keyup", (event) => {
     keys.delete(event.code);
-    if (JUMP_CODES.has(event.code)) cutJump();
+    if (isActionCode(event.code, "jump")) cutJump();
   });
 
   canvas.addEventListener("pointerdown", focusGame);
@@ -383,10 +412,21 @@
   settingsCloseButton?.addEventListener("click", closeSettings);
   shakeSlider?.addEventListener("input", () => {
     settings.shake = Number(shakeSlider.value);
+    writeSettings();
   });
   debugToggle?.addEventListener("change", () => setDebugVisible(debugToggle.checked));
   calmEffectsToggle?.addEventListener("change", () => {
     settings.calmEffects = calmEffectsToggle.checked;
+    writeSettings();
+  });
+  controlPresetSelect?.addEventListener("change", () => {
+    settings.controlsPreset = CONTROL_PRESETS[controlPresetSelect.value] ? controlPresetSelect.value : "comfort";
+    keys.clear();
+    pressed.clear();
+    touchPressed.clear();
+    resetActionPulses();
+    writeSettings();
+    focusGame();
   });
   syncSettingsPanel();
 
@@ -400,6 +440,7 @@
         touchPressed.add(action);
         if (action === "jump") player.jumpBuffer = JUMP_BUFFER_TIME;
         if (action === "dash") player.dashBuffer = DASH_BUFFER_TIME;
+        if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
         if (!started) begin();
       } else if (!value && was && action === "jump") {
         cutJump();
@@ -485,6 +526,8 @@
       onGround: false,
       wasGrounded: false,
       wallDir: 0,
+      wallCoyote: 0,
+      wallCoyoteDir: 0,
       stamina: MAX_STAMINA,
       dashes: 1,
       dashTimer: 0,
@@ -543,6 +586,7 @@
     relayChainTimer = 0;
     relayPopupTimer = 0;
     roomBestFlashTimer = 0;
+    resetActionPulses();
     overlay.classList.add("hidden");
     resetToStart(0);
     updateHud();
@@ -566,6 +610,7 @@
     relayChainTimer = 0;
     relayPopupTimer = 0;
     roomBestFlashTimer = 0;
+    resetActionPulses();
     overlay.classList.add("hidden");
     started = true;
     resetToStart(index);
@@ -630,15 +675,25 @@
     player.wasGrounded = player.onGround;
     player.onGround = false;
     player.wallDir = getWallDir();
+    if (player.wallDir !== 0 && !player.wasGrounded) {
+      player.wallCoyote = WALL_COYOTE_TIME;
+      player.wallCoyoteDir = player.wallDir;
+    } else {
+      player.wallCoyote = Math.max(0, player.wallCoyote - dt);
+      if (player.wallCoyote <= 0) player.wallCoyoteDir = 0;
+    }
     player.coyote = player.wasGrounded ? COYOTE_TIME : Math.max(0, player.coyote - dt);
     player.dashCooldown = Math.max(0, player.dashCooldown - dt);
     player.sparkHopTimer = Math.max(0, player.sparkHopTimer - dt);
     player.wallJumpLock = Math.max(0, player.wallJumpLock - dt);
+    updateInputCues(input);
 
     if (player.onGround || player.wasGrounded) {
       player.stamina = MAX_STAMINA;
       player.dashes = 1;
       player.sparkHopTimer = 0;
+      player.wallCoyote = 0;
+      player.wallCoyoteDir = 0;
     }
 
     const wantsDash = player.dashBuffer > 0 && player.dashes > 0 && player.dashCooldown <= 0;
@@ -662,7 +717,8 @@
       runGroundAir(input, dt);
       climb(input, dt);
       jump(input);
-      player.vy = Math.min(MAX_FALL, player.vy + currentGravity() * dt);
+      const maxFall = input.y > 0 ? FAST_FALL_MAX : MAX_FALL;
+      player.vy = Math.min(maxFall, player.vy + currentGravity(input) * dt);
     }
 
     const fallSpeed = player.vy;
@@ -687,10 +743,10 @@
     player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
     player.dashBuffer = Math.max(0, player.dashBuffer - dt);
 
-    if (justPressedAny(JUMP_CODES) || touchPressed.has("jump")) {
+    if (justPressedAny(actionCodes("jump")) || touchPressed.has("jump")) {
       player.jumpBuffer = JUMP_BUFFER_TIME;
     }
-    if (justPressedAny(DASH_CODES) || touchPressed.has("dash")) {
+    if (justPressedAny(actionCodes("dash")) || touchPressed.has("dash")) {
       player.dashBuffer = DASH_BUFFER_TIME;
     }
   }
@@ -756,19 +812,22 @@
       return;
     }
 
-    if (player.wallDir !== 0) {
-      const away = input.x === -player.wallDir;
+    const wallJumpDir = player.wallDir || (player.wallCoyote > 0 ? player.wallCoyoteDir : 0);
+    if (wallJumpDir !== 0) {
+      const away = input.x === -wallJumpDir;
       const climbJump = input.grab && player.stamina > 0;
       const push = climbJump ? WALL_CLIMB_X : away ? WALL_JUMP_X : WALL_NEUTRAL_X;
       const lift = climbJump ? JUMP * (input.y > 0 ? 0.9 : 1.02) : away ? JUMP * 0.96 : JUMP * 0.91;
-      player.vx = -player.wallDir * push;
+      player.vx = -wallJumpDir * push;
       player.vy = -lift;
       player.jumpBuffer = 0;
-      player.facing = -player.wallDir;
+      player.facing = -wallJumpDir;
       player.wallJumpLock = WALL_JUMP_LOCK_TIME;
+      player.wallCoyote = 0;
+      player.wallCoyoteDir = 0;
       if (climbJump) player.stamina = Math.max(0, player.stamina - 0.18);
       shake(0.04, 1.35);
-      burst(player.x + (player.wallDir > 0 ? player.w : 0), player.y + player.h * 0.55, climbJump ? palette.green : "#e9f7ff", 9, 190);
+      burst(player.x + (wallJumpDir > 0 ? player.w : 0), player.y + player.h * 0.55, climbJump ? palette.green : "#e9f7ff", 9, 190);
     }
   }
 
@@ -912,7 +971,7 @@
     if (room.entities.goal && distRectPoint(box, room.entities.goal.x, room.entities.goal.y) < 28) {
       won = true;
       const isBest = completeRun();
-      overlay.innerHTML = `<h1>登顶</h1><p>${formatTime(runTime)}${isBest ? "  BEST" : ""}</p><button class="primary" id="restartButton" type="button">再来</button>`;
+      overlay.innerHTML = `<h1>登顶</h1><p>${formatTime(runTime)}${isBest ? "  BEST" : ""} · D ${deathCount} · Relay ${bestRelayChain}</p><button class="primary" id="restartButton" type="button">再来</button>`;
       overlay.classList.remove("hidden");
       document.getElementById("restartButton").addEventListener("click", hardReset);
       burst(room.entities.goal.x, room.entities.goal.y, palette.gold, 64, 420);
@@ -1192,6 +1251,8 @@
     player.sparkHopDirX = player.facing;
     player.sparkHopDirY = 0;
     player.wallJumpLock = 0;
+    player.wallCoyote = 0;
+    player.wallCoyoteDir = 0;
     player.ghostTimer = 0;
     player.deadTimer = 0;
     roomTime = 0;
@@ -1235,6 +1296,8 @@
       onGround: false,
       wasGrounded: false,
       wallDir: 0,
+      wallCoyote: 0,
+      wallCoyoteDir: 0,
       stamina: MAX_STAMINA,
       dashes: 1,
       dashTimer: 0,
@@ -1294,7 +1357,7 @@
     const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.right;
     const up = keys.has("ArrowUp") || keys.has("KeyW");
     const down = keys.has("ArrowDown") || keys.has("KeyS");
-    const grab = keyHeldAny(GRAB_CODES) || touch.grab;
+    const grab = keyHeldAny(actionCodes("grab")) || touch.grab;
     return {
       x: right ? 1 : left ? -1 : 0,
       y: down ? 1 : up ? -1 : 0,
@@ -1321,8 +1384,43 @@
   }
 
   function queueAction(code) {
-    if (JUMP_CODES.has(code)) player.jumpBuffer = JUMP_BUFFER_TIME;
-    if (DASH_CODES.has(code)) player.dashBuffer = DASH_BUFFER_TIME;
+    if (isActionCode(code, "jump")) {
+      player.jumpBuffer = JUMP_BUFFER_TIME;
+      actionPulse.jump = ACTION_PULSE_TIME;
+    }
+    if (isActionCode(code, "dash")) {
+      player.dashBuffer = DASH_BUFFER_TIME;
+      actionPulse.dash = ACTION_PULSE_TIME;
+    }
+    if (isActionCode(code, "grab")) {
+      actionPulse.grab = ACTION_PULSE_TIME;
+    }
+  }
+
+  function actionCodes(action) {
+    return CONTROL_PRESETS[settings.controlsPreset]?.[action] || CONTROL_PRESETS.comfort[action];
+  }
+
+  function isActionCode(code, action) {
+    return actionCodes(action).includes(code);
+  }
+
+  function updateInputCues(input) {
+    if (input.grab && player.wallDir !== 0 && !player.wasGrounded) {
+      actionPulse.grab = Math.max(actionPulse.grab, 0.08);
+    }
+    if (input.y > 0 && player.vy > 120) {
+      actionPulse.fall = Math.max(actionPulse.fall, 0.09);
+    }
+    if (player.wallCoyote > 0 && player.wallDir === 0) {
+      actionPulse.wall = Math.max(actionPulse.wall, 0.07);
+    }
+  }
+
+  function resetActionPulses() {
+    for (const key of Object.keys(actionPulse)) {
+      actionPulse[key] = 0;
+    }
   }
 
   function focusGame() {
@@ -1361,6 +1459,34 @@
     if (shakeSlider) shakeSlider.value = String(settings.shake);
     if (debugToggle) debugToggle.checked = debugVisible;
     if (calmEffectsToggle) calmEffectsToggle.checked = settings.calmEffects;
+    if (controlPresetSelect) controlPresetSelect.value = settings.controlsPreset;
+  }
+
+  function readSettings() {
+    const defaults = {
+      shake: SHAKE_INTENSITY,
+      calmEffects: true,
+      controlsPreset: "comfort"
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+      const shake = Number(saved.shake);
+      return {
+        shake: Number.isFinite(shake) ? Math.max(0, Math.min(1, shake)) : defaults.shake,
+        calmEffects: saved.calmEffects === undefined ? defaults.calmEffects : Boolean(saved.calmEffects),
+        controlsPreset: CONTROL_PRESETS[saved.controlsPreset] ? saved.controlsPreset : defaults.controlsPreset
+      };
+    } catch {
+      return defaults;
+    }
+  }
+
+  function writeSettings() {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      // Settings are convenience only; gameplay should continue without storage.
+    }
   }
 
   function spawnLightTrail(dx, dy) {
@@ -1416,11 +1542,12 @@
   }
 
   function jumpHeld() {
-    return keyHeldAny(JUMP_CODES) || touch.jump;
+    return keyHeldAny(actionCodes("jump")) || touch.jump;
   }
 
-  function currentGravity() {
+  function currentGravity(input) {
     if (player.vy < -40 && jumpHeld()) return GRAVITY * 0.82;
+    if (input.y > 0 && player.vy > 40) return GRAVITY * FAST_FALL_GRAVITY_MULT;
     if (player.vy > 60) return GRAVITY * 1.08;
     return GRAVITY;
   }
@@ -1431,6 +1558,9 @@
 
   function updateGlobalEffects(dt) {
     roomBestFlashTimer = Math.max(0, roomBestFlashTimer - dt);
+    for (const key of Object.keys(actionPulse)) {
+      actionPulse[key] = Math.max(0, actionPulse[key] - dt);
+    }
     if (shakeTimer > 0) {
       shakeTimer = Math.max(0, shakeTimer - dt);
       if (shakeTimer === 0) {
@@ -1441,10 +1571,10 @@
   }
 
   function shake(duration, power) {
-    if (SHAKE_INTENSITY <= 0) return;
+    if (settings.shake <= 0) return;
     shakeTimer = Math.max(shakeTimer, duration);
     shakeDuration = Math.max(shakeDuration, duration);
-    shakePower = Math.max(shakePower, power * SHAKE_INTENSITY);
+    shakePower = Math.max(shakePower, power * settings.shake);
   }
 
   function shakeOffset() {
@@ -1662,6 +1792,7 @@
     drawParticles();
     drawGhosts();
     drawSparkCue(time);
+    drawInputCues(time);
     drawRelayChainCue(time);
     drawRoomBestCue();
     if (player.deadTimer <= 0) drawPlayer(time);
@@ -1732,6 +1863,84 @@
     ctx.arc(cx, player.y + player.h / 2, 24 + (1 - t) * 10, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+  }
+
+  function drawInputCues(time) {
+    if (player.deadTimer > 0) return;
+    const cx = player.x + player.w / 2;
+    const cy = player.y + player.h / 2;
+    const jump = Math.max(actionPulse.jump, player.jumpBuffer) / Math.max(ACTION_PULSE_TIME, JUMP_BUFFER_TIME);
+    const dash = Math.max(actionPulse.dash, player.dashBuffer) / Math.max(ACTION_PULSE_TIME, DASH_BUFFER_TIME);
+    const grab = actionPulse.grab / ACTION_PULSE_TIME;
+    const fall = actionPulse.fall / ACTION_PULSE_TIME;
+    const wall = Math.max(actionPulse.wall, player.wallCoyote) / Math.max(ACTION_PULSE_TIME, WALL_COYOTE_TIME);
+
+    if (dash > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.82, dash);
+      ctx.strokeStyle = palette.cyan;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = palette.cyan;
+      ctx.shadowBlur = settings.calmEffects ? 6 : 12;
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.PI / 4 + time * 2.6);
+      ctx.strokeRect(-14 - dash * 5, -14 - dash * 5, 28 + dash * 10, 28 + dash * 10);
+      ctx.restore();
+    }
+
+    if (jump > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.84, jump);
+      ctx.strokeStyle = "#fff0a0";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.shadowColor = palette.gold;
+      ctx.shadowBlur = settings.calmEffects ? 5 : 10;
+      const lift = 8 + (1 - jump) * 8;
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, cy - 19 - lift);
+      ctx.lineTo(cx, cy - 28 - lift);
+      ctx.lineTo(cx + 8, cy - 19 - lift);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (grab > 0 || wall > 0) {
+      const t = Math.max(grab, wall);
+      const side = player.wallDir || player.wallCoyoteDir || player.facing;
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.72, t);
+      ctx.strokeStyle = grab > wall ? palette.green : palette.cyan;
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.shadowColor = grab > wall ? palette.green : palette.cyan;
+      ctx.shadowBlur = settings.calmEffects ? 5 : 11;
+      const x = cx + side * (player.w * 0.85 + 6);
+      ctx.beginPath();
+      ctx.moveTo(x, cy - 16);
+      ctx.lineTo(x + side * 7, cy - 7);
+      ctx.moveTo(x, cy + 16);
+      ctx.lineTo(x + side * 7, cy + 7);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (fall > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.62, fall);
+      ctx.strokeStyle = "rgba(248,251,255,0.86)";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      for (let i = -1; i <= 1; i++) {
+        const x = cx + i * 7;
+        const y = cy + 18 + (1 - fall) * 12;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + 10 + fall * 8);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
 
   function drawBackground(time) {
@@ -2246,12 +2455,13 @@
 
   function updateHud() {
     const found = collected.size;
+    const roomBest = bestRoomTimes[roomIndex] || 0;
+    const grade = splitGrade(roomBest, ROOM_TARGETS[roomIndex]);
     lumenCount.textContent = `${found}/${totalLumens}`;
-    roomCount.textContent = `${roomIndex + 1}/${maps.length}`;
+    roomCount.textContent = `${roomIndex + 1}/${maps.length}${grade ? ` ${grade}` : ""}`;
     splitTimeText.textContent = formatTime(roomTime);
     runTimeText.textContent = formatTime(runTime);
     deathCountText.textContent = `D ${deathCount}`;
-    const roomBest = bestRoomTimes[roomIndex] || 0;
     splitTimeText.classList.toggle("best", roomBest > 0 && roomTime > 0 && roomTime <= roomBest);
     runTimeText.classList.toggle("best", bestTime > 0 && runTime > 0 && runTime <= bestTime);
     dashFill.style.transform = `scaleX(${player.dashes > 0 ? 1 : 0.12})`;
@@ -2267,21 +2477,29 @@
     return `${minutes}:${String(seconds).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
   }
 
+  function splitGrade(best, target) {
+    if (!best || !target) return "";
+    if (best <= target) return "S";
+    if (best <= target * 1.25) return "A";
+    if (best <= target * 1.6) return "B";
+    return "C";
+  }
+
   function updateDebug() {
     if (!debugVisible) return;
     debugPanel.textContent = [
       `fps ${Math.round(fps)}  room ${roomIndex + 1}/${maps.length}`,
-      `time ${formatTime(runTime)}  split ${formatTime(roomTime)} best ${formatTime(bestRoomTimes[roomIndex] || 0)}`,
+      `time ${formatTime(runTime)}  split ${formatTime(roomTime)} best ${formatTime(bestRoomTimes[roomIndex] || 0)} target ${formatTime(ROOM_TARGETS[roomIndex] || 0)}`,
       `pos ${player.x.toFixed(1)}, ${player.y.toFixed(1)}`,
       `vel ${player.vx.toFixed(1)}, ${player.vy.toFixed(1)}`,
-      `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}`,
+      `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}  wc ${player.wallCoyote.toFixed(3)}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}`,
       `relay chain ${relayChain}  best ${bestRelayChain}`,
       `stamina ${(player.stamina * 100).toFixed(0)}  deaths ${deathCount}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
-      `trails ${lightTrails.length}  relays ${room.entities.relays.length}  shake ${settings.shake.toFixed(2)}`
+      `trails ${lightTrails.length}  relays ${room.entities.relays.length}  shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}`
     ].join("\n");
   }
 

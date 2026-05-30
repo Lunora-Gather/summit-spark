@@ -1405,6 +1405,7 @@
     bestRoomTimes[index] = roomTime;
     writeRoomBests();
     saveRoomPath(index);
+    refreshRoomSelectOptions();
     roomBestFlashTimer = ROOM_BEST_FLASH_TIME;
     addFlow(42, "pb");
     burst(player.x + player.w / 2, player.y + player.h / 2, palette.gold, 14, 210);
@@ -1907,13 +1908,28 @@
     }
   }
 
+  function roomSelectLabel(index) {
+    const best = bestRoomTimes[index] || 0;
+    const target = ROOM_TARGETS[index] || 0;
+    const grade = splitGrade(best, target);
+    const pace = best > 0 ? `${grade || "PB"} ${formatTime(best)}` : `T ${formatTime(target)}`;
+    return `${index + 1}. ${ROOM_NAMES[index] || "Summit"} / ${pace}`;
+  }
+
+  function refreshRoomSelectOptions() {
+    if (!roomSelect) return;
+    for (const option of roomSelect.options) {
+      option.textContent = roomSelectLabel(Number(option.value));
+    }
+  }
+
   function populateRoomSelect() {
     if (!roomSelect) return;
     roomSelect.innerHTML = "";
     maps.forEach((_, index) => {
       const option = document.createElement("option");
       option.value = String(index);
-      option.textContent = `${index + 1}. ${ROOM_NAMES[index] || "Summit"}`;
+      option.textContent = roomSelectLabel(index);
       roomSelect.appendChild(option);
     });
   }

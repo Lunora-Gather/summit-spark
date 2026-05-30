@@ -95,10 +95,11 @@
   const ECHO_RECALL_COOLDOWN = 0.32;
   const ROOM_INTRO_TIME = 1.2;
   const CURRENT_PATH_DRAW_POINTS = 90;
+  const CRUMBLE_BREAK_TIME = 0.42;
   const DASH_AIM_PREVIEW_LENGTH = 58;
   const DASH_AIM_PREVIEW_MIN_ALPHA = 0.24;
 
-  const SOLID = new Set(["#"]);
+  const SOLID = new Set(["#", "C"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
   const CONTROL_PRESETS = {
     comfort: {
@@ -134,7 +135,7 @@
     "F3"
   ]);
 
-  const ROOM_TARGETS = [9.5, 10.5, 10.5, 12.5, 13.5, 15.0, 15.8, 16.5, 17.2, 19.0];
+  const ROOM_TARGETS = [8.8, 10.0, 11.2, 12.8, 14.5, 16.0, 18.2, 20.0, 21.5, 23.5];
   const ROOM_NAMES = ["\u8d77\u52bf\u5c71\u95e8", "\u5149\u7ee7\u6a2a\u6865", "\u5f39\u7c27\u96fe\u53f0", "\u4e09\u6bb5\u8fde\u9501", "\u68f1\u7ebf\u56de\u73af", "\u65e7\u5cf0\u51fa\u53e3", "\u98ce\u5347\u5ce1\u53e3", "\u68f1\u955c\u957f\u5eca", "\u56de\u58f0\u5ca9\u573a", "\u661f\u9876\u7ec8\u7ebf"];
 
   const maps = [
@@ -261,10 +262,10 @@
       "..............#####...........",
       "..........................R...",
       ".........U............####....",
-      ".....#####....................",
+      ".....CCCCC....................",
       "..............................",
       "..M...........U..........A....",
-      "#####......#####.......####...",
+      "#####......CCC##.......C###...",
       "..............................",
       "........^^^^..................",
       "........####..........U.......",
@@ -282,11 +283,11 @@
       ".....####............#####....",
       "..............................",
       "..P.......B........A..........",
-      "#####...#####....#####........",
+      "#####...CCCCC....CC###........",
       "..............................",
       "............^^^^..............",
       "............####.......B......",
-      "....U..................####...",
+      "....U..................CCCC...",
       "..............................",
       "##########################...."
     ],
@@ -296,15 +297,15 @@
       ".....................#####....",
       "..............................",
       "......M...........B...........",
-      ".....####......####...........",
+      ".....CCCC......CCCC...........",
       "..........................R...",
       "..P.......A.............####..",
       "#####.........................",
       ".............U................",
-      ".........#######..............",
+      ".........CCCC###..............",
       "........................A.....",
       ".....B........^^^^.....####...",
-      "....####......####............",
+      "....CCCC......CCCC............",
       "....................U.........",
       ".........................####.",
       "#######################......."
@@ -316,14 +317,14 @@
       ".................#####........",
       "..............................",
       "......A......B...........R....",
-      ".....####..#####......####....",
+      ".....CCCC..CCCCC......CCCC....",
       "..............................",
       "..P.........U.................",
-      "#####....#####.........A......",
+      "#####....CCC##.........A......",
       "..............................",
       "............^^^^..............",
       "............####.......B......",
-      "....M...............#####.....",
+      "....M...............CCCCC.....",
       ".........A....................",
       ".........................H....",
       "##############################"
@@ -613,6 +614,7 @@
       updrafts: [],
       prisms: [],
       anchors: [],
+      crumble: new Map(),
       checkpoints: [],
       springs: [],
       goal: null,
@@ -656,6 +658,9 @@
         if (tile === "M") {
           entities.anchors.push({ x: cx, y: cy, pulse: 0 });
           tiles[y][x] = ".";
+        }
+        if (tile === "C") {
+          entities.crumble.set(`${x}:${y}`, { x, y, timer: 0, warned: false });
         }
         if (tile === "T") {
           entities.springs.push({ x: x * TILE, y: y * TILE + 18, w: TILE, h: 14, pulse: 0 });
@@ -2003,6 +2008,7 @@
     roomIntroTimer = Math.max(0, roomIntroTimer - dt);
     splitPopupTimer = Math.max(0, splitPopupTimer - dt);
     updateFlow(dt);
+    updateCrumblePlatforms(dt);
     for (const key of Object.keys(actionPulse)) {
       actionPulse[key] = Math.max(0, actionPulse[key] - dt);
     }
@@ -2029,6 +2035,42 @@
       x: (Math.random() * 2 - 1) * strength,
       y: (Math.random() * 2 - 1) * strength
     };
+  }
+
+  function crumbleTilesUnderPlayer() {
+    if (player.deadTimer > 0 || !player.onGround) return [];
+    const footY = Math.floor((player.y + player.h + 2) / TILE);
+    if (footY < 0 || footY >= ROWS) return [];
+    const minX = Math.max(0, Math.floor((player.x + 3) / TILE));
+    const maxX = Math.min(COLS - 1, Math.floor((player.x + player.w - 4) / TILE));
+    const keys = [];
+    for (let x = minX; x <= maxX; x += 1) {
+      if (room.tiles[footY]?.[x] === "C") keys.push(`${x}:${footY}`);
+    }
+    return keys;
+  }
+
+  function updateCrumblePlatforms(dt) {
+    if (!room.entities.crumble || room.entities.crumble.size === 0) return;
+    for (const key of crumbleTilesUnderPlayer()) {
+      const block = room.entities.crumble.get(key);
+      if (block && room.tiles[block.y]?.[block.x] === "C" && block.timer <= 0) {
+        block.timer = CRUMBLE_BREAK_TIME;
+        block.warned = true;
+        shake(0.035, 1.2);
+        burst(block.x * TILE + TILE / 2, block.y * TILE + 6, "#e7f4f7", 5, 95);
+      }
+    }
+
+    for (const block of room.entities.crumble.values()) {
+      if (room.tiles[block.y]?.[block.x] !== "C" || block.timer <= 0) continue;
+      block.timer = Math.max(0, block.timer - dt);
+      if (block.timer <= 0) {
+        room.tiles[block.y][block.x] = ".";
+        burst(block.x * TILE + TILE / 2, block.y * TILE + TILE / 2, palette.cyan, 12, 210);
+        addSnow(block.x * TILE + TILE / 2, block.y * TILE + 4, 4);
+      }
+    }
   }
 
   function getWallDir() {
@@ -2649,6 +2691,7 @@
         const px = x * TILE;
         const py = y * TILE;
         if (tile === "#") drawRock(px, py, x, y);
+        if (tile === "C") drawCrumblePlatform(px, py, x, y, time);
         if (tile === "^") drawSpike(px, py, "up", time);
         if (tile === "v") drawSpike(px, py, "down", time);
         if (tile === "<") drawSpike(px, py, "left", time);
@@ -2687,6 +2730,37 @@
       ctx.fillStyle = "rgba(118,215,255,0.18)";
       ctx.fillRect(x + 1, y + 6, TILE - 2, 2);
     }
+  }
+
+  function drawCrumblePlatform(x, y, gx, gy, time) {
+    const block = room.entities.crumble?.get(`${gx}:${gy}`);
+    const armed = block ? block.timer / CRUMBLE_BREAK_TIME : 0;
+    const jitter = armed > 0 ? Math.sin(time * 50 + gx) * (1 - armed) * 1.3 : 0;
+    ctx.save();
+    ctx.translate(jitter, 0);
+    const grad = ctx.createLinearGradient(x, y, x + TILE, y + TILE);
+    grad.addColorStop(0, "#e7f4f7");
+    grad.addColorStop(0.42, "#76d7ff");
+    grad.addColorStop(1, "#294e64");
+    ctx.fillStyle = grad;
+    ctx.fillRect(x + 1, y + 1, TILE - 2, TILE - 2);
+    ctx.fillStyle = `rgba(255,255,255,${0.28 + armed * 0.16})`;
+    ctx.fillRect(x + 3, y + 3, TILE - 6, 4);
+    ctx.strokeStyle = armed > 0 ? "rgba(255,101,125,0.62)" : "rgba(248,251,255,0.28)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 7, y + 7);
+    ctx.lineTo(x + 14 + armed * 5, y + 17);
+    ctx.lineTo(x + 10, y + 28);
+    ctx.moveTo(x + 22, y + 6);
+    ctx.lineTo(x + 16 - armed * 4, y + 18);
+    ctx.lineTo(x + 25, y + 28);
+    ctx.stroke();
+    if (armed > 0) {
+      ctx.fillStyle = `rgba(255,101,125,${0.18 + (1 - armed) * 0.28})`;
+      ctx.fillRect(x + 1, y + 1, TILE - 2, TILE - 2);
+    }
+    ctx.restore();
   }
 
   function drawSpike(x, y, dir, time) {
@@ -3218,6 +3292,15 @@
     ctx.fillRect(0, 0, W, H);
   }
 
+  function crumbleCount() {
+    if (!room.entities.crumble) return { active: 0, total: 0 };
+    let active = 0;
+    for (const block of room.entities.crumble.values()) {
+      if (room.tiles[block.y]?.[block.x] === "C") active += 1;
+    }
+    return { active, total: room.entities.crumble.size };
+  }
+
   function updateHud() {
     const found = collected.size;
     const roomBest = bestRoomTimes[roomIndex] || 0;
@@ -3271,6 +3354,7 @@
 
   function updateDebug() {
     if (!debugVisible) return;
+    const crumble = crumbleCount();
     debugPanel.textContent = [
       `fps ${Math.round(fps)}  room ${roomIndex + 1}/${maps.length}  ${ROOM_NAMES[roomIndex] || ""}`,
       `time ${formatTime(runTime)}  split ${formatTime(roomTime)} best ${formatTime(bestRoomTimes[roomIndex] || 0)} target ${formatTime(ROOM_TARGETS[roomIndex] || 0)}`,
@@ -3284,7 +3368,7 @@
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
-      `trails ${lightTrails.length}  relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}`,
+      `trails ${lightTrails.length}  relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}`
     ].join("\n");

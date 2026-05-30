@@ -26,7 +26,7 @@ Build an original precision platformer whose identity is not imitation, but mast
 - 2026-05-29: Added wall coyote, fast fall, room target grades, persisted settings, comfort/classic key presets, and close-to-player input echo cues.
 - 2026-05-29: Expanded the route to 10 rooms and added wind updrafts, overdrive prisms, echo anchors, Flow peak scoring, near-miss rewards, gamepad support, and final-run Flow reporting.
 - 2026-05-30: Added room intro panels, dynamic best ghosts, current-route trails, practice-line settings, and summit mastery summary.
-- 2026-05-30: Added split delta HUD, dash-aim preview, room-select practice, split result popups, and automated map integrity checks.
+- 2026-05-30: Added split delta HUD, dash-aim preview, room-select practice, split result popups, crumble ice late-room pressure, and automated map integrity checks.
 
 ## Next Milestones
 
@@ -54,3 +54,17 @@ Build an original precision platformer whose identity is not imitation, but mast
 - Every practice feature must reduce uncertainty: show intent, show pace, or show route memory.
 - New maps should add pressure gradually: safe intro, readable escalation, optional high-skill line, and a clean recovery path.
 - Online builds must be checked after push so the public URL is never treated as finished just because local checks pass.
+
+## Difficulty Curve
+
+- Rooms 1-3 stay readable and forgiving enough to learn movement timing.
+- Rooms 4-6 combine relays, springs, and tighter recovery without adding one-shot ambiguity.
+- Rooms 7-10 introduce crumble ice, wind, prisms, and echo anchors together so the finale has real route pressure.
+- Map checks now guard that late-room pressure stays meaningfully higher than the opening rooms.
+
+## Super-Push Operating Plan
+
+- First stabilize the route curve: early teaching, middle combination, late commitment.
+- Then expand practice feedback only where it helps the player understand a mistake or compare pace.
+- Every new late-game mechanic must have code simulation, rendering, map validation, and browser smoke coverage.
+- If a quality gate catches a mistake, fix the content or the rule before adding more rooms.

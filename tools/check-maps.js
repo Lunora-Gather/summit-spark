@@ -53,12 +53,14 @@ const colsMatch = source.match(/const COLS = (\d+);/);
 const rowsMatch = source.match(/const ROWS = (\d+);/);
 const cols = colsMatch ? Number(colsMatch[1]) : 30;
 const rows = rowsMatch ? Number(rowsMatch[1]) : 17;
-const allowed = new Set(".#^v<>SLRAPTHUBM".split(""));
+const allowed = new Set(".#^v<>SLRAPTHUBMC".split(""));
 let goalCount = 0;
 let startCount = 0;
+const pressureScores = [];
+const crumbleRooms = [];
 
 function isPassable(tile) {
-  return tile !== "#" && tile !== "^" && tile !== "v" && tile !== "<" && tile !== ">";
+  return tile !== "#" && tile !== "C" && tile !== "^" && tile !== "v" && tile !== "<" && tile !== ">";
 }
 
 function hasLeftGap(room) {
@@ -78,6 +80,8 @@ maps.forEach((room, roomIndex) => {
     return;
   }
   if (room.length !== rows) errors.push("room " + (roomIndex + 1) + " has " + room.length + " rows, expected " + rows);
+  let pressure = 0;
+  let crumbleCount = 0;
   if (roomIndex > 0 && !hasLeftGap(room)) errors.push("room " + (roomIndex + 1) + " has no left entry gap");
   if (roomIndex < maps.length - 1 && !hasRightGap(room)) errors.push("room " + (roomIndex + 1) + " has no right exit gap");
   room.forEach((line, y) => {
@@ -90,15 +94,40 @@ maps.forEach((room, roomIndex) => {
     }
     [...line].forEach((tile, x) => {
       if (!allowed.has(tile)) errors.push("room " + (roomIndex + 1) + " has unknown tile \"" + tile + "\" at " + (x + 1) + "," + (y + 1));
+      if ("^v<>".includes(tile)) pressure += 2;
+      if (tile === "A") pressure += 1;
+      if (tile === "U" || tile === "B" || tile === "C") pressure += 2;
+      if (tile === "C") crumbleCount += 1;
+      if (tile === "M" || tile === "T") pressure += 1;
       if (tile === "S") startCount += 1;
       if (tile === "H") goalCount += 1;
     });
   });
+  pressureScores[roomIndex] = pressure;
+  crumbleRooms[roomIndex] = crumbleCount;
 });
 
 if (startCount !== 1) errors.push("expected exactly one S start, found " + startCount);
 if (goalCount !== 1) errors.push("expected exactly one H summit goal, found " + goalCount);
 if (!maps[maps.length - 1]?.some((line) => line.includes("H"))) errors.push("summit goal H must be in the final room");
+
+const earlyPressure = pressureScores.slice(0, 3).reduce((sum, value) => sum + value, 0) / 3;
+const latePressure = pressureScores.slice(-3).reduce((sum, value) => sum + value, 0) / 3;
+if (!(latePressure >= earlyPressure + 8)) {
+  errors.push("late-room pressure must clearly exceed early-room pressure");
+}
+for (let i = 0; i < Math.min(6, maps.length); i += 1) {
+  if (maps[i].some((line) => line.includes("C"))) errors.push("crumble C should not appear before room 7");
+}
+for (let i = 6; i < maps.length; i += 1) {
+  if ((crumbleRooms[i] || 0) < 3) errors.push("late room " + (i + 1) + " should use at least 3 crumble tiles");
+}
+if (!(targets[targets.length - 1] >= targets[0] + 12)) {
+  errors.push("final room target should be at least 12 seconds above room 1 target");
+}
+for (let i = 1; i < targets.length; i += 1) {
+  if (targets[i] + 0.001 < targets[i - 1]) errors.push("room targets should not decrease at room " + (i + 1));
+}
 
 for (let i = 0; i < targets.length; i += 1) {
   if (!(targets[i] > 0)) errors.push("target " + (i + 1) + " must be positive");
@@ -111,4 +140,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Map check passed: " + maps.length + " rooms, " + cols + "x" + rows + ", " + targets.length + " targets.");
+console.log("Map check passed: " + maps.length + " rooms, " + cols + "x" + rows + ", " + targets.length + " targets, pressure " + pressureScores.join("/") + ", crumble " + crumbleRooms.join("/") + ".");

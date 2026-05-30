@@ -79,12 +79,14 @@
   const BEST_TIME_KEY = "summit-spark-best-time";
   const ROOM_BESTS_KEY = "summit-spark-room-bests";
   const ROOM_PATHS_KEY = "summit-spark-room-paths";
+  const ROOM_FOCUS_KEY = "summit-spark-room-focus";
   const PATH_SAMPLE_INTERVAL = 0.045;
   const RECENT_PATH_SECONDS = 1.55;
   const DEATH_REPLAY_LIFE = 5.2;
   const MAX_ROOM_PATH_POINTS = 260;
   const ROOM_BEST_FLASH_TIME = 1.15;
   const SPLIT_POPUP_TIME = 1.25;
+  const FOCUS_POPUP_TIME = 1.35;
   const SETTINGS_KEY = "summit-spark-settings";
   const ACTION_PULSE_TIME = 0.22;
   const BEST_FLOW_KEY = "summit-spark-best-flow";
@@ -408,6 +410,9 @@
   let lastTime = performance.now();
   let deathCount = 0;
   let deathReasons = createDeathReasons();
+  let roomMistakes = createRoomCounters();
+  let roomFocus = readRoomFocus();
+  let roomAttemptClean = true;
   let lastDeathReason = "none";
   let crumbleSlipTimer = 0;
   let runTime = 0;
@@ -436,6 +441,8 @@
   let splitPopupTimer = 0;
   let splitPopupText = "";
   let splitPopupAhead = true;
+  let focusPopupTimer = 0;
+  let focusPopupText = "";
   let flowScore = 0;
   let flowPeak = 0;
   let flowTimer = 0;
@@ -748,8 +755,11 @@
     collected = new Set();
     deathCount = 0;
     deathReasons = createDeathReasons();
+    roomMistakes = createRoomCounters();
+    roomAttemptClean = true;
     lastDeathReason = "none";
     crumbleSlipTimer = 0;
+    clearFocusPopup();
     runTime = 0;
     roomTime = 0;
     won = false;
@@ -777,6 +787,7 @@
     resetActionPulses();
     overlay.classList.add("hidden");
     resetToStart(0);
+    refreshRoomSelectOptions();
     updateHud();
   }
 
@@ -784,8 +795,11 @@
     collected = new Set();
     deathCount = 0;
     deathReasons = createDeathReasons();
+    roomMistakes = createRoomCounters();
+    roomAttemptClean = true;
     lastDeathReason = "none";
     crumbleSlipTimer = 0;
+    clearFocusPopup();
     runTime = 0;
     roomTime = 0;
     won = false;
@@ -811,7 +825,9 @@
     overlay.classList.add("hidden");
     started = true;
     resetToStart(index);
+    roomAttemptClean = true;
     seedHair();
+    refreshRoomSelectOptions();
     updateHud();
     focusGame();
   }
@@ -1279,6 +1295,7 @@
 
   function completeRun() {
     recordRoomBest(roomIndex);
+    markRoomClear(roomIndex);
     addFlow(120, "summit");
     if (bestTime <= 0 || runTime < bestTime) {
       bestTime = runTime;
@@ -1562,8 +1579,11 @@
 
   function resolveRoomTransition() {
     if (player.x > W + 3 && roomIndex < maps.length - 1) {
-      recordRoomBest(roomIndex);
+      const clearedRoom = roomIndex;
+      recordRoomBest(clearedRoom);
+      markRoomClear(clearedRoom);
       roomIndex += 1;
+      roomAttemptClean = true;
       room = parseRoom(roomIndex);
       lightTrails.length = 0;
       player.x = -player.w + 4;
@@ -1644,6 +1664,7 @@
     clearRecentPath();
     clearRoomPath();
     resetRelayChain();
+    roomAttemptClean = true;
     seedHair();
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 16, 230);
   }
@@ -1711,6 +1732,7 @@
     shards.length = 0;
     clearRecentPath();
     clearRoomPath();
+    roomAttemptClean = true;
     seedHair();
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 12, 210);
   }
@@ -1731,6 +1753,7 @@
     deathCount += 1;
     deathReasons[normalized] = (deathReasons[normalized] || 0) + 1;
     lastDeathReason = normalized;
+    trackRoomFault(normalized);
     return normalized;
   }
 
@@ -1750,6 +1773,139 @@
       .filter((key) => deathReasons[key] > 0)
       .map((key) => `${deathReasonLabel(key)} ${deathReasons[key]}`);
     return parts.length ? parts.join(" / ") : "clean";
+  }
+
+  function createRoomCounters() {
+    return Array.from({ length: maps.length }, () => 0);
+  }
+
+  function createRoomFocusEntry() {
+    const entry = { faults: 0, clears: 0, clean: 0, last: "none" };
+    DEATH_REASON_KEYS.forEach((key) => {
+      entry[key] = 0;
+    });
+    return entry;
+  }
+
+  function normalizeRoomFocus(raw) {
+    const source = Array.isArray(raw) ? raw : [];
+    return maps.map((_, index) => {
+      const saved = source[index] && typeof source[index] === "object" ? source[index] : {};
+      const entry = createRoomFocusEntry();
+      entry.faults = Math.max(0, Number(saved.faults) || 0);
+      entry.clears = Math.max(0, Number(saved.clears) || 0);
+      entry.clean = Math.max(0, Number(saved.clean) || 0);
+      entry.last = DEATH_REASON_LABELS[saved.last] ? saved.last : "none";
+      DEATH_REASON_KEYS.forEach((key) => {
+        entry[key] = Math.max(0, Number(saved[key]) || 0);
+      });
+      return entry;
+    });
+  }
+
+  function readRoomFocus() {
+    try {
+      return normalizeRoomFocus(JSON.parse(localStorage.getItem(ROOM_FOCUS_KEY) || "[]"));
+    } catch {
+      return normalizeRoomFocus([]);
+    }
+  }
+
+  function writeRoomFocus() {
+    try {
+      localStorage.setItem(ROOM_FOCUS_KEY, JSON.stringify(roomFocus));
+    } catch {
+      // Focus stats are optional practice data.
+    }
+  }
+
+  function leadingRoomReason(entry) {
+    let lead = "fall";
+    let count = -1;
+    DEATH_REASON_KEYS.forEach((key) => {
+      if ((entry[key] || 0) > count) {
+        lead = key;
+        count = entry[key] || 0;
+      }
+    });
+    return count > 0 ? lead : normalizeDeathReason(entry.last);
+  }
+
+  function trackRoomFault(reason) {
+    const normalized = normalizeDeathReason(reason);
+    const entry = roomFocus[roomIndex] || createRoomFocusEntry();
+    roomMistakes[roomIndex] = (roomMistakes[roomIndex] || 0) + 1;
+    entry.faults += 1;
+    entry[normalized] = (entry[normalized] || 0) + 1;
+    entry.last = normalized;
+    roomFocus[roomIndex] = entry;
+    roomAttemptClean = false;
+    showFocusPopup(roomIndex, normalized);
+    writeRoomFocus();
+    refreshRoomSelectOptions();
+  }
+
+  function markRoomClear(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    entry.clears += 1;
+    if (roomAttemptClean) entry.clean += 1;
+    roomFocus[index] = entry;
+    roomAttemptClean = true;
+    writeRoomFocus();
+    refreshRoomSelectOptions();
+  }
+
+  function showFocusPopup(index, reason) {
+    const count = roomMistakes[index] || 0;
+    focusPopupText = `FOCUS R${index + 1} ${deathReasonLabel(reason)} !${count}`;
+    focusPopupTimer = FOCUS_POPUP_TIME;
+  }
+
+  function clearFocusPopup() {
+    focusPopupTimer = 0;
+    focusPopupText = "";
+  }
+
+  function roomSelectFocusLabel(index) {
+    const current = roomMistakes[index] || 0;
+    if (current > 0) return ` / !${current}`;
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    const pressure = entry.faults - entry.clean * 2;
+    if (entry.faults >= 3 && pressure > 0) {
+      return ` / watch ${deathReasonLabel(leadingRoomReason(entry)).slice(0, 3)}`;
+    }
+    return "";
+  }
+
+  function roomFocusDetails(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    const current = roomMistakes[index] || 0;
+    const lead = leadingRoomReason(entry);
+    const run = current > 0 ? `run !${current}` : "run clean";
+    const saved = entry.faults > 0 ? `saved ${deathReasonLabel(lead)} ${entry[lead] || 0}/${entry.faults}` : "saved clean";
+    const clears = entry.clears > 0 ? `clean ${entry.clean}/${entry.clears}` : "clean 0/0";
+    return `${run} / ${saved} / ${clears}`;
+  }
+
+  function strongestFocusRoom() {
+    let best = { index: -1, score: 0, reason: "fall" };
+    maps.forEach((_, index) => {
+      const entry = roomFocus[index] || createRoomFocusEntry();
+      const current = roomMistakes[index] || 0;
+      const score = current * 4 + Math.max(0, entry.faults - entry.clean * 2);
+      if (score > best.score) {
+        best = { index, score, reason: leadingRoomReason(entry) };
+      }
+    });
+    return best.index >= 0 && best.score >= 2 ? best : null;
+  }
+
+  function focusSummary() {
+    const focus = strongestFocusRoom();
+    if (!focus) return "";
+    const current = roomMistakes[focus.index] || 0;
+    const detail = current > 0 ? `!${current}` : `score ${focus.score}`;
+    return ` / Focus R${focus.index + 1} ${deathReasonLabel(focus.reason)} ${detail}`;
   }
 
   function addDeathMark(reason = lastDeathReason) {
@@ -1913,13 +2069,15 @@
     const target = ROOM_TARGETS[index] || 0;
     const grade = splitGrade(best, target);
     const pace = best > 0 ? `${grade || "PB"} ${formatTime(best)}` : `T ${formatTime(target)}`;
-    return `${index + 1}. ${ROOM_NAMES[index] || "Summit"} / ${pace}`;
+    return `${index + 1}. ${ROOM_NAMES[index] || "Summit"} / ${pace}${roomSelectFocusLabel(index)}`;
   }
 
   function refreshRoomSelectOptions() {
     if (!roomSelect) return;
     for (const option of roomSelect.options) {
-      option.textContent = roomSelectLabel(Number(option.value));
+      const index = Number(option.value);
+      option.textContent = roomSelectLabel(index);
+      option.title = roomFocusDetails(index);
     }
   }
 
@@ -1930,6 +2088,7 @@
       const option = document.createElement("option");
       option.value = String(index);
       option.textContent = roomSelectLabel(index);
+      option.title = roomFocusDetails(index);
       roomSelect.appendChild(option);
     });
   }
@@ -2083,6 +2242,7 @@
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
     roomIntroTimer = Math.max(0, roomIntroTimer - dt);
     splitPopupTimer = Math.max(0, splitPopupTimer - dt);
+    focusPopupTimer = Math.max(0, focusPopupTimer - dt);
     crumbleSlipTimer = Math.max(0, crumbleSlipTimer - dt);
     updateFlow(dt);
     updateCrumblePlatforms(dt);
@@ -2389,6 +2549,7 @@
     ctx.restore();
     drawRoomIntro(time);
     drawSplitPopup(time);
+    drawFocusPopup(time);
     drawVignette();
   }
 
@@ -2665,6 +2826,11 @@
     ctx.font = "800 12px system-ui, sans-serif";
     ctx.fillStyle = "rgba(248,251,255,0.68)";
     ctx.fillText(`target ${formatTime(target)}${best ? ` / best ${formatTime(best)}` : ""}`, W / 2, 104 - (1 - t) * 10);
+    const focus = roomSelectFocusLabel(roomIndex).replace(" / ", "");
+    if (focus) {
+      ctx.fillStyle = "rgba(247,198,93,0.78)";
+      ctx.fillText(`focus ${focus}`, W / 2, 124 - (1 - t) * 10);
+    }
     ctx.restore();
   }
 
@@ -2675,7 +2841,7 @@
       if (counts[grade] !== undefined) counts[grade] += 1;
     });
     const mistakes = deathCount > 0 ? ` / Mistakes ${deathReasonSummary()}` : "";
-    return `S ${counts.S}/${maps.length} / A ${counts.A} / Flow Best ${Math.floor(bestFlow)}${mistakes}`;
+    return `S ${counts.S}/${maps.length} / A ${counts.A} / Flow Best ${Math.floor(bestFlow)}${mistakes}${focusSummary()}`;
   }
 
   function drawSplitPopup(time) {
@@ -2694,6 +2860,23 @@
     ctx.shadowBlur = settings.calmEffects ? 6 : 13;
     ctx.fillStyle = splitPopupAhead ? palette.gold : "#ff99aa";
     ctx.fillText(splitPopupText, 0, 0);
+    ctx.restore();
+  }
+
+
+  function drawFocusPopup(time) {
+    if (focusPopupTimer <= 0 || !focusPopupText) return;
+    const t = focusPopupTimer / FOCUS_POPUP_TIME;
+    const y = 158 - (1 - t) * 10;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 1.45);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "800 12px system-ui, sans-serif";
+    ctx.shadowColor = palette.hot;
+    ctx.shadowBlur = settings.calmEffects ? 5 : 11;
+    ctx.fillStyle = "#ff99aa";
+    ctx.fillText(focusPopupText, W / 2, y + Math.sin(time * 16) * 1.2);
     ctx.restore();
   }
 
@@ -3459,6 +3642,7 @@
       `relay chain ${relayChain}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,
+      `room focus ${roomFocusDetails(roomIndex)}`,
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
       `trails ${lightTrails.length}  relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}`,
@@ -3502,7 +3686,3 @@
     context.closePath();
   }
 })();
-
-
-
-

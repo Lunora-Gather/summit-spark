@@ -211,7 +211,7 @@ canvas {
   position: absolute;
   top: 64px;
   right: 18px;
-  width: min(260px, calc(100% - 36px));
+  width: min(320px, calc(100% - 36px));
   padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(7, 12, 20, 0.76);
@@ -270,7 +270,7 @@ canvas {
 }
 
 #roomSelect {
-  width: 210px;
+  width: 238px;
 }
 
 .overlay {

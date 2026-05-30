@@ -27,6 +27,7 @@ Build an original precision platformer whose identity is not imitation, but mast
 - 2026-05-29: Expanded the route to 10 rooms and added wind updrafts, overdrive prisms, echo anchors, Flow peak scoring, near-miss rewards, gamepad support, and final-run Flow reporting.
 - 2026-05-30: Added room intro panels, dynamic best ghosts, current-route trails, practice-line settings, and summit mastery summary.
 - 2026-05-30: Added split delta HUD, dash-aim preview, room-select practice, split result popups, crumble ice late-room pressure, death reason diagnostics, and automated map integrity checks.
+- 2026-05-31: Added room focus profiling so each room records current-run mistakes, persistent fault reasons, clean clears, focus popups, debug details, and practice-directory weak-room markers.
 
 ## Next Milestones
 
@@ -47,6 +48,7 @@ Build an original precision platformer whose identity is not imitation, but mast
 - A room should be readable before it is difficult.
 - Restart speed matters as much as spectacle.
 - Practice data should help the player improve without adding menu friction.
+- Weak-room markers should point to action: current run mistakes use `!x`; persistent trouble uses `watch` plus the dominant failure reason.
 
 ## Precision Quality Gate
 

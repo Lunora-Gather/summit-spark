@@ -18,6 +18,7 @@
   const shakeSlider = document.getElementById("shakeSlider");
   const debugToggle = document.getElementById("debugToggle");
   const calmEffectsToggle = document.getElementById("calmEffectsToggle");
+  const practiceLinesToggle = document.getElementById("practiceLinesToggle");
   const controlPresetSelect = document.getElementById("controlPreset");
   const dashFill = document.querySelector(".dash-meter span");
   const staminaFill = document.querySelector(".stamina-meter span");
@@ -89,6 +90,8 @@
   const FLOW_POPUP_TIME = 0.62;
   const NEAR_MISS_COOLDOWN = 0.48;
   const ECHO_RECALL_COOLDOWN = 0.32;
+  const ROOM_INTRO_TIME = 1.2;
+  const CURRENT_PATH_DRAW_POINTS = 90;
 
   const SOLID = new Set(["#"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
@@ -127,6 +130,7 @@
   ]);
 
   const ROOM_TARGETS = [9.5, 10.5, 10.5, 12.5, 13.5, 15.0, 15.8, 16.5, 17.2, 19.0];
+  const ROOM_NAMES = ["\u8d77\u52bf\u5c71\u95e8", "\u5149\u7ee7\u6a2a\u6865", "\u5f39\u7c27\u96fe\u53f0", "\u4e09\u6bb5\u8fde\u9501", "\u68f1\u7ebf\u56de\u73af", "\u65e7\u5cf0\u51fa\u53e3", "\u98ce\u5347\u5ce1\u53e3", "\u68f1\u955c\u957f\u5eca", "\u56de\u58f0\u5ca9\u573a", "\u661f\u9876\u7ec8\u7ebf"];
 
   const maps = [
     [
@@ -420,6 +424,7 @@
   let echoAnchor = null;
   let recallCooldown = 0;
   let recallPulseTimer = 0;
+  let roomIntroTimer = ROOM_INTRO_TIME;
   const settings = readSettings();
   const actionPulse = {
     jump: 0,
@@ -536,6 +541,10 @@
   debugToggle?.addEventListener("change", () => setDebugVisible(debugToggle.checked));
   calmEffectsToggle?.addEventListener("change", () => {
     settings.calmEffects = calmEffectsToggle.checked;
+    writeSettings();
+  });
+  practiceLinesToggle?.addEventListener("change", () => {
+    settings.practiceLines = practiceLinesToggle.checked;
     writeSettings();
   });
   controlPresetSelect?.addEventListener("change", () => {
@@ -1209,7 +1218,7 @@
     if (room.entities.goal && distRectPoint(box, room.entities.goal.x, room.entities.goal.y) < 28) {
       won = true;
       const isBest = completeRun();
-      overlay.innerHTML = `<h1>登顶</h1><p>${formatTime(runTime)}${isBest ? "  BEST" : ""} · D ${deathCount} · Relay ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><button class="primary" id="restartButton" type="button">再来</button>`;
+      overlay.innerHTML = `<h1>\u767b\u9876</h1><p>${formatTime(runTime)}${isBest ? "  BEST" : ""} \u00b7 D ${deathCount} \u00b7 Relay ${bestRelayChain} \u00b7 Flow ${Math.floor(flowPeak)}</p><p>${masterySummary()}</p><button class="primary" id="restartButton" type="button">\u518d\u6765</button>`;
       overlay.classList.remove("hidden");
       document.getElementById("restartButton").addEventListener("click", hardReset);
       burst(room.entities.goal.x, room.entities.goal.y, palette.gold, 64, 420);
@@ -1499,6 +1508,7 @@
       lightTrails.length = 0;
       player.x = -player.w + 4;
       roomTime = 0;
+      roomIntroTimer = ROOM_INTRO_TIME;
       player.respawnRoom = roomIndex;
       player.respawnX = 26;
       player.respawnY = Math.min(player.y, H - TILE * 3);
@@ -1515,6 +1525,7 @@
       lightTrails.length = 0;
       player.x = W - 5;
       roomTime = 0;
+      roomIntroTimer = ROOM_INTRO_TIME;
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
       player.respawnY = Math.min(player.y, H - TILE * 3);
@@ -1828,6 +1839,7 @@
     if (shakeSlider) shakeSlider.value = String(settings.shake);
     if (debugToggle) debugToggle.checked = debugVisible;
     if (calmEffectsToggle) calmEffectsToggle.checked = settings.calmEffects;
+    if (practiceLinesToggle) practiceLinesToggle.checked = settings.practiceLines;
     if (controlPresetSelect) controlPresetSelect.value = settings.controlsPreset;
   }
 
@@ -1835,7 +1847,8 @@
     const defaults = {
       shake: SHAKE_INTENSITY,
       calmEffects: true,
-      controlsPreset: "comfort"
+      controlsPreset: "comfort",
+      practiceLines: true
     };
     try {
       const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
@@ -1843,7 +1856,8 @@
       return {
         shake: Number.isFinite(shake) ? Math.max(0, Math.min(1, shake)) : defaults.shake,
         calmEffects: saved.calmEffects === undefined ? defaults.calmEffects : Boolean(saved.calmEffects),
-        controlsPreset: CONTROL_PRESETS[saved.controlsPreset] ? saved.controlsPreset : defaults.controlsPreset
+        controlsPreset: CONTROL_PRESETS[saved.controlsPreset] ? saved.controlsPreset : defaults.controlsPreset,
+        practiceLines: saved.practiceLines === undefined ? defaults.practiceLines : Boolean(saved.practiceLines)
       };
     } catch {
       return defaults;
@@ -1930,6 +1944,7 @@
     nearMissCooldown = Math.max(0, nearMissCooldown - dt);
     recallCooldown = Math.max(0, recallCooldown - dt);
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
+    roomIntroTimer = Math.max(0, roomIntroTimer - dt);
     updateFlow(dt);
     for (const key of Object.keys(actionPulse)) {
       actionPulse[key] = Math.max(0, actionPulse[key] - dt);
@@ -2177,6 +2192,8 @@
     ctx.translate(offset.x, offset.y);
     drawTiles(time);
     drawBestRoomPath(time);
+    drawCurrentRoomPath(time);
+    drawBestRoomGhost(time);
     drawRelayRoutes(time);
     drawLightTrails(time);
     drawEntities(time);
@@ -2191,6 +2208,7 @@
     drawRoomBestCue();
     if (player.deadTimer <= 0) drawPlayer(time);
     ctx.restore();
+    drawRoomIntro(time);
     drawVignette();
   }
 
@@ -2335,6 +2353,98 @@
       }
       ctx.restore();
     }
+  }
+
+  function drawCurrentRoomPath(time) {
+    if (!settings.practiceLines || roomPath.length < 2 || player.deadTimer > 0) return;
+    const points = roomPath.filter((point) => point.room === roomIndex).slice(-CURRENT_PATH_DRAW_POINTS);
+    if (points.length < 2) return;
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = player.overdrive > 0 ? palette.green : palette.cyan;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      if (index === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    });
+    ctx.stroke();
+    ctx.globalAlpha = 0.28 + Math.sin(time * 8) * 0.05;
+    const last = points[points.length - 1];
+    ctx.fillStyle = palette.cyan;
+    ctx.fillRect(last.x - 3, last.y - 3, 6, 6);
+    ctx.restore();
+  }
+
+  function drawBestRoomGhost(time) {
+    if (!settings.practiceLines || player.deadTimer > 0) return;
+    const path = bestRoomPaths[roomIndex];
+    if (!Array.isArray(path) || path.length < 2) return;
+    const rawIndex = Math.min(path.length - 1, Math.max(0, roomTime / PATH_SAMPLE_INTERVAL));
+    const ghost = pointOnPath(path, rawIndex);
+    if (!ghost) return;
+    const pulse = 1 + Math.sin(time * 9) * 0.06;
+    ctx.save();
+    ctx.globalAlpha = 0.46;
+    ctx.translate(ghost.x, ghost.y);
+    ctx.scale(pulse, pulse);
+    ctx.shadowColor = palette.gold;
+    ctx.shadowBlur = settings.calmEffects ? 6 : 12;
+    ctx.fillStyle = "rgba(247,198,93,0.64)";
+    roundRect(ctx, -7, -11, 14, 18, 3);
+    ctx.fill();
+    ctx.fillStyle = "rgba(248,251,255,0.72)";
+    ctx.fillRect(-4, -7, 8, 2);
+    ctx.fillStyle = ghost.over ? palette.green : ghost.spark ? "#fff0a0" : ghost.dash ? palette.cyan : palette.gold;
+    ctx.fillRect(-3, -16, 6, 5);
+    ctx.restore();
+  }
+
+  function pointOnPath(path, rawIndex) {
+    const lower = Math.floor(rawIndex);
+    const upper = Math.min(path.length - 1, lower + 1);
+    const a = path[lower];
+    const b = path[upper];
+    if (!a || !b) return a || null;
+    const t = rawIndex - lower;
+    return {
+      x: a.x + (b.x - a.x) * t,
+      y: a.y + (b.y - a.y) * t,
+      dash: a.dash || b.dash,
+      spark: a.spark || b.spark,
+      over: a.over || b.over
+    };
+  }
+
+  function drawRoomIntro(time) {
+    if (roomIntroTimer <= 0) return;
+    const t = roomIntroTimer / ROOM_INTRO_TIME;
+    const best = bestRoomTimes[roomIndex] || 0;
+    const target = ROOM_TARGETS[roomIndex] || 0;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 1.4);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.62)";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "rgba(248,251,255,0.92)";
+    ctx.font = "800 18px system-ui, sans-serif";
+    ctx.fillText(`${roomIndex + 1}. ${ROOM_NAMES[roomIndex] || "Summit"}`, W / 2, 82 - (1 - t) * 10);
+    ctx.font = "800 12px system-ui, sans-serif";
+    ctx.fillStyle = "rgba(248,251,255,0.68)";
+    ctx.fillText(`target ${formatTime(target)}${best ? ` ? best ${formatTime(best)}` : ""}`, W / 2, 104 - (1 - t) * 10);
+    ctx.restore();
+  }
+
+  function masterySummary() {
+    const counts = { S: 0, A: 0, B: 0, C: 0 };
+    bestRoomTimes.forEach((best, index) => {
+      const grade = splitGrade(best, ROOM_TARGETS[index]);
+      if (counts[grade] !== undefined) counts[grade] += 1;
+    });
+    return `S ${counts.S}/${maps.length} ? A ${counts.A} ? Flow Best ${Math.floor(bestFlow)}`;
   }
 
   function drawFlowCue(time) {
@@ -3017,7 +3127,7 @@
   function updateDebug() {
     if (!debugVisible) return;
     debugPanel.textContent = [
-      `fps ${Math.round(fps)}  room ${roomIndex + 1}/${maps.length}`,
+      `fps ${Math.round(fps)}  room ${roomIndex + 1}/${maps.length}  ${ROOM_NAMES[roomIndex] || ""}`,
       `time ${formatTime(runTime)}  split ${formatTime(roomTime)} best ${formatTime(bestRoomTimes[roomIndex] || 0)} target ${formatTime(ROOM_TARGETS[roomIndex] || 0)}`,
       `pos ${player.x.toFixed(1)}, ${player.y.toFixed(1)}`,
       `vel ${player.vx.toFixed(1)}, ${player.vy.toFixed(1)}`,
@@ -3030,6 +3140,7 @@
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
       `trails ${lightTrails.length}  relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}`,
+      `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}`
     ].join("\n");
   }

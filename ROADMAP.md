@@ -25,11 +25,12 @@ Build an original precision platformer whose identity is not imitation, but mast
 - 2026-05-29: Added death trajectory replays, relay-chain feedback, room split PBs, best-route ghosts, and current-room restart.
 - 2026-05-29: Added wall coyote, fast fall, room target grades, persisted settings, comfort/classic key presets, and close-to-player input echo cues.
 - 2026-05-29: Expanded the route to 10 rooms and added wind updrafts, overdrive prisms, echo anchors, Flow peak scoring, near-miss rewards, gamepad support, and final-run Flow reporting.
+- 2026-05-30: Added room intro panels, dynamic best ghosts, current-route trails, practice-line settings, and summit mastery summary.
 
 ## Next Milestones
 
 1. Movement depth: tune spark hop, wall jump lock, wall coyote, fast fall, corner correction, input presets, gamepad feel, and grounded recovery.
-2. Practice feedback: show run time, split time, room PBs, split grades, best-route ghosts, Flow peaks, deaths, room count, recent death marks, short death trajectory replays, input echo cues, and fast room restart.
+2. Practice feedback: show run time, split time, room PBs, split grades, best-route ghosts, dynamic best ghosts, current-route trails, Flow peaks, deaths, room count, recent death marks, short death trajectory replays, input echo cues, and fast room restart.
 3. Teaching vertical slice: refine the 10-room route so each mechanic has a safe intro, a pressured use, and an optional high-skill line.
 4. Original mechanic pass: tune wind updrafts, overdrive prisms, echo anchors, light relays, and relay-chain feedback without enabling hovering.
 5. Presentation pass: add action cues, better player states, successful-tech feedback, and clearer high-speed readability.

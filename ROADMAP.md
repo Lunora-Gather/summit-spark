@@ -68,3 +68,10 @@ Build an original precision platformer whose identity is not imitation, but mast
 - Then expand practice feedback only where it helps the player understand a mistake or compare pace.
 - Every new late-game mechanic must have code simulation, rendering, map validation, and browser smoke coverage.
 - If a quality gate catches a mistake, fix the content or the rule before adding more rooms.
+
+## Pressure Scoring Weights
+
+- Hazards count as base threat.
+- Relays count higher because they require route timing.
+- Wind, prisms, and crumble ice count higher because they change commitment and recovery.
+- Map checks require middle rooms to exceed early rooms and late rooms to exceed middle rooms by a wide margin.

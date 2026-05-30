@@ -94,11 +94,11 @@ maps.forEach((room, roomIndex) => {
     }
     [...line].forEach((tile, x) => {
       if (!allowed.has(tile)) errors.push("room " + (roomIndex + 1) + " has unknown tile \"" + tile + "\" at " + (x + 1) + "," + (y + 1));
-      if ("^v<>".includes(tile)) pressure += 2;
-      if (tile === "A") pressure += 1;
-      if (tile === "U" || tile === "B" || tile === "C") pressure += 2;
+      if ("^v<>".includes(tile)) pressure += 1;
+      if (tile === "A") pressure += 3;
+      if (tile === "U" || tile === "B" || tile === "C") pressure += 3;
       if (tile === "C") crumbleCount += 1;
-      if (tile === "M" || tile === "T") pressure += 1;
+      if (tile === "M" || tile === "T") pressure += 2;
       if (tile === "S") startCount += 1;
       if (tile === "H") goalCount += 1;
     });
@@ -112,9 +112,13 @@ if (goalCount !== 1) errors.push("expected exactly one H summit goal, found " + 
 if (!maps[maps.length - 1]?.some((line) => line.includes("H"))) errors.push("summit goal H must be in the final room");
 
 const earlyPressure = pressureScores.slice(0, 3).reduce((sum, value) => sum + value, 0) / 3;
+const midPressure = pressureScores.slice(3, 6).reduce((sum, value) => sum + value, 0) / 3;
 const latePressure = pressureScores.slice(-3).reduce((sum, value) => sum + value, 0) / 3;
-if (!(latePressure >= earlyPressure + 8)) {
-  errors.push("late-room pressure must clearly exceed early-room pressure");
+if (!(midPressure >= earlyPressure + 2)) {
+  errors.push("mid-room pressure should exceed early-room pressure through mechanic combinations");
+}
+if (!(latePressure >= midPressure + 20)) {
+  errors.push("late-room pressure must clearly exceed mid-room pressure");
 }
 for (let i = 0; i < Math.min(6, maps.length); i += 1) {
   if (maps[i].some((line) => line.includes("C"))) errors.push("crumble C should not appear before room 7");

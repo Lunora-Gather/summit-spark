@@ -321,6 +321,38 @@ canvas {
   white-space: normal;
 }
 
+.drill-variants {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.variant-button {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid rgba(118, 215, 255, 0.22);
+  border-radius: 4px;
+  background: rgba(118, 215, 255, 0.08);
+  color: rgba(248, 251, 255, 0.82);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.variant-button:hover {
+  border-color: rgba(118, 215, 255, 0.42);
+  background: rgba(118, 215, 255, 0.16);
+  color: #f8fbff;
+}
+
+.variant-button.expert {
+  border-color: rgba(247, 198, 93, 0.34);
+  background: rgba(247, 198, 93, 0.1);
+  color: #fff0a0;
+}
+
 .coach-actions {
   display: flex;
   flex: 0 0 auto;

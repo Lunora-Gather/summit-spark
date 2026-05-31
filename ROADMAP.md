@@ -35,6 +35,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-05-31: Added a design-readability pass: timer arms on first movement intent, settings pauses simulation, practice copy is localized, settings are grouped by task, compact HUD hides noisy counters on narrow screens, and touch controls depend on touch-capable pointers.
 - 2026-06-01: Added an action-visual pass and richer practice review: the player now has readable pulses for jump, dash, Spark, wall jump, relay, prism, spring, recall, spawn, landing, and death; summit review now shows cards for next Drill, largest split loss, and weakest reason with concrete route advice.
 - 2026-06-01: Added late-mechanic readability and low-friction finish practice: crumble ice shows a break meter and warning outline, updrafts expose their field boundary and lift arrows, relay/prism cooldown rings show readiness, echo anchors tether to the player when recall is available, and finish review buttons jump directly into next/slow-room Drill.
+- 2026-06-01: Added Drill variants for mastery training: Clean targets no-mistake clears, Pace targets room target time, and Expert targets S pace plus no mistakes; finish review slow-room action now starts a Pace Drill.
 
 ## Next Milestones
 
@@ -57,6 +58,8 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - Practice data should help the player improve without adding menu friction.
 - Review text should point to a concrete route line, not just a room number.
 - End-of-run recommendations should be actionable without requiring the player to reopen settings.
+- Drill completion should reflect the chosen training contract, not merely reaching the room exit.
+- First-input timing should require a neutral frame after spawn so held keys or controller drift cannot burn split time.
 - Weak-room markers should point to action: current run mistakes use `!x`; persistent trouble uses `watch` plus the dominant failure reason.
 - Practice recommendations should start with the first unplayed or non-S room, then move to persistent Focus pressure.
 - Settings and practice controls must release held gameplay inputs before they take focus.

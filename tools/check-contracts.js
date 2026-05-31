@@ -140,7 +140,7 @@ const requiredIds = [
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "settingsPanel",
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "practiceLinesToggle",
   "ghostOpacitySlider", "controlPreset", "roomSelect", "focusRoomButton", "focusResetButton", "coachSummary",
-  "roomBrief", "practiceReport"
+  "roomBrief", "practiceReport", "drillCleanButton", "drillPaceButton", "drillExpertButton"
 ];
 for (const id of requiredIds) {
   if (!hasId(indexHtml, id)) errors.push("index.html missing #" + id);
@@ -155,10 +155,13 @@ if (!js.includes("roomCoachHint")) errors.push("practice coach hint helper is mi
 if (!js.includes("recommendedPracticeRoom")) errors.push("recommended practice room helper is missing");
 if (!js.includes("startRoomDrill")) errors.push("room drill entry helper is missing");
 if (!js.includes("drawDrillHud")) errors.push("drill HUD helper is missing");
+if (!js.includes("drillModeLabel")) errors.push("drill mode label helper is missing");
+if (!js.includes("drillSucceeded")) errors.push("drill variant success helper is missing");
 if (!js.includes("actionVisual")) errors.push("action visual pulse state is missing");
 if (!js.includes("drawPlayerAura")) errors.push("player action aura helper is missing");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");
+if (!js.includes("routeLineCore")) errors.push("drill route line core helper is missing");
 if (!js.includes("roomTrainingAdvice")) errors.push("room training advice helper is missing");
 if (!js.includes("roomCleanShort")) errors.push("room clean badge helper is missing");
 if (!js.includes("roomDrillText")) errors.push("room drill stats helper is missing");
@@ -173,6 +176,7 @@ if (!js.includes("trackDrillClear")) errors.push("drill clear tracker is missing
 if (!js.includes("drillSummary")) errors.push("drill summary helper is missing");
 if (!js.includes("ghostOpacity")) errors.push("practice ghost opacity setting is missing");
 if (!js.includes("timingArmed")) errors.push("first-input timing gate is missing");
+if (!js.includes("timingInputReady")) errors.push("first-input neutral guard is missing");
 if (!js.includes("isGamePaused")) errors.push("settings pause helper is missing");
 if (!js.includes("hasTimingIntent")) errors.push("timing intent helper is missing");
 if (!js.includes("resetFocusStats")) errors.push("focus reset helper is missing");
@@ -183,6 +187,8 @@ if (!indexHtml.includes("settings-section-title")) errors.push("settings panel m
 if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is missing");
 if (!standaloneHtml.includes("settings-panel")) errors.push("standalone settings panel shell is missing");
 if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("review-actions")) errors.push("finish review actions styling is missing");
+if (!indexHtml.includes("drill-variants")) errors.push("settings panel must expose drill variants");
+if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("variant-button")) errors.push("drill variant styling is missing");
 
 ["drills", "drillClears", "drillClean"].forEach((field) => {
   if (!js.includes(field + ": 0")) errors.push("createRoomFocusEntry must initialize " + field);

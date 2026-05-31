@@ -31,6 +31,7 @@
 - Drill 必须显示目标，而不是让玩家猜为什么被推荐。
 - Drill 完成后反馈 clean/clear，并保留真实错误记录。
 - 设置面板提供 Clean/Pace/Expert 三种 Drill 变体，分别对应无失误、target 和高手线。已完成基础版。
+- 复盘区提供 Clean/Pace/Expert 三张训练卡，直接从数据生成下一步，并显示合约尝试/完成进度。已完成基础版。
 
 ### B. 房间掌握度
 
@@ -89,6 +90,7 @@
 - Drill HUD 状态更清楚，显示当前目标和当前错误数。已完成基础版。
 - safe/fast/expert 三层路线目标，Drill 会按 clean 与 medal 状态切换。已完成基础版。
 - Clean/Pace/Expert 三种显式 Drill 合约，Pace/Expert 会按目标时间和无失误判断达标。已完成基础版。
+- 每房记录 Clean/Pace/Expert 的开始和达成次数，并在房间详情/练习报告中回显。已完成基础版。
 - 设置面板常驻练习报告，显示 clean、薄弱房、split loss 和下一 Drill。已完成基础版。
 - Drill start/clear/clean 统计，写入每房 Focus 档案。已完成基础版。
 - 设置面板房间详情，展示当前房间目的、路线分层、pace、clean 和 Drill 状态。已完成基础版。

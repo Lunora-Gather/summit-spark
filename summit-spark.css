@@ -312,6 +312,93 @@ canvas {
   line-height: 1.35;
 }
 
+.practice-queue {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.queue-card {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(248, 251, 255, 0.82);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.queue-card:hover {
+  border-color: rgba(118, 215, 255, 0.34);
+  background: rgba(118, 215, 255, 0.12);
+}
+
+.queue-card span,
+.queue-card strong,
+.queue-card em,
+.queue-card small {
+  display: block;
+}
+
+.queue-card span {
+  color: rgba(143, 227, 155, 0.86);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.queue-card strong {
+  margin-top: 3px;
+  color: #f8fbff;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.queue-card em {
+  margin-top: 3px;
+  color: rgba(248, 251, 255, 0.7);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.queue-meter {
+  display: block;
+  height: 3px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.queue-meter::after {
+  display: block;
+  width: var(--queue-progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(143, 227, 155, 0.95), rgba(118, 215, 255, 0.95));
+  content: "";
+}
+
+.queue-card small {
+  margin-top: 3px;
+  color: rgba(183, 201, 216, 0.78);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.queue-card.pace span {
+  color: rgba(118, 215, 255, 0.9);
+}
+
+.queue-card.expert span {
+  color: rgba(247, 198, 93, 0.92);
+}
+
 .coach-row span {
   flex: 1 1 auto;
   min-width: 0;
@@ -458,9 +545,9 @@ canvas {
 }
 
 .review-grid {
-  width: min(760px, calc(100% - 32px));
+  width: min(840px, calc(100% - 32px));
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(164px, 1fr));
   gap: 8px;
 }
 
@@ -498,7 +585,7 @@ canvas {
 }
 
 .overlay .review-advice {
-  max-width: min(760px, calc(100% - 32px));
+  max-width: min(840px, calc(100% - 32px));
   margin-top: 0;
   color: rgba(248, 251, 255, 0.82);
   font-size: 12px;

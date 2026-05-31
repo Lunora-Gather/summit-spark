@@ -28,6 +28,7 @@
   const focusResetButton = document.getElementById("focusResetButton");
   const coachSummary = document.getElementById("coachSummary");
   const practiceReport = document.getElementById("practiceReport");
+  const practiceQueue = document.getElementById("practiceQueue");
   const drillCleanButton = document.getElementById("drillCleanButton");
   const drillPaceButton = document.getElementById("drillPaceButton");
   const drillExpertButton = document.getElementById("drillExpertButton");
@@ -523,6 +524,7 @@
   let focusPopupText = "";
   let focusPopupDetail = "";
   let lastCoachSummary = "";
+  let lastPracticeQueueHtml = "";
   let flowScore = 0;
   let flowPeak = 0;
   let flowTimer = 0;
@@ -725,25 +727,38 @@
   focusRoomButton?.addEventListener("click", () => {
     const target = recommendedPracticeRoom();
     if (target >= 0) {
-      startRoomDrill(target);
       closeSettings();
+      startRoomDrill(target);
     }
   });
   drillCleanButton?.addEventListener("click", () => {
-    startRoomDrill(practiceTargetRoom(), "clean");
+    const target = practiceTargetRoom();
     closeSettings();
+    startRoomDrill(target, "clean");
   });
   drillPaceButton?.addEventListener("click", () => {
-    startRoomDrill(practiceTargetRoom(), "pace");
+    const target = practiceTargetRoom();
     closeSettings();
+    startRoomDrill(target, "pace");
   });
   drillExpertButton?.addEventListener("click", () => {
-    startRoomDrill(practiceTargetRoom(), "expert");
+    const target = practiceTargetRoom();
     closeSettings();
+    startRoomDrill(target, "expert");
   });
   focusResetButton?.addEventListener("click", () => {
     resetFocusStats();
     focusGame();
+  });
+  practiceQueue?.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest("[data-queue-room]") : null;
+    if (!button) return;
+    const index = Number(button.getAttribute("data-queue-room"));
+    const mode = button.getAttribute("data-queue-mode") || "auto";
+    if (Number.isInteger(index) && index >= 0 && index < maps.length) {
+      closeSettings();
+      startRoomDrill(index, mode);
+    }
   });
   populateRoomSelect();
   syncSettingsPanel();
@@ -1988,7 +2003,21 @@
   }
 
   function createRoomFocusEntry() {
-    const entry = { faults: 0, clears: 0, clean: 0, drills: 0, drillClears: 0, drillClean: 0, last: "none" };
+    const entry = {
+      faults: 0,
+      clears: 0,
+      clean: 0,
+      drills: 0,
+      drillClears: 0,
+      drillClean: 0,
+      cleanDrills: 0,
+      cleanWins: 0,
+      paceDrills: 0,
+      paceWins: 0,
+      expertDrills: 0,
+      expertWins: 0,
+      last: "none"
+    };
     DEATH_REASON_KEYS.forEach((key) => {
       entry[key] = 0;
     });
@@ -2006,6 +2035,12 @@
       entry.drills = Math.max(0, Number(saved.drills) || 0);
       entry.drillClears = Math.max(0, Number(saved.drillClears) || 0);
       entry.drillClean = Math.max(0, Number(saved.drillClean) || 0);
+      entry.cleanDrills = Math.max(0, Number(saved.cleanDrills) || 0);
+      entry.cleanWins = Math.max(0, Number(saved.cleanWins) || 0);
+      entry.paceDrills = Math.max(0, Number(saved.paceDrills) || 0);
+      entry.paceWins = Math.max(0, Number(saved.paceWins) || 0);
+      entry.expertDrills = Math.max(0, Number(saved.expertDrills) || 0);
+      entry.expertWins = Math.max(0, Number(saved.expertWins) || 0);
       entry.last = DEATH_REASON_LABELS[saved.last] ? saved.last : "none";
       DEATH_REASON_KEYS.forEach((key) => {
         entry[key] = Math.max(0, Number(saved[key]) || 0);
@@ -2070,18 +2105,24 @@
     refreshRoomSelectOptions();
   }
 
-  function trackDrillStart(index) {
+  function trackDrillStart(index, mode = "auto") {
     const entry = roomFocus[index] || createRoomFocusEntry();
     entry.drills += 1;
+    if (mode === "clean") entry.cleanDrills += 1;
+    if (mode === "pace") entry.paceDrills += 1;
+    if (mode === "expert") entry.expertDrills += 1;
     roomFocus[index] = entry;
     writeRoomFocus();
     refreshRoomSelectOptions();
   }
 
-  function trackDrillClear(index, clean) {
+  function trackDrillClear(index, clean, mode = "auto") {
     const entry = roomFocus[index] || createRoomFocusEntry();
     entry.drillClears += 1;
     if (clean) entry.drillClean += 1;
+    if (mode === "clean") entry.cleanWins += 1;
+    if (mode === "pace") entry.paceWins += 1;
+    if (mode === "expert") entry.expertWins += 1;
     roomFocus[index] = entry;
     writeRoomFocus();
     refreshRoomSelectOptions();
@@ -2159,6 +2200,11 @@
     const entry = roomFocus[index] || createRoomFocusEntry();
     if (entry.drills <= 0) return "Drill 0";
     return `Drill ${entry.drillClean}/${entry.drillClears}/${entry.drills}`;
+  }
+
+  function roomDrillContractText(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    return `C ${entry.cleanWins}/${entry.cleanDrills} · P ${entry.paceWins}/${entry.paceDrills} · X ${entry.expertWins}/${entry.expertDrills}`;
   }
 
   function roomPaceLabel(index) {
@@ -2257,7 +2303,7 @@
     const run = current > 0 ? `run !${current}` : "run clean";
     const saved = entry.faults > 0 ? `saved ${deathReasonLabel(lead)} ${entry[lead] || 0}/${entry.faults}` : "saved clean";
     const clears = entry.clears > 0 ? `clean ${entry.clean}/${entry.clears}` : "clean 0/0";
-    return `${run} / ${saved} / ${clears} / ${roomDrillText(index)} / ${roomPaceLabel(index)} / ${roomTierLabel(index)} / ${roomSkillLabel(index)} / ${roomPurposeLabel(index)} / ${roomRouteLine(index, 0)} / ${roomRouteLine(index, 1)} / ${roomRouteLine(index, 2)} / ${ROOM_GUIDES[index] || ""}`;
+    return `${run} / ${saved} / ${clears} / ${roomDrillText(index)} / ${roomDrillContractText(index)} / ${roomPaceLabel(index)} / ${roomTierLabel(index)} / ${roomSkillLabel(index)} / ${roomPurposeLabel(index)} / ${roomRouteLine(index, 0)} / ${roomRouteLine(index, 1)} / ${roomRouteLine(index, 2)} / ${ROOM_GUIDES[index] || ""}`;
   }
 
   function strongestFocusRoom() {
@@ -2342,7 +2388,7 @@
     const objective = drillObjectiveForRoom(index, mode);
     jumpToRoom(index, { keepDrill: true });
     activeDrill = { room: index, mode, objective, target: ROOM_TARGETS[index] || 0 };
-    trackDrillStart(index);
+    trackDrillStart(index, mode);
     focusPopupText = `${drillModeLabel(mode)} DRILL R${index + 1}`;
     focusPopupDetail = `${drillTargetText(index, mode)} / ${objective}`;
     focusPopupTimer = FOCUS_POPUP_TIME;
@@ -2352,7 +2398,7 @@
   function completeDrill(index, clean) {
     if (!activeDrill || activeDrill.room !== index) return;
     const success = drillSucceeded(activeDrill, clean, roomTime);
-    if (success) trackDrillClear(index, clean);
+    if (success) trackDrillClear(index, clean, activeDrill.mode);
     focusPopupText = success
       ? `${clean ? "DRILL 无失误" : "DRILL 通过"} R${index + 1}`
       : `${drillModeLabel(activeDrill.mode)} 未达标 R${index + 1}`;
@@ -2412,6 +2458,7 @@
     if (practiceReport) {
       practiceReport.textContent = practiceReportText();
     }
+    updatePracticeQueue();
   }
 
   function updateDrillVariantButtons() {
@@ -2429,6 +2476,101 @@
       drillExpertButton.title = `${drillTargetText(target, "expert")} / ${drillObjectiveForRoom(target, "expert")}`;
       drillExpertButton.classList.add("expert");
     }
+  }
+
+  function practiceQueueItems() {
+    const cleanIndex = cleanPracticeRoom();
+    const paceIndex = pacePracticeRoom();
+    const expertIndex = expertPracticeRoom();
+    return [
+      {
+        mode: "clean",
+        index: cleanIndex,
+        label: "Clean",
+        reason: "补无失误",
+        detail: roomPracticeReason(cleanIndex),
+        stats: drillContractStats(cleanIndex, "clean")
+      },
+      {
+        mode: "pace",
+        index: paceIndex,
+        label: "Pace",
+        reason: "追 target",
+        detail: roomPracticeReason(paceIndex),
+        stats: drillContractStats(paceIndex, "pace")
+      },
+      {
+        mode: "expert",
+        index: expertIndex,
+        label: "Expert",
+        reason: "冲高手线",
+        detail: roomPracticeReason(expertIndex),
+        stats: drillContractStats(expertIndex, "expert")
+      }
+    ];
+  }
+
+  function drillContractStats(index, mode) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    if (mode === "clean") return { starts: entry.cleanDrills, wins: entry.cleanWins };
+    if (mode === "pace") return { starts: entry.paceDrills, wins: entry.paceWins };
+    if (mode === "expert") return { starts: entry.expertDrills, wins: entry.expertWins };
+    return { starts: entry.drills, wins: entry.drillClears };
+  }
+
+  function drillContractStatus(stats) {
+    if (stats.wins > 0) return `完成 ${stats.wins}/${stats.starts}`;
+    if (stats.starts > 0) return `尝试 ${stats.wins}/${stats.starts}`;
+    return "未开练";
+  }
+
+  function drillContractProgress(stats) {
+    if (stats.starts <= 0) return 0;
+    return Math.round(Math.max(0, Math.min(1, stats.wins / stats.starts)) * 100);
+  }
+
+  function cleanPracticeRoom() {
+    const index = maps.findIndex((_, roomId) => {
+      const entry = roomFocus[roomId] || createRoomFocusEntry();
+      return entry.clean <= 0;
+    });
+    return index >= 0 ? index : recommendedPracticeRoom();
+  }
+
+  function pacePracticeRoom() {
+    const loss = largestSplitLossRoom();
+    if (loss && loss.loss > 0) return loss.index;
+    const nonS = maps.findIndex((_, index) => splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) !== "S");
+    return nonS >= 0 ? nonS : recommendedPracticeRoom();
+  }
+
+  function expertPracticeRoom() {
+    const ready = maps.findIndex((_, index) => {
+      const entry = roomFocus[index] || createRoomFocusEntry();
+      return splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S" && entry.clean > 0 && entry.expertWins <= 0;
+    });
+    if (ready >= 0) return ready;
+    const cleanS = maps.findIndex((_, index) => splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S");
+    return cleanS >= 0 ? cleanS : pacePracticeRoom();
+  }
+
+  function updatePracticeQueue() {
+    if (!practiceQueue || !settingsVisible) return;
+    const html = practiceQueueItems().map((item) => {
+      const title = `R${item.index + 1} ${ROOM_NAMES[item.index] || "Summit"}`;
+      const objective = drillObjectiveForRoom(item.index, item.mode);
+      const progress = drillContractProgress(item.stats);
+      return `<button class="queue-card ${item.mode}" type="button" data-queue-room="${item.index}" data-queue-mode="${item.mode}">`
+        + `<span>${escapeHtml(item.label)} · ${escapeHtml(drillContractStatus(item.stats))}</span>`
+        + `<strong>${escapeHtml(title)}</strong>`
+        + `<em>${escapeHtml(item.reason)} · ${escapeHtml(item.detail)}</em>`
+        + `<i class="queue-meter" style="--queue-progress: ${progress}%" aria-hidden="true"></i>`
+        + `<small>${escapeHtml(objective)}</small>`
+        + `</button>`;
+    }).join("");
+    if (html === lastPracticeQueueHtml) return;
+    lastPracticeQueueHtml = html;
+    practiceQueue.innerHTML = html;
   }
 
   function resetFocusStats() {
@@ -2660,6 +2802,7 @@
     return [
       `R${index + 1} ${ROOM_NAMES[index] || "Summit"} / ${roomMedalLabel(index)} / ${roomPaceLabel(index)}`,
       `${roomCleanText(index)} / ${roomDrillText(index)} / ${roomSkillLabel(index)}`,
+      roomDrillContractText(index),
       roomPurposeLabel(index),
       roomRouteLine(index, 0),
       roomRouteLine(index, 1),
@@ -3514,7 +3657,7 @@
   function practiceReportText() {
     const cleanRooms = roomFocus.filter((entry) => entry && entry.clean > 0).length;
     const next = recommendedPracticeRoom();
-    return `无失误 ${cleanRooms}/${maps.length} / ${drillSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 建议 ${roomTrainingAdvice(next)}`;
+    return `无失误 ${cleanRooms}/${maps.length} / ${drillSummary()} / ${contractSummary()} / ${practiceRouteSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 建议 ${roomTrainingAdvice(next)}`;
   }
 
   function drillSummary() {
@@ -3522,6 +3665,25 @@
     const clears = roomFocus.reduce((sum, entry) => sum + (entry?.drillClears || 0), 0);
     const clean = roomFocus.reduce((sum, entry) => sum + (entry?.drillClean || 0), 0);
     return starts > 0 ? `Drill ${clean}/${clears}/${starts}` : "Drill 0";
+  }
+
+  function contractSummary() {
+    const totals = roomFocus.reduce((sum, entry) => {
+      sum.cleanWins += entry?.cleanWins || 0;
+      sum.cleanDrills += entry?.cleanDrills || 0;
+      sum.paceWins += entry?.paceWins || 0;
+      sum.paceDrills += entry?.paceDrills || 0;
+      sum.expertWins += entry?.expertWins || 0;
+      sum.expertDrills += entry?.expertDrills || 0;
+      return sum;
+    }, { cleanWins: 0, cleanDrills: 0, paceWins: 0, paceDrills: 0, expertWins: 0, expertDrills: 0 });
+    return `合约 C ${totals.cleanWins}/${totals.cleanDrills} · P ${totals.paceWins}/${totals.paceDrills} · X ${totals.expertWins}/${totals.expertDrills}`;
+  }
+
+  function practiceRouteSummary() {
+    return practiceQueueItems()
+      .map((item) => `${item.label[0]} R${item.index + 1}`)
+      .join(" → ");
   }
 
   function escapeHtml(text) {
@@ -3551,6 +3713,7 @@
       + reviewCardHtml("下一 Drill", `R${next + 1} ${ROOM_NAMES[next] || "Summit"}`, drillObjectiveForRoom(next))
       + reviewCardHtml("最大损失", splitValue, splitDetail)
       + reviewCardHtml("薄弱原因", focusValue, focusDetail)
+      + reviewCardHtml("训练航线", practiceRouteSummary(), "先稳 clean，再追 target，最后冲高手线。")
       + `</div><p class="review-advice">${escapeHtml(roomTrainingAdvice(next))}</p>`
       + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="auto">下一 Drill</button>${lossButton}</div>`;
   }

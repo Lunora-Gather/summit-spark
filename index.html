@@ -69,6 +69,13 @@
           <span>&#25151;&#38388;</span>
           <select id="roomSelect"></select>
         </label>
+        <div class="coach-row">
+          <span id="coachSummary">R1 Focus</span>
+          <div class="coach-actions">
+            <button class="focus-button" id="focusRoomButton" type="button">R1 Focus</button>
+            <button class="focus-button ghost" id="focusResetButton" type="button">Reset</button>
+          </div>
+        </div>
       </section>
 
       <div class="overlay" id="overlay">
@@ -78,7 +85,9 @@
 
       <div class="touch" aria-label="触控">
         <div class="touch-cluster">
+          <button type="button" data-touch="up" aria-label="上">↑</button>
           <button type="button" data-touch="left" aria-label="左">‹</button>
+          <button type="button" data-touch="down" aria-label="下">↓</button>
           <button type="button" data-touch="right" aria-label="右">›</button>
         </div>
         <div class="touch-cluster">

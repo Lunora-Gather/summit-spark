@@ -225,7 +225,8 @@ canvas {
 }
 
 .settings-head,
-.control-row {
+.control-row,
+.coach-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -237,7 +238,8 @@ canvas {
 }
 
 .settings-head strong,
-.control-row span {
+.control-row span,
+.coach-row span {
   font-size: 13px;
   letter-spacing: 0;
 }
@@ -245,6 +247,54 @@ canvas {
 .control-row {
   min-height: 36px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.coach-row {
+  min-height: 42px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.coach-row span {
+  min-width: 0;
+  max-width: 186px;
+  overflow: hidden;
+  color: rgba(248, 251, 255, 0.82);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.focus-button {
+  min-width: 82px;
+  height: 30px;
+  border: 1px solid rgba(247, 198, 93, 0.36);
+  border-radius: 4px;
+  background: rgba(247, 198, 93, 0.12);
+  color: #fff0a0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.focus-button.ghost {
+  min-width: 54px;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(248, 251, 255, 0.76);
+}
+
+.focus-button:hover {
+  background: rgba(247, 198, 93, 0.2);
+}
+
+.focus-button.ghost:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .control-row input[type="range"] {

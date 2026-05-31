@@ -51,13 +51,13 @@ Build an original precision platformer that beats the reference by being clearer
 - One mechanic per clear code path: parse, simulate, draw, validate.
 - Every new tile must be included in map lint before it ships.
 - Every route expansion needs target times and pressure scoring.
-- Every large push ends with npm check, map check, local browser smoke, git review, push, Pages deploy, online verification.
+- Every large push ends with npm check, contract check, map check, local browser smoke, git review, push, Pages deploy, online verification.
 - Worktree must stay clean after publishing.
 
 ## Practice And Feedback Plan
 
-- Already shipped: split delta, PB/SPLIT result popup, best ghost, current trail, death replay, death reason diagnostics, room select, current room restart.
-- Next: room drill starts, mistake tags, per-room target medals, optional ghost opacity, and an end-screen route report.
+- Already shipped: split delta, PB/SPLIT result popup, time-aware best ghost, current trail, death replay, death reason diagnostics, room select, current room restart, Focus profiling, room skill tags, and a practice coach with jump/reset controls.
+- Next: room drill starts, per-room target medals, optional ghost opacity, and an end-screen route report.
 - Later: challenge variants, expert lines, and a compact level select with mastery status.
 
 ## Map Production Rules
@@ -72,8 +72,8 @@ Build an original precision platformer that beats the reference by being clearer
 
 - Fix the flattened difficulty curve.
 - Add crumble ice as a late-room pressure mechanic.
-- Rebuild rooms 7-10 around route commitment.
-- Strengthen map lint so future edits cannot flatten the curve again.
+- Rebuild room 5 around foldback route memory and rooms 7-10 around staged route commitment.
+- Strengthen map and contract lint so future edits cannot flatten the curve or silently break practice UI.
 - Verify locally and online before calling the push finished.
 
 ## One-Hour Work Queue

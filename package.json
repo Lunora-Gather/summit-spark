@@ -5,6 +5,6 @@
   "private": true,
   "scripts": {
     "start": "node game-server.js",
-    "check": "node --check summit-spark.js && node --check game-server.js && node tools/check-maps.js"
+    "check": "node --check summit-spark.js && node --check game-server.js && node tools/check-maps.js && node tools/check-contracts.js"
   }
 }

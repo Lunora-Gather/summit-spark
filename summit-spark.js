@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   "use strict";
 
   const canvas = document.getElementById("game");
@@ -22,6 +22,9 @@
   const practiceLinesToggle = document.getElementById("practiceLinesToggle");
   const controlPresetSelect = document.getElementById("controlPreset");
   const roomSelect = document.getElementById("roomSelect");
+  const focusRoomButton = document.getElementById("focusRoomButton");
+  const focusResetButton = document.getElementById("focusResetButton");
+  const coachSummary = document.getElementById("coachSummary");
   const dashFill = document.querySelector(".dash-meter span");
   const staminaFill = document.querySelector(".stamina-meter span");
 
@@ -83,7 +86,7 @@
   const PATH_SAMPLE_INTERVAL = 0.045;
   const RECENT_PATH_SECONDS = 1.55;
   const DEATH_REPLAY_LIFE = 5.2;
-  const MAX_ROOM_PATH_POINTS = 260;
+  const MAX_ROOM_PATH_POINTS = 420;
   const ROOM_BEST_FLASH_TIME = 1.15;
   const SPLIT_POPUP_TIME = 1.25;
   const FOCUS_POPUP_TIME = 1.35;
@@ -148,6 +151,31 @@
 
   const ROOM_TARGETS = [8.8, 10.0, 11.2, 12.8, 14.5, 16.0, 18.2, 20.0, 21.5, 23.5];
   const ROOM_NAMES = ["\u8d77\u52bf\u5c71\u95e8", "\u5149\u7ee7\u6a2a\u6865", "\u5f39\u7c27\u96fe\u53f0", "\u4e09\u6bb5\u8fde\u9501", "\u68f1\u7ebf\u56de\u73af", "\u65e7\u5cf0\u51fa\u53e3", "\u98ce\u5347\u5ce1\u53e3", "\u68f1\u955c\u957f\u5eca", "\u56de\u58f0\u5ca9\u573a", "\u661f\u9876\u7ec8\u7ebf"];
+  const ROOM_TIERS = ["learn", "learn", "learn", "combine", "combine", "combine", "pressure", "pressure", "finale", "finale"];
+  const ROOM_SKILLS = [
+    ["jump", "dash", "landing"],
+    ["dash", "relay", "recover"],
+    ["jump", "spring", "pace"],
+    ["relay", "chain", "hazard"],
+    ["relay", "route", "recover"],
+    ["relay", "spring", "exit"],
+    ["wind", "crumble", "echo"],
+    ["overdrive", "relay", "crumble"],
+    ["echo", "overdrive", "crumble", "wind"],
+    ["finale", "relay", "overdrive", "crumble"]
+  ];
+  const ROOM_GUIDES = [
+    "Stabilize landings before asking for speed.",
+    "Touch the relay with dash intent, then recover early.",
+    "Let the spring set height; spend dash after the apex.",
+    "Chain relays only after reading the safe platform line.",
+    "Hold route rhythm and keep one recovery option in reserve.",
+    "Use the spring as tempo reset before the exit push.",
+    "Commit on crumble, then let wind rebuild the climb.",
+    "Enter overdrive cleanly; do not waste it before crumble.",
+    "Use echo as practice anchor, then link wind into overdrive.",
+    "Trust the full kit: relay, overdrive, crumble, final landing."
+  ];
 
   const maps = [
     [
@@ -231,18 +259,18 @@
       "..............................",
       ".............L................",
       "..........#####...............",
-      "..............................",
       "....................A.........",
-      "...............####...........",
-      "..P...........................",
-      "#####.........................",
-      "........A.............R.......",
-      "......####..........#####.....",
+      ".................####.........",
       "..............................",
-      "............^^^^^.............",
-      "............#####.............",
-      "....####..................A...",
-      "......................####....",
+      "..P......................R....",
+      "#####.................####....",
+      ".............A................",
+      ".........####.................",
+      "..............................",
+      "....................^^^^^.....",
+      "....................#####.....",
+      "....A.........................",
+      "....####..............####....",
       "#########........############."
     ],
     [
@@ -269,13 +297,13 @@
       ".........................L....",
       "......................#####...",
       "..............................",
-      "..................U...........",
-      "..............#####...........",
+      ".............U................",
+      ".........####.................",
       "..........................R...",
-      ".........U............####....",
-      ".....CCCCC....................",
-      "..............................",
-      "..M...........U..........A....",
+      ".......U..............####....",
+      ".....CCC......................",
+      ".....###......................",
+      "..M..........U..........A.....",
       "#####......CCC##.......C###...",
       "..............................",
       "........^^^^..................",
@@ -293,11 +321,11 @@
       "......A.................R.....",
       ".....####............#####....",
       "..............................",
-      "..P.......B........A..........",
+      "..P................A..........",
       "#####...CCCCC....CC###........",
       "..............................",
       "............^^^^..............",
-      "............####.......B......",
+      "............####..............",
       "....U..................CCCC...",
       "..............................",
       "##########################...."
@@ -307,16 +335,16 @@
       ".........................L....",
       ".....................#####....",
       "..............................",
-      "......M...........B...........",
-      ".....CCCC......CCCC...........",
-      "..........................R...",
-      "..P.......A.............####..",
-      "#####.........................",
+      "......M.......................",
+      ".....CCCC..............B......",
+      "....................####..R...",
+      "..P.......A...................",
+      "#####....####.................",
       ".............U................",
-      ".........CCCC###..............",
+      ".........CCCC###......CCCC....",
       "........................A.....",
       ".....B........^^^^.....####...",
-      "....CCCC......CCCC............",
+      "....CCCC..............CCCC....",
       "....................U.........",
       ".........................####.",
       "#######################......."
@@ -326,12 +354,12 @@
       "..............................",
       "....................L.........",
       ".................#####........",
-      "..............................",
+      ".............A................",
       "......A......B...........R....",
       ".....CCCC..CCCCC......CCCC....",
       "..............................",
-      "..P.........U.................",
-      "#####....CCC##.........A......",
+      "..P.........U..........A......",
+      "#####....CCC##................",
       "..............................",
       "............^^^^..............",
       "............####.......B......",
@@ -390,6 +418,8 @@
   const touch = {
     left: false,
     right: false,
+    up: false,
+    down: false,
     jump: false,
     dash: false,
     grab: false
@@ -443,6 +473,8 @@
   let splitPopupAhead = true;
   let focusPopupTimer = 0;
   let focusPopupText = "";
+  let focusPopupDetail = "";
+  let lastCoachSummary = "";
   let flowScore = 0;
   let flowPeak = 0;
   let flowTimer = 0;
@@ -506,6 +538,17 @@
   canvas.tabIndex = 0;
 
   window.addEventListener("keydown", (event) => {
+    const uiControl = isSettingsInputTarget(event.target);
+    if (settingsVisible && event.code === "Escape") {
+      event.preventDefault();
+      if (event.repeat) return;
+      closeSettings();
+      return;
+    }
+    if (settingsVisible && event.code !== "KeyO" && event.code !== "F3") {
+      return;
+    }
+    if (uiControl && event.code !== "KeyO" && event.code !== "F3") return;
     if (BLOCKED_CODES.has(event.code)) {
       event.preventDefault();
     }
@@ -517,10 +560,6 @@
     keys.add(event.code);
     if (event.code === "F3" && firstPress) {
       toggleDebug();
-    }
-    if (event.code === "Escape" && settingsVisible && firstPress) {
-      closeSettings();
-      return;
     }
     if (event.code === "KeyO" && firstPress) {
       toggleSettings();
@@ -551,9 +590,31 @@
   });
 
   window.addEventListener("keyup", (event) => {
+    if (isSettingsInputTarget(event.target)) return;
     keys.delete(event.code);
     if (isActionCode(event.code, "jump")) cutJump();
   });
+
+  function isSettingsInputTarget(target) {
+    return settingsVisible
+      && typeof Element !== "undefined"
+      && target instanceof Element
+      && settingsPanel?.contains(target)
+      && ["INPUT", "SELECT", "BUTTON"].includes(target.tagName);
+  }
+
+  function releaseAllInputs() {
+    keys.clear();
+    pressed.clear();
+    touchPressed.clear();
+    gamepadPressed.clear();
+    gamepadHeld.clear();
+    for (const key of Object.keys(touch)) touch[key] = false;
+    document.querySelectorAll("[data-touch]").forEach((button) => button.classList.remove("active"));
+    player.jumpBuffer = 0;
+    player.dashBuffer = 0;
+    resetActionPulses();
+  }
 
   canvas.addEventListener("pointerdown", focusGame);
   startButton.addEventListener("click", begin);
@@ -592,6 +653,17 @@
       jumpToRoom(target);
       closeSettings();
     }
+  });
+  focusRoomButton?.addEventListener("click", () => {
+    const target = recommendedPracticeRoom();
+    if (target >= 0) {
+      jumpToRoom(target);
+      closeSettings();
+    }
+  });
+  focusResetButton?.addEventListener("click", () => {
+    resetFocusStats();
+    focusGame();
   });
   populateRoomSelect();
   syncSettingsPanel();
@@ -1467,7 +1539,8 @@
       y: Math.round(point.y * 10) / 10,
       dash: Boolean(point.dash),
       spark: Boolean(point.spark),
-      over: Boolean(point.over)
+      over: Boolean(point.over),
+      t: Math.round((Number(point.t) || 0) * 1000) / 1000
     }));
     writeRoomPaths();
   }
@@ -1640,6 +1713,14 @@
     player.y = player.respawnY;
     player.vx = 0;
     player.vy = 0;
+    player.onGround = false;
+    player.wasGrounded = false;
+    player.wallDir = 0;
+    player.wallCoyote = 0;
+    player.wallCoyoteDir = 0;
+    player.coyote = 0;
+    player.jumpBuffer = 0;
+    player.dashBuffer = 0;
     player.dashes = 1;
     player.stamina = MAX_STAMINA;
     player.dashTimer = 0;
@@ -1650,8 +1731,6 @@
     player.sparkHopDirX = player.facing;
     player.sparkHopDirY = 0;
     player.wallJumpLock = 0;
-    player.wallCoyote = 0;
-    player.wallCoyoteDir = 0;
     player.overdrive = 0;
     player.ghostTimer = 0;
     player.deadTimer = 0;
@@ -1664,7 +1743,6 @@
     clearRecentPath();
     clearRoomPath();
     resetRelayChain();
-    roomAttemptClean = true;
     seedHair();
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 16, 230);
   }
@@ -1732,7 +1810,6 @@
     shards.length = 0;
     clearRecentPath();
     clearRoomPath();
-    roomAttemptClean = true;
     seedHair();
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 12, 210);
   }
@@ -1841,6 +1918,7 @@
     roomFocus[roomIndex] = entry;
     roomAttemptClean = false;
     showFocusPopup(roomIndex, normalized);
+    updatePracticeCoach();
     writeRoomFocus();
     refreshRoomSelectOptions();
   }
@@ -1848,9 +1926,12 @@
   function markRoomClear(index) {
     const entry = roomFocus[index] || createRoomFocusEntry();
     entry.clears += 1;
-    if (roomAttemptClean) entry.clean += 1;
+    const clean = roomAttemptClean;
+    if (clean) entry.clean += 1;
     roomFocus[index] = entry;
     roomAttemptClean = true;
+    showClearPopup(index, clean);
+    updatePracticeCoach();
     writeRoomFocus();
     refreshRoomSelectOptions();
   }
@@ -1858,14 +1939,55 @@
   function showFocusPopup(index, reason) {
     const count = roomMistakes[index] || 0;
     focusPopupText = `FOCUS R${index + 1} ${deathReasonLabel(reason)} !${count}`;
+    focusPopupDetail = roomCoachHint(index, reason);
     focusPopupTimer = FOCUS_POPUP_TIME;
+  }
+
+  function showClearPopup(index, clean) {
+    const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
+    focusPopupText = `${clean ? "CLEAN" : "CLEAR"} R${index + 1}${grade ? ` ${grade}` : ""}`;
+    focusPopupDetail = index < maps.length - 1 ? `next: ${roomSkillLabel(index + 1)}` : "summit review ready";
+    focusPopupTimer = Math.max(focusPopupTimer, FOCUS_POPUP_TIME * 0.72);
   }
 
   function clearFocusPopup() {
     focusPopupTimer = 0;
     focusPopupText = "";
+    focusPopupDetail = "";
   }
 
+  function roomSkillLabel(index) {
+    const skills = ROOM_SKILLS[index] || [];
+    return skills.length ? skills.join("+") : "route";
+  }
+
+  function roomSkillShort(index) {
+    return roomSkillLabel(index).split("+").slice(0, 2).join("+");
+  }
+
+  function roomTierLabel(index) {
+    const tier = ROOM_TIERS[index] || "route";
+    if (tier === "learn") return "learn";
+    if (tier === "combine") return "combo";
+    if (tier === "pressure") return "pressure";
+    if (tier === "finale") return "finale";
+    return tier;
+  }
+
+  function roomCoachHint(index, reason = "fall") {
+    const normalized = normalizeDeathReason(reason);
+    const guide = ROOM_GUIDES[index] || "Rebuild the route one input earlier.";
+    if (normalized === "spike") return `read hazard lane; ${guide}`;
+    if (normalized === "crumble") return `commit after first touch; ${guide}`;
+    if (normalized === "retry" || normalized === "room") return `reset opening rhythm; ${guide}`;
+    return `stabilize landing; ${guide}`;
+  }
+
+  function roomFocusScore(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    const current = roomMistakes[index] || 0;
+    return current * 4 + Math.max(0, entry.faults - entry.clean * 2);
+  }
   function roomSelectFocusLabel(index) {
     const current = roomMistakes[index] || 0;
     if (current > 0) return ` / !${current}`;
@@ -1884,7 +2006,7 @@
     const run = current > 0 ? `run !${current}` : "run clean";
     const saved = entry.faults > 0 ? `saved ${deathReasonLabel(lead)} ${entry[lead] || 0}/${entry.faults}` : "saved clean";
     const clears = entry.clears > 0 ? `clean ${entry.clean}/${entry.clears}` : "clean 0/0";
-    return `${run} / ${saved} / ${clears}`;
+    return `${run} / ${saved} / ${clears} / ${roomTierLabel(index)} / ${roomSkillLabel(index)} / ${ROOM_GUIDES[index] || ""}`;
   }
 
   function strongestFocusRoom() {
@@ -1892,7 +2014,7 @@
     maps.forEach((_, index) => {
       const entry = roomFocus[index] || createRoomFocusEntry();
       const current = roomMistakes[index] || 0;
-      const score = current * 4 + Math.max(0, entry.faults - entry.clean * 2);
+      const score = roomFocusScore(index);
       if (score > best.score) {
         best = { index, score, reason: leadingRoomReason(entry) };
       }
@@ -1906,6 +2028,59 @@
     const current = roomMistakes[focus.index] || 0;
     const detail = current > 0 ? `!${current}` : `score ${focus.score}`;
     return ` / Focus R${focus.index + 1} ${deathReasonLabel(focus.reason)} ${detail}`;
+  }
+
+  function recommendedPracticeRoom() {
+    const focus = strongestFocusRoom();
+    if (focus) return focus.index;
+    const unplayed = maps.findIndex((_, index) => !(bestRoomTimes[index] > 0));
+    if (unplayed >= 0) return unplayed;
+    const nonS = maps.findIndex((_, index) => splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) !== "S");
+    if (nonS >= 0) return nonS;
+    let candidate = 0;
+    let closest = -Infinity;
+    maps.forEach((_, index) => {
+      const target = ROOM_TARGETS[index] || 1;
+      const ratio = (bestRoomTimes[index] || 0) / target;
+      if (ratio > closest) {
+        closest = ratio;
+        candidate = index;
+      }
+    });
+    return candidate;
+  }
+
+  function practiceCoachText() {
+    const target = recommendedPracticeRoom();
+    const entry = roomFocus[target] || createRoomFocusEntry();
+    const reason = entry.faults > 0 ? leadingRoomReason(entry) : "fall";
+    const score = roomFocusScore(target);
+    const marker = score > 0 ? `focus ${deathReasonLabel(reason)} ${score}` : "build S route";
+    return `R${target + 1} ${ROOM_NAMES[target] || "Summit"} / ${marker} / ${roomSkillLabel(target)}`;
+  }
+
+  function updatePracticeCoach() {
+    const text = practiceCoachText();
+    if (coachSummary && text !== lastCoachSummary) {
+      coachSummary.textContent = text;
+      lastCoachSummary = text;
+    }
+    if (focusRoomButton) {
+      const target = recommendedPracticeRoom();
+      const label = `R${target + 1} Focus`;
+      if (focusRoomButton.textContent !== label) focusRoomButton.textContent = label;
+      focusRoomButton.title = roomCoachHint(target, leadingRoomReason(roomFocus[target] || createRoomFocusEntry()));
+    }
+  }
+
+  function resetFocusStats() {
+    roomMistakes = createRoomCounters();
+    roomFocus = normalizeRoomFocus([]);
+    roomAttemptClean = true;
+    clearFocusPopup();
+    writeRoomFocus();
+    refreshRoomSelectOptions();
+    updatePracticeCoach();
   }
 
   function addDeathMark(reason = lastDeathReason) {
@@ -1937,8 +2112,8 @@
   function getInput() {
     const left = keys.has("ArrowLeft") || keys.has("KeyA") || touch.left || gamepadInput.left;
     const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.right || gamepadInput.right;
-    const up = keys.has("ArrowUp") || keys.has("KeyW") || gamepadInput.up;
-    const down = keys.has("ArrowDown") || keys.has("KeyS") || gamepadInput.down;
+    const up = keys.has("ArrowUp") || keys.has("KeyW") || touch.up || gamepadInput.up;
+    const down = keys.has("ArrowDown") || keys.has("KeyS") || touch.down || gamepadInput.down;
     const grab = keyHeldAny(actionCodes("grab")) || touch.grab || gamepadInput.grab;
     return {
       x: right ? 1 : left ? -1 : 0,
@@ -2069,7 +2244,7 @@
     const target = ROOM_TARGETS[index] || 0;
     const grade = splitGrade(best, target);
     const pace = best > 0 ? `${grade || "PB"} ${formatTime(best)}` : `T ${formatTime(target)}`;
-    return `${index + 1}. ${ROOM_NAMES[index] || "Summit"} / ${pace}${roomSelectFocusLabel(index)}`;
+    return `${index + 1}. ${ROOM_NAMES[index] || "Summit"} / ${pace} / ${roomSkillShort(index)}${roomSelectFocusLabel(index)}`;
   }
 
   function refreshRoomSelectOptions() {
@@ -2117,14 +2292,20 @@
 
   function toggleSettings() {
     settingsVisible = !settingsVisible;
+    releaseAllInputs();
     settingsPanel.classList.toggle("hidden", !settingsVisible);
     settingsPanel.setAttribute("aria-hidden", String(!settingsVisible));
-    if (settingsVisible) settingsCloseButton?.focus({ preventScroll: true });
-    else focusGame();
+    if (settingsVisible) {
+      syncSettingsPanel();
+      settingsCloseButton?.focus({ preventScroll: true });
+    } else {
+      focusGame();
+    }
   }
 
   function closeSettings() {
     settingsVisible = false;
+    releaseAllInputs();
     settingsPanel.classList.add("hidden");
     settingsPanel.setAttribute("aria-hidden", "true");
     focusGame();
@@ -2137,6 +2318,7 @@
     if (calmEffectsToggle) calmEffectsToggle.checked = settings.calmEffects;
     if (practiceLinesToggle) practiceLinesToggle.checked = settings.practiceLines;
     if (controlPresetSelect) controlPresetSelect.value = settings.controlsPreset;
+    updatePracticeCoach();
   }
 
   function readSettings() {
@@ -2459,7 +2641,8 @@
       y: player.y + player.h / 2,
       dash: player.dashTimer > 0,
       spark: player.sparkHopTimer > 0,
-      over: player.overdrive > 0
+      over: player.overdrive > 0,
+      t: roomTime
     };
     for (const point of recentPath) {
       point.age += PATH_SAMPLE_INTERVAL;
@@ -2773,7 +2956,7 @@
     if (!settings.practiceLines || player.deadTimer > 0) return;
     const path = bestRoomPaths[roomIndex];
     if (!Array.isArray(path) || path.length < 2) return;
-    const rawIndex = Math.min(path.length - 1, Math.max(0, roomTime / PATH_SAMPLE_INTERVAL));
+    const rawIndex = pathIndexAtTime(path, roomTime, bestRoomTimes[roomIndex] || 0);
     const ghost = pointOnPath(path, rawIndex);
     if (!ghost) return;
     const pulse = 1 + Math.sin(time * 9) * 0.06;
@@ -2791,6 +2974,24 @@
     ctx.fillStyle = ghost.over ? palette.green : ghost.spark ? "#fff0a0" : ghost.dash ? palette.cyan : palette.gold;
     ctx.fillRect(-3, -16, 6, 5);
     ctx.restore();
+  }
+
+  function pathIndexAtTime(path, elapsed, best) {
+    if (path[0] && typeof path[0].t === "number") {
+      if (elapsed <= path[0].t) return 0;
+      for (let i = 1; i < path.length; i += 1) {
+        const current = Number(path[i].t);
+        const previous = Number(path[i - 1].t);
+        if (!Number.isFinite(current) || !Number.isFinite(previous)) break;
+        if (elapsed <= current) {
+          const span = Math.max(0.001, current - previous);
+          return i - 1 + Math.max(0, Math.min(1, (elapsed - previous) / span));
+        }
+      }
+      return path.length - 1;
+    }
+    const duration = best > 0 ? best : Math.max(PATH_SAMPLE_INTERVAL, (path.length - 1) * PATH_SAMPLE_INTERVAL);
+    return Math.max(0, Math.min(path.length - 1, (elapsed / duration) * (path.length - 1)));
   }
 
   function pointOnPath(path, rawIndex) {
@@ -2826,10 +3027,12 @@
     ctx.font = "800 12px system-ui, sans-serif";
     ctx.fillStyle = "rgba(248,251,255,0.68)";
     ctx.fillText(`target ${formatTime(target)}${best ? ` / best ${formatTime(best)}` : ""}`, W / 2, 104 - (1 - t) * 10);
+    ctx.fillStyle = "rgba(248,251,255,0.62)";
+    ctx.fillText(`${roomTierLabel(roomIndex)} / ${roomSkillLabel(roomIndex)}`, W / 2, 124 - (1 - t) * 10);
     const focus = roomSelectFocusLabel(roomIndex).replace(" / ", "");
     if (focus) {
       ctx.fillStyle = "rgba(247,198,93,0.78)";
-      ctx.fillText(`focus ${focus}`, W / 2, 124 - (1 - t) * 10);
+      ctx.fillText(`focus ${focus}`, W / 2, 144 - (1 - t) * 10);
     }
     ctx.restore();
   }
@@ -2877,6 +3080,12 @@
     ctx.shadowBlur = settings.calmEffects ? 5 : 11;
     ctx.fillStyle = "#ff99aa";
     ctx.fillText(focusPopupText, W / 2, y + Math.sin(time * 16) * 1.2);
+    if (focusPopupDetail) {
+      ctx.font = "800 10px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(248,251,255,0.72)";
+      ctx.shadowBlur = settings.calmEffects ? 3 : 7;
+      ctx.fillText(focusPopupDetail, W / 2, y + 18);
+    }
     ctx.restore();
   }
 
@@ -3090,6 +3299,7 @@
   }
 
   function drawBestRoomPath(time) {
+    if (!settings.practiceLines) return;
     const path = bestRoomPaths[roomIndex];
     if (!Array.isArray(path) || path.length < 2) return;
     ctx.save();
@@ -3590,6 +3800,7 @@
       splitDeltaText.title = roomBest > 0 ? "room PB delta" : "target delta";
     }
     if (flowCountText) flowCountText.textContent = `F ${Math.floor(flowPeak || flowScore)}`;
+    updatePracticeCoach();
     runTimeText.textContent = formatTime(runTime);
     deathCountText.textContent = `D ${deathCount}`;
     splitTimeText.classList.toggle("best", roomBest > 0 && roomTime > 0 && roomTime <= roomBest);
@@ -3643,6 +3854,7 @@
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,
       `room focus ${roomFocusDetails(roomIndex)}`,
+      `coach ${practiceCoachText()}`,
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
       `trails ${lightTrails.length}  relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}`,

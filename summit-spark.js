@@ -470,6 +470,18 @@
     cyan: "#76d7ff",
     ink: "#f8fbff"
   };
+  const ROOM_ATMOSPHERES = [
+    { top: "#172033", mid: "#294e64", low: "#a06f5e", back: "#1e2d3f", midPeak: "#263d4c", front: "#45616a", haze: "#76d7ff", rim: "#f7c65d", moon: "#ffe7b4" },
+    { top: "#131f36", mid: "#235168", low: "#8b7561", back: "#1a2b43", midPeak: "#244353", front: "#43636d", haze: "#76d7ff", rim: "#8fe39b", moon: "#d9f5ff" },
+    { top: "#182139", mid: "#31515d", low: "#9b8065", back: "#223247", midPeak: "#334c59", front: "#5b6b70", haze: "#8fe39b", rim: "#fff0a0", moon: "#fff0c9" },
+    { top: "#171b32", mid: "#37455d", low: "#91616f", back: "#20283f", midPeak: "#31364f", front: "#574c62", haze: "#ff8aa0", rim: "#76d7ff", moon: "#ffe2c9" },
+    { top: "#121f2f", mid: "#254b53", low: "#716f5f", back: "#172c38", midPeak: "#274a4f", front: "#49645e", haze: "#8fe39b", rim: "#76d7ff", moon: "#d9fff0" },
+    { top: "#1b2034", mid: "#3f4c58", low: "#9a6a5e", back: "#222d3d", midPeak: "#354450", front: "#625d66", haze: "#f7c65d", rim: "#ff9c62", moon: "#ffe7b4" },
+    { top: "#101c31", mid: "#274c68", low: "#5f6d76", back: "#172b42", midPeak: "#27465d", front: "#3e6173", haze: "#76d7ff", rim: "#8fe39b", moon: "#d9f5ff" },
+    { top: "#161931", mid: "#3c3d5f", low: "#755d72", back: "#22223f", midPeak: "#323356", front: "#5b5472", haze: "#f7c65d", rim: "#ff8aa0", moon: "#fff0a0" },
+    { top: "#122231", mid: "#24545d", low: "#5d7668", back: "#173344", midPeak: "#26515a", front: "#47706a", haze: "#8fe39b", rim: "#f7c65d", moon: "#d9fff0" },
+    { top: "#171728", mid: "#413452", low: "#8d5c62", back: "#221e35", midPeak: "#372f4c", front: "#66536c", haze: "#ff8aa0", rim: "#f7c65d", moon: "#fff0c9" }
+  ];
 
   function assertMaps() {
     maps.forEach((room, roomIndex) => {
@@ -3293,13 +3305,17 @@
     const count = settings.calmEffects ? 3 : 5;
     const cx = player.x + player.w / 2;
     const cy = player.y + player.h / 2 + 7;
+    const angle = Math.atan2(dy, dx);
+    const color = player.overdrive > 0 ? palette.gold : palette.cyan;
     for (let i = 0; i < count; i++) {
       const t = i / Math.max(1, count - 1);
       lightTrails.push({
-        x: cx - dx * LIGHT_TRAIL_STEP * i - LIGHT_TRAIL_WIDTH / 2,
+        x: cx - dx * LIGHT_TRAIL_STEP * i,
         y: cy - dy * LIGHT_TRAIL_STEP * i + Math.sin(t * Math.PI) * 2,
         w: LIGHT_TRAIL_WIDTH - i * 4,
         h: LIGHT_TRAIL_HEIGHT,
+        angle,
+        color,
         life: LIGHT_TRAIL_LIFE - i * 0.055,
         max: LIGHT_TRAIL_LIFE,
         pulse: 0.16
@@ -3321,16 +3337,20 @@
     for (const trail of lightTrails) {
       const age = Math.max(0, trail.life / trail.max);
       const pulse = trail.pulse > 0 ? 1 + trail.pulse * 2.6 : 1;
+      const width = trail.w * pulse;
+      const color = trail.color || palette.cyan;
       ctx.save();
+      ctx.translate(trail.x, trail.y);
+      ctx.rotate(trail.angle || 0);
       ctx.globalAlpha = Math.min(0.72, age * 0.7);
-      ctx.shadowColor = "#76d7ff";
+      ctx.shadowColor = color;
       ctx.shadowBlur = settings.calmEffects ? 6 : 12;
-      ctx.fillStyle = "#76d7ff";
-      roundRect(ctx, trail.x, trail.y - trail.h / 2, trail.w * pulse, trail.h, 3);
+      ctx.fillStyle = color;
+      roundRect(ctx, -width / 2, -trail.h / 2, width, trail.h, 3);
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.fillStyle = "rgba(255,255,255,0.56)";
-      ctx.fillRect(trail.x + 6, trail.y - 1, Math.max(6, trail.w - 12) * age, 2);
+      ctx.fillRect(-width / 2 + 6, -1, Math.max(6, trail.w - 12) * age, 2);
       ctx.restore();
     }
   }
@@ -3655,11 +3675,13 @@
     const offset = shakeOffset();
     ctx.save();
     ctx.translate(offset.x, offset.y);
+    drawHazardFields(time);
     drawTiles(time);
     drawBestRoomPath(time);
     drawCurrentRoomPath(time);
     drawBestRoomGhost(time);
     drawRelayRoutes(time);
+    drawVelocityWake(time);
     drawLightTrails(time);
     drawEntities(time);
     drawRequirementBeacons(time);
@@ -4232,33 +4254,138 @@
     ctx.restore();
   }
 
+  function roomAtmosphere() {
+    return ROOM_ATMOSPHERES[roomIndex % ROOM_ATMOSPHERES.length] || ROOM_ATMOSPHERES[0];
+  }
+
+  function drawVelocityWake(time) {
+    if (player.deadTimer > 0) return;
+    const speed = Math.hypot(player.vx, player.vy);
+    const dashPulse = Math.max(visualRatio("dash", 0.24), player.dashTimer / DASH_TIME);
+    const sparkPulse = visualRatio("spark", 0.28);
+    const over = player.overdrive > 0 ? 0.5 : 0;
+    const intensity = Math.max(0, Math.min(1, (speed - 260) / 420 + dashPulse * 0.45 + sparkPulse * 0.35 + over));
+    if (intensity <= 0.04) return;
+    const dx = speed > 24 ? player.vx / speed : player.facing || 1;
+    const dy = speed > 24 ? player.vy / speed : 0;
+    const nx = -dy;
+    const ny = dx;
+    const cx = player.x + player.w / 2;
+    const cy = player.y + player.h / 2;
+    const count = settings.calmEffects ? 3 : 5;
+    const color = player.overdrive > 0 ? palette.gold : sparkPulse > 0.05 ? "#fff0a0" : palette.cyan;
+
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = settings.calmEffects ? 5 : 12;
+    for (let i = 0; i < count; i += 1) {
+      const phase = time * 12 + i * 1.7;
+      const lane = (i - (count - 1) / 2) * 6 + Math.sin(phase) * 2;
+      const back = 18 + i * 10 + intensity * 12;
+      const length = 18 + i * 6 + intensity * 22;
+      const x = cx - dx * back + nx * lane;
+      const y = cy - dy * back + ny * lane;
+      ctx.globalAlpha = (0.1 + intensity * 0.23) * (1 - i / (count + 1));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.2 + intensity * 2 - i * 0.18;
+      ctx.beginPath();
+      ctx.moveTo(x - dx * length * 0.55, y - dy * length * 0.55);
+      ctx.lineTo(x + dx * length * 0.38, y + dy * length * 0.38);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawBackground(time) {
+    const atmosphere = roomAtmosphere();
     const gradient = ctx.createLinearGradient(0, 0, 0, H);
-    gradient.addColorStop(0, palette.skyTop);
-    gradient.addColorStop(0.55, palette.skyMid);
-    gradient.addColorStop(1, palette.skyLow);
+    gradient.addColorStop(0, atmosphere.top);
+    gradient.addColorStop(0.55, atmosphere.mid);
+    gradient.addColorStop(1, atmosphere.low);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, W, H);
 
     ctx.save();
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.28;
     for (let i = 0; i < 42; i++) {
       const x = (i * 137 + roomIndex * 53) % W;
       const y = (i * 79 + 40) % 210;
-      ctx.fillStyle = i % 6 === 0 ? "#ffeab0" : "#ecf9ff";
+      ctx.fillStyle = i % 6 === 0 ? atmosphere.rim : i % 5 === 0 ? atmosphere.haze : "#ecf9ff";
       ctx.fillRect(x, y, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1);
     }
     ctx.restore();
 
-    drawMountainLayer("#1e2d3f", 0.35, 80 + roomIndex * 18, 0.18);
-    drawMountainLayer("#263d4c", 0.48, 150 + roomIndex * 9, 0.12);
-    drawMountainLayer("#45616a", 0.72, 220, 0.08);
+    drawSkyRibbons(time, atmosphere);
 
-    ctx.fillStyle = "rgba(255, 231, 180, 0.55)";
+    drawMountainLayer(atmosphere.back, 0.35, 80 + roomIndex * 18, 0.18);
+    drawMountainLayer(atmosphere.midPeak, 0.48, 150 + roomIndex * 9, 0.12);
+    drawMountainLayer(atmosphere.front, 0.72, 220, 0.08);
+
+    ctx.fillStyle = `${atmosphere.moon}88`;
     ctx.beginPath();
-    ctx.arc(W - 110, 84 + Math.sin(time * 0.3) * 4, 42, 0, Math.PI * 2);
+    ctx.arc(W - 110 + Math.sin(roomIndex) * 16, 84 + Math.sin(time * 0.3) * 4, 42, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  function drawSkyRibbons(time, atmosphere) {
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (let i = 0; i < 3; i += 1) {
+      const y = 68 + i * 34 + Math.sin(time * 0.22 + roomIndex + i) * 8;
+      const drift = ((time * (8 + i * 3) + roomIndex * 43) % (W + 260)) - 130;
+      ctx.globalAlpha = settings.calmEffects ? 0.06 : 0.09 + i * 0.02;
+      ctx.strokeStyle = i === 1 ? atmosphere.rim : atmosphere.haze;
+      ctx.lineWidth = 10 - i * 2;
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.shadowBlur = settings.calmEffects ? 2 : 9;
+      ctx.beginPath();
+      ctx.moveTo(drift - 260, y + 14);
+      ctx.bezierCurveTo(drift - 90, y - 28, drift + 160, y + 28, drift + 360, y - 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawHazardFields(time) {
+    ctx.save();
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const tile = room.tiles[y][x];
+        if (!HAZARDS.has(tile)) continue;
+        drawHazardField(x * TILE, y * TILE, tile, time, x + y * 0.7);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawHazardField(x, y, dir, time, phase) {
+    const pulse = 0.5 + Math.sin(time * 5.6 + phase) * 0.5;
+    ctx.save();
+    ctx.translate(x + TILE / 2, y + TILE / 2);
+    if (dir === "v") ctx.rotate(Math.PI);
+    if (dir === "<") ctx.rotate(-Math.PI / 2);
+    if (dir === ">") ctx.rotate(Math.PI / 2);
+    ctx.translate(-TILE / 2, -TILE / 2);
+
+    const field = ctx.createLinearGradient(0, TILE, 0, 2);
+    field.addColorStop(0, `rgba(255, 92, 108, ${0.2 + pulse * 0.08})`);
+    field.addColorStop(0.56, `rgba(255, 92, 108, ${0.08 + pulse * 0.08})`);
+    field.addColorStop(1, "rgba(255, 92, 108, 0)");
+    ctx.fillStyle = field;
+    ctx.fillRect(-4, -1, TILE + 8, TILE + 6);
+    ctx.strokeStyle = `rgba(255, 240, 160, ${0.18 + pulse * 0.2})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 5]);
+    ctx.beginPath();
+    ctx.moveTo(2, TILE - 10);
+    ctx.lineTo(TILE - 2, TILE - 10);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
 
   function drawMountainLayer(color, yBase, offset, sway) {
     ctx.save();

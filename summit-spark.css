@@ -43,8 +43,11 @@ body {
   max-width: 1240px;
   aspect-ratio: 960 / 544;
   border: 1px solid var(--stroke);
+  border-radius: 8px;
   background: #111927;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.38),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   overflow: hidden;
 }
 
@@ -72,6 +75,13 @@ canvas {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 34px;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(9, 16, 28, 0.56), rgba(9, 16, 28, 0.32));
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .brand {
@@ -95,7 +105,9 @@ canvas {
   width: 74px;
   height: 10px;
   padding: 2px;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
   background: rgba(6, 12, 22, 0.42);
 }
 
@@ -119,6 +131,7 @@ canvas {
   min-width: 54px;
   padding: 5px 8px;
   border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
   background: rgba(8, 13, 24, 0.46);
   font-size: 13px;
   font-weight: 800;
@@ -852,11 +865,13 @@ canvas {
   }
 
   .stage {
-    width: 100vw;
-    height: 100vh;
+    width: min(100vw, calc(100vh * 1.7647));
+    height: auto;
     max-width: none;
-    aspect-ratio: auto;
+    max-height: 100vh;
+    aspect-ratio: 960 / 544;
     border: 0;
+    border-radius: 0;
   }
 
   .settings-panel {

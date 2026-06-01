@@ -911,41 +911,70 @@ canvas:focus {
   }
 
   .hud {
-    inset: 12px 12px auto 12px;
+    inset: 8px 8px auto 8px;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 36px;
+    gap: 6px;
+    align-items: start;
+  }
+
+  .brand {
+    width: 34px;
+    min-width: 34px;
+    justify-content: center;
+    gap: 0;
+    padding: 4px;
+  }
+
+  .mark {
+    width: 17px;
+    height: 17px;
   }
 
   .brand span:last-child {
-    max-width: 34vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
   }
 
   .dash-meter,
   .stamina-meter {
-    width: 48px;
+    width: 42px;
   }
 
   .pace-meter {
-    width: 62px;
+    width: 54px;
   }
 
   .meters {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
+    min-width: 0;
+    min-height: 34px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 5px;
+    padding: 4px 5px;
+    overflow: hidden;
   }
 
   .counter,
   .counter.stat {
-    min-width: 48px;
-    padding: 4px 6px;
-    font-size: 12px;
+    min-width: 42px;
+    padding: 4px 5px;
+    font-size: 11px;
   }
 
   #lumenCount,
-  #flowCount {
+  #flowCount,
+  #splitTime,
+  #runTime {
     display: none;
+  }
+
+  #splitDelta {
+    min-width: 50px;
+  }
+
+  #settingsButton {
+    width: 36px;
+    height: 34px;
   }
 
   .review-grid {

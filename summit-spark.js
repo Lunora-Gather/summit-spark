@@ -109,7 +109,7 @@
   const FLOW_POPUP_TIME = 0.62;
   const NEAR_MISS_COOLDOWN = 0.48;
   const ECHO_RECALL_COOLDOWN = 0.32;
-  const ROOM_INTRO_TIME = 1.2;
+  const ROOM_INTRO_TIME = 1.45;
   const CURRENT_PATH_DRAW_POINTS = 90;
   const CRUMBLE_BREAK_TIME = 0.42;
   const DASH_AIM_PREVIEW_LENGTH = 58;
@@ -3993,39 +3993,65 @@
     return `${trimmed}...`;
   }
 
+  function isCompactCanvas() {
+    return canvas.clientWidth <= 760 || window.innerWidth <= 760;
+  }
+
   function drawRoomIntro(time) {
     if (roomIntroTimer <= 0) return;
     const t = roomIntroTimer / ROOM_INTRO_TIME;
     const best = bestRoomTimes[roomIndex] || 0;
     const target = ROOM_TARGETS[roomIndex] || 0;
+    const compact = isCompactCanvas();
+    const baseY = compact ? 118 : 82;
+    const lift = (1 - t) * 10;
+    const drill = activeDrillText(roomIndex);
+    const focus = roomSelectFocusLabel(roomIndex).replace(" / ", "");
+    const hasSecondDetail = !drill && !focus;
+    const titleFont = compact ? 24 : 20;
+    const bodyFont = compact ? 15 : 13;
+    const fineFont = compact ? 13 : 12;
+    const titleGap = compact ? 32 : 24;
+    const lineGap = compact ? 24 : 21;
+    const panelWidth = compact ? 700 : 680;
+    const panelHeight = compact ? hasSecondDetail ? 158 : 132 : hasSecondDetail ? 132 : 112;
+    const panelY = baseY - 24 - lift;
+    const alpha = Math.min(1, t * 1.4);
     ctx.save();
-    ctx.globalAlpha = Math.min(1, t * 1.4);
+    ctx.globalAlpha = alpha * (compact ? 0.82 : 0.72);
+    ctx.fillStyle = compact ? "rgba(7,12,20,0.76)" : "rgba(7,12,20,0.66)";
+    roundRect(ctx, W / 2 - panelWidth / 2, panelY, panelWidth, panelHeight, 8);
+    ctx.fill();
+    ctx.strokeStyle = compact ? "rgba(248,251,255,0.2)" : "rgba(248,251,255,0.16)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, W / 2 - panelWidth / 2 + 0.5, panelY + 0.5, panelWidth - 1, panelHeight - 1, 8);
+    ctx.stroke();
+    ctx.globalAlpha = alpha;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = "rgba(0,0,0,0.62)";
     ctx.shadowBlur = 12;
     ctx.fillStyle = "rgba(248,251,255,0.92)";
-    ctx.font = "800 18px system-ui, sans-serif";
-    ctx.fillText(`${roomIndex + 1}. ${ROOM_NAMES[roomIndex] || "Summit"}`, W / 2, 82 - (1 - t) * 10);
-    ctx.font = "800 12px system-ui, sans-serif";
-    ctx.fillStyle = "rgba(248,251,255,0.68)";
-    ctx.fillText(`target ${formatTime(target)}${best ? ` / best ${formatTime(best)}` : ""}`, W / 2, 104 - (1 - t) * 10);
-    ctx.fillStyle = "rgba(248,251,255,0.62)";
-    ctx.fillText(`${roomMedalLabel(roomIndex)} / ${roomPaceLabel(roomIndex)} / ${roomCleanText(roomIndex)} / ${roomDrillText(roomIndex)}`, W / 2, 124 - (1 - t) * 10);
-    ctx.fillText(fitText(roomPurposeLabel(roomIndex), 480), W / 2, 144 - (1 - t) * 10);
-    const drill = activeDrillText(roomIndex);
-    const focus = roomSelectFocusLabel(roomIndex).replace(" / ", "");
+    ctx.font = `800 ${titleFont}px system-ui, sans-serif`;
+    ctx.fillText(`${roomIndex + 1}. ${ROOM_NAMES[roomIndex] || "Summit"}`, W / 2, baseY - lift);
+    ctx.font = `800 ${bodyFont}px system-ui, sans-serif`;
+    ctx.fillStyle = compact ? "rgba(248,251,255,0.78)" : "rgba(248,251,255,0.68)";
+    ctx.fillText(`target ${formatTime(target)}${best ? ` / best ${formatTime(best)}` : ""}`, W / 2, baseY + titleGap - lift);
+    ctx.fillStyle = compact ? "rgba(248,251,255,0.72)" : "rgba(248,251,255,0.62)";
+    ctx.fillText(`${roomMedalLabel(roomIndex)} / ${roomPaceLabel(roomIndex)} / ${roomCleanText(roomIndex)} / ${roomDrillText(roomIndex)}`, W / 2, baseY + titleGap + lineGap - lift);
+    ctx.fillText(fitText(roomPurposeLabel(roomIndex), compact ? 620 : 560), W / 2, baseY + titleGap + lineGap * 2 - lift);
+    ctx.font = `800 ${fineFont}px system-ui, sans-serif`;
     if (drill) {
-      ctx.fillStyle = "rgba(143,227,155,0.82)";
-      ctx.fillText(fitText(drill, 520), W / 2, 164 - (1 - t) * 10);
+      ctx.fillStyle = compact ? "rgba(171,255,183,0.9)" : "rgba(143,227,155,0.82)";
+      ctx.fillText(fitText(drill, compact ? 650 : 620), W / 2, baseY + titleGap + lineGap * 3.15 - lift);
     } else if (focus) {
-      ctx.fillStyle = "rgba(247,198,93,0.78)";
-      ctx.fillText(`focus ${focus}`, W / 2, 164 - (1 - t) * 10);
+      ctx.fillStyle = compact ? "rgba(255,220,130,0.9)" : "rgba(247,198,93,0.78)";
+      ctx.fillText(`focus ${focus}`, W / 2, baseY + titleGap + lineGap * 3.15 - lift);
     } else {
-      ctx.fillStyle = "rgba(143,227,155,0.78)";
-      ctx.fillText(fitText(styleTrialObjective(roomIndex), 560), W / 2, 164 - (1 - t) * 10);
-      ctx.fillStyle = "rgba(248,251,255,0.58)";
-      ctx.fillText(`${roomTierLabel(roomIndex)} / ${roomSkillLabel(roomIndex)}`, W / 2, 184 - (1 - t) * 10);
+      ctx.fillStyle = compact ? "rgba(171,255,183,0.88)" : "rgba(143,227,155,0.78)";
+      ctx.fillText(fitText(styleTrialObjective(roomIndex), compact ? 660 : 660), W / 2, baseY + titleGap + lineGap * 3.15 - lift);
+      ctx.fillStyle = compact ? "rgba(248,251,255,0.66)" : "rgba(248,251,255,0.58)";
+      ctx.fillText(`${roomTierLabel(roomIndex)} / ${roomSkillLabel(roomIndex)}`, W / 2, baseY + titleGap + lineGap * 4.05 - lift);
     }
     ctx.restore();
   }

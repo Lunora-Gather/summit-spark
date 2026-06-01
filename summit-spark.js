@@ -29,6 +29,7 @@
   const coachSummary = document.getElementById("coachSummary");
   const practiceReport = document.getElementById("practiceReport");
   const practiceQueue = document.getElementById("practiceQueue");
+  const practiceLedger = document.getElementById("practiceLedger");
   const drillCleanButton = document.getElementById("drillCleanButton");
   const drillPaceButton = document.getElementById("drillPaceButton");
   const drillExpertButton = document.getElementById("drillExpertButton");
@@ -525,6 +526,7 @@
   let focusPopupDetail = "";
   let lastCoachSummary = "";
   let lastPracticeQueueHtml = "";
+  let lastPracticeLedgerHtml = "";
   let flowScore = 0;
   let flowPeak = 0;
   let flowTimer = 0;
@@ -755,6 +757,16 @@
     if (!button) return;
     const index = Number(button.getAttribute("data-queue-room"));
     const mode = button.getAttribute("data-queue-mode") || "auto";
+    if (Number.isInteger(index) && index >= 0 && index < maps.length) {
+      closeSettings();
+      startRoomDrill(index, mode);
+    }
+  });
+  practiceLedger?.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest("[data-ledger-room]") : null;
+    if (!button) return;
+    const index = Number(button.getAttribute("data-ledger-room"));
+    const mode = button.getAttribute("data-ledger-mode") || "auto";
     if (Number.isInteger(index) && index >= 0 && index < maps.length) {
       closeSettings();
       startRoomDrill(index, mode);
@@ -2459,6 +2471,7 @@
       practiceReport.textContent = practiceReportText();
     }
     updatePracticeQueue();
+    updatePracticeLedger();
   }
 
   function updateDrillVariantButtons() {
@@ -2571,6 +2584,104 @@
     if (html === lastPracticeQueueHtml) return;
     lastPracticeQueueHtml = html;
     practiceQueue.innerHTML = html;
+  }
+
+  function roomMasteryScore(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    const best = bestRoomTimes[index] || 0;
+    const target = ROOM_TARGETS[index] || 0;
+    const grade = splitGrade(best, target);
+    let score = 0;
+    if (best > 0) score += 18;
+    if (entry.clean > 0) score += 24;
+    if (grade === "S") score += 26;
+    else if (grade === "A") score += 20;
+    else if (grade === "B") score += 13;
+    else if (grade === "C") score += 7;
+    if (entry.expertWins > 0) score += 22;
+    else if (entry.paceWins > 0) score += 15;
+    else if (entry.cleanWins > 0) score += 9;
+    score -= Math.min(18, roomFocusScore(index) * 2);
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  function roomMasteryLevel(score) {
+    if (score >= 86) return "掌握";
+    if (score >= 66) return "稳定";
+    if (score >= 42) return "成形";
+    if (score >= 18) return "可通";
+    return "待练";
+  }
+
+  function roomReviewMode(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    const loss = roomSplitLoss(index);
+    const pressure = roomFocusScore(index);
+    const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
+    if (entry.clean <= 0 || pressure >= 8) return "clean";
+    if (loss === null || loss > 0 || grade !== "S") return "pace";
+    if (entry.expertWins <= 0) return "expert";
+    return "expert";
+  }
+
+  function roomReviewPriority(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    const loss = roomSplitLoss(index);
+    let score = roomFocusScore(index) * 8;
+    if (!(bestRoomTimes[index] > 0)) score += 80;
+    if (entry.clean <= 0) score += 46;
+    if (loss === null) score += 26;
+    else if (loss > 0) score += 24 + Math.min(42, loss * 5);
+    if (entry.paceWins <= 0) score += 12;
+    if (entry.expertWins <= 0) score += 8;
+    return score + (maps.length - index) * 0.01;
+  }
+
+  function practiceLedgerRows() {
+    return maps.map((_, index) => {
+      const mode = roomReviewMode(index);
+      const score = roomMasteryScore(index);
+      return {
+        index,
+        mode,
+        score,
+        priority: roomReviewPriority(index),
+        action: `${drillModeLabel(mode)} Drill`,
+        level: roomMasteryLevel(score)
+      };
+    }).sort((a, b) => b.priority - a.priority);
+  }
+
+  function practiceLedgerSummary() {
+    return practiceLedgerRows()
+      .slice(0, 3)
+      .map((row) => `R${row.index + 1} ${drillModeLabel(row.mode)}`)
+      .join(" · ");
+  }
+
+  function updatePracticeLedger() {
+    if (!practiceLedger || !settingsVisible) return;
+    const rows = practiceLedgerRows();
+    const html = `<div class="ledger-head"><span>房间掌握表</span><em>按优先级排序 · 点一行开练</em></div>`
+      + rows.map((row, rank) => {
+        const entry = roomFocus[row.index] || createRoomFocusEntry();
+        const title = `R${row.index + 1} ${ROOM_NAMES[row.index] || "Summit"}`;
+        const reason = `${roomPracticeReason(row.index)} · ${routePracticeLine(row.index)}`;
+        const contract = roomDrillContractText(row.index);
+        const stats = `${roomMedalLabel(row.index)} / ${roomPaceLabel(row.index)} / ${roomCleanText(row.index)}`;
+        const className = row.score >= 66 ? "strong" : row.score >= 30 ? "warming" : "weak";
+        const focus = roomFocusScore(row.index) > 0 ? ` · Focus ${deathReasonLabel(leadingRoomReason(entry))}` : "";
+        return `<button class="ledger-row ${className}" type="button" data-ledger-room="${row.index}" data-ledger-mode="${row.mode}" title="${escapeHtml(row.action)}">`
+          + `<span class="ledger-rank">#${rank + 1}</span>`
+          + `<span class="ledger-main"><strong>${escapeHtml(title)}</strong><em>${escapeHtml(reason)}</em></span>`
+          + `<span class="ledger-stats"><strong>${escapeHtml(row.level)} ${row.score}</strong><em>${escapeHtml(stats)}${escapeHtml(focus)}</em><small>${escapeHtml(contract)}</small></span>`
+          + `<span class="ledger-meter" style="--ledger-score: ${row.score}%" aria-hidden="true"></span>`
+          + `<span class="ledger-action">${escapeHtml(row.action)}</span>`
+          + `</button>`;
+      }).join("");
+    if (html === lastPracticeLedgerHtml) return;
+    lastPracticeLedgerHtml = html;
+    practiceLedger.innerHTML = html;
   }
 
   function resetFocusStats() {
@@ -3657,7 +3768,7 @@
   function practiceReportText() {
     const cleanRooms = roomFocus.filter((entry) => entry && entry.clean > 0).length;
     const next = recommendedPracticeRoom();
-    return `无失误 ${cleanRooms}/${maps.length} / ${drillSummary()} / ${contractSummary()} / ${practiceRouteSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 建议 ${roomTrainingAdvice(next)}`;
+    return `无失误 ${cleanRooms}/${maps.length} / ${drillSummary()} / ${contractSummary()} / ${practiceRouteSummary()} / 优先 ${practiceLedgerSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 建议 ${roomTrainingAdvice(next)}`;
   }
 
   function drillSummary() {

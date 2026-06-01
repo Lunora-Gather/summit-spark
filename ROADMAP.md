@@ -37,6 +37,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-01: Added late-mechanic readability and low-friction finish practice: crumble ice shows a break meter and warning outline, updrafts expose their field boundary and lift arrows, relay/prism cooldown rings show readiness, echo anchors tether to the player when recall is available, and finish review buttons jump directly into next/slow-room Drill.
 - 2026-06-01: Added Drill variants for mastery training: Clean targets no-mistake clears, Pace targets room target time, and Expert targets S pace plus no mistakes; finish review slow-room action now starts a Pace Drill.
 - 2026-06-01: Added a practice queue and per-contract Drill stats: settings now exposes actionable Clean/Pace/Expert training cards with progress meters, and each room preserves mode-specific start/win counts for review.
+- 2026-06-01: Added a room mastery ledger: settings review now sorts all rooms by training priority, shows mastery score plus pace/clean/contract status, and lets any row start the right Drill.
 
 ## Next Milestones
 
@@ -62,6 +63,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - Drill completion should reflect the chosen training contract, not merely reaching the room exit.
 - Practice queues should turn review data into one-click next actions across clean, pace, and expert goals.
 - Practice cards should show contract status, not just a destination room.
+- Mastery tables should rank rooms by action priority, not by route order alone.
 - First-input timing should require a neutral frame after spawn so held keys or controller drift cannot burn split time.
 - Weak-room markers should point to action: current run mistakes use `!x`; persistent trouble uses `watch` plus the dominant failure reason.
 - Practice recommendations should start with the first unplayed or non-S room, then move to persistent Focus pressure.

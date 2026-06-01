@@ -140,7 +140,7 @@ const requiredIds = [
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "settingsPanel",
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "practiceLinesToggle",
   "ghostOpacitySlider", "controlPreset", "roomSelect", "focusRoomButton", "focusResetButton", "coachSummary",
-  "roomBrief", "practiceReport", "practiceQueue", "drillCleanButton", "drillPaceButton", "drillExpertButton"
+  "roomBrief", "practiceReport", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillExpertButton"
 ];
 for (const id of requiredIds) {
   if (!hasId(indexHtml, id)) errors.push("index.html missing #" + id);
@@ -171,9 +171,12 @@ if (!js.includes("summitReviewCardsHtml")) errors.push("summit review card helpe
 if (!js.includes("bindFinishReviewActions")) errors.push("finish review drill buttons are missing");
 if (!js.includes("practiceReportText")) errors.push("practice report helper is missing");
 if (!js.includes("updatePracticeQueue")) errors.push("practice queue helper is missing");
+if (!js.includes("updatePracticeLedger")) errors.push("practice ledger helper is missing");
+if (!js.includes("roomMasteryScore")) errors.push("room mastery score helper is missing");
 if (!js.includes("contractSummary")) errors.push("drill contract summary helper is missing");
 if (!js.includes("drillContractStats")) errors.push("drill contract card stats helper is missing");
 if (!js.includes("practiceRouteSummary")) errors.push("practice route summary helper is missing");
+if (!js.includes("practiceLedgerSummary")) errors.push("practice ledger summary helper is missing");
 if (!js.includes("roomBriefText")) errors.push("room brief helper is missing");
 if (!js.includes("trackDrillStart")) errors.push("drill start tracker is missing");
 if (!js.includes("trackDrillClear")) errors.push("drill clear tracker is missing");
@@ -194,6 +197,7 @@ if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("revi
 if (!indexHtml.includes("drill-variants")) errors.push("settings panel must expose drill variants");
 if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("variant-button")) errors.push("drill variant styling is missing");
 if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("queue-meter")) errors.push("practice queue progress styling is missing");
+if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("ledger-meter")) errors.push("practice ledger progress styling is missing");
 
 ["drills", "drillClears", "drillClean", "cleanDrills", "cleanWins", "paceDrills", "paceWins", "expertDrills", "expertWins"].forEach((field) => {
   if (!js.includes(field + ": 0")) errors.push("createRoomFocusEntry must initialize " + field);

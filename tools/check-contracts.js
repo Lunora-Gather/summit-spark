@@ -154,6 +154,7 @@ if (!js.includes(" / watch ")) errors.push("roomSelectFocusLabel must expose per
 if (!js.includes("roomCoachHint")) errors.push("practice coach hint helper is missing");
 if (!js.includes("recommendedPracticeRoom")) errors.push("recommended practice room helper is missing");
 if (!js.includes("startRoomDrill")) errors.push("room drill entry helper is missing");
+if (!js.includes("resolveDrillMode")) errors.push("primary drill contract resolver is missing");
 if (!js.includes("retryFailedDrill")) errors.push("failed drill retry helper is missing");
 if (!js.includes("drawDrillHud")) errors.push("drill HUD helper is missing");
 if (!js.includes("drillModeLabel")) errors.push("drill mode label helper is missing");
@@ -161,6 +162,7 @@ if (!js.includes("drillSucceeded")) errors.push("drill variant success helper is
 if (!js.includes("EXPERT_REQUIREMENTS")) errors.push("expert drill requirements are missing");
 if (!js.includes("expertRequirementText")) errors.push("expert drill requirement text helper is missing");
 if (!js.includes("markRoomTech")) errors.push("room tech tracking helper is missing");
+if (js.includes('data-finish-mode="auto"')) errors.push("finish review primary drill should resolve to a contract mode");
 if (!js.includes("actionVisual")) errors.push("action visual pulse state is missing");
 if (!js.includes("drawPlayerAura")) errors.push("player action aura helper is missing");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");

@@ -2434,6 +2434,11 @@
     return "Auto";
   }
 
+  function resolveDrillMode(index, mode = "auto") {
+    if (mode === "clean" || mode === "pace" || mode === "expert") return mode;
+    return roomReviewMode(index);
+  }
+
   function expertRequirementsForRoom(index) {
     return Array.isArray(EXPERT_REQUIREMENTS[index]) ? EXPERT_REQUIREMENTS[index] : [];
   }
@@ -2463,17 +2468,19 @@
   }
 
   function drillTargetText(index, mode = "auto") {
+    const resolvedMode = resolveDrillMode(index, mode);
     const target = ROOM_TARGETS[index] || 0;
-    if (mode === "clean") return "目标：无失误通过";
-    if (mode === "pace") return `目标：${formatTime(target)} 内通关`;
-    if (mode === "expert") return `目标：S + 无失误 + 高手动作`;
+    if (resolvedMode === "clean") return "目标：无失误通过";
+    if (resolvedMode === "pace") return `目标：${formatTime(target)} 内通关`;
+    if (resolvedMode === "expert") return `目标：S + 无失误 + 高手动作`;
     return "目标：完成推荐路线";
   }
 
   function drillObjectiveForRoom(index, mode = "auto") {
-    if (mode === "clean") return `无失误：${routeLineCore(index, 0)}`;
-    if (mode === "pace") return `达标 ${formatTime(ROOM_TARGETS[index] || 0)}：${routeLineCore(index, 1)}`;
-    if (mode === "expert") return `高手线：${routeLineCore(index, 2)} / ${expertRequirementText(index)}`;
+    const resolvedMode = resolveDrillMode(index, mode);
+    if (resolvedMode === "clean") return `无失误：${routeLineCore(index, 0)}`;
+    if (resolvedMode === "pace") return `达标 ${formatTime(ROOM_TARGETS[index] || 0)}：${routeLineCore(index, 1)}`;
+    if (resolvedMode === "expert") return `高手线：${routeLineCore(index, 2)} / ${expertRequirementText(index)}`;
     const entry = roomFocus[index] || createRoomFocusEntry();
     const lead = leadingRoomReason(entry);
     const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
@@ -2487,12 +2494,13 @@
   }
 
   function startRoomDrill(index, mode = "auto") {
-    const objective = drillObjectiveForRoom(index, mode);
+    const resolvedMode = resolveDrillMode(index, mode);
+    const objective = drillObjectiveForRoom(index, resolvedMode);
     jumpToRoom(index, { keepDrill: true });
-    activeDrill = { room: index, mode, objective, target: ROOM_TARGETS[index] || 0 };
-    trackDrillStart(index, mode);
-    focusPopupText = `${drillModeLabel(mode)} DRILL R${index + 1}`;
-    focusPopupDetail = `${drillTargetText(index, mode)} / ${objective}`;
+    activeDrill = { room: index, mode: resolvedMode, objective, target: ROOM_TARGETS[index] || 0 };
+    trackDrillStart(index, resolvedMode);
+    focusPopupText = `${drillModeLabel(resolvedMode)} DRILL R${index + 1}`;
+    focusPopupDetail = `${drillTargetText(index, resolvedMode)} / ${objective}`;
     focusPopupTimer = FOCUS_POPUP_TIME;
     updatePracticeCoach();
   }
@@ -2558,7 +2566,8 @@
     const entry = roomFocus[target] || createRoomFocusEntry();
     const reason = entry.faults > 0 ? leadingRoomReason(entry) : "fall";
     const score = roomFocusScore(target);
-    const marker = score > 0 ? `复盘 ${deathReasonLabel(reason)} ${score}` : "冲 S 线";
+    const mode = resolveDrillMode(target);
+    const marker = score > 0 ? `复盘 ${deathReasonLabel(reason)} ${score}` : `${drillModeLabel(mode)} 合同`;
     return `${marker} / ${roomTrainingAdvice(target)}`;
   }
 
@@ -2570,9 +2579,10 @@
     }
     if (focusRoomButton) {
       const target = recommendedPracticeRoom();
-      const label = `R${target + 1} Drill`;
+      const mode = resolveDrillMode(target);
+      const label = `R${target + 1} ${drillModeLabel(mode)}`;
       if (focusRoomButton.textContent !== label) focusRoomButton.textContent = label;
-      focusRoomButton.title = drillObjectiveForRoom(target);
+      focusRoomButton.title = `${drillTargetText(target, mode)} / ${drillObjectiveForRoom(target, mode)}`;
     }
     updateDrillVariantButtons();
     if (practiceReport) {
@@ -3921,6 +3931,7 @@
 
   function summitReviewCardsHtml() {
     const next = recommendedPracticeRoom();
+    const nextMode = resolveDrillMode(next);
     const loss = largestSplitLossRoom();
     const focus = strongestFocusRoom();
     const splitValue = loss && loss.loss > 0 ? `R${loss.index + 1} ${formatDelta(loss.loss)}` : "全部达标";
@@ -3931,12 +3942,12 @@
       ? `<button class="review-button" type="button" data-finish-drill="${loss.index}" data-finish-mode="pace">最慢房 Pace</button>`
       : "";
     return `<div class="review-grid">`
-      + reviewCardHtml("下一 Drill", `R${next + 1} ${ROOM_NAMES[next] || "Summit"}`, drillObjectiveForRoom(next))
+      + reviewCardHtml("下一 Drill", `R${next + 1} ${drillModeLabel(nextMode)}`, drillObjectiveForRoom(next, nextMode))
       + reviewCardHtml("最大损失", splitValue, splitDetail)
       + reviewCardHtml("薄弱原因", focusValue, focusDetail)
       + reviewCardHtml("训练航线", practiceRouteSummary(), "先稳 clean，再追 target，最后冲高手线。")
       + `</div><p class="review-advice">${escapeHtml(roomTrainingAdvice(next))}</p>`
-      + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="auto">下一 Drill</button>${lossButton}</div>`;
+      + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">下一 ${drillModeLabel(nextMode)}</button>${lossButton}</div>`;
   }
 
   function bindFinishReviewActions() {

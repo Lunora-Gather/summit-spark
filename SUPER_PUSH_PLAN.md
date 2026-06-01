@@ -30,6 +30,7 @@
 - Coach 推荐房间不只是跳转，而是进入 Drill。
 - Drill 必须显示目标，而不是让玩家猜为什么被推荐。
 - Drill 完成后反馈 clean/clear，并保留真实错误记录。
+- 主 Drill 入口必须解析为 Clean/Pace/Expert 真实合同，避免最显眼的训练按钮变成宽松通关。已完成基础版。
 - 设置面板提供 Clean/Pace/Expert 三种 Drill 变体，分别对应无失误、target 和高手线。已完成基础版。
 - Expert Drill 必须证明本房高手动作，不允许只用快速 safe 线混过。已完成基础版。
 - Drill 未达标时应直接重开同一房间，减少菜单往返和错误练习延续。已完成基础版。

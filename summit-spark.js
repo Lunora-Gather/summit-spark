@@ -3662,6 +3662,7 @@
     drawRelayRoutes(time);
     drawLightTrails(time);
     drawEntities(time);
+    drawRequirementBeacons(time);
     drawDeathReplays();
     drawDeathMarks(time);
     drawParticles();
@@ -4431,6 +4432,130 @@
       ctx.stroke();
       drawRouteArrow(a.x, a.y, b.x, b.y, i);
     }
+    ctx.restore();
+  }
+
+  function activeRequirementKeys() {
+    if (!activeDrill || activeDrill.room !== roomIndex || won) return [];
+    if (activeDrill.mode === "style") return missingStyleRequirements(roomIndex);
+    if (activeDrill.mode === "expert") return missingExpertRequirements(roomIndex);
+    return [];
+  }
+
+  function requirementBeaconColor(key) {
+    if (key === "prism" || key === "relayChain") return palette.gold;
+    if (key === "spring" || key === "echo" || key === "recall") return palette.green;
+    if (key === "crumble") return palette.hot;
+    return palette.cyan;
+  }
+
+  function requirementBeaconPoints(key) {
+    if (key === "spark") {
+      return [{ x: player.x + player.w / 2, y: Math.max(36, player.y - 32), label: "Spark" }];
+    }
+    if (key === "relay" || key === "relayChain") {
+      return room.entities.relays.map((relay, index) => ({
+        x: relay.x,
+        y: relay.y - 28,
+        label: key === "relayChain" ? `x${index + 1}` : expertRequirementLabel(key)
+      }));
+    }
+    if (key === "spring") {
+      return room.entities.springs.map((spring) => ({
+        x: spring.x + spring.w / 2,
+        y: spring.y - 14,
+        label: expertRequirementLabel(key)
+      }));
+    }
+    if (key === "updraft") {
+      return room.entities.updrafts.map((updraft) => ({
+        x: updraft.x + updraft.w / 2,
+        y: Math.max(32, updraft.y - 28),
+        label: expertRequirementLabel(key)
+      }));
+    }
+    if (key === "prism") {
+      return room.entities.prisms.map((prism) => ({
+        x: prism.x,
+        y: prism.y - 30,
+        label: expertRequirementLabel(key)
+      }));
+    }
+    if (key === "echo") {
+      return room.entities.anchors.map((anchor) => ({
+        x: anchor.x,
+        y: anchor.y - 30,
+        label: expertRequirementLabel(key)
+      }));
+    }
+    if (key === "recall") {
+      if (echoAnchor && echoAnchor.room === roomIndex) {
+        return [{ x: echoAnchor.x + player.w / 2, y: echoAnchor.y - 18, label: expertRequirementLabel(key) }];
+      }
+      return room.entities.anchors.map((anchor) => ({ x: anchor.x, y: anchor.y - 30, label: "先锚点" }));
+    }
+    if (key === "crumble") {
+      const blocks = [...room.entities.crumble.values()];
+      if (!blocks.length) return [];
+      const center = blocks.reduce((sum, block) => {
+        sum.x += block.x * TILE + TILE / 2;
+        sum.y += block.y * TILE + TILE / 2;
+        return sum;
+      }, { x: 0, y: 0 });
+      return [{ x: center.x / blocks.length, y: center.y / blocks.length - 20, label: expertRequirementLabel(key) }];
+    }
+    return [];
+  }
+
+  function drawRequirementBeacons(time) {
+    const keys = activeRequirementKeys();
+    if (!keys.length || player.deadTimer > 0) return;
+    const seen = new Set();
+    let ordinal = 0;
+    ctx.save();
+    keys.forEach((key) => {
+      if (seen.has(key)) return;
+      seen.add(key);
+      const color = requirementBeaconColor(key);
+      const points = requirementBeaconPoints(key).slice(0, key === "relayChain" ? 4 : 3);
+      points.forEach((point) => {
+        drawRequirementBeacon(point.x, point.y, point.label, color, time, ordinal);
+        ordinal += 1;
+      });
+    });
+    ctx.restore();
+  }
+
+  function drawRequirementBeacon(x, y, label, color, time, ordinal) {
+    const pulse = 0.5 + Math.sin(time * 5.4 + ordinal * 0.9) * 0.5;
+    const radius = 19 + pulse * 5;
+    const text = fitText(label, 76);
+    ctx.save();
+    ctx.globalAlpha = 0.72;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = settings.calmEffects ? 6 : 12;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([4, 5]);
+    ctx.globalAlpha = 0.34 + pulse * 0.18;
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = "800 10px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const width = Math.min(88, Math.max(38, ctx.measureText(text).width + 14));
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle = "rgba(7,12,20,0.72)";
+    roundRect(ctx, x - width / 2, y - radius - 24, width, 18, 5);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y - radius - 15);
     ctx.restore();
   }
 

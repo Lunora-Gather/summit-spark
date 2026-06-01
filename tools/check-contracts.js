@@ -178,6 +178,8 @@ if (!js.includes("ROOM_STYLE_TRIALS")) errors.push("style difficulty trials are 
 if (!js.includes("styleTrialSucceeded")) errors.push("style trial success helper is missing");
 if (!js.includes("styleTrialReviewText")) errors.push("finish review must expose a Style trial card");
 if (!js.includes("drillHudDetailText")) errors.push("Drill HUD should show contract progress details");
+if (!js.includes("drawRequirementBeacons")) errors.push("active Style/Expert drills should draw missing requirement beacons");
+if (!js.includes("requirementBeaconPoints")) errors.push("requirement beacons need entity point mapping");
 if (!js.includes('mode === "style"')) errors.push("Style mode must participate in drill mode checks");
 if (!js.includes("stylePracticeRoom")) errors.push("practice queue needs a Style recommendation helper");
 if (!js.includes("EXPERT_REQUIREMENTS")) errors.push("expert drill requirements are missing");

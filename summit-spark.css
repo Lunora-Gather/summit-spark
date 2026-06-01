@@ -58,6 +58,10 @@ canvas {
   image-rendering: pixelated;
 }
 
+canvas:focus {
+  outline: none;
+}
+
 .hud {
   position: absolute;
   inset: 18px 18px auto 18px;
@@ -101,7 +105,8 @@ canvas {
 }
 
 .dash-meter,
-.stamina-meter {
+.stamina-meter,
+.pace-meter {
   width: 74px;
   height: 10px;
   padding: 2px;
@@ -112,7 +117,8 @@ canvas {
 }
 
 .dash-meter span,
-.stamina-meter span {
+.stamina-meter span,
+.pace-meter span {
   display: block;
   height: 100%;
   width: 100%;
@@ -125,6 +131,28 @@ canvas {
 
 .stamina-meter span {
   background: linear-gradient(90deg, var(--green), var(--gold));
+}
+
+.pace-meter {
+  width: 92px;
+  border-color: rgba(247, 198, 93, 0.24);
+}
+
+.pace-meter span {
+  transform: scaleX(0);
+  background: linear-gradient(90deg, var(--green), var(--gold));
+}
+
+.pace-meter.behind {
+  border-color: rgba(255, 101, 125, 0.36);
+}
+
+.pace-meter.behind span {
+  background: linear-gradient(90deg, var(--gold), var(--hot));
+}
+
+.pace-meter.ahead span {
+  background: linear-gradient(90deg, var(--cyan), var(--green));
 }
 
 .counter {
@@ -896,6 +924,10 @@ canvas {
   .dash-meter,
   .stamina-meter {
     width: 48px;
+  }
+
+  .pace-meter {
+    width: 62px;
   }
 
   .meters {

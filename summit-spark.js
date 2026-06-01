@@ -36,6 +36,8 @@
   const drillExpertButton = document.getElementById("drillExpertButton");
   const dashFill = document.querySelector(".dash-meter span");
   const staminaFill = document.querySelector(".stamina-meter span");
+  const paceMeter = document.querySelector(".pace-meter");
+  const paceFill = document.querySelector(".pace-meter span");
 
   const W = canvas.width;
   const H = canvas.height;
@@ -3698,10 +3700,12 @@
     drawPlayerAura(time);
     if (player.deadTimer <= 0) drawPlayer(time);
     ctx.restore();
+    drawFlowAtmosphere(time);
     drawRoomIntro(time);
     drawSplitPopup(time);
     drawFocusPopup(time);
     drawDrillHud(time);
+    drawPaceRibbon(time);
     drawVignette();
   }
 
@@ -4216,6 +4220,14 @@
     ctx.lineWidth = 1.5;
     roundRect(ctx, x + 0.5, y - height / 2 + 0.5, width - 1, height - 1, 6);
     ctx.stroke();
+    const limit = activeRoomTimeLimit(roomIndex);
+    if (limit > 0) {
+      const progress = Math.max(0, Math.min(1, roomTime / limit));
+      const over = roomTime > limit;
+      ctx.fillStyle = over ? "rgba(255,92,108,0.74)" : "rgba(143,227,155,0.78)";
+      roundRect(ctx, x + 10, y + height / 2 - 8, (width - 20) * progress, 3, 2);
+      ctx.fill();
+    }
     ctx.globalAlpha = 1;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -4237,20 +4249,114 @@
     const t = flowPopupTimer / FLOW_POPUP_TIME;
     const cx = player.x + player.w / 2;
     const cy = player.y - 48 - (1 - t) * 12;
+    const color = flowTierColor(flowScore);
+    const text = flowScore >= 80 ? `${flowTierLabel(flowScore)} ${Math.floor(flowScore)}` : `${flowLabel.toUpperCase()} ${Math.floor(flowScore)}`;
     ctx.save();
     ctx.globalAlpha = Math.min(1, t * 1.25);
     ctx.font = "800 13px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.shadowColor = flowScore >= 160 ? palette.gold : palette.cyan;
+    ctx.shadowColor = color;
     ctx.shadowBlur = 9;
-    ctx.fillStyle = flowScore >= 160 ? palette.gold : "#f8fbff";
-    ctx.fillText(`${flowLabel.toUpperCase()} ${Math.floor(flowScore)}`, cx, cy);
-    ctx.strokeStyle = flowScore >= 160 ? palette.gold : palette.cyan;
+    ctx.fillStyle = color;
+    ctx.fillText(text, cx, cy);
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(cx, player.y + player.h / 2, 28 + Math.sin(time * 20) * 1.5, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  function flowTierLabel(score) {
+    if (score >= 260) return "AURORA";
+    if (score >= 170) return "SURGE";
+    if (score >= 80) return "SPARK";
+    if (score > 0) return "FLOW";
+    return "CALM";
+  }
+
+  function flowTierColor(score) {
+    if (score >= 260) return "#fff0a0";
+    if (score >= 170) return palette.gold;
+    if (score >= 80) return palette.green;
+    if (score > 0) return palette.cyan;
+    return "rgba(248,251,255,0.72)";
+  }
+
+  function activeRoomTimeLimit(index = roomIndex) {
+    const target = ROOM_TARGETS[index] || 0;
+    if (!activeDrill || activeDrill.room !== index) return target;
+    if (activeDrill.mode === "pace" || activeDrill.mode === "expert") return activeDrill.target || target;
+    if (activeDrill.mode === "style") return styleTrialTimeLimit(index) || target;
+    return target;
+  }
+
+  function drawFlowAtmosphere(time) {
+    if (player.deadTimer > 0 || flowScore < 60) return;
+    const intensity = Math.max(0, Math.min(1, flowScore / 280));
+    const color = flowTierColor(flowScore);
+    const pulse = 0.5 + Math.sin(time * 5.5) * 0.5;
+    ctx.save();
+    ctx.globalAlpha = (settings.calmEffects ? 0.06 : 0.1) + intensity * 0.14;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2 + intensity * 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = settings.calmEffects ? 4 : 14;
+    ctx.strokeRect(5.5, 5.5, W - 11, H - 11);
+    ctx.globalAlpha = (0.08 + intensity * 0.16) * (0.72 + pulse * 0.28);
+    ctx.lineWidth = 4 + intensity * 4;
+    ctx.beginPath();
+    ctx.moveTo(36, 18);
+    ctx.lineTo(W - 36, 18);
+    ctx.moveTo(36, H - 18);
+    ctx.lineTo(W - 36, H - 18);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPaceRibbon(time) {
+    if (!started || won || !timingArmed || player.deadTimer > 0) return;
+    const limit = activeRoomTimeLimit(roomIndex);
+    if (!(limit > 0)) return;
+    const progress = Math.max(0, Math.min(1, roomTime / limit));
+    const over = roomTime > limit;
+    const delta = roomTime - limit;
+    const active = Boolean(activeDrill && activeDrill.room === roomIndex);
+    const width = active ? 410 : 340;
+    const height = 5;
+    const x = W / 2 - width / 2;
+    const y = H - 10;
+    const color = over ? palette.hot : delta <= -1.5 ? palette.green : palette.gold;
+    const alpha = active || over || roomIntroTimer > 0 ? 0.86 : 0.52;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "rgba(7,12,20,0.58)";
+    roundRect(ctx, x, y, width, height, 3);
+    ctx.fill();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = settings.calmEffects ? 3 : 9;
+    ctx.fillStyle = color;
+    roundRect(ctx, x, y, width * progress, height, 3);
+    ctx.fill();
+    if (over) {
+      const warning = 0.5 + Math.sin(time * 9) * 0.5;
+      ctx.globalAlpha = 0.34 + warning * 0.18;
+      ctx.fillStyle = palette.hot;
+      roundRect(ctx, x, y - 2, width, height + 4, 4);
+      ctx.fill();
+    }
+    if (active || over) {
+      ctx.globalAlpha = alpha;
+      ctx.font = "800 10px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.shadowBlur = settings.calmEffects ? 3 : 8;
+      ctx.fillStyle = color;
+      const label = active ? `${drillModeLabel(activeDrill.mode)} ${formatDelta(delta)}` : `PACE ${formatDelta(delta)}`;
+      ctx.fillText(label, W / 2, y - 4);
+    }
     ctx.restore();
   }
 
@@ -5389,6 +5495,7 @@
       splitDeltaText.title = roomBest > 0 ? "room PB delta" : "target delta";
     }
     if (flowCountText) flowCountText.textContent = `F ${Math.floor(flowPeak || flowScore)}`;
+    if (flowCountText) flowCountText.title = `${flowTierLabel(flowPeak || flowScore)} flow`;
     updatePracticeCoach();
     runTimeText.textContent = formatTime(runTime);
     deathCountText.textContent = `D ${deathCount}`;
@@ -5399,6 +5506,14 @@
     runTimeText.classList.toggle("best", bestTime > 0 && runTime > 0 && runTime <= bestTime);
     dashFill.style.transform = `scaleX(${player.dashes > 0 ? 1 : 0.12})`;
     staminaFill.style.transform = `scaleX(${Math.max(0.08, player.stamina / MAX_STAMINA)})`;
+    const paceLimit = activeRoomTimeLimit(roomIndex) || splitReference;
+    const paceProgress = paceLimit > 0 && timingArmed ? Math.max(0, Math.min(1, roomTime / paceLimit)) : 0;
+    if (paceFill) paceFill.style.transform = `scaleX(${paceProgress})`;
+    if (paceMeter) {
+      paceMeter.classList.toggle("ahead", paceLimit > 0 && roomTime <= paceLimit);
+      paceMeter.classList.toggle("behind", paceLimit > 0 && roomTime > paceLimit);
+      paceMeter.title = paceLimit > 0 ? `房间目标 ${formatTime(paceLimit)} / ${formatDelta(roomTime - paceLimit)}` : "房间目标节奏";
+    }
     syncRoomSelect();
     updateDebug();
   }

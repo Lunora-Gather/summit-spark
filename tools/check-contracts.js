@@ -154,6 +154,7 @@ if (!js.includes(" / watch ")) errors.push("roomSelectFocusLabel must expose per
 if (!js.includes("roomCoachHint")) errors.push("practice coach hint helper is missing");
 if (!js.includes("recommendedPracticeRoom")) errors.push("recommended practice room helper is missing");
 if (!js.includes("startRoomDrill")) errors.push("room drill entry helper is missing");
+if (!js.includes("retryFailedDrill")) errors.push("failed drill retry helper is missing");
 if (!js.includes("drawDrillHud")) errors.push("drill HUD helper is missing");
 if (!js.includes("drillModeLabel")) errors.push("drill mode label helper is missing");
 if (!js.includes("drillSucceeded")) errors.push("drill variant success helper is missing");

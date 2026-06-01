@@ -1517,8 +1517,10 @@
     }
 
     if (room.entities.goal && distRectPoint(box, room.entities.goal.x, room.entities.goal.y) < 28) {
+      const result = completeRun();
+      if (result.drillResult === false) return;
       won = true;
-      const isBest = completeRun();
+      const isBest = result.isBest;
       overlay.innerHTML = `<h1>\u767b\u9876</h1><p class="finish-line">${formatTime(runTime)}${isBest ? "  BEST" : ""} \u00b7 D ${deathCount} \u00b7 Relay ${bestRelayChain} \u00b7 Flow ${Math.floor(flowPeak)}</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">\u518d\u6765</button>`;
       overlay.classList.remove("hidden");
       document.getElementById("restartButton").addEventListener("click", hardReset);
@@ -1542,14 +1544,15 @@
     const clearedClean = roomAttemptClean;
     recordRoomBest(roomIndex);
     markRoomClear(roomIndex);
-    completeDrill(roomIndex, clearedClean);
+    const drillResult = completeDrill(roomIndex, clearedClean);
+    if (drillResult === false) return { isBest: false, drillResult };
     addFlow(120, "summit");
     if (bestTime <= 0 || runTime < bestTime) {
       bestTime = runTime;
       writeBestTime(bestTime);
-      return true;
+      return { isBest: true, drillResult };
     }
-    return false;
+    return { isBest: false, drillResult };
   }
 
   function scoreRelayChain() {
@@ -1831,7 +1834,8 @@
       const clearedClean = roomAttemptClean;
       recordRoomBest(clearedRoom);
       markRoomClear(clearedRoom);
-      completeDrill(clearedRoom, clearedClean);
+      const drillResult = completeDrill(clearedRoom, clearedClean);
+      if (drillResult === false) return;
       roomIndex += 1;
       roomAttemptClean = true;
       room = parseRoom(roomIndex);
@@ -2494,15 +2498,28 @@
   }
 
   function completeDrill(index, clean) {
-    if (!activeDrill || activeDrill.room !== index) return;
+    if (!activeDrill || activeDrill.room !== index) return null;
     const success = drillSucceeded(activeDrill, clean, roomTime);
-    if (success) trackDrillClear(index, clean, activeDrill.mode);
-    focusPopupText = success
-      ? `${clean ? "DRILL 无失误" : "DRILL 通过"} R${index + 1}`
-      : `${drillModeLabel(activeDrill.mode)} 未达标 R${index + 1}`;
-    focusPopupDetail = success ? "目标完成" : drillFailureText(activeDrill, clean, roomTime);
+    if (success) {
+      trackDrillClear(index, clean, activeDrill.mode);
+      focusPopupText = `${clean ? "DRILL 无失误" : "DRILL 通过"} R${index + 1}`;
+      focusPopupDetail = "目标完成";
+      focusPopupTimer = FOCUS_POPUP_TIME;
+      activeDrill = null;
+      updatePracticeCoach();
+      return true;
+    }
+    retryFailedDrill({ ...activeDrill }, drillFailureText(activeDrill, clean, roomTime));
+    return false;
+  }
+
+  function retryFailedDrill(drill, reason) {
+    jumpToRoom(drill.room, { keepDrill: true });
+    activeDrill = drill;
+    trackDrillStart(drill.room, drill.mode);
+    focusPopupText = `${drillModeLabel(drill.mode)} 重练 R${drill.room + 1}`;
+    focusPopupDetail = reason;
     focusPopupTimer = FOCUS_POPUP_TIME;
-    activeDrill = null;
     updatePracticeCoach();
   }
 

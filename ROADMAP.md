@@ -39,6 +39,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-01: Added a practice queue and per-contract Drill stats: settings now exposes actionable Clean/Pace/Expert training cards with progress meters, and each room preserves mode-specific start/win counts for review.
 - 2026-06-01: Added a room mastery ledger: settings review now sorts all rooms by training priority, shows mastery score plus pace/clean/contract status, and lets any row start the right Drill.
 - 2026-06-01: Strengthened Expert Drill contracts: Expert clears now require S pace, no mistakes, and each room's authored high-skill tech such as Spark, relay chain, spring, wind, prism, echo, or crumble rhythm.
+- 2026-06-01: Tightened Drill retry friction: failed Drill contracts restart the same room with the same target instead of leaking the player into the next room or finish screen.
 
 ## Next Milestones
 
@@ -63,6 +64,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - End-of-run recommendations should be actionable without requiring the player to reopen settings.
 - Drill completion should reflect the chosen training contract, not merely reaching the room exit.
 - Expert completion should prove the authored high-skill line, not just a fast safe route.
+- Failed practice contracts should restart the exact target quickly, without recording a false mastery win.
 - Practice queues should turn review data into one-click next actions across clean, pace, and expert goals.
 - Practice cards should show contract status, not just a destination room.
 - Mastery tables should rank rooms by action priority, not by route order alone.

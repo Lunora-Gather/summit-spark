@@ -58,7 +58,7 @@ The long-term optimization source lives in `LONG_TERM_OPTIMIZATION_OUTLINE.md`; 
 
 ## Practice And Feedback Plan
 
-- Already shipped: split delta, PB/SPLIT result popup, time-aware best ghost, current trail, death replay, death reason diagnostics, room select, current room restart, Focus profiling, room skill tags, room purpose text, safe/fast/expert route lines, practice coach drill starts, Clean/Pace/Expert Drill variants, per-contract Drill stats, Expert high-skill action requirements, actionable practice queue cards with progress meters, room mastery ledger, persistent Drill HUD, room detail brief, room medal/pace/clean badges, settings practice report, ghost opacity, first-input timer arming, settings pause, localized practice copy, grouped settings, compact narrow HUD, action-state player pulses, late-mechanic readability cues, and an end-screen card review with direct Drill actions.
+- Already shipped: split delta, PB/SPLIT result popup, time-aware best ghost, current trail, death replay, death reason diagnostics, room select, current room restart, Focus profiling, room skill tags, room purpose text, safe/fast/expert route lines, practice coach drill starts, Clean/Pace/Expert Drill variants, failed-Drill auto retry, per-contract Drill stats, Expert high-skill action requirements, actionable practice queue cards with progress meters, room mastery ledger, persistent Drill HUD, room detail brief, room medal/pace/clean badges, settings practice report, ghost opacity, first-input timer arming, settings pause, localized practice copy, grouped settings, compact narrow HUD, action-state player pulses, late-mechanic readability cues, and an end-screen card review with direct Drill actions.
 - Next: tune the 10-room route against the new review data, then strengthen challenge variants and expert lines.
 - Later: challenge variants, expert lines, and a compact level select with mastery status.
 
@@ -94,6 +94,7 @@ Immediate direction:
 - Treat finish screens as practice surfaces: the player should be able to act on a recommendation immediately.
 - Treat training variants as contracts: Clean, Pace, and Expert should succeed only when their stated goal is met.
 - Treat Expert as authored mastery: each Expert contract should require the room's signature technique.
+- Treat failed Drill exits as retry moments, not as permission to drift into unrelated rooms.
 - Treat the settings panel as a training cockpit: review data should always produce a next action.
 - Treat practice cards as status surfaces: each card should expose both the next action and the contract result so far.
 - Treat room mastery as a sortable worklist: the weakest useful action should rise to the top automatically.

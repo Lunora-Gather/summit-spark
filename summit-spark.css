@@ -675,9 +675,12 @@ canvas {
   place-items: center;
   align-content: center;
   gap: 22px;
+  overflow-y: auto;
+  padding: 20px 0;
   background: rgba(8, 13, 21, 0.35);
   backdrop-filter: blur(2px);
   transition: opacity 180ms ease, visibility 180ms ease;
+  box-sizing: border-box;
 }
 
 .overlay.hidden {

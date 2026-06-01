@@ -42,6 +42,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-01: Tightened Drill retry friction: failed Drill contracts restart the same room with the same target instead of leaking the player into the next room or finish screen.
 - 2026-06-01: Made the primary Drill entry contract-aware: settings and finish-review "next Drill" actions resolve into Clean, Pace, Style, or Expert instead of using a loose auto clear.
 - 2026-06-01: Added Style Drill contracts for difficulty-type variety: every room now has a bespoke challenge flavor such as precision, recovery, timing, chain, route choice, terrain risk, overdrive risk, echo reading, or finale endurance.
+- 2026-06-01: Surfaced difficulty types during play: room intro cards now show Style objectives, active Drill HUDs show contract progress/time pressure, and summit review includes a direct Style challenge action.
 
 ## Next Milestones
 

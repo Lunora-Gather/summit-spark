@@ -2310,6 +2310,12 @@
     return `类型 ${styleTrialObjective(index)}`;
   }
 
+  function styleTrialReviewText(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
+    const status = entry.styleWins > 0 ? `已完成 ${entry.styleWins}/${entry.styleDrills}` : entry.styleDrills > 0 ? `尝试 ${entry.styleWins}/${entry.styleDrills}` : "未开练";
+    return `${status} / ${styleTrialObjective(index)}`;
+  }
+
   function roomRouteLine(index, slot) {
     const lines = ROOM_ROUTE_LINES[index] || [];
     return lines[slot] || lines[0] || roomPurposeLabel(index);
@@ -2543,6 +2549,25 @@
     if (!requirements.length) return "";
     const done = requirements.filter((key) => roomTech[key]).length;
     return `类型 ${done}/${requirements.length}`;
+  }
+
+  function drillHudDetailText(drill, index) {
+    if (!drill || drill.room !== index) return "";
+    if (drill.mode === "style") {
+      const limit = styleTrialTimeLimit(index);
+      const time = limit > 0 ? ` / 剩 ${formatTime(Math.max(0, limit - roomTime))}` : "";
+      return `${styleTrialProgress(index)}${time}`;
+    }
+    if (drill.mode === "expert") {
+      const target = ROOM_TARGETS[index] || 0;
+      const time = target > 0 ? ` / S 剩 ${formatTime(Math.max(0, target - roomTime))}` : "";
+      return `${expertRequirementProgress(index)}${time}`;
+    }
+    if (drill.mode === "pace") {
+      const target = ROOM_TARGETS[index] || 0;
+      return target > 0 ? `剩 ${formatTime(Math.max(0, target - roomTime))}` : "";
+    }
+    return "";
   }
 
   function drillTargetText(index, mode = "auto") {
@@ -3970,7 +3995,10 @@
       ctx.fillStyle = "rgba(247,198,93,0.78)";
       ctx.fillText(`focus ${focus}`, W / 2, 164 - (1 - t) * 10);
     } else {
-      ctx.fillText(`${roomTierLabel(roomIndex)} / ${styleTrialLabel(roomIndex)} / ${roomSkillLabel(roomIndex)}`, W / 2, 164 - (1 - t) * 10);
+      ctx.fillStyle = "rgba(143,227,155,0.78)";
+      ctx.fillText(fitText(styleTrialObjective(roomIndex), 560), W / 2, 164 - (1 - t) * 10);
+      ctx.fillStyle = "rgba(248,251,255,0.58)";
+      ctx.fillText(`${roomTierLabel(roomIndex)} / ${roomSkillLabel(roomIndex)}`, W / 2, 184 - (1 - t) * 10);
     }
     ctx.restore();
   }
@@ -4068,6 +4096,7 @@
   function summitReviewCardsHtml() {
     const next = recommendedPracticeRoom();
     const nextMode = resolveDrillMode(next);
+    const styleIndex = stylePracticeRoom();
     const loss = largestSplitLossRoom();
     const focus = strongestFocusRoom();
     const splitValue = loss && loss.loss > 0 ? `R${loss.index + 1} ${formatDelta(loss.loss)}` : "全部达标";
@@ -4077,13 +4106,15 @@
     const lossButton = loss && loss.loss > 0
       ? `<button class="review-button" type="button" data-finish-drill="${loss.index}" data-finish-mode="pace">最慢房 Pace</button>`
       : "";
+    const styleButton = `<button class="review-button" type="button" data-finish-drill="${styleIndex}" data-finish-mode="style">类型 Style</button>`;
     return `<div class="review-grid">`
       + reviewCardHtml("下一 Drill", `R${next + 1} ${drillModeLabel(nextMode)}`, drillObjectiveForRoom(next, nextMode))
+      + reviewCardHtml("类型挑战", `R${styleIndex + 1} ${styleTrialLabel(styleIndex)}`, styleTrialReviewText(styleIndex))
       + reviewCardHtml("最大损失", splitValue, splitDetail)
       + reviewCardHtml("薄弱原因", focusValue, focusDetail)
       + reviewCardHtml("训练航线", practiceRouteSummary(), "先稳 clean，再追 target，最后冲高手线。")
       + `</div><p class="review-advice">${escapeHtml(roomTrainingAdvice(next))}</p>`
-      + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">下一 ${drillModeLabel(nextMode)}</button>${lossButton}</div>`;
+      + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">下一 ${drillModeLabel(nextMode)}</button>${styleButton}${lossButton}</div>`;
   }
 
   function bindFinishReviewActions() {
@@ -4144,20 +4175,23 @@
     if (!activeDrill || activeDrill.room !== roomIndex || won) return;
     const current = roomMistakes[roomIndex] || 0;
     const text = `${drillModeLabel(activeDrill.mode).toUpperCase()} R${roomIndex + 1} · ${activeDrill.objective}${current ? ` · !${current}` : " · 无失误"}`;
+    const detail = drillHudDetailText(activeDrill, roomIndex);
     const y = roomIntroTimer > 0 ? 188 : 84;
     const pulse = 0.5 + Math.sin(time * 8) * 0.5;
     ctx.save();
     ctx.font = "800 15px system-ui, sans-serif";
     const label = fitText(text, 520);
-    const width = Math.min(590, Math.max(260, ctx.measureText(label).width + 32));
+    const detailLabel = detail ? fitText(detail, 500) : "";
+    const width = Math.min(590, Math.max(260, Math.max(ctx.measureText(label).width, detailLabel ? ctx.measureText(detailLabel).width : 0) + 32));
+    const height = detailLabel ? 52 : 36;
     const x = W / 2 - width / 2;
     ctx.globalAlpha = 0.82;
     ctx.fillStyle = "rgba(7,12,20,0.72)";
-    roundRect(ctx, x, y - 18, width, 36, 6);
+    roundRect(ctx, x, y - height / 2, width, height, 6);
     ctx.fill();
     ctx.strokeStyle = `rgba(143,227,155,${0.32 + pulse * 0.18})`;
     ctx.lineWidth = 1.5;
-    roundRect(ctx, x + 0.5, y - 17.5, width - 1, 35, 6);
+    roundRect(ctx, x + 0.5, y - height / 2 + 0.5, width - 1, height - 1, 6);
     ctx.stroke();
     ctx.globalAlpha = 1;
     ctx.textAlign = "center";
@@ -4165,7 +4199,13 @@
     ctx.shadowColor = palette.green;
     ctx.shadowBlur = settings.calmEffects ? 4 : 9;
     ctx.fillStyle = current ? "#fff0a0" : palette.green;
-    ctx.fillText(label, W / 2, y);
+    ctx.fillText(label, W / 2, detailLabel ? y - 9 : y);
+    if (detailLabel) {
+      ctx.font = "800 11px system-ui, sans-serif";
+      ctx.shadowBlur = settings.calmEffects ? 2 : 5;
+      ctx.fillStyle = "rgba(248,251,255,0.74)";
+      ctx.fillText(detailLabel, W / 2, y + 12);
+    }
     ctx.restore();
   }
 

@@ -176,6 +176,8 @@ if (!js.includes("drillModeLabel")) errors.push("drill mode label helper is miss
 if (!js.includes("drillSucceeded")) errors.push("drill variant success helper is missing");
 if (!js.includes("ROOM_STYLE_TRIALS")) errors.push("style difficulty trials are missing");
 if (!js.includes("styleTrialSucceeded")) errors.push("style trial success helper is missing");
+if (!js.includes("styleTrialReviewText")) errors.push("finish review must expose a Style trial card");
+if (!js.includes("drillHudDetailText")) errors.push("Drill HUD should show contract progress details");
 if (!js.includes('mode === "style"')) errors.push("Style mode must participate in drill mode checks");
 if (!js.includes("stylePracticeRoom")) errors.push("practice queue needs a Style recommendation helper");
 if (!js.includes("EXPERT_REQUIREMENTS")) errors.push("expert drill requirements are missing");
@@ -223,6 +225,7 @@ if (!indexHtml.includes("drill-variants")) errors.push("settings panel must expo
 if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("variant-button")) errors.push("drill variant styling is missing");
 if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("queue-meter")) errors.push("practice queue progress styling is missing");
 if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("ledger-meter")) errors.push("practice ledger progress styling is missing");
+if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("overflow-y: auto")) errors.push("finish review overlay should be scroll-safe");
 
 ["drills", "drillClears", "drillClean", "cleanDrills", "cleanWins", "paceDrills", "paceWins", "styleDrills", "styleWins", "expertDrills", "expertWins"].forEach((field) => {
   if (!js.includes(field + ": 0")) errors.push("createRoomFocusEntry must initialize " + field);

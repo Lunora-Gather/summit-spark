@@ -226,6 +226,29 @@
     ["安全线：连段前先点亮回声", "进阶线：风接棱镜再接光继点", "高手线：只在保 PB 时召回"],
     ["安全线：每次重置都明确花掉", "进阶线：棱镜穿中线", "高手线：完整工具组连到终点落地"]
   ];
+  const EXPERT_REQUIREMENTS = [
+    ["spark"],
+    ["relay"],
+    ["spark", "spring"],
+    ["relayChain"],
+    ["relay"],
+    ["relay", "spring"],
+    ["updraft", "crumble"],
+    ["prism", "crumble"],
+    ["echo", "updraft", "prism"],
+    ["relay", "prism", "crumble"]
+  ];
+  const EXPERT_REQUIREMENT_LABELS = {
+    spark: "Spark",
+    relay: "光继",
+    relayChain: "连锁x3",
+    spring: "弹簧",
+    updraft: "风",
+    prism: "棱镜",
+    echo: "回声锚点",
+    recall: "召回",
+    crumble: "脆冰"
+  };
 
   const maps = [
     [
@@ -540,6 +563,7 @@
   let activeDrill = null;
   let timingArmed = false;
   let timingInputReady = false;
+  let roomTech = createRoomTech();
   const settings = readSettings();
   const actionPulse = {
     jump: 0,
@@ -877,6 +901,7 @@
   function resetToStart(index) {
     roomIndex = index;
     room = parseRoom(roomIndex);
+    resetRoomTech();
     const checkpoint = room.entities.checkpoints[0];
     const spawn = checkpoint
       ? { x: checkpoint.x - player.w / 2, y: checkpoint.y + TILE / 2 - player.h }
@@ -1275,6 +1300,7 @@
     player.jumpBuffer = 0;
     player.sparkHopTimer = 0;
     player.wallJumpLock = WALL_JUMP_LOCK_TIME;
+    markRoomTech("spark");
     addFlow(12, "spark");
     triggerActionVisual("spark", 0.28);
     hitStopTimer = Math.max(hitStopTimer, 0.012);
@@ -1354,6 +1380,7 @@
         h: updraft.h + TILE * 0.9
       };
       if (aabb(box, field)) {
+        markRoomTech("updraft");
         const center = field.x + field.w / 2;
         const pull = Math.max(-1, Math.min(1, (center - (player.x + player.w / 2)) / 34));
         const downResist = input.y > 0 ? 0.72 : 1;
@@ -1393,6 +1420,8 @@
       const charged = player.dashTimer > 0 || player.sparkHopTimer > 0 || speed >= RELAY_TRIGGER_SPEED;
       if (relay.ready && charged && distRectPoint(box, relay.x, relay.y) < 26) {
         const chain = scoreRelayChain();
+        markRoomTech("relay");
+        if (chain >= 3) markRoomTech("relayChain");
         relay.ready = false;
         relay.timer = RELAY_RESET_TIME;
         relay.pulse = Math.min(0.46, 0.24 + chain * 0.045);
@@ -1430,6 +1459,7 @@
         prism.ready = false;
         prism.timer = PRISM_RESET_TIME;
         prism.pulse = 0.5;
+        markRoomTech("prism");
         player.overdrive = OVERDRIVE_TIME;
         player.dashes = 1;
         player.dashCooldown = 0;
@@ -1461,6 +1491,7 @@
         const next = { room: roomIndex, x: anchor.x - player.w / 2, y: anchor.y + TILE / 2 - player.h };
         const changed = !echoAnchor || echoAnchor.room !== next.room || Math.abs(echoAnchor.x - next.x) > 1 || Math.abs(echoAnchor.y - next.y) > 1;
         echoAnchor = next;
+        markRoomTech("echo");
         anchor.pulse = 0.3;
         recallPulseTimer = Math.max(recallPulseTimer, 0.35);
         if (changed) {
@@ -1476,6 +1507,7 @@
       if (aabb(box, spring) && player.vy >= 0) {
         player.y = spring.y - player.h;
         player.vy = -720;
+        markRoomTech("spring");
         player.dashes = 1;
         player.stamina = MAX_STAMINA;
         spring.pulse = 0.22;
@@ -1803,6 +1835,7 @@
       roomIndex += 1;
       roomAttemptClean = true;
       room = parseRoom(roomIndex);
+      resetRoomTech();
       lightTrails.length = 0;
       player.x = -player.w + 4;
       roomTime = 0;
@@ -1822,6 +1855,7 @@
     if (player.x < -player.w - 3 && roomIndex > 0) {
       roomIndex -= 1;
       room = parseRoom(roomIndex);
+      resetRoomTech();
       lightTrails.length = 0;
       player.x = W - 5;
       roomTime = 0;
@@ -1859,6 +1893,7 @@
   function respawn() {
     roomIndex = player.respawnRoom;
     room = parseRoom(roomIndex);
+    resetRoomTech();
     player.x = player.respawnX;
     player.y = player.respawnY;
     player.vx = 0;
@@ -1920,6 +1955,7 @@
     resetRelayChain();
     breakFlow();
     room = parseRoom(roomIndex);
+    resetRoomTech();
     const checkpoint = room.entities.checkpoints[0];
     const target = checkpoint
       ? { x: checkpoint.x - player.w / 2, y: checkpoint.y + TILE / 2 - player.h }
@@ -2012,6 +2048,28 @@
 
   function createRoomCounters() {
     return Array.from({ length: maps.length }, () => 0);
+  }
+
+  function createRoomTech() {
+    return {
+      spark: false,
+      relay: false,
+      relayChain: false,
+      spring: false,
+      updraft: false,
+      prism: false,
+      echo: false,
+      recall: false,
+      crumble: false
+    };
+  }
+
+  function resetRoomTech() {
+    roomTech = createRoomTech();
+  }
+
+  function markRoomTech(key) {
+    if (roomTech[key] !== undefined) roomTech[key] = true;
   }
 
   function createRoomFocusEntry() {
@@ -2372,18 +2430,46 @@
     return "Auto";
   }
 
+  function expertRequirementsForRoom(index) {
+    return Array.isArray(EXPERT_REQUIREMENTS[index]) ? EXPERT_REQUIREMENTS[index] : [];
+  }
+
+  function expertRequirementLabel(key) {
+    return EXPERT_REQUIREMENT_LABELS[key] || key;
+  }
+
+  function missingExpertRequirements(index) {
+    return expertRequirementsForRoom(index).filter((key) => !roomTech[key]);
+  }
+
+  function expertRequirementsMet(index) {
+    return missingExpertRequirements(index).length === 0;
+  }
+
+  function expertRequirementText(index) {
+    const requirements = expertRequirementsForRoom(index);
+    return requirements.length ? `高手动作：${requirements.map(expertRequirementLabel).join("+")}` : "高手动作：自由路线";
+  }
+
+  function expertRequirementProgress(index) {
+    const requirements = expertRequirementsForRoom(index);
+    if (!requirements.length) return "";
+    const done = requirements.filter((key) => roomTech[key]).length;
+    return `动作 ${done}/${requirements.length}`;
+  }
+
   function drillTargetText(index, mode = "auto") {
     const target = ROOM_TARGETS[index] || 0;
     if (mode === "clean") return "目标：无失误通过";
     if (mode === "pace") return `目标：${formatTime(target)} 内通关`;
-    if (mode === "expert") return `目标：S + 无失误`;
+    if (mode === "expert") return `目标：S + 无失误 + 高手动作`;
     return "目标：完成推荐路线";
   }
 
   function drillObjectiveForRoom(index, mode = "auto") {
     if (mode === "clean") return `无失误：${routeLineCore(index, 0)}`;
     if (mode === "pace") return `达标 ${formatTime(ROOM_TARGETS[index] || 0)}：${routeLineCore(index, 1)}`;
-    if (mode === "expert") return `高手线：${routeLineCore(index, 2)}`;
+    if (mode === "expert") return `高手线：${routeLineCore(index, 2)} / ${expertRequirementText(index)}`;
     const entry = roomFocus[index] || createRoomFocusEntry();
     const lead = leadingRoomReason(entry);
     const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
@@ -2423,7 +2509,7 @@
   function drillSucceeded(drill, clean, elapsed) {
     if (drill.mode === "clean") return clean;
     if (drill.mode === "pace") return drill.target > 0 && elapsed <= drill.target;
-    if (drill.mode === "expert") return clean && drill.target > 0 && elapsed <= drill.target;
+    if (drill.mode === "expert") return clean && drill.target > 0 && elapsed <= drill.target && expertRequirementsMet(drill.room);
     return true;
   }
 
@@ -2431,6 +2517,10 @@
     if (drill.mode === "clean") return "本轮有失误，先跑 safe 线";
     if (drill.mode === "pace") return `用时 ${formatTime(elapsed)} / 目标 ${formatTime(drill.target)}`;
     if (drill.mode === "expert") {
+      const missing = missingExpertRequirements(drill.room);
+      if (!clean) return "Expert 要求无失误";
+      if (drill.target > 0 && elapsed > drill.target) return `用时 ${formatTime(elapsed)} / S ${formatTime(drill.target)}`;
+      if (missing.length) return `缺高手动作：${missing.map(expertRequirementLabel).join("+")}`;
       return clean ? `用时 ${formatTime(elapsed)} / S ${formatTime(drill.target)}` : "Expert 要求 S + 无失误";
     }
     return drill.objective;
@@ -2439,7 +2529,8 @@
   function activeDrillText(index) {
     if (!activeDrill || activeDrill.room !== index) return "";
     const current = roomMistakes[index] || 0;
-    return `${drillModeLabel(activeDrill.mode)} / ${activeDrill.objective}${current ? ` / !${current}` : ""}`;
+    const expert = activeDrill.mode === "expert" ? ` / ${expertRequirementProgress(index)}` : "";
+    return `${drillModeLabel(activeDrill.mode)} / ${activeDrill.objective}${expert}${current ? ` / !${current}` : ""}`;
   }
 
   function practiceCoachText() {
@@ -2807,6 +2898,7 @@
 
   function recallToAnchor() {
     if (!echoAnchor || echoAnchor.room !== roomIndex || recallCooldown > 0 || player.deadTimer > 0) return;
+    markRoomTech("recall");
     player.x = echoAnchor.x;
     player.y = echoAnchor.y;
     player.vx = 0;
@@ -3142,6 +3234,7 @@
         block.timer = CRUMBLE_BREAK_TIME;
         block.warned = true;
         crumbleSlipTimer = CRUMBLE_DEATH_MEMORY;
+        markRoomTech("crumble");
         shake(0.035, 1.2);
         burst(block.x * TILE + TILE / 2, block.y * TILE + 6, "#e7f4f7", 5, 95);
       }

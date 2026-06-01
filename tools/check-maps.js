@@ -49,6 +49,7 @@ function extractArray(name) {
 const maps = extractArray("maps");
 const targets = extractArray("ROOM_TARGETS");
 const names = extractArray("ROOM_NAMES");
+const expertRequirements = extractArray("EXPERT_REQUIREMENTS");
 const colsMatch = source.match(/const COLS = (\d+);/);
 const rowsMatch = source.match(/const ROWS = (\d+);/);
 const cols = colsMatch ? Number(colsMatch[1]) : 30;
@@ -73,6 +74,7 @@ function hasRightGap(room) {
 
 if (maps.length !== targets.length) errors.push("ROOM_TARGETS has " + targets.length + ", maps has " + maps.length);
 if (maps.length !== names.length) errors.push("ROOM_NAMES has " + names.length + ", maps has " + maps.length);
+if (maps.length !== expertRequirements.length) errors.push("EXPERT_REQUIREMENTS has " + expertRequirements.length + ", maps has " + maps.length);
 
 maps.forEach((room, roomIndex) => {
   if (!Array.isArray(room)) {
@@ -137,6 +139,34 @@ for (let i = 0; i < targets.length; i += 1) {
   if (!(targets[i] > 0)) errors.push("target " + (i + 1) + " must be positive");
   if (typeof names[i] !== "string" || names[i].length === 0) errors.push("room name " + (i + 1) + " is empty");
 }
+
+const requirementTiles = {
+  relay: "A",
+  relayChain: "A",
+  spring: "T",
+  updraft: "U",
+  prism: "B",
+  echo: "M",
+  crumble: "C"
+};
+const allowedRequirements = new Set(["spark", "relay", "relayChain", "spring", "updraft", "prism", "echo", "recall", "crumble"]);
+expertRequirements.forEach((requirements, roomIndex) => {
+  if (!Array.isArray(requirements)) {
+    errors.push("expert requirements for room " + (roomIndex + 1) + " must be an array");
+    return;
+  }
+  if (requirements.length === 0) errors.push("expert requirements for room " + (roomIndex + 1) + " should not be empty");
+  for (const requirement of requirements) {
+    if (!allowedRequirements.has(requirement)) {
+      errors.push("room " + (roomIndex + 1) + " has unknown expert requirement " + requirement);
+      continue;
+    }
+    const tile = requirementTiles[requirement];
+    if (tile && !maps[roomIndex].some((line) => line.includes(tile))) {
+      errors.push("room " + (roomIndex + 1) + " requires " + requirement + " but has no " + tile + " tile");
+    }
+  }
+});
 
 if (errors.length > 0) {
   console.error("Map check failed:");

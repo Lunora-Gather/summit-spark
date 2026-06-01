@@ -157,6 +157,9 @@ if (!js.includes("startRoomDrill")) errors.push("room drill entry helper is miss
 if (!js.includes("drawDrillHud")) errors.push("drill HUD helper is missing");
 if (!js.includes("drillModeLabel")) errors.push("drill mode label helper is missing");
 if (!js.includes("drillSucceeded")) errors.push("drill variant success helper is missing");
+if (!js.includes("EXPERT_REQUIREMENTS")) errors.push("expert drill requirements are missing");
+if (!js.includes("expertRequirementText")) errors.push("expert drill requirement text helper is missing");
+if (!js.includes("markRoomTech")) errors.push("room tech tracking helper is missing");
 if (!js.includes("actionVisual")) errors.push("action visual pulse state is missing");
 if (!js.includes("drawPlayerAura")) errors.push("player action aura helper is missing");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");

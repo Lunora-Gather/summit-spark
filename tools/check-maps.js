@@ -50,6 +50,7 @@ const maps = extractArray("maps");
 const targets = extractArray("ROOM_TARGETS");
 const names = extractArray("ROOM_NAMES");
 const expertRequirements = extractArray("EXPERT_REQUIREMENTS");
+const styleTrials = extractArray("ROOM_STYLE_TRIALS");
 const colsMatch = source.match(/const COLS = (\d+);/);
 const rowsMatch = source.match(/const ROWS = (\d+);/);
 const cols = colsMatch ? Number(colsMatch[1]) : 30;
@@ -75,6 +76,7 @@ function hasRightGap(room) {
 if (maps.length !== targets.length) errors.push("ROOM_TARGETS has " + targets.length + ", maps has " + maps.length);
 if (maps.length !== names.length) errors.push("ROOM_NAMES has " + names.length + ", maps has " + maps.length);
 if (maps.length !== expertRequirements.length) errors.push("EXPERT_REQUIREMENTS has " + expertRequirements.length + ", maps has " + maps.length);
+if (maps.length !== styleTrials.length) errors.push("ROOM_STYLE_TRIALS has " + styleTrials.length + ", maps has " + maps.length);
 
 maps.forEach((room, roomIndex) => {
   if (!Array.isArray(room)) {
@@ -167,6 +169,32 @@ expertRequirements.forEach((requirements, roomIndex) => {
     }
   }
 });
+
+const styleKinds = new Set();
+styleTrials.forEach((trial, roomIndex) => {
+  if (!trial || typeof trial !== "object") {
+    errors.push("style trial for room " + (roomIndex + 1) + " must be an object");
+    return;
+  }
+  if (typeof trial.kind !== "string" || trial.kind.length === 0) errors.push("room " + (roomIndex + 1) + " style trial needs a kind");
+  else styleKinds.add(trial.kind);
+  if (typeof trial.label !== "string" || trial.label.length === 0) errors.push("room " + (roomIndex + 1) + " style trial needs a label");
+  if (typeof trial.goal !== "string" || trial.goal.length === 0) errors.push("room " + (roomIndex + 1) + " style trial needs a goal");
+  if (!(Number(trial.timeScale) > 1)) errors.push("room " + (roomIndex + 1) + " style timeScale should exceed 1");
+  const tech = Array.isArray(trial.tech) ? trial.tech : [];
+  if (!Array.isArray(trial.tech)) errors.push("room " + (roomIndex + 1) + " style tech must be an array");
+  for (const requirement of tech) {
+    if (!allowedRequirements.has(requirement)) {
+      errors.push("room " + (roomIndex + 1) + " has unknown style requirement " + requirement);
+      continue;
+    }
+    const tile = requirementTiles[requirement];
+    if (tile && !maps[roomIndex].some((line) => line.includes(tile))) {
+      errors.push("room " + (roomIndex + 1) + " style requires " + requirement + " but has no " + tile + " tile");
+    }
+  }
+});
+if (styleKinds.size < 6) errors.push("ROOM_STYLE_TRIALS should contain at least six difficulty kinds");
 
 if (errors.length > 0) {
   console.error("Map check failed:");

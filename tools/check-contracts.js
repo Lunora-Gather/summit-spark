@@ -93,10 +93,11 @@ const skills = extractArray("ROOM_SKILLS");
 const guides = extractArray("ROOM_GUIDES");
 const purposes = extractArray("ROOM_PURPOSES");
 const routeLines = extractArray("ROOM_ROUTE_LINES");
+const styleTrials = extractArray("ROOM_STYLE_TRIALS");
 const deathKeys = extractArray("DEATH_REASON_KEYS");
 const deathLabels = extractObject("DEATH_REASON_LABELS");
 
-for (const [label, array] of [["ROOM_TARGETS", targets], ["ROOM_NAMES", names], ["ROOM_TIERS", tiers], ["ROOM_SKILLS", skills], ["ROOM_GUIDES", guides], ["ROOM_PURPOSES", purposes], ["ROOM_ROUTE_LINES", routeLines]]) {
+for (const [label, array] of [["ROOM_TARGETS", targets], ["ROOM_NAMES", names], ["ROOM_TIERS", tiers], ["ROOM_SKILLS", skills], ["ROOM_GUIDES", guides], ["ROOM_PURPOSES", purposes], ["ROOM_ROUTE_LINES", routeLines], ["ROOM_STYLE_TRIALS", styleTrials]]) {
   if (array.length !== maps.length) errors.push(label + " has " + array.length + ", maps has " + maps.length);
 }
 
@@ -123,6 +124,20 @@ routeLines.forEach((lines, index) => {
     if (isTooShortText(line, 12, 7)) errors.push("room " + (index + 1) + " route line " + (lineIndex + 1) + " is too short");
   });
 });
+const styleKinds = new Set();
+const allowedStyleTech = new Set(["spark", "relay", "relayChain", "spring", "updraft", "prism", "echo", "recall", "crumble"]);
+styleTrials.forEach((trial, index) => {
+  if (!trial || typeof trial !== "object") errors.push("room " + (index + 1) + " style trial must be an object");
+  if (isTooShortText(trial?.label, 7, 2)) errors.push("room " + (index + 1) + " style label is too short");
+  if (isTooShortText(trial?.goal, 12, 7)) errors.push("room " + (index + 1) + " style goal is too short");
+  if (typeof trial?.kind === "string") styleKinds.add(trial.kind);
+  if (!Array.isArray(trial?.tech)) errors.push("room " + (index + 1) + " style tech must be an array");
+  for (const tech of Array.isArray(trial?.tech) ? trial.tech : []) {
+    if (!allowedStyleTech.has(tech)) errors.push("room " + (index + 1) + " style trial has unknown tech " + tech);
+  }
+  if (!(Number(trial?.timeScale) > 1)) errors.push("room " + (index + 1) + " style trial needs a timeScale above 1");
+});
+if (styleKinds.size < 6) errors.push("style trials should cover at least six difficulty types");
 
 deathKeys.forEach((key) => {
   if (!deathLabels[key]) errors.push("DEATH_REASON_LABELS missing " + key);
@@ -140,7 +155,7 @@ const requiredIds = [
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "settingsPanel",
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "practiceLinesToggle",
   "ghostOpacitySlider", "controlPreset", "roomSelect", "focusRoomButton", "focusResetButton", "coachSummary",
-  "roomBrief", "practiceReport", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillExpertButton"
+  "roomBrief", "practiceReport", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton"
 ];
 for (const id of requiredIds) {
   if (!hasId(indexHtml, id)) errors.push("index.html missing #" + id);
@@ -159,6 +174,10 @@ if (!js.includes("retryFailedDrill")) errors.push("failed drill retry helper is 
 if (!js.includes("drawDrillHud")) errors.push("drill HUD helper is missing");
 if (!js.includes("drillModeLabel")) errors.push("drill mode label helper is missing");
 if (!js.includes("drillSucceeded")) errors.push("drill variant success helper is missing");
+if (!js.includes("ROOM_STYLE_TRIALS")) errors.push("style difficulty trials are missing");
+if (!js.includes("styleTrialSucceeded")) errors.push("style trial success helper is missing");
+if (!js.includes('mode === "style"')) errors.push("Style mode must participate in drill mode checks");
+if (!js.includes("stylePracticeRoom")) errors.push("practice queue needs a Style recommendation helper");
 if (!js.includes("EXPERT_REQUIREMENTS")) errors.push("expert drill requirements are missing");
 if (!js.includes("expertRequirementText")) errors.push("expert drill requirement text helper is missing");
 if (!js.includes("markRoomTech")) errors.push("room tech tracking helper is missing");
@@ -205,7 +224,7 @@ if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("vari
 if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("queue-meter")) errors.push("practice queue progress styling is missing");
 if (!fs.readFileSync(path.join(root, "summit-spark.css"), "utf8").includes("ledger-meter")) errors.push("practice ledger progress styling is missing");
 
-["drills", "drillClears", "drillClean", "cleanDrills", "cleanWins", "paceDrills", "paceWins", "expertDrills", "expertWins"].forEach((field) => {
+["drills", "drillClears", "drillClean", "cleanDrills", "cleanWins", "paceDrills", "paceWins", "styleDrills", "styleWins", "expertDrills", "expertWins"].forEach((field) => {
   if (!js.includes(field + ": 0")) errors.push("createRoomFocusEntry must initialize " + field);
   if (!js.includes("saved." + field)) errors.push("normalizeRoomFocus must preserve " + field);
 });

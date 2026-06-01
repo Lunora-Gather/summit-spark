@@ -32,6 +32,7 @@
   const practiceLedger = document.getElementById("practiceLedger");
   const drillCleanButton = document.getElementById("drillCleanButton");
   const drillPaceButton = document.getElementById("drillPaceButton");
+  const drillStyleButton = document.getElementById("drillStyleButton");
   const drillExpertButton = document.getElementById("drillExpertButton");
   const dashFill = document.querySelector(".dash-meter span");
   const staminaFill = document.querySelector(".stamina-meter span");
@@ -225,6 +226,18 @@
     ["安全线：站稳后再吃棱镜", "进阶线：过载穿过脆冰排", "高手线：落地前先选棱镜路线"],
     ["安全线：连段前先点亮回声", "进阶线：风接棱镜再接光继点", "高手线：只在保 PB 时召回"],
     ["安全线：每次重置都明确花掉", "进阶线：棱镜穿中线", "高手线：完整工具组连到终点落地"]
+  ];
+  const ROOM_STYLE_TRIALS = [
+    { kind: "precision", label: "落点精度", goal: "干净落点后用 Spark 越过危险", clean: true, tech: ["spark"], timeScale: 1.55 },
+    { kind: "recovery", label: "恢复控制", goal: "触发光继后稳住下一次落点", clean: true, tech: ["relay"], timeScale: 1.45 },
+    { kind: "timing", label: "弹簧节拍", goal: "弹簧给高度，Spark 省掉等待", clean: true, tech: ["spring", "spark"], timeScale: 1.5 },
+    { kind: "chain", label: "连锁节奏", goal: "把三段光继连成一句动作", clean: false, tech: ["relayChain"], timeScale: 1.45 },
+    { kind: "route", label: "路线选择", goal: "折返时用光继进上层路线", clean: true, tech: ["relay"], timeScale: 1.45 },
+    { kind: "exit", label: "出口节拍", goal: "光继接弹簧，把出口动作收干净", clean: true, tech: ["relay", "spring"], timeScale: 1.4 },
+    { kind: "terrain", label: "地形风险", goal: "脆冰只借一步，立刻进风场", clean: false, tech: ["crumble", "updraft"], timeScale: 1.35 },
+    { kind: "risk", label: "过载风险", goal: "棱镜过载穿过脆冰排", clean: false, tech: ["prism", "crumble"], timeScale: 1.35 },
+    { kind: "reading", label: "回声读图", goal: "先建回声锚点，再召回重接路线", clean: false, tech: ["echo", "recall"], timeScale: 1.55 },
+    { kind: "endurance", label: "终盘耐压", goal: "光继、棱镜、脆冰连续收束到终点", clean: false, tech: ["relay", "prism", "crumble"], timeScale: 1.35 }
   ];
   const EXPERT_REQUIREMENTS = [
     ["spark"],
@@ -766,6 +779,11 @@
     const target = practiceTargetRoom();
     closeSettings();
     startRoomDrill(target, "pace");
+  });
+  drillStyleButton?.addEventListener("click", () => {
+    const target = practiceTargetRoom();
+    closeSettings();
+    startRoomDrill(target, "style");
   });
   drillExpertButton?.addEventListener("click", () => {
     const target = practiceTargetRoom();
@@ -2088,6 +2106,8 @@
       cleanWins: 0,
       paceDrills: 0,
       paceWins: 0,
+      styleDrills: 0,
+      styleWins: 0,
       expertDrills: 0,
       expertWins: 0,
       last: "none"
@@ -2113,6 +2133,8 @@
       entry.cleanWins = Math.max(0, Number(saved.cleanWins) || 0);
       entry.paceDrills = Math.max(0, Number(saved.paceDrills) || 0);
       entry.paceWins = Math.max(0, Number(saved.paceWins) || 0);
+      entry.styleDrills = Math.max(0, Number(saved.styleDrills) || 0);
+      entry.styleWins = Math.max(0, Number(saved.styleWins) || 0);
       entry.expertDrills = Math.max(0, Number(saved.expertDrills) || 0);
       entry.expertWins = Math.max(0, Number(saved.expertWins) || 0);
       entry.last = DEATH_REASON_LABELS[saved.last] ? saved.last : "none";
@@ -2184,6 +2206,7 @@
     entry.drills += 1;
     if (mode === "clean") entry.cleanDrills += 1;
     if (mode === "pace") entry.paceDrills += 1;
+    if (mode === "style") entry.styleDrills += 1;
     if (mode === "expert") entry.expertDrills += 1;
     roomFocus[index] = entry;
     writeRoomFocus();
@@ -2196,6 +2219,7 @@
     if (clean) entry.drillClean += 1;
     if (mode === "clean") entry.cleanWins += 1;
     if (mode === "pace") entry.paceWins += 1;
+    if (mode === "style") entry.styleWins += 1;
     if (mode === "expert") entry.expertWins += 1;
     roomFocus[index] = entry;
     writeRoomFocus();
@@ -2240,6 +2264,52 @@
     return ROOM_PURPOSES[index] || ROOM_GUIDES[index] || "route practice";
   }
 
+  function styleTrialForRoom(index) {
+    return ROOM_STYLE_TRIALS[index] || {
+      kind: "route",
+      label: "路线判断",
+      goal: roomPurposeLabel(index),
+      clean: true,
+      tech: [],
+      timeScale: 1.5
+    };
+  }
+
+  function styleTrialLabel(index) {
+    return styleTrialForRoom(index).label || "类型挑战";
+  }
+
+  function styleTrialTimeLimit(index) {
+    const trial = styleTrialForRoom(index);
+    const target = ROOM_TARGETS[index] || 0;
+    const scale = Number(trial.timeScale) || 0;
+    return target > 0 && scale > 0 ? target * scale : 0;
+  }
+
+  function styleTrialTech(index) {
+    const trial = styleTrialForRoom(index);
+    return Array.isArray(trial.tech) ? trial.tech : [];
+  }
+
+  function missingStyleRequirements(index) {
+    return styleTrialTech(index).filter((key) => !roomTech[key]);
+  }
+
+  function styleTrialObjective(index) {
+    const trial = styleTrialForRoom(index);
+    const parts = [`${styleTrialLabel(index)}：${trial.goal || roomPurposeLabel(index)}`];
+    if (trial.clean) parts.push("无失误");
+    const tech = styleTrialTech(index);
+    if (tech.length) parts.push(tech.map(expertRequirementLabel).join("+"));
+    const limit = styleTrialTimeLimit(index);
+    if (limit > 0) parts.push(`≤${formatTime(limit)}`);
+    return parts.join(" / ");
+  }
+
+  function styleTrialText(index) {
+    return `类型 ${styleTrialObjective(index)}`;
+  }
+
   function roomRouteLine(index, slot) {
     const lines = ROOM_ROUTE_LINES[index] || [];
     return lines[slot] || lines[0] || roomPurposeLabel(index);
@@ -2278,7 +2348,7 @@
 
   function roomDrillContractText(index) {
     const entry = roomFocus[index] || createRoomFocusEntry();
-    return `C ${entry.cleanWins}/${entry.cleanDrills} · P ${entry.paceWins}/${entry.paceDrills} · X ${entry.expertWins}/${entry.expertDrills}`;
+    return `C ${entry.cleanWins}/${entry.cleanDrills} · P ${entry.paceWins}/${entry.paceDrills} · S ${entry.styleWins}/${entry.styleDrills} · X ${entry.expertWins}/${entry.expertDrills}`;
   }
 
   function roomPaceLabel(index) {
@@ -2377,7 +2447,7 @@
     const run = current > 0 ? `run !${current}` : "run clean";
     const saved = entry.faults > 0 ? `saved ${deathReasonLabel(lead)} ${entry[lead] || 0}/${entry.faults}` : "saved clean";
     const clears = entry.clears > 0 ? `clean ${entry.clean}/${entry.clears}` : "clean 0/0";
-    return `${run} / ${saved} / ${clears} / ${roomDrillText(index)} / ${roomDrillContractText(index)} / ${roomPaceLabel(index)} / ${roomTierLabel(index)} / ${roomSkillLabel(index)} / ${roomPurposeLabel(index)} / ${roomRouteLine(index, 0)} / ${roomRouteLine(index, 1)} / ${roomRouteLine(index, 2)} / ${ROOM_GUIDES[index] || ""}`;
+    return `${run} / ${saved} / ${clears} / ${roomDrillText(index)} / ${roomDrillContractText(index)} / ${roomPaceLabel(index)} / ${roomTierLabel(index)} / ${styleTrialText(index)} / ${roomSkillLabel(index)} / ${roomPurposeLabel(index)} / ${roomRouteLine(index, 0)} / ${roomRouteLine(index, 1)} / ${roomRouteLine(index, 2)} / ${ROOM_GUIDES[index] || ""}`;
   }
 
   function strongestFocusRoom() {
@@ -2430,12 +2500,13 @@
   function drillModeLabel(mode = "auto") {
     if (mode === "clean") return "Clean";
     if (mode === "pace") return "Pace";
+    if (mode === "style") return "Style";
     if (mode === "expert") return "Expert";
     return "Auto";
   }
 
   function resolveDrillMode(index, mode = "auto") {
-    if (mode === "clean" || mode === "pace" || mode === "expert") return mode;
+    if (mode === "clean" || mode === "pace" || mode === "style" || mode === "expert") return mode;
     return roomReviewMode(index);
   }
 
@@ -2467,11 +2538,19 @@
     return `动作 ${done}/${requirements.length}`;
   }
 
+  function styleTrialProgress(index) {
+    const requirements = styleTrialTech(index);
+    if (!requirements.length) return "";
+    const done = requirements.filter((key) => roomTech[key]).length;
+    return `类型 ${done}/${requirements.length}`;
+  }
+
   function drillTargetText(index, mode = "auto") {
     const resolvedMode = resolveDrillMode(index, mode);
     const target = ROOM_TARGETS[index] || 0;
     if (resolvedMode === "clean") return "目标：无失误通过";
     if (resolvedMode === "pace") return `目标：${formatTime(target)} 内通关`;
+    if (resolvedMode === "style") return `目标：${styleTrialLabel(index)}挑战`;
     if (resolvedMode === "expert") return `目标：S + 无失误 + 高手动作`;
     return "目标：完成推荐路线";
   }
@@ -2480,6 +2559,7 @@
     const resolvedMode = resolveDrillMode(index, mode);
     if (resolvedMode === "clean") return `无失误：${routeLineCore(index, 0)}`;
     if (resolvedMode === "pace") return `达标 ${formatTime(ROOM_TARGETS[index] || 0)}：${routeLineCore(index, 1)}`;
+    if (resolvedMode === "style") return styleTrialObjective(index);
     if (resolvedMode === "expert") return `高手线：${routeLineCore(index, 2)} / ${expertRequirementText(index)}`;
     const entry = roomFocus[index] || createRoomFocusEntry();
     const lead = leadingRoomReason(entry);
@@ -2534,13 +2614,31 @@
   function drillSucceeded(drill, clean, elapsed) {
     if (drill.mode === "clean") return clean;
     if (drill.mode === "pace") return drill.target > 0 && elapsed <= drill.target;
+    if (drill.mode === "style") return styleTrialSucceeded(drill.room, clean, elapsed);
     if (drill.mode === "expert") return clean && drill.target > 0 && elapsed <= drill.target && expertRequirementsMet(drill.room);
     return true;
+  }
+
+  function styleTrialSucceeded(index, clean, elapsed) {
+    const trial = styleTrialForRoom(index);
+    const limit = styleTrialTimeLimit(index);
+    if (trial.clean && !clean) return false;
+    if (missingStyleRequirements(index).length > 0) return false;
+    return limit <= 0 || elapsed <= limit;
   }
 
   function drillFailureText(drill, clean, elapsed) {
     if (drill.mode === "clean") return "本轮有失误，先跑 safe 线";
     if (drill.mode === "pace") return `用时 ${formatTime(elapsed)} / 目标 ${formatTime(drill.target)}`;
+    if (drill.mode === "style") {
+      const trial = styleTrialForRoom(drill.room);
+      const missing = missingStyleRequirements(drill.room);
+      const limit = styleTrialTimeLimit(drill.room);
+      if (trial.clean && !clean) return `${styleTrialLabel(drill.room)} 要求无失误`;
+      if (missing.length) return `缺类型动作：${missing.map(expertRequirementLabel).join("+")}`;
+      if (limit > 0 && elapsed > limit) return `用时 ${formatTime(elapsed)} / 类型 ${formatTime(limit)}`;
+      return styleTrialObjective(drill.room);
+    }
     if (drill.mode === "expert") {
       const missing = missingExpertRequirements(drill.room);
       if (!clean) return "Expert 要求无失误";
@@ -2554,8 +2652,12 @@
   function activeDrillText(index) {
     if (!activeDrill || activeDrill.room !== index) return "";
     const current = roomMistakes[index] || 0;
-    const expert = activeDrill.mode === "expert" ? ` / ${expertRequirementProgress(index)}` : "";
-    return `${drillModeLabel(activeDrill.mode)} / ${activeDrill.objective}${expert}${current ? ` / !${current}` : ""}`;
+    const progress = activeDrill.mode === "expert"
+      ? expertRequirementProgress(index)
+      : activeDrill.mode === "style"
+        ? styleTrialProgress(index)
+        : "";
+    return `${drillModeLabel(activeDrill.mode)} / ${activeDrill.objective}${progress ? ` / ${progress}` : ""}${current ? ` / !${current}` : ""}`;
   }
 
   function practiceCoachText() {
@@ -2602,6 +2704,11 @@
       drillPaceButton.textContent = "Pace";
       drillPaceButton.title = `${drillTargetText(target, "pace")} / ${drillObjectiveForRoom(target, "pace")}`;
     }
+    if (drillStyleButton) {
+      drillStyleButton.textContent = "Style";
+      drillStyleButton.title = `${drillTargetText(target, "style")} / ${drillObjectiveForRoom(target, "style")}`;
+      drillStyleButton.classList.add("style");
+    }
     if (drillExpertButton) {
       drillExpertButton.textContent = "Expert";
       drillExpertButton.title = `${drillTargetText(target, "expert")} / ${drillObjectiveForRoom(target, "expert")}`;
@@ -2612,6 +2719,7 @@
   function practiceQueueItems() {
     const cleanIndex = cleanPracticeRoom();
     const paceIndex = pacePracticeRoom();
+    const styleIndex = stylePracticeRoom();
     const expertIndex = expertPracticeRoom();
     return [
       {
@@ -2631,6 +2739,14 @@
         stats: drillContractStats(paceIndex, "pace")
       },
       {
+        mode: "style",
+        index: styleIndex,
+        label: "Style",
+        reason: "练类型",
+        detail: styleTrialLabel(styleIndex),
+        stats: drillContractStats(styleIndex, "style")
+      },
+      {
         mode: "expert",
         index: expertIndex,
         label: "Expert",
@@ -2645,6 +2761,7 @@
     const entry = roomFocus[index] || createRoomFocusEntry();
     if (mode === "clean") return { starts: entry.cleanDrills, wins: entry.cleanWins };
     if (mode === "pace") return { starts: entry.paceDrills, wins: entry.paceWins };
+    if (mode === "style") return { starts: entry.styleDrills, wins: entry.styleWins };
     if (mode === "expert") return { starts: entry.expertDrills, wins: entry.expertWins };
     return { starts: entry.drills, wins: entry.drillClears };
   }
@@ -2678,11 +2795,24 @@
   function expertPracticeRoom() {
     const ready = maps.findIndex((_, index) => {
       const entry = roomFocus[index] || createRoomFocusEntry();
-      return splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S" && entry.clean > 0 && entry.expertWins <= 0;
+      return splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S" && entry.clean > 0 && entry.styleWins > 0 && entry.expertWins <= 0;
     });
     if (ready >= 0) return ready;
     const cleanS = maps.findIndex((_, index) => splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S");
     return cleanS >= 0 ? cleanS : pacePracticeRoom();
+  }
+
+  function stylePracticeRoom() {
+    const ready = maps.findIndex((_, index) => {
+      const entry = roomFocus[index] || createRoomFocusEntry();
+      return entry.clean > 0 && splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S" && entry.styleWins <= 0;
+    });
+    if (ready >= 0) return ready;
+    const played = maps.findIndex((_, index) => {
+      const entry = roomFocus[index] || createRoomFocusEntry();
+      return (bestRoomTimes[index] > 0 || entry.clean > 0) && entry.styleWins <= 0;
+    });
+    return played >= 0 ? played : pacePracticeRoom();
   }
 
   function updatePracticeQueue() {
@@ -2717,6 +2847,7 @@
     else if (grade === "B") score += 13;
     else if (grade === "C") score += 7;
     if (entry.expertWins > 0) score += 22;
+    else if (entry.styleWins > 0) score += 18;
     else if (entry.paceWins > 0) score += 15;
     else if (entry.cleanWins > 0) score += 9;
     score -= Math.min(18, roomFocusScore(index) * 2);
@@ -2738,6 +2869,7 @@
     const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
     if (entry.clean <= 0 || pressure >= 8) return "clean";
     if (loss === null || loss > 0 || grade !== "S") return "pace";
+    if (entry.styleWins <= 0) return "style";
     if (entry.expertWins <= 0) return "expert";
     return "expert";
   }
@@ -2751,6 +2883,7 @@
     if (loss === null) score += 26;
     else if (loss > 0) score += 24 + Math.min(42, loss * 5);
     if (entry.paceWins <= 0) score += 12;
+    if (entry.styleWins <= 0) score += 10;
     if (entry.expertWins <= 0) score += 8;
     return score + (maps.length - index) * 0.01;
   }
@@ -2996,7 +3129,7 @@
   }
 
   function roomSelectLabel(index) {
-    return `${index + 1}. ${ROOM_NAMES[index] || "Summit"} · ${roomMedalLabel(index)} · ${roomPaceShort(index)} · ${roomCleanShort(index)} · ${roomSkillShort(index)}${roomSelectFocusLabel(index)}`;
+    return `${index + 1}. ${ROOM_NAMES[index] || "Summit"} · ${roomMedalLabel(index)} · ${roomPaceShort(index)} · ${styleTrialLabel(index)} · ${roomCleanShort(index)} · ${roomSkillShort(index)}${roomSelectFocusLabel(index)}`;
   }
 
   function refreshRoomSelectOptions() {
@@ -3033,6 +3166,7 @@
       `R${index + 1} ${ROOM_NAMES[index] || "Summit"} / ${roomMedalLabel(index)} / ${roomPaceLabel(index)}`,
       `${roomCleanText(index)} / ${roomDrillText(index)} / ${roomSkillLabel(index)}`,
       roomDrillContractText(index),
+      styleTrialText(index),
       roomPurposeLabel(index),
       roomRouteLine(index, 0),
       roomRouteLine(index, 1),
@@ -3836,7 +3970,7 @@
       ctx.fillStyle = "rgba(247,198,93,0.78)";
       ctx.fillText(`focus ${focus}`, W / 2, 164 - (1 - t) * 10);
     } else {
-      ctx.fillText(`${roomTierLabel(roomIndex)} / ${roomSkillLabel(roomIndex)}`, W / 2, 164 - (1 - t) * 10);
+      ctx.fillText(`${roomTierLabel(roomIndex)} / ${styleTrialLabel(roomIndex)} / ${roomSkillLabel(roomIndex)}`, W / 2, 164 - (1 - t) * 10);
     }
     ctx.restore();
   }
@@ -3904,11 +4038,13 @@
       sum.cleanDrills += entry?.cleanDrills || 0;
       sum.paceWins += entry?.paceWins || 0;
       sum.paceDrills += entry?.paceDrills || 0;
+      sum.styleWins += entry?.styleWins || 0;
+      sum.styleDrills += entry?.styleDrills || 0;
       sum.expertWins += entry?.expertWins || 0;
       sum.expertDrills += entry?.expertDrills || 0;
       return sum;
-    }, { cleanWins: 0, cleanDrills: 0, paceWins: 0, paceDrills: 0, expertWins: 0, expertDrills: 0 });
-    return `合约 C ${totals.cleanWins}/${totals.cleanDrills} · P ${totals.paceWins}/${totals.paceDrills} · X ${totals.expertWins}/${totals.expertDrills}`;
+    }, { cleanWins: 0, cleanDrills: 0, paceWins: 0, paceDrills: 0, styleWins: 0, styleDrills: 0, expertWins: 0, expertDrills: 0 });
+    return `合约 C ${totals.cleanWins}/${totals.cleanDrills} · P ${totals.paceWins}/${totals.paceDrills} · S ${totals.styleWins}/${totals.styleDrills} · X ${totals.expertWins}/${totals.expertDrills}`;
   }
 
   function practiceRouteSummary() {

@@ -40,7 +40,8 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-01: Added a room mastery ledger: settings review now sorts all rooms by training priority, shows mastery score plus pace/clean/contract status, and lets any row start the right Drill.
 - 2026-06-01: Strengthened Expert Drill contracts: Expert clears now require S pace, no mistakes, and each room's authored high-skill tech such as Spark, relay chain, spring, wind, prism, echo, or crumble rhythm.
 - 2026-06-01: Tightened Drill retry friction: failed Drill contracts restart the same room with the same target instead of leaking the player into the next room or finish screen.
-- 2026-06-01: Made the primary Drill entry contract-aware: settings and finish-review "next Drill" actions resolve into Clean, Pace, or Expert instead of using a loose auto clear.
+- 2026-06-01: Made the primary Drill entry contract-aware: settings and finish-review "next Drill" actions resolve into Clean, Pace, Style, or Expert instead of using a loose auto clear.
+- 2026-06-01: Added Style Drill contracts for difficulty-type variety: every room now has a bespoke challenge flavor such as precision, recovery, timing, chain, route choice, terrain risk, overdrive risk, echo reading, or finale endurance.
 
 ## Next Milestones
 
@@ -67,7 +68,8 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - Expert completion should prove the authored high-skill line, not just a fast safe route.
 - Failed practice contracts should restart the exact target quickly, without recording a false mastery win.
 - Primary practice actions should launch a real contract, not a vague auto drill that can pass on any exit.
-- Practice queues should turn review data into one-click next actions across clean, pace, and expert goals.
+- Difficulty should diversify by play skill type: precision, rhythm, route reading, risk routing, recovery, and finale pressure should all be visible practice goals.
+- Practice queues should turn review data into one-click next actions across clean, pace, style, and expert goals.
 - Practice cards should show contract status, not just a destination room.
 - Mastery tables should rank rooms by action priority, not by route order alone.
 - First-input timing should require a neutral frame after spawn so held keys or controller drift cannot burn split time.

@@ -26,6 +26,7 @@
   const roomSelect = document.getElementById("roomSelect");
   const roomBrief = document.getElementById("roomBrief");
   const practicePriority = document.getElementById("practicePriority");
+  const practicePlan = document.getElementById("practicePlan");
   const focusRoomButton = document.getElementById("focusRoomButton");
   const focusResetButton = document.getElementById("focusResetButton");
   const coachSummary = document.getElementById("coachSummary");
@@ -582,11 +583,14 @@
   let deathCoachTimer = 0;
   let deathCoachText = "";
   let deathCoachDetail = "";
+  let deathCoachAction = "";
+  let deathCoachPlan = "";
   let deathCoachReason = "fall";
   let focusResetConfirmUntil = 0;
   let focusResetExpiryTimer = 0;
   let lastGameStatus = "";
   let lastCoachSummary = "";
+  let lastPracticePlanHtml = "";
   let lastPracticeQueueHtml = "";
   let lastPracticeLedgerHtml = "";
   let flowScore = 0;
@@ -802,6 +806,16 @@
     if (target >= 0) {
       closeSettings();
       startRoomDrill(target, mode);
+    }
+  });
+  practicePlan?.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest("[data-plan-room]") : null;
+    if (!button) return;
+    const index = Number(button.getAttribute("data-plan-room"));
+    const mode = button.getAttribute("data-plan-mode") || "auto";
+    if (Number.isInteger(index) && index >= 0 && index < maps.length) {
+      closeSettings();
+      startRoomDrill(index, mode);
     }
   });
   drillCleanButton?.addEventListener("click", () => {
@@ -2118,8 +2132,10 @@
     deathCoachReason = normalized;
     deathCoachText = title || deathReasonLabel(normalized);
     deathCoachDetail = roomCoachHint(roomIndex, normalized);
+    deathCoachAction = deathPrescription(roomIndex, normalized);
+    deathCoachPlan = deathCoachPlanText(roomIndex, normalized);
     deathCoachTimer = DEATH_COACH_TIME;
-    setGameStatus(`${deathReasonLabel(normalized)}：${deathCoachDetail}`);
+    setGameStatus(`${deathReasonLabel(normalized)}：${deathCoachAction}`);
     clearFocusPopup();
   }
 
@@ -2127,6 +2143,8 @@
     deathCoachTimer = 0;
     deathCoachText = "";
     deathCoachDetail = "";
+    deathCoachAction = "";
+    deathCoachPlan = "";
     deathCoachReason = "fall";
   }
 
@@ -2455,6 +2473,21 @@
     return `稳定落点；${guide}`;
   }
 
+  function deathPrescription(index, reason = "fall") {
+    const normalized = normalizeDeathReason(reason);
+    if (normalized === "spike") return `下一次：先停在安全格，冲刺方向避开危险线；${routeLineCore(index, 0)}`;
+    if (normalized === "crumble") return `下一次：触冰只借一步，离开后再校正；${routeLineCore(index, 1)}`;
+    if (normalized === "retry" || normalized === "room") return `下一次：只练开局第一句，确认输入后再提速；${routeLineCore(index, 0)}`;
+    return `下一次：晚一点花冲刺，把落点留在视线中央；${routeLineCore(index, 0)}`;
+  }
+
+  function deathCoachPlanText(index, reason = "fall") {
+    const normalized = normalizeDeathReason(reason);
+    const mode = normalized === "spike" || normalized === "crumble" ? "clean" : resolveDrillMode(index);
+    const target = `R${index + 1} ${drillModeLabel(mode)}`;
+    return `建议 ${target}：${drillObjectiveForRoom(index, mode)}`;
+  }
+
   function roomSplitLoss(index) {
     const best = bestRoomTimes[index] || 0;
     const target = ROOM_TARGETS[index] || 0;
@@ -2718,22 +2751,23 @@
   }
 
   function drillFailureText(drill, clean, elapsed) {
-    if (drill.mode === "clean") return "本轮有失误，先跑 safe 线";
-    if (drill.mode === "pace") return `用时 ${formatTime(elapsed)} / 目标 ${formatTime(drill.target)}`;
+    const next = `下一次：${routeLineCore(drill.room, drill.mode === "expert" ? 2 : drill.mode === "clean" ? 0 : 1)}`;
+    if (drill.mode === "clean") return `本轮有失误 / ${next}`;
+    if (drill.mode === "pace") return `慢 ${formatDelta(elapsed - drill.target)} / ${next}`;
     if (drill.mode === "style") {
       const trial = styleTrialForRoom(drill.room);
       const missing = missingStyleRequirements(drill.room);
       const limit = styleTrialTimeLimit(drill.room);
-      if (trial.clean && !clean) return `${styleTrialLabel(drill.room)} 要求无失误`;
-      if (missing.length) return `缺类型动作：${missing.map(expertRequirementLabel).join("+")}`;
-      if (limit > 0 && elapsed > limit) return `用时 ${formatTime(elapsed)} / 类型 ${formatTime(limit)}`;
+      if (trial.clean && !clean) return `${styleTrialLabel(drill.room)} 要求无失误 / ${next}`;
+      if (missing.length) return `缺类型动作：${missing.map(expertRequirementLabel).join("+")} / ${next}`;
+      if (limit > 0 && elapsed > limit) return `慢 ${formatDelta(elapsed - limit)} / ${next}`;
       return styleTrialObjective(drill.room);
     }
     if (drill.mode === "expert") {
       const missing = missingExpertRequirements(drill.room);
-      if (!clean) return "Expert 要求无失误";
-      if (drill.target > 0 && elapsed > drill.target) return `用时 ${formatTime(elapsed)} / S ${formatTime(drill.target)}`;
-      if (missing.length) return `缺高手动作：${missing.map(expertRequirementLabel).join("+")}`;
+      if (!clean) return `Expert 要求无失误 / ${next}`;
+      if (drill.target > 0 && elapsed > drill.target) return `慢 ${formatDelta(elapsed - drill.target)} / ${next}`;
+      if (missing.length) return `缺高手动作：${missing.map(expertRequirementLabel).join("+")} / ${next}`;
       return clean ? `用时 ${formatTime(elapsed)} / S ${formatTime(drill.target)}` : "Expert 要求 S + 无失误";
     }
     return drill.objective;
@@ -2777,6 +2811,7 @@
       focusRoomButton.title = `${drillTargetText(target, mode)} / ${drillObjectiveForRoom(target, mode)}`;
     }
     updatePracticePriority();
+    updatePracticePlan();
     updateDrillVariantButtons();
     updateFocusResetButton();
     if (practiceReport) {
@@ -2802,6 +2837,93 @@
       + `<strong>${escapeHtml(title)}</strong>`
       + `<em>${escapeHtml(detail)}</em>`
       + `<i class="priority-meter" aria-hidden="true"></i>`;
+  }
+
+  function nextContractMode(mode) {
+    if (mode === "clean") return "pace";
+    if (mode === "pace") return "style";
+    if (mode === "style") return "expert";
+    return "style";
+  }
+
+  function contractPlanLabel(mode) {
+    if (mode === "clean") return "稳";
+    if (mode === "pace") return "快";
+    if (mode === "style") return "变";
+    if (mode === "expert") return "极";
+    return "练";
+  }
+
+  function complementaryPracticeTarget(index, mode) {
+    const nextMode = nextContractMode(mode);
+    if (nextMode === "style") {
+      const entry = roomFocus[index] || createRoomFocusEntry();
+      if (entry.clean > 0 || bestRoomTimes[index] > 0) return { index, mode: nextMode };
+      return { index: stylePracticeRoom(), mode: nextMode };
+    }
+    if (nextMode === "expert") {
+      const entry = roomFocus[index] || createRoomFocusEntry();
+      const ready = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S" && entry.clean > 0 && entry.styleWins > 0;
+      return { index: ready ? index : expertPracticeRoom(), mode: nextMode };
+    }
+    return { index, mode: nextMode };
+  }
+
+  function practicePlanSteps() {
+    const firstIndex = recommendedPracticeRoom();
+    const firstMode = resolveDrillMode(firstIndex);
+    const second = complementaryPracticeTarget(firstIndex, firstMode);
+    const thirdRow = practiceLedgerRows().find((row) => row.index !== firstIndex || row.mode !== firstMode) || {
+      index: firstIndex,
+      mode: "expert",
+      score: roomMasteryScore(firstIndex),
+      level: roomMasteryLevel(roomMasteryScore(firstIndex))
+    };
+    return [
+      {
+        label: "现在",
+        index: firstIndex,
+        mode: firstMode,
+        reason: roomPracticeReason(firstIndex),
+        title: "修最短板",
+        objective: drillObjectiveForRoom(firstIndex, firstMode)
+      },
+      {
+        label: "接着",
+        index: second.index,
+        mode: second.mode,
+        reason: drillContractStatus(drillContractStats(second.index, second.mode)),
+        title: "换一种能力",
+        objective: drillObjectiveForRoom(second.index, second.mode)
+      },
+      {
+        label: "然后",
+        index: thirdRow.index,
+        mode: thirdRow.mode,
+        reason: `${thirdRow.level || roomMasteryLevel(roomMasteryScore(thirdRow.index))} ${thirdRow.score ?? roomMasteryScore(thirdRow.index)}`,
+        title: "补路线链",
+        objective: drillObjectiveForRoom(thirdRow.index, thirdRow.mode)
+      }
+    ];
+  }
+
+  function updatePracticePlan() {
+    if (!practicePlan || !settingsVisible) return;
+    const steps = practicePlanSteps();
+    const html = `<div class="plan-head"><span>训练计划</span><em>短板 → 类型 → 高手线</em></div>`
+      + steps.map((step, index) => {
+        const stats = drillContractStats(step.index, step.mode);
+        const progress = drillContractProgress(stats);
+        const title = `R${step.index + 1} ${ROOM_NAMES[step.index] || "Summit"}`;
+        return `<button class="plan-step ${escapeHtml(step.mode)}" type="button" data-plan-room="${step.index}" data-plan-mode="${escapeHtml(step.mode)}" aria-label="${escapeHtml(step.label)} ${escapeHtml(title)} ${escapeHtml(step.objective)}" style="--plan-progress: ${progress}%">`
+          + `<span class="plan-index">${String(index + 1).padStart(2, "0")}</span>`
+          + `<span class="plan-main"><b>${escapeHtml(step.label)} · ${escapeHtml(contractPlanLabel(step.mode))} ${escapeHtml(drillModeLabel(step.mode))}</b><strong>${escapeHtml(title)}</strong><em>${escapeHtml(step.title)} · ${escapeHtml(step.reason)}</em><small>${escapeHtml(step.objective)}</small></span>`
+          + `<i class="plan-meter" aria-hidden="true"></i>`
+          + `</button>`;
+      }).join("");
+    if (html === lastPracticePlanHtml) return;
+    lastPracticePlanHtml = html;
+    practicePlan.innerHTML = html;
   }
 
   function updateDrillVariantButtons() {
@@ -4349,25 +4471,25 @@
     ctx.shadowColor = palette.hot;
     ctx.shadowBlur = settings.calmEffects ? 5 : 11;
     ctx.fillStyle = "#ff99aa";
-    ctx.fillText(focusPopupText, W / 2, y + Math.sin(time * 16) * 1.2);
+    ctx.fillText(fitText(focusPopupText, isCompactCanvas() ? 680 : 560), W / 2, y + Math.sin(time * 16) * 1.2);
     if (focusPopupDetail) {
       ctx.font = "800 10px system-ui, sans-serif";
       ctx.fillStyle = "rgba(248,251,255,0.72)";
       ctx.shadowBlur = settings.calmEffects ? 3 : 7;
-      ctx.fillText(focusPopupDetail, W / 2, y + 18);
+      ctx.fillText(fitText(focusPopupDetail, isCompactCanvas() ? 690 : 600), W / 2, y + 18);
     }
     ctx.restore();
   }
 
   function drawDeathCoach(time) {
-    if (deathCoachTimer <= 0 || !deathCoachDetail || roomIntroTimer > 0.35) return;
+    if (deathCoachTimer <= 0 || !deathCoachDetail) return;
     const t = deathCoachTimer / DEATH_COACH_TIME;
     const compact = isCompactCanvas();
     const color = deathReasonColor(deathCoachReason);
-    const width = compact ? 520 : 430;
-    const height = compact ? 58 : 52;
+    const width = compact ? 680 : 520;
+    const height = compact ? 92 : 84;
     const x = compact ? W / 2 - width / 2 : 20;
-    const y = compact ? 78 : 70;
+    const y = roomIntroTimer > 0 ? (compact ? 252 : 238) : (compact ? 78 : 70);
     const alpha = Math.min(1, t * 1.65);
 
     ctx.save();
@@ -4391,6 +4513,14 @@
     ctx.fillStyle = "rgba(248,251,255,0.78)";
     ctx.shadowBlur = settings.calmEffects ? 2 : 6;
     ctx.fillText(fitText(deathCoachDetail, width - 28), x + 14, y + 38);
+    if (deathCoachAction) {
+      ctx.fillStyle = "rgba(255,240,160,0.86)";
+      ctx.fillText(fitText(deathCoachAction, width - 28), x + 14, y + 58);
+    }
+    if (deathCoachPlan) {
+      ctx.fillStyle = "rgba(143,227,155,0.82)";
+      ctx.fillText(fitText(deathCoachPlan, width - 28), x + 14, y + 76);
+    }
     ctx.restore();
   }
 
@@ -4406,7 +4536,7 @@
     const label = fitText(text, 520);
     const detailLabel = detail ? fitText(detail, 500) : "";
     const width = Math.min(590, Math.max(260, Math.max(ctx.measureText(label).width, detailLabel ? ctx.measureText(detailLabel).width : 0) + 32));
-    const height = detailLabel ? 52 : 36;
+    const height = detailLabel ? 70 : 54;
     const x = W / 2 - width / 2;
     ctx.globalAlpha = 0.82;
     ctx.fillStyle = "rgba(7,12,20,0.72)";
@@ -4430,13 +4560,47 @@
     ctx.shadowColor = palette.green;
     ctx.shadowBlur = settings.calmEffects ? 4 : 9;
     ctx.fillStyle = current ? "#fff0a0" : palette.green;
-    ctx.fillText(label, W / 2, detailLabel ? y - 9 : y);
+    ctx.fillText(label, W / 2, detailLabel ? y - 18 : y - 12);
     if (detailLabel) {
       ctx.font = "800 11px system-ui, sans-serif";
       ctx.shadowBlur = settings.calmEffects ? 2 : 5;
       ctx.fillStyle = "rgba(248,251,255,0.74)";
-      ctx.fillText(detailLabel, W / 2, y + 12);
+      ctx.fillText(detailLabel, W / 2, y + 3);
     }
+    drawContractStrip(x + 12, y + height / 2 - 24, width - 24, 12, roomIndex, activeDrill.mode);
+    ctx.restore();
+  }
+
+  function drawContractStrip(x, y, width, height, index, activeMode) {
+    const modes = ["clean", "pace", "style", "expert"];
+    const gap = 5;
+    const segment = (width - gap * (modes.length - 1)) / modes.length;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "800 9px system-ui, sans-serif";
+    modes.forEach((mode, slot) => {
+      const stats = drillContractStats(index, mode);
+      const complete = stats.wins > 0;
+      const active = mode === activeMode;
+      const sx = x + slot * (segment + gap);
+      ctx.fillStyle = complete
+        ? "rgba(143,227,155,0.28)"
+        : active
+          ? "rgba(247,198,93,0.22)"
+          : "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = active
+        ? "rgba(247,198,93,0.76)"
+        : complete
+          ? "rgba(143,227,155,0.52)"
+          : "rgba(255,255,255,0.12)";
+      ctx.lineWidth = active ? 1.4 : 1;
+      roundRect(ctx, sx, y, segment, height, 3);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = active ? "#fff0a0" : complete ? "rgba(190,255,203,0.92)" : "rgba(248,251,255,0.54)";
+      ctx.fillText(mode === "expert" ? "X" : drillModeLabel(mode).slice(0, 1), sx + segment / 2, y + height / 2 + 0.5);
+    });
     ctx.restore();
   }
 

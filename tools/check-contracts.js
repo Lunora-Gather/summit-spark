@@ -155,7 +155,7 @@ const requiredIds = [
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "settingsPanel",
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "practiceLinesToggle",
   "ghostOpacitySlider", "controlPreset", "roomSelect", "practicePriority", "focusRoomButton", "focusResetButton", "coachSummary",
-  "roomBrief", "practiceReport", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton", "gameStatus"
+  "roomBrief", "practiceReport", "practicePlan", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton", "gameStatus"
 ];
 for (const id of requiredIds) {
   if (!hasId(indexHtml, id)) errors.push("index.html missing #" + id);
@@ -199,6 +199,8 @@ if (!js.includes("summitReview")) errors.push("summit review helper is missing")
 if (!js.includes("summitReviewCardsHtml")) errors.push("summit review card helper is missing");
 if (!js.includes("bindFinishReviewActions")) errors.push("finish review drill buttons are missing");
 if (!js.includes("practiceReportText")) errors.push("practice report helper is missing");
+if (!js.includes("updatePracticePlan")) errors.push("practice plan helper is missing");
+if (!js.includes("practicePlanSteps")) errors.push("practice plan must generate actionable steps");
 if (!js.includes("updatePracticeQueue")) errors.push("practice queue helper is missing");
 if (!js.includes("updatePracticeLedger")) errors.push("practice ledger helper is missing");
 if (!js.includes("roomMasteryScore")) errors.push("room mastery score helper is missing");
@@ -219,6 +221,9 @@ if (!js.includes("resetFocusStats")) errors.push("focus reset helper is missing"
 if (!js.includes("releaseAllInputs")) errors.push("settings input release helper is missing");
 if (!js.includes("syncSettingsVisibility")) errors.push("settings open state must sync aria-expanded and panel visibility");
 if (!js.includes("drawTimingGateCue")) errors.push("first-input timing gate needs a visible cue");
+if (!js.includes("deathPrescription")) errors.push("death coach should prescribe next action");
+if (!js.includes("deathCoachPlanText")) errors.push("death coach should point to a drill plan");
+if (!js.includes("drawContractStrip")) errors.push("Drill HUD should show contract ladder status");
 if (!js.includes("confirmFocusReset")) errors.push("focus reset should require confirmation");
 if (!js.includes("scheduleFocusResetExpiry")) errors.push("focus reset confirmation should expire visibly");
 if (!js.includes("drawCooldownRing")) errors.push("mechanic cooldown ring helper is missing");
@@ -232,12 +237,15 @@ if (!indexHtml.includes('aria-expanded="false"')) errors.push("settings button m
 if (!indexHtml.includes('aria-label="设置"')) errors.push("settings button should have a localized accessible label");
 if (!indexHtml.includes('aria-live="polite"')) errors.push("game should expose live status text");
 if (!indexHtml.includes("settings-section-title")) errors.push("settings panel must group controls");
+if (!indexHtml.includes('id="practicePlan"')) errors.push("settings panel must include a practice plan surface");
 if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is missing");
 if (!standaloneHtml.includes("settings-panel")) errors.push("standalone settings panel shell is missing");
 const css = fs.readFileSync(path.join(root, "summit-spark.css"), "utf8");
 if (!css.includes("review-actions")) errors.push("finish review actions styling is missing");
 if (!indexHtml.includes("drill-variants")) errors.push("settings panel must expose drill variants");
 if (!css.includes("variant-button")) errors.push("drill variant styling is missing");
+if (!css.includes("plan-step")) errors.push("practice plan step styling is missing");
+if (!css.includes("plan-meter")) errors.push("practice plan progress styling is missing");
 if (!css.includes("queue-meter")) errors.push("practice queue progress styling is missing");
 if (!css.includes("queue-cta")) errors.push("practice queue cards need a clear action affordance");
 if (!css.includes("ledger-meter")) errors.push("practice ledger progress styling is missing");

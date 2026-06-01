@@ -46,6 +46,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-01: Added active requirement beacons: Style and Expert drills now highlight unfinished target actions in the room, making difficulty-type goals visible without opening settings.
 - 2026-06-01: Tightened small-screen UX and practice guidance: compact HUD now prioritizes room, pace, death, and state bars; room intros are more readable under the HUD; settings now starts with a next-practice action card; death/retry feedback is consolidated into a single coach hint.
 - 2026-06-02: Closed a strict UX audit pass: settings and real HUD counters are now reachable to assistive tech, the paused settings state dims the playfield, Focus reset requires expiring confirmation, first-input timing shows an on-canvas standby cue, and mobile practice lists are less crowded.
+- 2026-06-02: Added a training-plan pass: settings now builds a three-step Drill ladder, death feedback prescribes the next action plus a concrete Drill, Drill failures explain the missing contract in action language, and active Drill HUDs show Clean/Pace/Style/Expert ladder status.
 
 ## Next Milestones
 
@@ -75,6 +76,8 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - Difficulty should diversify by play skill type: precision, rhythm, route reading, risk routing, recovery, and finale pressure should all be visible practice goals.
 - Practice queues should turn review data into one-click next actions across clean, pace, style, and expert goals.
 - Practice cards should show contract status, not just a destination room.
+- Practice plans should chain the next three useful actions so the player can stay in flow without reading a full ledger.
+- Death feedback should name a cause, prescribe one next input idea, and point to a Drill when practice is the right answer.
 - Mastery tables should rank rooms by action priority, not by route order alone.
 - First-input timing should require a neutral frame after spawn so held keys or controller drift cannot burn split time.
 - Weak-room markers should point to action: current run mistakes use `!x`; persistent trouble uses `watch` plus the dominant failure reason.

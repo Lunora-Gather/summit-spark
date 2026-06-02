@@ -75,6 +75,8 @@
   const WALL_COYOTE_TIME = 0.105;
   const FAST_FALL_MAX = 900;
   const FAST_FALL_GRAVITY_MULT = 1.42;
+  const APEX_WINDOW_SPEED = 62;
+  const APEX_GRAVITY_MULT = 0.68;
   const UPDRAFT_FORCE = 2150;
   const UPDRAFT_RISE_SPEED = 500;
   const PRISM_RESET_TIME = 4.8;
@@ -107,6 +109,7 @@
   const FOCUS_POPUP_TIME = 1.35;
   const DEATH_COACH_TIME = 2.35;
   const FOCUS_RESET_CONFIRM_MS = 2200;
+  const FEEL_CUE_TIME = 0.72;
   const SETTINGS_KEY = "summit-spark-settings";
   const ACTION_PULSE_TIME = 0.22;
   const BEST_FLOW_KEY = "summit-spark-best-flow";
@@ -577,6 +580,11 @@
   let splitPopupTimer = 0;
   let splitPopupText = "";
   let splitPopupAhead = true;
+  let feelCueTimer = 0;
+  let feelCueMax = FEEL_CUE_TIME;
+  let feelCueText = "";
+  let feelCueDetail = "";
+  let feelCueColor = palette.cyan;
   let focusPopupTimer = 0;
   let focusPopupText = "";
   let focusPopupDetail = "";
@@ -613,7 +621,8 @@
     dash: 0,
     grab: 0,
     fall: 0,
-    wall: 0
+    wall: 0,
+    apex: 0
   };
   const actionVisual = {
     land: 0,
@@ -1326,13 +1335,17 @@
 
   function jump(input) {
     if (player.jumpBuffer <= 0) return;
+    const bufferedJump = player.jumpBuffer < JUMP_BUFFER_TIME - 0.026;
 
     if (player.coyote > 0 || player.wasGrounded) {
+      const coyoteJump = !player.wasGrounded && player.coyote > 0;
       player.vy = -JUMP;
       player.jumpBuffer = 0;
       player.coyote = 0;
       addFlow(4, "jump");
       triggerActionVisual("jump", 0.2);
+      if (coyoteJump) showFeelCue("COYOTE", "离地宽限命中", palette.gold);
+      else if (bufferedJump) showFeelCue("BUFFER", "提前输入接住落地", palette.green);
       shake(0.035, 1.1);
       burst(player.x + player.w / 2, player.y + player.h, "#e9f7ff", 8, 150);
       return;
@@ -1345,6 +1358,7 @@
 
     const wallJumpDir = player.wallDir || (player.wallCoyote > 0 ? player.wallCoyoteDir : 0);
     if (wallJumpDir !== 0) {
+      const wallGrace = player.wallDir === 0 && player.wallCoyote > 0;
       const away = input.x === -wallJumpDir;
       const climbJump = input.grab && player.stamina > 0;
       const push = climbJump ? WALL_CLIMB_X : away ? WALL_JUMP_X : WALL_NEUTRAL_X;
@@ -1360,12 +1374,14 @@
       addFlow(climbJump ? 8 : 6, climbJump ? "climb" : "wall");
       triggerActionVisual("wall", 0.22);
       triggerActionVisual("jump", 0.16);
+      showFeelCue(wallGrace ? "WALL GRACE" : climbJump ? "CLIMB JUMP" : "WALL JUMP", wallGrace ? "离墙宽限命中" : away ? "反向推离墙面" : "墙面节奏重置", wallGrace ? palette.gold : palette.cyan);
       shake(0.04, 1.35);
       burst(player.x + (wallJumpDir > 0 ? player.w : 0), player.y + player.h * 0.55, climbJump ? palette.green : "#e9f7ff", 9, 190);
     }
   }
 
   function sparkHop() {
+    const quality = player.sparkHopTimer / SPARK_HOP_WINDOW;
     const dir = player.sparkHopDirX || player.facing;
     if (dir !== 0) {
       player.vx = Math.sign(dir) * Math.max(Math.abs(player.vx), SPARK_HOP_X);
@@ -1377,6 +1393,7 @@
     markRoomTech("spark");
     addFlow(12, "spark");
     triggerActionVisual("spark", 0.28);
+    showFeelCue(quality > 0.45 ? "SPARK" : "LATE SPARK", quality > 0.45 ? "续跃窗口命中" : "压线续跃", quality > 0.45 ? palette.cyan : palette.gold);
     hitStopTimer = Math.max(hitStopTimer, 0.012);
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 12, 220);
     burst(player.x + player.w / 2, player.y + player.h, palette.cyan, 8, 180);
@@ -1392,6 +1409,7 @@
   function startDash(input) {
     let dx = input.x;
     let dy = input.y;
+    const usedAimMemory = dx === 0 && dy === 0 && lastAimTimer > 0;
     if (dx === 0 && dy === 0 && lastAimTimer > 0) {
       dx = lastAimX;
       dy = lastAimY;
@@ -1415,6 +1433,7 @@
     player.facing = dx === 0 ? player.facing : Math.sign(dx);
     addFlow(player.overdrive > 0 ? 8 : 5, player.overdrive > 0 ? "over" : "dash");
     triggerActionVisual("dash", 0.24);
+    if (usedAimMemory) showFeelCue("AIM MEMORY", "沿用上一冲刺方向", palette.cyan, 0.54);
     hitStopTimer = Math.max(hitStopTimer, DASH_HITSTOP);
     shake(0.08, 2.4);
     addGhost(0.48);
@@ -3328,6 +3347,9 @@
     if (input.grab && player.wallDir !== 0 && !player.wasGrounded) {
       actionPulse.grab = Math.max(actionPulse.grab, 0.08);
     }
+    if (!player.wasGrounded && Math.abs(player.vy) < APEX_WINDOW_SPEED && jumpHeld()) {
+      actionPulse.apex = Math.max(actionPulse.apex, 0.08);
+    }
     if (input.y > 0 && player.vy > 120) {
       actionPulse.fall = Math.max(actionPulse.fall, 0.09);
     }
@@ -3357,10 +3379,27 @@
     for (const key of Object.keys(actionVisual)) {
       actionVisual[key] = 0;
     }
+    clearFeelCue();
   }
 
   function visualRatio(name, duration) {
     return Math.max(0, Math.min(1, actionVisual[name] / duration));
+  }
+
+  function showFeelCue(text, detail = "", color = palette.cyan, duration = FEEL_CUE_TIME) {
+    feelCueText = text;
+    feelCueDetail = detail;
+    feelCueColor = color;
+    feelCueMax = duration;
+    feelCueTimer = duration;
+  }
+
+  function clearFeelCue() {
+    feelCueTimer = 0;
+    feelCueText = "";
+    feelCueDetail = "";
+    feelCueColor = palette.cyan;
+    feelCueMax = FEEL_CUE_TIME;
   }
 
   function roomSelectLabel(index) {
@@ -3622,6 +3661,7 @@
   }
 
   function currentGravity(input) {
+    if (!player.wasGrounded && Math.abs(player.vy) < APEX_WINDOW_SPEED && jumpHeld()) return GRAVITY * APEX_GRAVITY_MULT;
     if (player.vy < -40 && jumpHeld()) return GRAVITY * 0.82;
     if (input.y > 0 && player.vy > 40) return GRAVITY * FAST_FALL_GRAVITY_MULT;
     if (player.vy > 60) return GRAVITY * 1.08;
@@ -3643,6 +3683,7 @@
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
     roomIntroTimer = Math.max(0, roomIntroTimer - dt);
     splitPopupTimer = Math.max(0, splitPopupTimer - dt);
+    feelCueTimer = Math.max(0, feelCueTimer - dt);
     focusPopupTimer = Math.max(0, focusPopupTimer - dt);
     deathCoachTimer = Math.max(0, deathCoachTimer - dt);
     crumbleSlipTimer = Math.max(0, crumbleSlipTimer - dt);
@@ -3949,6 +3990,7 @@
     drawSparkCue(time);
     drawDashAimPreview(time);
     drawInputCues(time);
+    drawFeelCue(time);
     drawFlowCue(time);
     drawRelayChainCue(time);
     drawRoomBestCue();
@@ -4090,6 +4132,7 @@
     const grab = actionPulse.grab / ACTION_PULSE_TIME;
     const fall = actionPulse.fall / ACTION_PULSE_TIME;
     const wall = Math.max(actionPulse.wall, player.wallCoyote) / Math.max(ACTION_PULSE_TIME, WALL_COYOTE_TIME);
+    const apex = actionPulse.apex / ACTION_PULSE_TIME;
 
     if (dash > 0) {
       ctx.save();
@@ -4141,6 +4184,22 @@
       ctx.restore();
     }
 
+    if (apex > 0) {
+      const width = 26 + apex * 16;
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.58, apex);
+      ctx.strokeStyle = "rgba(255,240,160,0.92)";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.shadowColor = palette.gold;
+      ctx.shadowBlur = settings.calmEffects ? 4 : 9;
+      ctx.beginPath();
+      ctx.moveTo(cx - width / 2, cy - 33);
+      ctx.lineTo(cx + width / 2, cy - 33);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if (fall > 0) {
       ctx.save();
       ctx.globalAlpha = Math.min(0.62, fall);
@@ -4157,6 +4216,43 @@
       }
       ctx.restore();
     }
+  }
+
+  function drawFeelCue(time) {
+    if (player.deadTimer > 0 || feelCueTimer <= 0 || !feelCueText) return;
+    const t = Math.max(0, Math.min(1, feelCueTimer / feelCueMax));
+    const cx = player.x + player.w / 2;
+    const y = Math.max(42, player.y - 44 - (1 - t) * 10);
+    ctx.save();
+    ctx.font = "800 11px system-ui, sans-serif";
+    const title = fitText(feelCueText, 120);
+    const detail = feelCueDetail ? fitText(feelCueDetail, 180) : "";
+    const width = Math.min(210, Math.max(78, Math.max(ctx.measureText(title).width, detail ? ctx.measureText(detail).width : 0) + 24));
+    const height = detail ? 38 : 24;
+    const x = Math.max(10, Math.min(W - width - 10, cx - width / 2));
+    const alpha = Math.min(1, t * 1.55);
+    ctx.globalAlpha = alpha * 0.82;
+    ctx.fillStyle = "rgba(7,12,20,0.72)";
+    roundRect(ctx, x, y, width, height, 7);
+    ctx.fill();
+    ctx.strokeStyle = feelCueColor;
+    ctx.lineWidth = 1.3;
+    ctx.shadowColor = feelCueColor;
+    ctx.shadowBlur = settings.calmEffects ? 4 : 10;
+    roundRect(ctx, x + 0.65, y + 0.65, width - 1.3, height - 1.3, 7);
+    ctx.stroke();
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = feelCueColor;
+    ctx.fillText(title, x + width / 2, y + (detail ? 12 : height / 2));
+    if (detail) {
+      ctx.font = "800 9px system-ui, sans-serif";
+      ctx.shadowBlur = settings.calmEffects ? 2 : 5;
+      ctx.fillStyle = "rgba(248,251,255,0.72)";
+      ctx.fillText(detail, x + width / 2, y + 27);
+    }
+    ctx.restore();
   }
 
   function drawCurrentRoomPath(time) {
@@ -5947,6 +6043,7 @@
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}`,
+      `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `relay chain ${relayChain}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,

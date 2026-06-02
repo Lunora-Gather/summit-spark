@@ -47,6 +47,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-01: Tightened small-screen UX and practice guidance: compact HUD now prioritizes room, pace, death, and state bars; room intros are more readable under the HUD; settings now starts with a next-practice action card; death/retry feedback is consolidated into a single coach hint.
 - 2026-06-02: Closed a strict UX audit pass: settings and real HUD counters are now reachable to assistive tech, the paused settings state dims the playfield, Focus reset requires expiring confirmation, first-input timing shows an on-canvas standby cue, and mobile practice lists are less crowded.
 - 2026-06-02: Added a training-plan pass: settings now builds a three-step Drill ladder, death feedback prescribes the next action plus a concrete Drill, Drill failures explain the missing contract in action language, and active Drill HUDs show Clean/Pace/Style/Expert ladder status.
+- 2026-06-02: Added a feel-trust pass: apex gravity shaping makes jump tops easier to steer, and successful buffer/coyote/wall-grace/Spark/aim-memory windows now produce short player-adjacent cues plus debug readouts.
 
 ## Next Milestones
 
@@ -66,6 +67,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - Practice assists can reduce repetition, but they must not hide the timer or make mastery data meaningless.
 - A room should be readable before it is difficult.
 - Restart speed matters as much as spectacle.
+- Feel assists should expose trust: if a buffer, coyote, wall grace, Spark, or aim-memory window saves the player, the game should show that briefly.
 - Practice data should help the player improve without adding menu friction.
 - Review text should point to a concrete route line, not just a room number.
 - End-of-run recommendations should be actionable without requiring the player to reopen settings.

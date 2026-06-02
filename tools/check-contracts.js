@@ -221,6 +221,10 @@ if (!js.includes("resetFocusStats")) errors.push("focus reset helper is missing"
 if (!js.includes("releaseAllInputs")) errors.push("settings input release helper is missing");
 if (!js.includes("syncSettingsVisibility")) errors.push("settings open state must sync aria-expanded and panel visibility");
 if (!js.includes("drawTimingGateCue")) errors.push("first-input timing gate needs a visible cue");
+if (!js.includes("APEX_GRAVITY_MULT")) errors.push("apex gravity shaping is missing");
+if (!js.includes("showFeelCue")) errors.push("feel window feedback helper is missing");
+if (!js.includes("drawFeelCue")) errors.push("feel cue renderer is missing");
+if (!js.includes("actionPulse.apex")) errors.push("apex input cue should be visible");
 if (!js.includes("deathPrescription")) errors.push("death coach should prescribe next action");
 if (!js.includes("deathCoachPlanText")) errors.push("death coach should point to a drill plan");
 if (!js.includes("drawContractStrip")) errors.push("Drill HUD should show contract ladder status");

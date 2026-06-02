@@ -156,7 +156,7 @@ const requiredIds = [
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "practiceLinesToggle",
   "ghostOpacitySlider", "controlPreset", "roomSelect", "practicePriority", "focusRoomButton", "focusResetButton", "coachSummary",
   "roomBrief", "practiceReport", "practicePlan", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton",
-  "startReadiness", "loadStatus", "openTrainingButton", "gameStatus", "gameTip", "gameTipTitle", "gameTipDetail"
+  "startReadiness", "loadStatus", "bootFallback", "openTrainingButton", "gameStatus", "gameTip", "gameTipTitle", "gameTipDetail"
 ];
 for (const id of requiredIds) {
   if (!hasId(indexHtml, id)) errors.push("index.html missing #" + id);
@@ -269,6 +269,10 @@ if (!indexHtml.includes('aria-label="设置"')) errors.push("settings button sho
 if (!indexHtml.includes('aria-live="polite"')) errors.push("game should expose live status text");
 if (!indexHtml.includes("settings-section-title")) errors.push("settings panel must group controls");
 if (!indexHtml.includes('id="practicePlan"')) errors.push("settings panel must include a practice plan surface");
+if (!indexHtml.includes('name="build-version" content="20260603-boot"')) errors.push("HTML should expose the current build version");
+if (!indexHtml.includes('summit-spark.css?v=20260603-boot')) errors.push("HTML should version the CSS asset for Pages freshness");
+if (!indexHtml.includes('summit-spark.js?v=20260603-boot')) errors.push("HTML should version the JS asset for Pages freshness");
+if (!indexHtml.includes("boot-noscript")) errors.push("start overlay should explain when JavaScript is disabled");
 if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is missing");
 if (!standaloneHtml.includes("settings-panel")) errors.push("standalone settings panel shell is missing");
 const css = fs.readFileSync(path.join(root, "summit-spark.css"), "utf8");
@@ -285,12 +289,19 @@ if (!css.includes("review-roadmap")) errors.push("finish review roadmap styling 
 if (!css.includes("roadmap-row")) errors.push("finish review roadmap rows are missing");
 if (!css.includes("settings-body")) errors.push("settings panel should use the refined cockpit layout");
 if (!css.includes("start-panel")) errors.push("start overlay should use the refined ready panel");
+if (!js.includes("markAppReady")) errors.push("start overlay needs a JS-ready marker");
+if (!css.includes("boot-fallback")) errors.push("start overlay should expose a delayed boot fallback");
+if (!css.includes("boot-noscript")) errors.push("noscript fallback styling is missing");
+if (!css.includes("app-ready")) errors.push("boot fallback should hide after JS initialization");
 if (!css.includes("game-tip")) errors.push("game tip styling is missing");
 if (!css.includes("--tip-progress")) errors.push("game tip progress styling is missing");
 if (!css.includes("image-rendering: auto")) errors.push("canvas should not pixelate vector text overlays");
 if (!css.includes("settings-open")) errors.push("settings pause should visually dim the playfield");
 if (!css.includes("focus-button.armed")) errors.push("focus reset confirmation state styling is missing");
 if (!css.includes("orientation: portrait")) errors.push("portrait mobile settings should not be trapped in the landscape stage");
+if (!css.includes("100dvh")) errors.push("portrait start overlay should escape the landscape stage height");
+if (!css.includes("max-height: calc(100dvh - 24px)")) errors.push("portrait start panel should be height constrained");
+if (!css.includes("overflow-x: hidden")) errors.push("overlays should not create horizontal scrollbars");
 if (!css.includes("overflow-y: auto")) errors.push("finish review overlay should be scroll-safe");
 
 ["drills", "drillClears", "drillClean", "cleanDrills", "cleanWins", "paceDrills", "paceWins", "styleDrills", "styleWins", "expertDrills", "expertWins"].forEach((field) => {

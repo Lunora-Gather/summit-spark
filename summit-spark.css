@@ -1209,6 +1209,7 @@ canvas:focus {
   place-items: center;
   align-content: center;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 22px;
   background:
     radial-gradient(circle at 52% 40%, rgba(247, 198, 93, 0.08), transparent 24%),
@@ -1341,6 +1342,37 @@ canvas:focus {
   color: rgba(248, 251, 255, 0.72);
   font-size: 11px;
   font-weight: 800;
+}
+
+.boot-fallback {
+  max-height: 0;
+  margin: 0;
+  opacity: 0;
+  overflow: hidden;
+  color: rgba(255, 177, 191, 0.9);
+  font-size: 11px;
+  font-weight: 800;
+  animation: bootFallbackIn 180ms ease 4s forwards;
+}
+
+.boot-noscript {
+  margin: -4px 0 0;
+  color: rgba(255, 177, 191, 0.95);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.app-ready .boot-fallback {
+  display: none;
+  animation: none;
+}
+
+@keyframes bootFallbackIn {
+  to {
+    max-height: 44px;
+    margin-top: -4px;
+    opacity: 1;
+  }
 }
 
 .overlay .finish-line {
@@ -1857,6 +1889,51 @@ canvas:focus {
   .shell {
     align-content: start;
     place-items: start center;
+  }
+
+  .overlay:not(.hidden) {
+    position: fixed;
+    inset: 0;
+    min-height: 100dvh;
+    padding: 12px;
+    place-items: center;
+    z-index: 30;
+  }
+
+  .overlay:not(.hidden) .start-panel {
+    width: min(460px, calc(100vw - 20px));
+    max-height: calc(100dvh - 24px);
+    gap: 9px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 14px;
+  }
+
+  .overlay:not(.hidden) h1 {
+    font-size: clamp(34px, 13vw, 54px);
+  }
+
+  .overlay:not(.hidden) .start-copy {
+    font-size: 12px;
+    line-height: 1.28;
+  }
+
+  .overlay:not(.hidden) .start-guide {
+    gap: 6px;
+  }
+
+  .overlay:not(.hidden) .start-guide span {
+    padding: 7px 8px;
+    font-size: 10px;
+  }
+
+  .overlay:not(.hidden) .primary,
+  .overlay:not(.hidden) .secondary-start {
+    height: 40px;
+  }
+
+  .overlay:not(.hidden) .load-strip {
+    height: 20px;
   }
 
   .stage.settings-open {

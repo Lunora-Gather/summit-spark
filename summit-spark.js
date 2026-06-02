@@ -8,6 +8,7 @@
   const openTrainingButton = document.getElementById("openTrainingButton");
   const startReadiness = document.getElementById("startReadiness");
   const loadStatus = document.getElementById("loadStatus");
+  const bootFallback = document.getElementById("bootFallback");
   const overlay = document.getElementById("overlay");
   const lumenCount = document.getElementById("lumenCount");
   const roomCount = document.getElementById("roomCount");
@@ -793,6 +794,11 @@
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
   }
 
+  function markAppReady() {
+    document.documentElement.classList.add("app-ready");
+    if (bootFallback) bootFallback.setAttribute("aria-hidden", "true");
+  }
+
   function releaseAllInputs() {
     keys.clear();
     pressed.clear();
@@ -951,6 +957,7 @@
     button.addEventListener("pointerleave", () => set(false));
   });
 
+  markAppReady();
   requestAnimationFrame(frame);
 
   function parseRoom(index) {

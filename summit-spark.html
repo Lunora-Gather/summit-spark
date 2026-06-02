@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="build-version" content="20260603-boot">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css">
+  <link rel="stylesheet" href="summit-spark.css?v=20260603-boot">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -134,6 +135,8 @@
             <button class="secondary-start" id="openTrainingButton" type="button">先看训练</button>
           </div>
           <div class="load-strip" aria-hidden="true"><span id="loadStatus">正在准备训练数据</span></div>
+          <p class="boot-fallback" id="bootFallback">如果长时间停留在这里，请刷新页面；线上刚更新时浏览器可能还在使用旧资源。</p>
+          <noscript><p class="boot-noscript">需要启用 JavaScript 才能运行游戏。</p></noscript>
         </div>
       </div>
 
@@ -155,6 +158,6 @@
     </section>
   </main>
 
-  <script src="summit-spark.js"></script>
+  <script src="summit-spark.js?v=20260603-boot"></script>
 </body>
 </html>

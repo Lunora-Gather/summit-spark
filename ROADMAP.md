@@ -53,6 +53,8 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-02: Added a failure-rehearsal pass: deaths, manual retries, room restarts, and failed Drill contracts now create in-world correction cards, rehearsal labels, and route arrows so the next attempt starts with a concrete action.
 - 2026-06-02: Added a first-impression polish pass: the start overlay now exposes ready/continue state, basic controls, and a training-cockpit entry; settings now uses a wider two-column cockpit layout; canvas text overlays render without pixelated scaling.
 - 2026-06-03: Added a first-room onboarding pass: new players get a crisp DOM tip strip for timing, landing, dash, and hazard reading; early deaths collapse into one next-action sentence; room intro, route focus, and death coach overlays now yield to high-priority beginner tips.
+- 2026-06-03: Added a public-loading hardening pass: CSS/JS assets are versioned from HTML for Pages freshness, build version is visible in markup, and the start panel has delayed boot plus noscript fallbacks that disappear once JavaScript marks the app ready.
+- 2026-06-03: Added a short-viewport start-screen pass: portrait/sidebar viewports use a full-viewport overlay and constrained start panel so the 16:9 stage cannot crop the title, controls, or start action.
 
 ## Next Milestones
 
@@ -102,6 +104,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - New maps should add pressure gradually: safe intro, readable escalation, optional high-skill line, and a clean recovery path.
 - Contract checks must guard room skill tags, Focus UI ids, touch directions, time-aware ghost data, HTML twin parity, and Pages pre-deploy checks.
 - Online builds must be checked after push so the public URL is never treated as finished just because local checks pass.
+- Public HTML must version CSS/JS assets whenever gameplay code changes, so a successful Pages deploy is actually visible to returning players.
 
 ## Difficulty Curve
 

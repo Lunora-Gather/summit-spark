@@ -17,6 +17,9 @@
   const runTimeText = document.getElementById("runTime");
   const deathCountText = document.getElementById("deathCount");
   const debugPanel = document.getElementById("debugPanel");
+  const gameTip = document.getElementById("gameTip");
+  const gameTipTitle = document.getElementById("gameTipTitle");
+  const gameTipDetail = document.getElementById("gameTipDetail");
   const settingsButton = document.getElementById("settingsButton");
   const settingsPanel = document.getElementById("settingsPanel");
   const settingsCloseButton = document.getElementById("settingsClose");
@@ -114,6 +117,7 @@
   const FOCUS_POPUP_TIME = 1.35;
   const DEATH_COACH_TIME = 2.35;
   const FAILURE_REHEARSAL_TIME = 4.6;
+  const GAME_TIP_TIME = 4.8;
   const FOCUS_RESET_CONFIRM_MS = 2200;
   const FEEL_CUE_TIME = 0.72;
   const ROUTE_CUE_TIME = 5.4;
@@ -140,6 +144,7 @@
     retry: "RETRY",
     room: "ROOM"
   };
+  const GAME_TIP_CLASSES = ["coach", "onboarding", "death", "route"];
 
   const SOLID = new Set(["#", "C"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
@@ -618,6 +623,11 @@
   let failureCueY = 0;
   let failureCueReason = "fall";
   let failureCueMode = "clean";
+  let gameTipTimer = 0;
+  let gameTipMax = GAME_TIP_TIME;
+  let gameTipKind = "";
+  let gameTipPriority = 0;
+  let onboardingStep = 0;
   let focusResetConfirmUntil = 0;
   let focusResetExpiryTimer = 0;
   let lastGameStatus = "";
@@ -1080,6 +1090,7 @@
     syncSettingsVisibility();
     setGameStatus("游戏开始，首次输入后开始计时");
     focusGame();
+    maybeStartBeginnerFlow();
   }
 
   function hasTrainingProgress() {
@@ -1112,6 +1123,104 @@
     syncSettingsPanel();
     setGameStatus("训练面板已打开，开始前可先选 Drill");
     settingsCloseButton?.focus({ preventScroll: true });
+  }
+
+  function showGameTip(title, detail = "", kind = "coach", duration = GAME_TIP_TIME, priority = 1) {
+    if (!gameTip || !gameTipTitle || !gameTipDetail) return;
+    if (gameTipTimer > 0 && gameTipPriority > priority) return;
+    const resolvedKind = GAME_TIP_CLASSES.includes(kind) ? kind : "coach";
+    gameTipKind = resolvedKind;
+    gameTipPriority = priority;
+    gameTipMax = Math.max(0.8, duration);
+    gameTipTimer = gameTipMax;
+    gameTipTitle.textContent = title;
+    gameTipDetail.textContent = detail;
+    gameTip.classList.remove("hidden", ...GAME_TIP_CLASSES);
+    gameTip.classList.add(resolvedKind);
+    gameTip.style.setProperty("--tip-progress", "100%");
+  }
+
+  function clearGameTip(kind = "") {
+    if (kind && gameTipKind !== kind) return;
+    gameTipTimer = 0;
+    gameTipMax = GAME_TIP_TIME;
+    gameTipKind = "";
+    gameTipPriority = 0;
+    if (gameTip) {
+      gameTip.classList.add("hidden");
+      gameTip.classList.remove(...GAME_TIP_CLASSES);
+      gameTip.style.setProperty("--tip-progress", "0%");
+    }
+  }
+
+  function gameTipVisible(kind = "") {
+    return gameTipTimer > 0 && (!kind || gameTipKind === kind);
+  }
+
+  function updateGameTip(dt) {
+    if (gameTipTimer <= 0) return;
+    gameTipTimer = Math.max(0, gameTipTimer - dt);
+    if (!gameTip || gameTipTimer <= 0) {
+      clearGameTip();
+      return;
+    }
+    const progress = `${Math.max(0, Math.min(100, (gameTipTimer / gameTipMax) * 100)).toFixed(1)}%`;
+    gameTip.style.setProperty("--tip-progress", progress);
+  }
+
+  function beginnerFlowActive() {
+    const entry = roomFocus[0] || createRoomFocusEntry();
+    return started
+      && !won
+      && roomIndex === 0
+      && !activeDrill
+      && (bestRoomTimes[0] || 0) <= 0
+      && (entry.clears || 0) <= 0;
+  }
+
+  function maybeStartBeginnerFlow() {
+    if (!beginnerFlowActive()) return;
+    onboardingStep = 0;
+    showBeginnerCue(0);
+  }
+
+  function showBeginnerCue(step) {
+    const cues = [
+      ["先让计时干净", "松开按键后再按 A/D；第一次真实输入才开始计时"],
+      ["先稳住落点", "Space 跳到下一块平台；落稳后再考虑速度"],
+      ["冲刺留给空档", "X/Shift 过长间隔；冲刺后接跳可形成 Spark"],
+      ["看到红线再决定", "尖刺前先找安全格；失败后 R 立即重开"]
+    ];
+    const cue = cues[step];
+    if (!cue) return;
+    onboardingStep = Math.max(onboardingStep, step + 1);
+    showGameTip(cue[0], cue[1], "onboarding", step === 0 ? 5.8 : 5.2, 2);
+  }
+
+  function updateOnboardingCues() {
+    if (!beginnerFlowActive()) {
+      clearGameTip("onboarding");
+      return;
+    }
+    if (player.deadTimer > 0) return;
+    const centerX = player.x + player.w / 2;
+    if (onboardingStep === 0) showBeginnerCue(0);
+    if (onboardingStep === 1 && centerX > 150) showBeginnerCue(1);
+    if (onboardingStep === 2 && centerX > 310) showBeginnerCue(2);
+    if (onboardingStep === 3 && centerX > 505) showBeginnerCue(3);
+  }
+
+  function showBeginnerDeathTip(reason) {
+    if (!beginnerFlowActive() || deathCount > 4) return;
+    const normalized = normalizeDeathReason(reason);
+    const details = {
+      spike: "先停在安全格，确认红线位置，再把冲刺留给越线瞬间",
+      crumble: "脆冰只借一步；踩上去后立刻跳离，不要原地调整",
+      retry: "只练开局第一句：走、跳、落稳，再逐步加速",
+      room: "当前房间重开后先读路线，不急着抢第一拍",
+      fall: "下一次晚一点花冲刺，让落点留在画面中央"
+    };
+    showGameTip("这次只修一个点", details[normalized] || details.fall, "death", 5.6, 5);
   }
 
   function hardReset() {
@@ -1152,12 +1261,15 @@
     nearMissCooldown = 0;
     clearDeathCoach();
     clearFailureRehearsal();
+    clearGameTip();
+    onboardingStep = 0;
     activeDrill = null;
     resetActionPulses();
     overlay.classList.add("hidden");
     resetToStart(0);
     refreshRoomSelectOptions();
     updateHud();
+    maybeStartBeginnerFlow();
   }
 
   function jumpToRoom(index, options = {}) {
@@ -1194,6 +1306,8 @@
     recallPulseTimer = 0;
     nearMissCooldown = 0;
     clearDeathCoach();
+    clearGameTip();
+    onboardingStep = index === 0 ? 0 : 4;
     if (!options.keepDrill) {
       clearFailureRehearsal();
       activeDrill = null;
@@ -1207,6 +1321,7 @@
     refreshRoomSelectOptions();
     updateHud();
     focusGame();
+    maybeStartBeginnerFlow();
   }
 
   function frame(now) {
@@ -1348,6 +1463,7 @@
     updateGhosts(dt);
     updateLightTrails(dt);
     samplePlayerPath(dt);
+    updateOnboardingCues();
     updateHud();
   }
 
@@ -2260,6 +2376,7 @@
       x: player.x + player.w / 2,
       y: player.y + player.h / 2
     });
+    showBeginnerDeathTip(normalized);
     clearFocusPopup();
   }
 
@@ -4044,6 +4161,7 @@
     deathCoachTimer = Math.max(0, deathCoachTimer - dt);
     failureCueTimer = Math.max(0, failureCueTimer - dt);
     crumbleSlipTimer = Math.max(0, crumbleSlipTimer - dt);
+    updateGameTip(dt);
     updateFlow(dt);
     updateCrumblePlatforms(dt);
     for (const key of Object.keys(actionPulse)) {
@@ -4679,6 +4797,7 @@
 
   function drawRouteFocusCue(time) {
     if (!started || won || player.deadTimer > 0 || !routeCueActive()) return;
+    if (gameTipVisible("onboarding") || gameTipVisible("death")) return;
     if (failureCueActive()) return;
     const active = activeDrill && activeDrill.room === roomIndex;
     if (!active && roomIntroTimer > 0.18) return;
@@ -4878,6 +4997,7 @@
 
   function drawRoomIntro(time) {
     if (roomIntroTimer <= 0) return;
+    if (gameTipVisible("onboarding") || gameTipVisible("death")) return;
     if (failureCueActive()) return;
     const t = roomIntroTimer / ROOM_INTRO_TIME;
     const best = bestRoomTimes[roomIndex] || 0;
@@ -5126,6 +5246,7 @@
 
   function drawDeathCoach(time) {
     if (deathCoachTimer <= 0 || !deathCoachDetail) return;
+    if (gameTipVisible("death") && player.deadTimer <= 0) return;
     if (failureCueActive() && player.deadTimer <= 0) return;
     const t = deathCoachTimer / DEATH_COACH_TIME;
     const compact = isCompactCanvas();
@@ -6717,6 +6838,7 @@
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,
       `failure ${failureCueText || "none"} ${failureCueTimer.toFixed(2)}  mode ${failureCueMode}  room ${failureCueRoom + 1}`,
+      `tip ${gameTipKind || "none"} ${gameTipTimer.toFixed(2)}  onboarding ${onboardingStep}`,
       `relay chain ${relayChain}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,

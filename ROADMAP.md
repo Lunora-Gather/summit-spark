@@ -52,6 +52,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-02: Added a mastery-roadmap pass: finish review now lists the next contract gaps as clickable Drill rows, settings mastery rows show Clean/Pace/Style/Expert pills, and Drill completion feedback names the next step.
 - 2026-06-02: Added a failure-rehearsal pass: deaths, manual retries, room restarts, and failed Drill contracts now create in-world correction cards, rehearsal labels, and route arrows so the next attempt starts with a concrete action.
 - 2026-06-02: Added a first-impression polish pass: the start overlay now exposes ready/continue state, basic controls, and a training-cockpit entry; settings now uses a wider two-column cockpit layout; canvas text overlays render without pixelated scaling.
+- 2026-06-03: Added a first-room onboarding pass: new players get a crisp DOM tip strip for timing, landing, dash, and hazard reading; early deaths collapse into one next-action sentence; room intro, route focus, and death coach overlays now yield to high-priority beginner tips.
 
 ## Next Milestones
 
@@ -92,6 +93,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - Timers should reflect play, not menu reading time: idle starts and settings panels must not silently burn split seconds.
 - Destructive practice actions need an undo-minded guard: data resets require confirmation and must announce the result.
 - HUD decoration may be hidden from assistive tech, but real controls and counters inside the HUD must remain reachable and expose state.
+- First-room onboarding must stay short, action-oriented, and mutually exclusive with other teaching cards.
 
 ## Precision Quality Gate
 

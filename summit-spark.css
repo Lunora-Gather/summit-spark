@@ -240,6 +240,97 @@ canvas:focus {
   display: none;
 }
 
+.game-tip {
+  --tip-progress: 100%;
+  position: absolute;
+  left: 50%;
+  top: 72px;
+  z-index: 5;
+  width: min(540px, calc(100% - 56px));
+  min-height: 58px;
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px 14px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(118, 215, 255, 0.34);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(8, 14, 23, 0.91), rgba(7, 12, 20, 0.78));
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26), 0 0 18px rgba(118, 215, 255, 0.08);
+  color: #f8fbff;
+  pointer-events: none;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+}
+
+.game-tip.hidden,
+.stage.settings-open .game-tip {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(-8px);
+}
+
+.game-tip strong,
+.game-tip em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.62);
+}
+
+.game-tip strong {
+  color: #f8fbff;
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.22;
+}
+
+.game-tip em {
+  color: rgba(226, 241, 248, 0.82);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.game-tip i {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 7px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.game-tip i::after {
+  content: "";
+  display: block;
+  width: var(--tip-progress);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--gold));
+}
+
+.game-tip.onboarding {
+  border-color: rgba(247, 198, 93, 0.48);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28), 0 0 20px rgba(247, 198, 93, 0.12);
+}
+
+.game-tip.onboarding strong {
+  color: #fff0a8;
+}
+
+.game-tip.death {
+  border-color: rgba(255, 101, 125, 0.46);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28), 0 0 20px rgba(255, 101, 125, 0.12);
+}
+
+.game-tip.death strong {
+  color: #ffb1bf;
+}
+
 
 .hud-actions {
   display: flex;
@@ -1536,6 +1627,23 @@ canvas:focus {
     aspect-ratio: 960 / 544;
     border: 0;
     border-radius: 0;
+  }
+
+  .game-tip {
+    top: auto;
+    bottom: 70px;
+    width: calc(100% - 24px);
+    min-height: 52px;
+    padding: 9px 12px 13px;
+  }
+
+  .game-tip strong {
+    font-size: 14px;
+  }
+
+  .game-tip em {
+    font-size: 11px;
+    line-height: 1.32;
   }
 
   .settings-panel {

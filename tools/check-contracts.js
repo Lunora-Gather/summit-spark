@@ -156,7 +156,7 @@ const requiredIds = [
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "practiceLinesToggle",
   "ghostOpacitySlider", "controlPreset", "roomSelect", "practicePriority", "focusRoomButton", "focusResetButton", "coachSummary",
   "roomBrief", "practiceReport", "practicePlan", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton",
-  "startReadiness", "loadStatus", "openTrainingButton", "gameStatus"
+  "startReadiness", "loadStatus", "openTrainingButton", "gameStatus", "gameTip", "gameTipTitle", "gameTipDetail"
 ];
 for (const id of requiredIds) {
   if (!hasId(indexHtml, id)) errors.push("index.html missing #" + id);
@@ -247,6 +247,11 @@ if (!js.includes("showFailureRehearsal")) errors.push("death feedback should cre
 if (!js.includes("showDrillFailureRehearsal")) errors.push("failed Drill retry should create a rehearsal cue");
 if (!js.includes("drawFailureRehearsalCue")) errors.push("failure rehearsal cue renderer is missing");
 if (!js.includes("drawFailureRouteArrow")) errors.push("failure rehearsal should point toward the next route target");
+if (!js.includes("GAME_TIP_TIME")) errors.push("game tip timing constant is missing");
+if (!js.includes("showGameTip")) errors.push("game tip helper is missing");
+if (!js.includes("beginnerFlowActive")) errors.push("beginner flow activation guard is missing");
+if (!js.includes("updateOnboardingCues")) errors.push("beginner onboarding progression is missing");
+if (!js.includes("showBeginnerDeathTip")) errors.push("beginner death tip helper is missing");
 if (!js.includes("configureCanvasBuffer")) errors.push("canvas clarity buffer helper is missing");
 if (!js.includes("refreshStartOverlay")) errors.push("start overlay should expose ready/continue state");
 if (!js.includes("openStartTrainingPanel")) errors.push("start overlay should open the training cockpit");
@@ -280,6 +285,8 @@ if (!css.includes("review-roadmap")) errors.push("finish review roadmap styling 
 if (!css.includes("roadmap-row")) errors.push("finish review roadmap rows are missing");
 if (!css.includes("settings-body")) errors.push("settings panel should use the refined cockpit layout");
 if (!css.includes("start-panel")) errors.push("start overlay should use the refined ready panel");
+if (!css.includes("game-tip")) errors.push("game tip styling is missing");
+if (!css.includes("--tip-progress")) errors.push("game tip progress styling is missing");
 if (!css.includes("image-rendering: auto")) errors.push("canvas should not pixelate vector text overlays");
 if (!css.includes("settings-open")) errors.push("settings pause should visually dim the playfield");
 if (!css.includes("focus-button.armed")) errors.push("focus reset confirmation state styling is missing");

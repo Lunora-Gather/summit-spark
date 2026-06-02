@@ -108,6 +108,7 @@
   const SPLIT_POPUP_TIME = 1.25;
   const FOCUS_POPUP_TIME = 1.35;
   const DEATH_COACH_TIME = 2.35;
+  const FAILURE_REHEARSAL_TIME = 4.6;
   const FOCUS_RESET_CONFIRM_MS = 2200;
   const FEEL_CUE_TIME = 0.72;
   const ROUTE_CUE_TIME = 5.4;
@@ -603,6 +604,15 @@
   let deathCoachAction = "";
   let deathCoachPlan = "";
   let deathCoachReason = "fall";
+  let failureCueTimer = 0;
+  let failureCueMax = FAILURE_REHEARSAL_TIME;
+  let failureCueText = "";
+  let failureCueDetail = "";
+  let failureCueRoom = 0;
+  let failureCueX = 0;
+  let failureCueY = 0;
+  let failureCueReason = "fall";
+  let failureCueMode = "clean";
   let focusResetConfirmUntil = 0;
   let focusResetExpiryTimer = 0;
   let lastGameStatus = "";
@@ -1087,6 +1097,7 @@
     recallPulseTimer = 0;
     nearMissCooldown = 0;
     clearDeathCoach();
+    clearFailureRehearsal();
     activeDrill = null;
     resetActionPulses();
     overlay.classList.add("hidden");
@@ -1129,7 +1140,10 @@
     recallPulseTimer = 0;
     nearMissCooldown = 0;
     clearDeathCoach();
-    if (!options.keepDrill) activeDrill = null;
+    if (!options.keepDrill) {
+      clearFailureRehearsal();
+      activeDrill = null;
+    }
     resetActionPulses();
     overlay.classList.add("hidden");
     started = true;
@@ -2052,7 +2066,11 @@
     seedHair();
     resetActionVisuals();
     triggerActionVisual("spawn", 0.28);
-    armRouteCue("重试", null, ROUTE_CUE_TIME);
+    if (failureCueTimer > 0 && failureCueRoom === roomIndex) {
+      armRouteCue("修正", routeSlotForMode(failureCueMode), ROUTE_CUE_TIME);
+    } else {
+      armRouteCue("重试", null, ROUTE_CUE_TIME);
+    }
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 16, 230);
   }
 
@@ -2128,7 +2146,11 @@
     seedHair();
     resetActionVisuals();
     triggerActionVisual("spawn", 0.24);
-    armRouteCue("重开", null, ROUTE_CUE_TIME);
+    if (failureCueTimer > 0 && failureCueRoom === roomIndex) {
+      armRouteCue("修正", routeSlotForMode(failureCueMode), ROUTE_CUE_TIME);
+    } else {
+      armRouteCue("重开", null, ROUTE_CUE_TIME);
+    }
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 12, 210);
   }
 
@@ -2179,6 +2201,11 @@
     deathCoachPlan = deathCoachPlanText(roomIndex, normalized);
     deathCoachTimer = DEATH_COACH_TIME;
     setGameStatus(`${deathReasonLabel(normalized)}：${deathCoachAction}`);
+    showFailureRehearsal(roomIndex, normalized, {
+      title: title || `${deathReasonLabel(normalized)} 修正`,
+      x: player.x + player.w / 2,
+      y: player.y + player.h / 2
+    });
     clearFocusPopup();
   }
 
@@ -2655,6 +2682,72 @@
     return `建议 ${target}：${drillObjectiveForRoom(index, mode)}`;
   }
 
+  function failureModeForReason(index, reason = "fall", mode = "") {
+    if (mode) return resolveDrillMode(index, mode);
+    const normalized = normalizeDeathReason(reason);
+    if (normalized === "spike" || normalized === "fall" || normalized === "crumble") return "clean";
+    return resolveDrillMode(index);
+  }
+
+  function failureRehearsalText(index, reason = "fall", mode = "") {
+    const normalized = normalizeDeathReason(reason);
+    const resolvedMode = failureModeForReason(index, normalized, mode);
+    if (resolvedMode === "style") return `类型动作：${styleTrialObjective(index)}`;
+    if (resolvedMode === "expert") return `高手动作：${expertRequirementText(index)} / ${routeLineCore(index, 2)}`;
+    if (normalized === "spike") return `先停安全格 -> 再冲刺避线 / ${routeLineCore(index, 0)}`;
+    if (normalized === "crumble") return `触冰只借一步 -> 离开后校正 / ${routeLineCore(index, 1)}`;
+    if (normalized === "retry" || normalized === "room") return `只练开局第一句 -> 稳住后再提速 / ${routeLineCore(index, 0)}`;
+    if (resolvedMode === "pace") return `晚半拍冲刺换落点 / ${routeLineCore(index, 1)}`;
+    return `先确认落点 -> 冲刺留到危险线后 / ${routeLineCore(index, 0)}`;
+  }
+
+  function failureRehearsalPlanText(index, mode = "auto") {
+    const resolvedMode = resolveDrillMode(index, mode);
+    return `演练 ${drillModeLabel(resolvedMode)} Drill · ${routeSlotShort(routeSlotForMode(resolvedMode))}`;
+  }
+
+  function showFailureRehearsal(index, reason = "fall", options = {}) {
+    const safeIndex = Math.max(0, Math.min(maps.length - 1, index));
+    const normalized = normalizeDeathReason(reason);
+    const mode = failureModeForReason(safeIndex, normalized, options.mode || "");
+    failureCueRoom = safeIndex;
+    failureCueReason = normalized;
+    failureCueMode = mode;
+    failureCueText = options.title || `${deathReasonLabel(normalized)} 修正 · ${drillModeLabel(mode)}`;
+    failureCueDetail = options.detail || `${failureRehearsalText(safeIndex, normalized, mode)} / ${failureRehearsalPlanText(safeIndex, mode)}`;
+    failureCueX = Number.isFinite(options.x) ? options.x : player.x + player.w / 2;
+    failureCueY = Number.isFinite(options.y) ? options.y : player.y + player.h / 2;
+    failureCueMax = Math.max(0.8, options.duration || FAILURE_REHEARSAL_TIME);
+    failureCueTimer = failureCueMax;
+    armRouteCue(options.routeReason || "修正", routeSlotForMode(mode), Math.max(ROUTE_CUE_TIME, failureCueMax));
+  }
+
+  function showDrillFailureRehearsal(drill, reason) {
+    showFailureRehearsal(drill.room, "retry", {
+      mode: drill.mode,
+      title: `${drillModeLabel(drill.mode)} 未达标`,
+      detail: `${reason} / ${failureRehearsalPlanText(drill.room, drill.mode)}`,
+      routeReason: "重练",
+      duration: FAILURE_REHEARSAL_TIME + 0.9
+    });
+  }
+
+  function clearFailureRehearsal() {
+    failureCueTimer = 0;
+    failureCueMax = FAILURE_REHEARSAL_TIME;
+    failureCueText = "";
+    failureCueDetail = "";
+    failureCueRoom = roomIndex;
+    failureCueX = 0;
+    failureCueY = 0;
+    failureCueReason = "fall";
+    failureCueMode = "clean";
+  }
+
+  function failureCueActive() {
+    return failureCueTimer > 0 && Boolean(failureCueText) && failureCueRoom === roomIndex;
+  }
+
   function roomSplitLoss(index) {
     const best = bestRoomTimes[index] || 0;
     const target = ROOM_TARGETS[index] || 0;
@@ -2864,6 +2957,7 @@
     const resolvedMode = resolveDrillMode(index, mode);
     const objective = drillObjectiveForRoom(index, resolvedMode);
     jumpToRoom(index, { keepDrill: true });
+    clearFailureRehearsal();
     activeDrill = { room: index, mode: resolvedMode, objective, target: ROOM_TARGETS[index] || 0 };
     armRouteCue("Drill", routeSlotForMode(resolvedMode), ROUTE_CUE_TIME + 1.2);
     trackDrillStart(index, resolvedMode);
@@ -2885,6 +2979,7 @@
       focusPopupDetail = `${drillContractStatus(stats)} / ${roomMasteryLevel(roomMasteryScore(index))} ${roomMasteryScore(index)} / ${nextMasteryStepText(index)}`;
       focusPopupTimer = FOCUS_POPUP_TIME;
       armRouteCue("完成", routeSlotForMode(mode), ROUTE_CUE_TIME * 0.72);
+      clearFailureRehearsal();
       activeDrill = null;
       setGameStatus(`Drill R${index + 1} 完成`);
       updatePracticeCoach();
@@ -2901,6 +2996,7 @@
     focusPopupText = `${drillModeLabel(drill.mode)} 重练 R${drill.room + 1}`;
     focusPopupDetail = reason;
     focusPopupTimer = FOCUS_POPUP_TIME;
+    showDrillFailureRehearsal(drill, reason);
     setGameStatus(`${drillModeLabel(drill.mode)} Drill 重练：${reason}`);
     updatePracticeCoach();
   }
@@ -3397,6 +3493,7 @@
     roomAttemptClean = true;
     clearFocusResetConfirm();
     clearFocusPopup();
+    clearFailureRehearsal();
     writeRoomFocus();
     refreshRoomSelectOptions();
     updatePracticeCoach();
@@ -3891,6 +3988,7 @@
     masteryPopupTimer = Math.max(0, masteryPopupTimer - dt);
     focusPopupTimer = Math.max(0, focusPopupTimer - dt);
     deathCoachTimer = Math.max(0, deathCoachTimer - dt);
+    failureCueTimer = Math.max(0, failureCueTimer - dt);
     crumbleSlipTimer = Math.max(0, crumbleSlipTimer - dt);
     updateFlow(dt);
     updateCrumblePlatforms(dt);
@@ -4202,6 +4300,7 @@
     drawRoomBestCue();
     drawPlayerAura(time);
     if (player.deadTimer <= 0) drawPlayer(time);
+    drawFailureRehearsalCue(time);
     ctx.restore();
     drawFlowAtmosphere(time);
     drawTimingGateCue(time);
@@ -4526,6 +4625,7 @@
 
   function drawRouteFocusCue(time) {
     if (!started || won || player.deadTimer > 0 || !routeCueActive()) return;
+    if (failureCueActive()) return;
     const active = activeDrill && activeDrill.room === roomIndex;
     if (!active && roomIntroTimer > 0.18) return;
     const data = routeFocusData(roomIndex);
@@ -4724,6 +4824,7 @@
 
   function drawRoomIntro(time) {
     if (roomIntroTimer <= 0) return;
+    if (failureCueActive()) return;
     const t = roomIntroTimer / ROOM_INTRO_TIME;
     const best = bestRoomTimes[roomIndex] || 0;
     const target = ROOM_TARGETS[roomIndex] || 0;
@@ -4971,6 +5072,7 @@
 
   function drawDeathCoach(time) {
     if (deathCoachTimer <= 0 || !deathCoachDetail) return;
+    if (failureCueActive() && player.deadTimer <= 0) return;
     const t = deathCoachTimer / DEATH_COACH_TIME;
     const compact = isCompactCanvas();
     const color = deathReasonColor(deathCoachReason);
@@ -6021,6 +6123,15 @@
       ctx.shadowColor = "rgba(0,0,0,0.72)";
       ctx.shadowBlur = 8;
       ctx.fillText(deathReasonLabel(mark.reason), 0, -22);
+      if (
+        failureCueTimer > 0 &&
+        failureCueRoom === mark.room &&
+        Math.hypot(mark.x - failureCueX, mark.y - failureCueY) < 4
+      ) {
+        ctx.font = "800 8px system-ui, sans-serif";
+        ctx.fillStyle = "rgba(255,240,160,0.9)";
+        ctx.fillText("REHEARSE", 0, 24);
+      }
       ctx.restore();
       ctx.strokeStyle = "rgba(248,251,255,0.72)";
       ctx.beginPath();
@@ -6028,6 +6139,120 @@
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  function drawFailureRehearsalCue(time) {
+    if (!started || won || !failureCueActive()) return;
+    const t = Math.max(0, Math.min(1, failureCueTimer / Math.max(0.001, failureCueMax)));
+    const alpha = Math.min(1, t * 1.55);
+    const color = deathReasonColor(failureCueReason);
+    const routeColor = routeSlotColor(routeSlotForMode(failureCueMode));
+    const cardWidth = isCompactCanvas() ? 290 : 260;
+    const cardHeight = 66;
+    const px = Math.max(24, Math.min(W - 24, failureCueX));
+    const py = Math.max(34, Math.min(H - 34, failureCueY));
+    const cardX = Math.max(18, Math.min(W - cardWidth - 18, px - cardWidth / 2));
+    const preferredY = py < H * 0.45 ? py + 30 : py - cardHeight - 32;
+    const cardY = Math.max(44, Math.min(H - cardHeight - 42, preferredY));
+    const pulse = 0.5 + Math.sin(time * 7.2) * 0.5;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = settings.calmEffects ? 5 : 13;
+    ctx.beginPath();
+    ctx.arc(px, py, 18 + pulse * 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.setLineDash([5, 6]);
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(cardX + cardWidth / 2, cardY + cardHeight / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.globalAlpha = alpha * 0.88;
+    ctx.fillStyle = "rgba(7,12,20,0.76)";
+    roundRect(ctx, cardX, cardY, cardWidth, cardHeight, 8);
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4;
+    roundRect(ctx, cardX + 0.7, cardY + 0.7, cardWidth - 1.4, cardHeight - 1.4, 8);
+    ctx.stroke();
+
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = "800 10px system-ui, sans-serif";
+    ctx.fillStyle = color;
+    ctx.fillText(fitText(failureCueText, cardWidth - 28), cardX + 14, cardY + 17);
+    ctx.font = "800 9px system-ui, sans-serif";
+    ctx.shadowBlur = settings.calmEffects ? 2 : 6;
+    ctx.fillStyle = "rgba(248,251,255,0.78)";
+    ctx.fillText(fitText(failureCueDetail, cardWidth - 28), cardX + 14, cardY + 37);
+    ctx.fillStyle = routeColor;
+    ctx.fillText(fitText(`${failureRehearsalPlanText(roomIndex, failureCueMode)} / ${nextMasteryStepText(roomIndex)}`, cardWidth - 28), cardX + 14, cardY + 54);
+    drawRouteSegmentStrip(cardX + cardWidth - 91, cardY + 11, 72, 8, routeSlotForMode(failureCueMode));
+    ctx.restore();
+
+    drawFailureRouteArrow(time, routeColor, alpha);
+  }
+
+  function drawFailureRouteArrow(time, color, alpha) {
+    if (player.deadTimer > 0) return;
+    const target = routeCompassTarget();
+    if (!target) return;
+    const cx = player.x + player.w / 2;
+    const cy = player.y + player.h / 2;
+    let dx = target.x - cx;
+    let dy = target.y - cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 36) return;
+    dx /= dist;
+    dy /= dist;
+    const length = Math.min(118, Math.max(54, dist * 0.24));
+    const sx = cx + dx * 24;
+    const sy = cy + dy * 18;
+    const ex = sx + dx * length;
+    const ey = sy + dy * length;
+    const pulse = 0.5 + Math.sin(time * 6.8) * 0.5;
+
+    ctx.save();
+    ctx.globalAlpha = Math.min(0.72, alpha * (0.36 + pulse * 0.18));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = settings.calmEffects ? 4 : 11;
+    ctx.setLineDash([9, 7]);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.translate(ex, ey);
+    ctx.rotate(Math.atan2(dy, dx));
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(12, 0);
+    ctx.lineTo(-7, -6);
+    ctx.lineTo(-3, 0);
+    ctx.lineTo(-7, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.rotate(-Math.atan2(dy, dx));
+    ctx.font = "800 8px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.globalAlpha = Math.min(0.86, alpha * 0.72);
+    ctx.fillStyle = "rgba(7,12,20,0.72)";
+    roundRect(ctx, -34, -28, 68, 16, 5);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.fillText("修正路线", 0, -20);
+    ctx.restore();
   }
 
   function drawDeathReplays() {
@@ -6437,6 +6662,7 @@
       `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,
+      `failure ${failureCueText || "none"} ${failureCueTimer.toFixed(2)}  mode ${failureCueMode}  room ${failureCueRoom + 1}`,
       `relay chain ${relayChain}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,

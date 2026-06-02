@@ -50,6 +50,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-02: Added a feel-trust pass: apex gravity shaping makes jump tops easier to steer, and successful buffer/coyote/wall-grace/Spark/aim-memory windows now produce short player-adjacent cues plus debug readouts.
 - 2026-06-02: Added a route-clarity and mastery pass: room intros, in-run route cards, and a near-player compass now surface the current SAFE/FAST/EXPERT line, while room clears and Drill wins show immediate mastery progress.
 - 2026-06-02: Added a mastery-roadmap pass: finish review now lists the next contract gaps as clickable Drill rows, settings mastery rows show Clean/Pace/Style/Expert pills, and Drill completion feedback names the next step.
+- 2026-06-02: Added a failure-rehearsal pass: deaths, manual retries, room restarts, and failed Drill contracts now create in-world correction cards, rehearsal labels, and route arrows so the next attempt starts with a concrete action.
 
 ## Next Milestones
 

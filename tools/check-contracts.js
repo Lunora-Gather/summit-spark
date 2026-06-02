@@ -240,6 +240,12 @@ if (!js.includes("reviewRoadmapHtml")) errors.push("finish review should expose 
 if (!js.includes("deathPrescription")) errors.push("death coach should prescribe next action");
 if (!js.includes("deathCoachPlanText")) errors.push("death coach should point to a drill plan");
 if (!js.includes("drawContractStrip")) errors.push("Drill HUD should show contract ladder status");
+if (!js.includes("FAILURE_REHEARSAL_TIME")) errors.push("failure rehearsal cue timing constant is missing");
+if (!js.includes("failureCueActive")) errors.push("failure rehearsal state helper is missing");
+if (!js.includes("showFailureRehearsal")) errors.push("death feedback should create a failure rehearsal cue");
+if (!js.includes("showDrillFailureRehearsal")) errors.push("failed Drill retry should create a rehearsal cue");
+if (!js.includes("drawFailureRehearsalCue")) errors.push("failure rehearsal cue renderer is missing");
+if (!js.includes("drawFailureRouteArrow")) errors.push("failure rehearsal should point toward the next route target");
 if (!js.includes("confirmFocusReset")) errors.push("focus reset should require confirmation");
 if (!js.includes("scheduleFocusResetExpiry")) errors.push("focus reset confirmation should expire visibly");
 if (!js.includes("drawCooldownRing")) errors.push("mechanic cooldown ring helper is missing");

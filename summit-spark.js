@@ -34,12 +34,15 @@
   const roomSelect = document.getElementById("roomSelect");
   const roomBrief = document.getElementById("roomBrief");
   const practicePriority = document.getElementById("practicePriority");
+  const chapterOverview = document.getElementById("chapterOverview");
   const practicePlan = document.getElementById("practicePlan");
   const focusRoomButton = document.getElementById("focusRoomButton");
   const focusResetButton = document.getElementById("focusResetButton");
   const coachSummary = document.getElementById("coachSummary");
   const practiceReport = document.getElementById("practiceReport");
   const practiceQueue = document.getElementById("practiceQueue");
+  const challengeBoard = document.getElementById("challengeBoard");
+  const profileSummary = document.getElementById("profileSummary");
   const practiceLedger = document.getElementById("practiceLedger");
   const drillCleanButton = document.getElementById("drillCleanButton");
   const drillPaceButton = document.getElementById("drillPaceButton");
@@ -110,6 +113,7 @@
   const ROOM_BESTS_KEY = "summit-spark-room-bests";
   const ROOM_PATHS_KEY = "summit-spark-room-paths";
   const ROOM_FOCUS_KEY = "summit-spark-room-focus";
+  const PROFILE_KEY = "summit-spark-profile";
   const PATH_SAMPLE_INTERVAL = 0.045;
   const RECENT_PATH_SECONDS = 1.55;
   const DEATH_REPLAY_LIFE = 5.2;
@@ -147,6 +151,7 @@
     room: "ROOM"
   };
   const GAME_TIP_CLASSES = ["coach", "onboarding", "death", "route"];
+  const FLOW_CHALLENGE_TARGET = 900;
 
   const SOLID = new Set(["#", "C"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
@@ -288,6 +293,15 @@
     recall: "召回",
     crumble: "脆冰"
   };
+  const LONG_TERM_CHALLENGES = [
+    { id: "clear", label: "首登顶", goal: "完成一次完整路线", kind: "run", mode: "clean" },
+    { id: "clean", label: "全 Clean", goal: "每房至少一次无失误", kind: "clean", mode: "clean" },
+    { id: "pace", label: "全 S", goal: "每房 PB 达到 S 节奏", kind: "pace", mode: "pace" },
+    { id: "style", label: "全 Style", goal: "每房完成类型挑战", kind: "style", mode: "style" },
+    { id: "expert", label: "全 Expert", goal: "每房证明高手线", kind: "expert", mode: "expert" },
+    { id: "nodeath", label: "零死亡登顶", goal: "完整通关且死亡数为 0", kind: "nodeath", mode: "clean" },
+    { id: "flow", label: "Flow 峰值", goal: `Flow Best 达到 ${FLOW_CHALLENGE_TARGET}`, kind: "flow", mode: "pace" }
+  ];
 
   const maps = [
     [
@@ -575,6 +589,7 @@
   let bestRoomTimes = readRoomBests();
   let bestRoomPaths = readRoomPaths();
   let bestFlow = readBestFlow();
+  let profile = readProfile();
   let collected = new Set();
   let debugVisible = false;
   let hitStopTimer = 0;
@@ -636,8 +651,11 @@
   let focusResetExpiryTimer = 0;
   let lastGameStatus = "";
   let lastCoachSummary = "";
+  let lastChapterOverviewHtml = "";
   let lastPracticePlanHtml = "";
   let lastPracticeQueueHtml = "";
+  let lastChallengeBoardHtml = "";
+  let lastProfileSummaryHtml = "";
   let lastPracticeLedgerHtml = "";
   let flowScore = 0;
   let flowPeak = 0;
@@ -930,6 +948,21 @@
       startRoomDrill(index, mode);
     }
   });
+  challengeBoard?.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest("[data-challenge-room], [data-challenge-run]") : null;
+    if (!button) return;
+    if (button.hasAttribute("data-challenge-run")) {
+      closeSettings();
+      startSummitChallenge();
+      return;
+    }
+    const index = Number(button.getAttribute("data-challenge-room"));
+    const mode = button.getAttribute("data-challenge-mode") || "auto";
+    if (Number.isInteger(index) && index >= 0 && index < maps.length) {
+      closeSettings();
+      startRoomDrill(index, mode);
+    }
+  });
   practiceLedger?.addEventListener("click", (event) => {
     const button = event.target instanceof Element ? event.target.closest("[data-ledger-room]") : null;
     if (!button) return;
@@ -1111,6 +1144,18 @@
     setGameStatus("游戏开始，首次输入后开始计时");
     focusGame();
     maybeStartBeginnerFlow();
+  }
+
+  function startSummitChallenge() {
+    activeDrill = null;
+    started = true;
+    settingsVisible = false;
+    syncSettingsVisibility();
+    hardReset();
+    started = true;
+    overlay.classList.add("hidden");
+    setGameStatus("挑战路线开始：完整登顶");
+    focusGame();
   }
 
   function hasTrainingProgress() {
@@ -1860,12 +1905,28 @@
     if (drillResult === false) return { isBest: false, drillResult };
     showMasteryPopup(roomIndex, masteryBefore, clearedClean, drillResult === true ? drillMode : "", isNewRoomBest);
     addFlow(120, "summit");
+    recordSummitProfile();
     if (bestTime <= 0 || runTime < bestTime) {
       bestTime = runTime;
       writeBestTime(bestTime);
       return { isBest: true, drillResult };
     }
     return { isBest: false, drillResult };
+  }
+
+  function recordSummitProfile() {
+    profile.summitClears += 1;
+    profile.lastClearTime = runTime;
+    profile.lastClearAt = new Date().toISOString();
+    if (profile.bestDeathCount === null || deathCount < profile.bestDeathCount) {
+      profile.bestDeathCount = deathCount;
+    }
+    profile.bestRelayChain = Math.max(profile.bestRelayChain, bestRelayChain);
+    profile.bestFlowPeak = Math.max(profile.bestFlowPeak, Math.floor(flowPeak), bestFlow);
+    challengeBoardItems().forEach((item) => {
+      if (item.done) profile.challengeWins[item.id] = true;
+    });
+    writeProfile();
   }
 
   function scoreRelayChain() {
@@ -1953,6 +2014,55 @@
       localStorage.setItem(BEST_FLOW_KEY, String(Math.floor(value)));
     } catch {
       // Flow bests are optional practice data.
+    }
+  }
+
+  function createProfile() {
+    return {
+      version: 1,
+      summitClears: 0,
+      bestDeathCount: null,
+      bestRelayChain: 0,
+      bestFlowPeak: 0,
+      lastClearTime: 0,
+      lastClearAt: "",
+      challengeWins: {}
+    };
+  }
+
+  function normalizeProfile(saved) {
+    const source = saved && typeof saved === "object" ? saved : {};
+    const profileData = createProfile();
+    profileData.summitClears = Math.max(0, Number(source.summitClears) || 0);
+    const savedBestDeath = source.bestDeathCount;
+    const parsedBestDeath = Number(savedBestDeath);
+    profileData.bestDeathCount = savedBestDeath === null || savedBestDeath === undefined || profileData.summitClears <= 0
+      ? null
+      : Number.isFinite(parsedBestDeath) ? Math.max(0, parsedBestDeath) : null;
+    profileData.bestRelayChain = Math.max(0, Number(source.bestRelayChain) || 0);
+    profileData.bestFlowPeak = Math.max(0, Number(source.bestFlowPeak) || 0);
+    profileData.lastClearTime = Math.max(0, Number(source.lastClearTime) || 0);
+    profileData.lastClearAt = typeof source.lastClearAt === "string" ? source.lastClearAt : "";
+    const wins = source.challengeWins && typeof source.challengeWins === "object" ? source.challengeWins : {};
+    LONG_TERM_CHALLENGES.forEach((challenge) => {
+      if (wins[challenge.id]) profileData.challengeWins[challenge.id] = true;
+    });
+    return profileData;
+  }
+
+  function readProfile() {
+    try {
+      return normalizeProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}"));
+    } catch {
+      return createProfile();
+    }
+  }
+
+  function writeProfile() {
+    try {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    } catch {
+      // Long-term profile data is optional and should not block play.
     }
   }
 
@@ -3276,7 +3386,10 @@
     if (practiceReport) {
       practiceReport.textContent = practiceReportText();
     }
+    updateChapterOverview();
     updatePracticeQueue();
+    updateChallengeBoard();
+    updateProfileSummary();
     updatePracticeLedger();
   }
 
@@ -3296,6 +3409,90 @@
       + `<strong>${escapeHtml(title)}</strong>`
       + `<em>${escapeHtml(detail)}</em>`
       + `<i class="priority-meter" aria-hidden="true"></i>`;
+  }
+
+  function countRoomsWhere(predicate) {
+    return maps.reduce((sum, _, index) => sum + (predicate(index) ? 1 : 0), 0);
+  }
+
+  function cleanRoomCount() {
+    return countRoomsWhere((index) => (roomFocus[index]?.clean || 0) > 0);
+  }
+
+  function sRankRoomCount() {
+    return countRoomsWhere((index) => splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S");
+  }
+
+  function styleWinRoomCount() {
+    return countRoomsWhere((index) => (roomFocus[index]?.styleWins || 0) > 0);
+  }
+
+  function expertWinRoomCount() {
+    return countRoomsWhere((index) => (roomFocus[index]?.expertWins || 0) > 0);
+  }
+
+  function clearedRoomCount() {
+    return countRoomsWhere((index) => (roomFocus[index]?.clears || 0) > 0 || (bestRoomTimes[index] || 0) > 0);
+  }
+
+  function contractWinCount() {
+    return roomFocus.reduce((sum, entry) => {
+      return sum + (entry?.cleanWins || 0) + (entry?.paceWins || 0) + (entry?.styleWins || 0) + (entry?.expertWins || 0);
+    }, 0);
+  }
+
+  function chapterCompletionData() {
+    const roomTotal = maps.length;
+    const clear = clearedRoomCount();
+    const clean = cleanRoomCount();
+    const pace = sRankRoomCount();
+    const style = styleWinRoomCount();
+    const expert = expertWinRoomCount();
+    const mastery = maps.reduce((sum, _, index) => sum + roomMasteryScore(index), 0) / Math.max(1, roomTotal);
+    const weighted = (
+      (clear / roomTotal) * 18
+      + (clean / roomTotal) * 18
+      + (pace / roomTotal) * 20
+      + (style / roomTotal) * 20
+      + (expert / roomTotal) * 18
+      + (mastery / 100) * 6
+    );
+    return {
+      clear,
+      clean,
+      pace,
+      style,
+      expert,
+      mastery: Math.round(mastery),
+      percent: Math.max(0, Math.min(100, Math.round(weighted)))
+    };
+  }
+
+  function chapterGrade(percent) {
+    if (percent >= 92) return "SS";
+    if (percent >= 78) return "S";
+    if (percent >= 62) return "A";
+    if (percent >= 42) return "B";
+    if (percent >= 20) return "C";
+    return "D";
+  }
+
+  function updateChapterOverview() {
+    if (!chapterOverview || !settingsVisible) return;
+    const data = chapterCompletionData();
+    const grade = chapterGrade(data.percent);
+    const html = `<div class="chapter-head"><span>章节完成度</span><strong>${escapeHtml(grade)} · ${data.percent}%</strong></div>`
+      + `<div class="chapter-meter" style="--chapter-progress: ${data.percent}%" aria-hidden="true"></div>`
+      + `<div class="chapter-stats">`
+      + `<span><b>${data.clear}</b><em>通关房</em></span>`
+      + `<span><b>${data.clean}</b><em>Clean</em></span>`
+      + `<span><b>${data.pace}</b><em>S</em></span>`
+      + `<span><b>${data.style}</b><em>Style</em></span>`
+      + `<span><b>${data.expert}</b><em>Expert</em></span>`
+      + `</div>`;
+    if (html === lastChapterOverviewHtml) return;
+    lastChapterOverviewHtml = html;
+    chapterOverview.innerHTML = html;
   }
 
   function nextContractMode(mode) {
@@ -3560,6 +3757,109 @@
     if (html === lastPracticeQueueHtml) return;
     lastPracticeQueueHtml = html;
     practiceQueue.innerHTML = html;
+  }
+
+  function challengeTargetRoom(challenge) {
+    if (challenge.kind === "clean" || challenge.kind === "nodeath") return cleanPracticeRoom();
+    if (challenge.kind === "pace" || challenge.kind === "flow") return pacePracticeRoom();
+    if (challenge.kind === "style") return stylePracticeRoom();
+    if (challenge.kind === "expert") return expertPracticeRoom();
+    return recommendedPracticeRoom();
+  }
+
+  function challengeProgress(challenge) {
+    const roomTotal = maps.length;
+    let current = 0;
+    let target = 1;
+    let detail = challenge.goal;
+    if (challenge.kind === "run") {
+      current = profile.summitClears > 0 || bestTime > 0 ? 1 : 0;
+      detail = current ? `已登顶 ${profile.summitClears || 1} 次` : "从 R1 开始完整通关";
+    } else if (challenge.kind === "clean") {
+      current = cleanRoomCount();
+      target = roomTotal;
+      detail = `Clean ${current}/${target}`;
+    } else if (challenge.kind === "pace") {
+      current = sRankRoomCount();
+      target = roomTotal;
+      detail = `S ${current}/${target}`;
+    } else if (challenge.kind === "style") {
+      current = styleWinRoomCount();
+      target = roomTotal;
+      detail = `Style ${current}/${target}`;
+    } else if (challenge.kind === "expert") {
+      current = expertWinRoomCount();
+      target = roomTotal;
+      detail = `Expert ${current}/${target}`;
+    } else if (challenge.kind === "nodeath") {
+      current = profile.bestDeathCount === 0 ? 1 : 0;
+      detail = profile.bestDeathCount === null ? "未记录完整通关死亡数" : `最佳 D ${profile.bestDeathCount}`;
+    } else if (challenge.kind === "flow") {
+      current = Math.min(FLOW_CHALLENGE_TARGET, Math.max(bestFlow, profile.bestFlowPeak || 0));
+      target = FLOW_CHALLENGE_TARGET;
+      detail = `Flow Best ${Math.floor(Math.max(bestFlow, profile.bestFlowPeak || 0))}/${target}`;
+    }
+    const progress = target > 0 ? Math.round(Math.max(0, Math.min(1, current / target)) * 100) : 0;
+    const done = progress >= 100;
+    if (done) profile.challengeWins[challenge.id] = true;
+    return {
+      current,
+      target,
+      progress,
+      done,
+      detail,
+      index: challengeTargetRoom(challenge),
+      mode: challenge.mode || "auto"
+    };
+  }
+
+  function challengeBoardItems() {
+    return LONG_TERM_CHALLENGES.map((challenge) => ({
+      ...challenge,
+      ...challengeProgress(challenge)
+    }));
+  }
+
+  function updateChallengeBoard() {
+    if (!challengeBoard || !settingsVisible) return;
+    const items = challengeBoardItems();
+    const html = `<div class="challenge-head"><span>长期挑战</span><em>每张卡都是入口</em></div>`
+      + items.map((item) => {
+        const title = item.kind === "run" ? "完整路线" : `R${item.index + 1} ${drillModeLabel(item.mode)}`;
+        const attrs = item.kind === "run"
+          ? `data-challenge-run="${escapeHtml(item.id)}"`
+          : `data-challenge-room="${item.index}" data-challenge-mode="${escapeHtml(item.mode)}"`;
+        return `<button class="challenge-card ${item.done ? "done" : "todo"} ${escapeHtml(item.kind)}" type="button" ${attrs} style="--challenge-progress: ${item.progress}%" aria-label="${escapeHtml(item.label)} ${escapeHtml(item.detail)}">`
+          + `<span class="challenge-meta"><b>${escapeHtml(item.label)}</b><i>${item.done ? "完成" : `${item.progress}%`}</i></span>`
+          + `<strong>${escapeHtml(item.detail)}</strong>`
+          + `<em>${escapeHtml(item.goal)}</em>`
+          + `<small>${escapeHtml(item.done ? "继续维护 PB / Flow" : title)}</small>`
+          + `<u aria-hidden="true"></u>`
+          + `</button>`;
+      }).join("");
+    if (html === lastChallengeBoardHtml) return;
+    lastChallengeBoardHtml = html;
+    challengeBoard.innerHTML = html;
+    writeProfile();
+  }
+
+  function updateProfileSummary() {
+    if (!profileSummary || !settingsVisible) return;
+    const data = chapterCompletionData();
+    const challengeWins = challengeBoardItems().filter((item) => item.done).length;
+    const bestDeath = profile.bestDeathCount === null ? "未记录" : `D ${profile.bestDeathCount}`;
+    const html = `<div class="profile-head"><span>长期档案</span><strong>${escapeHtml(chapterGrade(data.percent))} · ${data.percent}%</strong></div>`
+      + `<div class="profile-grid">`
+      + `<span><b>${profile.summitClears}</b><em>登顶</em></span>`
+      + `<span><b>${escapeHtml(bestDeath)}</b><em>最佳死亡</em></span>`
+      + `<span><b>${Math.floor(Math.max(bestFlow, profile.bestFlowPeak || 0))}</b><em>Flow</em></span>`
+      + `<span><b>${contractWinCount()}</b><em>合约完成</em></span>`
+      + `<span><b>${challengeWins}/${LONG_TERM_CHALLENGES.length}</b><em>挑战</em></span>`
+      + `<span><b>${profile.bestRelayChain}</b><em>Relay</em></span>`
+      + `</div>`;
+    if (html === lastProfileSummaryHtml) return;
+    lastProfileSummaryHtml = html;
+    profileSummary.innerHTML = html;
   }
 
   function roomMasteryScore(index) {
@@ -5156,13 +5456,25 @@
 
   function summitReview() {
     const next = recommendedPracticeRoom();
-    return `${weakestRoomSummary()} / ${splitLossSummary()} / 下个 Drill ${roomTrainingAdvice(next)}`;
+    return `${chapterSummary()} / ${challengeSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 下个 Drill ${roomTrainingAdvice(next)}`;
   }
 
   function practiceReportText() {
     const cleanRooms = roomFocus.filter((entry) => entry && entry.clean > 0).length;
     const next = recommendedPracticeRoom();
-    return `无失误 ${cleanRooms}/${maps.length} / ${drillSummary()} / ${contractSummary()} / 路线图 ${masteryRoadmapSummary()} / ${practiceRouteSummary()} / 优先 ${practiceLedgerSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 建议 ${roomTrainingAdvice(next)}`;
+    return `无失误 ${cleanRooms}/${maps.length} / ${chapterSummary()} / ${challengeSummary()} / ${drillSummary()} / ${contractSummary()} / 路线图 ${masteryRoadmapSummary()} / ${practiceRouteSummary()} / 优先 ${practiceLedgerSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 建议 ${roomTrainingAdvice(next)}`;
+  }
+
+  function chapterSummary() {
+    const data = chapterCompletionData();
+    return `章节 ${chapterGrade(data.percent)} ${data.percent}%`;
+  }
+
+  function challengeSummary() {
+    const items = challengeBoardItems();
+    const wins = items.filter((item) => item.done).length;
+    const next = items.find((item) => !item.done);
+    return next ? `挑战 ${wins}/${items.length} ${next.label} ${next.progress}%` : `挑战 ${wins}/${items.length} 全完成`;
   }
 
   function drillSummary() {
@@ -5224,6 +5536,11 @@
     const styleIndex = stylePracticeRoom();
     const loss = largestSplitLossRoom();
     const focus = strongestFocusRoom();
+    const chapter = chapterCompletionData();
+    const chapterText = `${chapterGrade(chapter.percent)} · ${chapter.percent}%`;
+    const challengeItems = challengeBoardItems();
+    const challengeWins = challengeItems.filter((item) => item.done).length;
+    const nextChallenge = challengeItems.find((item) => !item.done) || challengeItems[challengeItems.length - 1];
     const splitValue = loss && loss.loss > 0 ? `R${loss.index + 1} ${formatDelta(loss.loss)}` : "全部达标";
     const splitDetail = loss && loss.loss > 0 ? routePracticeLine(loss.index) : "可以开始追高手线和 clean clear。";
     const focusValue = focus ? `R${focus.index + 1} ${deathReasonLabel(focus.reason)} ${focus.score}` : "暂无高压点";
@@ -5234,6 +5551,8 @@
     const styleButton = `<button class="review-button" type="button" data-finish-drill="${styleIndex}" data-finish-mode="style">类型 Style</button>`;
     return `<div class="review-grid">`
       + reviewCardHtml("下一 Drill", `R${next + 1} ${drillModeLabel(nextMode)}`, drillObjectiveForRoom(next, nextMode))
+      + reviewCardHtml("章节完成度", chapterText, `Clean ${chapter.clean}/${maps.length} · S ${chapter.pace}/${maps.length} · X ${chapter.expert}/${maps.length}`)
+      + reviewCardHtml("长期挑战", `${challengeWins}/${LONG_TERM_CHALLENGES.length}`, nextChallenge ? `${nextChallenge.label}：${nextChallenge.detail}` : "挑战已全部完成")
       + reviewCardHtml("类型挑战", `R${styleIndex + 1} ${styleTrialLabel(styleIndex)}`, styleTrialReviewText(styleIndex))
       + reviewCardHtml("最大损失", splitValue, splitDetail)
       + reviewCardHtml("薄弱原因", focusValue, focusDetail)

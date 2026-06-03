@@ -13,6 +13,8 @@ const workflow = fs.existsSync(workflowPath) ? fs.readFileSync(workflowPath, "ut
 const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
 const roadmap = fs.readFileSync(path.join(root, "ROADMAP.md"), "utf8");
 const masterplan = fs.readFileSync(path.join(root, "MASTERPLAN.md"), "utf8");
+const directionPath = path.join(root, "DEVELOPMENT_DIRECTION.md");
+const developmentDirection = fs.existsSync(directionPath) ? fs.readFileSync(directionPath, "utf8") : "";
 const longTermPath = path.join(root, "LONG_TERM_OPTIMIZATION_OUTLINE.md");
 const longTermPlan = fs.existsSync(longTermPath) ? fs.readFileSync(longTermPath, "utf8") : "";
 const errors = [];
@@ -155,7 +157,7 @@ const requiredIds = [
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "settingsPanel",
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "practiceLinesToggle",
   "ghostOpacitySlider", "controlPreset", "grabMode", "roomSelect", "practicePriority", "focusRoomButton", "focusResetButton", "coachSummary",
-  "roomBrief", "practiceReport", "practicePlan", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton",
+  "roomBrief", "practiceReport", "chapterOverview", "practicePlan", "practiceQueue", "challengeBoard", "profileSummary", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton",
   "startReadiness", "loadStatus", "bootFallback", "openTrainingButton", "gameStatus", "gameTip", "gameTipTitle", "gameTipDetail"
 ];
 for (const id of requiredIds) {
@@ -209,6 +211,18 @@ if (!js.includes("contractSummary")) errors.push("drill contract summary helper 
 if (!js.includes("drillContractStats")) errors.push("drill contract card stats helper is missing");
 if (!js.includes("practiceRouteSummary")) errors.push("practice route summary helper is missing");
 if (!js.includes("practiceLedgerSummary")) errors.push("practice ledger summary helper is missing");
+if (!js.includes("PROFILE_KEY")) errors.push("long-term profile storage key is missing");
+if (!js.includes("LONG_TERM_CHALLENGES")) errors.push("long-term challenge definitions are missing");
+if (!js.includes("FLOW_CHALLENGE_TARGET = 900")) errors.push("Flow challenge target must stay reachable under the 999 flow cap");
+if (!js.includes("readProfile")) errors.push("long-term profile read helper is missing");
+if (!js.includes("profileData.summitClears <= 0")) errors.push("profile normalization must not turn missing death data into zero-death completion");
+if (!js.includes("recordSummitProfile")) errors.push("summit clear should update the long-term profile");
+if (!js.includes("chapterCompletionData")) errors.push("chapter completion data helper is missing");
+if (!js.includes("updateChapterOverview")) errors.push("settings panel should expose chapter completion");
+if (!js.includes("challengeBoardItems")) errors.push("challenge board item helper is missing");
+if (!js.includes("updateChallengeBoard")) errors.push("settings panel should expose long-term challenges");
+if (!js.includes("updateProfileSummary")) errors.push("settings panel should expose the long-term profile");
+if (!js.includes("startSummitChallenge")) errors.push("full-run challenge start helper is missing");
 if (!js.includes("roomBriefText")) errors.push("room brief helper is missing");
 if (!js.includes("trackDrillStart")) errors.push("drill start tracker is missing");
 if (!js.includes("trackDrillClear")) errors.push("drill clear tracker is missing");
@@ -269,9 +283,9 @@ if (!indexHtml.includes('aria-label="设置"')) errors.push("settings button sho
 if (!indexHtml.includes('aria-live="polite"')) errors.push("game should expose live status text");
 if (!indexHtml.includes("settings-section-title")) errors.push("settings panel must group controls");
 if (!indexHtml.includes('id="practicePlan"')) errors.push("settings panel must include a practice plan surface");
-if (!indexHtml.includes('name="build-version" content="20260603-grab"')) errors.push("HTML should expose the current build version");
-if (!indexHtml.includes('summit-spark.css?v=20260603-grab')) errors.push("HTML should version the CSS asset for Pages freshness");
-if (!indexHtml.includes('summit-spark.js?v=20260603-grab')) errors.push("HTML should version the JS asset for Pages freshness");
+if (!indexHtml.includes('name="build-version" content="20260603-p2"')) errors.push("HTML should expose the current build version");
+if (!indexHtml.includes('summit-spark.css?v=20260603-p2')) errors.push("HTML should version the CSS asset for Pages freshness");
+if (!indexHtml.includes('summit-spark.js?v=20260603-p2')) errors.push("HTML should version the JS asset for Pages freshness");
 if (!indexHtml.includes("boot-noscript")) errors.push("start overlay should explain when JavaScript is disabled");
 if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is missing");
 if (!standaloneHtml.includes("settings-panel")) errors.push("standalone settings panel shell is missing");
@@ -281,8 +295,14 @@ if (!indexHtml.includes("drill-variants")) errors.push("settings panel must expo
 if (!css.includes("variant-button")) errors.push("drill variant styling is missing");
 if (!css.includes("plan-step")) errors.push("practice plan step styling is missing");
 if (!css.includes("plan-meter")) errors.push("practice plan progress styling is missing");
+if (!css.includes("chapter-overview")) errors.push("chapter overview styling is missing");
+if (!css.includes("chapter-meter")) errors.push("chapter completion progress styling is missing");
 if (!css.includes("queue-meter")) errors.push("practice queue progress styling is missing");
 if (!css.includes("queue-cta")) errors.push("practice queue cards need a clear action affordance");
+if (!css.includes("challenge-board")) errors.push("long-term challenge board styling is missing");
+if (!css.includes("challenge-card")) errors.push("long-term challenge cards are missing");
+if (!css.includes("--challenge-progress")) errors.push("challenge card progress styling is missing");
+if (!css.includes("profile-summary")) errors.push("long-term profile summary styling is missing");
 if (!css.includes("ledger-meter")) errors.push("practice ledger progress styling is missing");
 if (!css.includes("contract-pill")) errors.push("contract pill styling is missing");
 if (!css.includes("review-roadmap")) errors.push("finish review roadmap styling is missing");
@@ -347,10 +367,28 @@ if (!workflow.includes("npm run check")) errors.push("GitHub Pages workflow must
 if (!fs.readFileSync(path.join(root, "package.json"), "utf8").includes("\"check\"")) errors.push("package.json must expose npm run check");
 if (!readme.includes("LONG_TERM_OPTIMIZATION_OUTLINE.md")) errors.push("README must link the long-term optimization outline");
 if (!readme.includes("SUPER_PUSH_PLAN.md")) errors.push("README must link the super-push plan");
+if (!readme.includes("DEVELOPMENT_DIRECTION.md")) errors.push("README must link the development direction guardrails");
 if (!roadmap.includes("LONG_TERM_OPTIMIZATION_OUTLINE.md")) errors.push("ROADMAP must link the long-term optimization outline");
 if (!roadmap.includes("SUPER_PUSH_PLAN.md")) errors.push("ROADMAP must link the super-push plan");
+if (!roadmap.includes("DEVELOPMENT_DIRECTION.md")) errors.push("ROADMAP must link the development direction guardrails");
 if (!masterplan.includes("LONG_TERM_OPTIMIZATION_OUTLINE.md")) errors.push("MASTERPLAN must link the long-term optimization outline");
 if (!masterplan.includes("SUPER_PUSH_PLAN.md")) errors.push("MASTERPLAN must link the super-push plan");
+if (!masterplan.includes("DEVELOPMENT_DIRECTION.md")) errors.push("MASTERPLAN must link the development direction guardrails");
+const requiredDirectionSections = [
+  "# 山巅微光开发方向守则",
+  "## 1. 分支与 PR",
+  "## 2. 产品方向",
+  "## 3. 数据规则",
+  "## 4. UI 优先级",
+  "## 5. 质量门"
+];
+if (!developmentDirection) {
+  errors.push("Missing DEVELOPMENT_DIRECTION.md");
+} else {
+  for (const section of requiredDirectionSections) {
+    if (!developmentDirection.includes(section)) errors.push("development direction missing " + section);
+  }
+}
 const requiredLongTermSections = [
   "# 山巅微光长期优化总纲",
   "## 1. 产品北极星",

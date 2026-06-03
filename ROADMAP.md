@@ -4,7 +4,7 @@
 
 Build an original precision platformer whose identity is not imitation, but mastery: instant controls, readable rooms, fast retry, and a signature movement language built around dash afterglow, spark hops, wall rhythm, and risky light relays.
 
-Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push execution source: `SUPER_PUSH_PLAN.md`.
+Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push execution source: `SUPER_PUSH_PLAN.md`. Development guardrails: `DEVELOPMENT_DIRECTION.md`.
 
 ## What We Must Beat
 
@@ -56,6 +56,8 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-03: Added a public-loading hardening pass: CSS/JS assets are versioned from HTML for Pages freshness, build version is visible in markup, and the start panel has delayed boot plus noscript fallbacks that disappear once JavaScript marks the app ready.
 - 2026-06-03: Added a short-viewport start-screen pass: portrait/sidebar viewports use a full-viewport overlay and constrained start panel so the 16:9 stage cannot crop the title, controls, or start action; the start overlay now drops behind settings when training is opened.
 - 2026-06-03: Added a control-accessibility pass: grab can now be held or toggled from settings, preserving the default feel while reducing sustained-button strain during long practice.
+- 2026-06-03: Added a P2 long-term layer: settings now exposes chapter completion, challenge cards, and a persistent profile summary; summit review surfaces chapter grade and challenge progress, while clears record summit count, best death count, relay chain, and Flow peak.
+- 2026-06-03: Added `DEVELOPMENT_DIRECTION.md` as the PR and product guardrail for future large pushes, keeping branch policy, P2 data rules, UI priority, and quality gates aligned.
 
 ## Next Milestones
 
@@ -98,6 +100,8 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - HUD decoration may be hidden from assistive tech, but real controls and counters inside the HUD must remain reachable and expose state.
 - First-room onboarding must stay short, action-oriented, and mutually exclusive with other teaching cards.
 - Assistive control options should improve access without silently changing PB, clean, or mastery rules.
+- P2 challenge and profile UI must summarize existing PB/Clean/S/Style/Expert/Flow data; it must not create a parallel scoring system.
+- Large development pushes should live on `codex/` branches and PRs so code, docs, checks, browser smoke, and release notes can be reviewed together.
 
 ## Precision Quality Gate
 

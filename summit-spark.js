@@ -30,6 +30,7 @@
   const practiceLinesToggle = document.getElementById("practiceLinesToggle");
   const ghostOpacitySlider = document.getElementById("ghostOpacitySlider");
   const controlPresetSelect = document.getElementById("controlPreset");
+  const grabModeSelect = document.getElementById("grabMode");
   const roomSelect = document.getElementById("roomSelect");
   const roomBrief = document.getElementById("roomBrief");
   const practicePriority = document.getElementById("practicePriority");
@@ -582,6 +583,8 @@
   let shakePower = 0;
   let fps = 60;
   let settingsVisible = false;
+  let grabLatched = false;
+  let lastGrabHeld = false;
   let lastAimX = 1;
   let lastAimY = 0;
   let lastAimTimer = 0;
@@ -805,6 +808,7 @@
     touchPressed.clear();
     gamepadPressed.clear();
     gamepadHeld.clear();
+    clearGrabToggle();
     for (const key of Object.keys(touch)) touch[key] = false;
     document.querySelectorAll("[data-touch]").forEach((button) => button.classList.remove("active"));
     player.jumpBuffer = 0;
@@ -846,8 +850,16 @@
     touchPressed.clear();
     gamepadPressed.clear();
     gamepadHeld.clear();
+    clearGrabToggle();
     resetActionPulses();
     writeSettings();
+    focusGame();
+  });
+  grabModeSelect?.addEventListener("change", () => {
+    settings.grabMode = grabModeSelect.value === "toggle" ? "toggle" : "hold";
+    clearGrabToggle();
+    writeSettings();
+    setGameStatus(settings.grabMode === "toggle" ? "抓墙模式：切换" : "抓墙模式：按住");
     focusGame();
   });
   roomSelect?.addEventListener("change", () => {
@@ -1074,6 +1086,7 @@
     lastAimY = 0;
     lastAimTimer = 0;
     timingInputReady = false;
+    clearGrabToggle();
     resetActionVisuals();
     triggerActionVisual("spawn", 0.32);
     armRouteCue("入场", null, ROUTE_CUE_TIME);
@@ -1375,6 +1388,7 @@
     }
 
     updateBuffers(dt);
+    updateGrabModeState();
     if (player.deadTimer > 0) {
       player.deadTimer -= dt;
       updateParticles(dt);
@@ -3708,12 +3722,40 @@
     const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.right || gamepadInput.right;
     const up = keys.has("ArrowUp") || keys.has("KeyW") || touch.up || gamepadInput.up;
     const down = keys.has("ArrowDown") || keys.has("KeyS") || touch.down || gamepadInput.down;
-    const grab = keyHeldAny(actionCodes("grab")) || touch.grab || gamepadInput.grab;
+    const grab = settings.grabMode === "toggle" ? grabLatched : rawGrabHeld();
     return {
       x: right ? 1 : left ? -1 : 0,
       y: down ? 1 : up ? -1 : 0,
       grab
     };
+  }
+
+  function rawGrabHeld() {
+    return keyHeldAny(actionCodes("grab")) || touch.grab || gamepadInput.grab;
+  }
+
+  function clearGrabToggle() {
+    grabLatched = false;
+    lastGrabHeld = false;
+  }
+
+  function updateGrabModeState() {
+    const held = rawGrabHeld();
+    if (settings.grabMode !== "toggle") {
+      if (grabLatched) grabLatched = false;
+      lastGrabHeld = held;
+      return;
+    }
+    if (!started || won || player.deadTimer > 0) {
+      clearGrabToggle();
+      return;
+    }
+    if (held && !lastGrabHeld) {
+      grabLatched = !grabLatched;
+      actionPulse.grab = ACTION_PULSE_TIME;
+      setGameStatus(grabLatched ? "抓墙切换：已保持" : "抓墙切换：已松开");
+    }
+    lastGrabHeld = held;
   }
 
   function hasTimingIntent(input) {
@@ -3992,6 +4034,7 @@
     if (practiceLinesToggle) practiceLinesToggle.checked = settings.practiceLines;
     if (ghostOpacitySlider) ghostOpacitySlider.value = String(settings.ghostOpacity);
     if (controlPresetSelect) controlPresetSelect.value = settings.controlsPreset;
+    if (grabModeSelect) grabModeSelect.value = settings.grabMode;
     updatePracticeCoach();
   }
 
@@ -4047,6 +4090,7 @@
       shake: SHAKE_INTENSITY,
       calmEffects: true,
       controlsPreset: "comfort",
+      grabMode: "hold",
       practiceLines: true,
       ghostOpacity: 0.75
     };
@@ -4058,6 +4102,7 @@
         shake: Number.isFinite(shake) ? Math.max(0, Math.min(1, shake)) : defaults.shake,
         calmEffects: saved.calmEffects === undefined ? defaults.calmEffects : Boolean(saved.calmEffects),
         controlsPreset: CONTROL_PRESETS[saved.controlsPreset] ? saved.controlsPreset : defaults.controlsPreset,
+        grabMode: saved.grabMode === "toggle" ? "toggle" : defaults.grabMode,
         practiceLines: saved.practiceLines === undefined ? defaults.practiceLines : Boolean(saved.practiceLines),
         ghostOpacity: Number.isFinite(ghostOpacity) ? Math.max(0.2, Math.min(1, ghostOpacity)) : defaults.ghostOpacity
       };
@@ -6855,7 +6900,7 @@
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
       `trails ${lightTrails.length}  relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
-      `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}`
+      `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}`
     ].join("\n");
   }
 

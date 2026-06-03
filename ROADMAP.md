@@ -55,6 +55,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-03: Added a first-room onboarding pass: new players get a crisp DOM tip strip for timing, landing, dash, and hazard reading; early deaths collapse into one next-action sentence; room intro, route focus, and death coach overlays now yield to high-priority beginner tips.
 - 2026-06-03: Added a public-loading hardening pass: CSS/JS assets are versioned from HTML for Pages freshness, build version is visible in markup, and the start panel has delayed boot plus noscript fallbacks that disappear once JavaScript marks the app ready.
 - 2026-06-03: Added a short-viewport start-screen pass: portrait/sidebar viewports use a full-viewport overlay and constrained start panel so the 16:9 stage cannot crop the title, controls, or start action; the start overlay now drops behind settings when training is opened.
+- 2026-06-03: Added a control-accessibility pass: grab can now be held or toggled from settings, preserving the default feel while reducing sustained-button strain during long practice.
 
 ## Next Milestones
 
@@ -96,6 +97,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - Destructive practice actions need an undo-minded guard: data resets require confirmation and must announce the result.
 - HUD decoration may be hidden from assistive tech, but real controls and counters inside the HUD must remain reachable and expose state.
 - First-room onboarding must stay short, action-oriented, and mutually exclusive with other teaching cards.
+- Assistive control options should improve access without silently changing PB, clean, or mastery rules.
 
 ## Precision Quality Gate
 

@@ -154,7 +154,7 @@ const requiredIds = [
   "game", "startButton", "overlay", "lumenCount", "roomCount", "splitTime", "splitDelta",
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "settingsPanel",
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "practiceLinesToggle",
-  "ghostOpacitySlider", "controlPreset", "roomSelect", "practicePriority", "focusRoomButton", "focusResetButton", "coachSummary",
+  "ghostOpacitySlider", "controlPreset", "grabMode", "roomSelect", "practicePriority", "focusRoomButton", "focusResetButton", "coachSummary",
   "roomBrief", "practiceReport", "practicePlan", "practiceQueue", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton",
   "startReadiness", "loadStatus", "bootFallback", "openTrainingButton", "gameStatus", "gameTip", "gameTipTitle", "gameTipDetail"
 ];
@@ -269,9 +269,9 @@ if (!indexHtml.includes('aria-label="设置"')) errors.push("settings button sho
 if (!indexHtml.includes('aria-live="polite"')) errors.push("game should expose live status text");
 if (!indexHtml.includes("settings-section-title")) errors.push("settings panel must group controls");
 if (!indexHtml.includes('id="practicePlan"')) errors.push("settings panel must include a practice plan surface");
-if (!indexHtml.includes('name="build-version" content="20260603-panel"')) errors.push("HTML should expose the current build version");
-if (!indexHtml.includes('summit-spark.css?v=20260603-panel')) errors.push("HTML should version the CSS asset for Pages freshness");
-if (!indexHtml.includes('summit-spark.js?v=20260603-panel')) errors.push("HTML should version the JS asset for Pages freshness");
+if (!indexHtml.includes('name="build-version" content="20260603-grab"')) errors.push("HTML should expose the current build version");
+if (!indexHtml.includes('summit-spark.css?v=20260603-grab')) errors.push("HTML should version the CSS asset for Pages freshness");
+if (!indexHtml.includes('summit-spark.js?v=20260603-grab')) errors.push("HTML should version the JS asset for Pages freshness");
 if (!indexHtml.includes("boot-noscript")) errors.push("start overlay should explain when JavaScript is disabled");
 if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is missing");
 if (!standaloneHtml.includes("settings-panel")) errors.push("standalone settings panel shell is missing");
@@ -290,6 +290,10 @@ if (!css.includes("roadmap-row")) errors.push("finish review roadmap rows are mi
 if (!css.includes("settings-body")) errors.push("settings panel should use the refined cockpit layout");
 if (!css.includes("start-panel")) errors.push("start overlay should use the refined ready panel");
 if (!js.includes("markAppReady")) errors.push("start overlay needs a JS-ready marker");
+if (!js.includes("grabLatched")) errors.push("toggle grab mode state is missing");
+if (!js.includes("updateGrabModeState")) errors.push("toggle grab mode update helper is missing");
+if (!js.includes("rawGrabHeld")) errors.push("raw grab input helper is missing");
+if (!js.includes('grabMode: "hold"')) errors.push("settings should default grab mode to hold");
 if (!css.includes("boot-fallback")) errors.push("start overlay should expose a delayed boot fallback");
 if (!css.includes("boot-noscript")) errors.push("noscript fallback styling is missing");
 if (!css.includes("app-ready")) errors.push("boot fallback should hide after JS initialization");

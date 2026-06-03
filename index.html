@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="build-version" content="20260603-panel">
+  <meta name="build-version" content="20260603-grab">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260603-panel">
+  <link rel="stylesheet" href="summit-spark.css?v=20260603-grab">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -112,6 +112,13 @@
                 <option value="classic">&#32463;&#20856;</option>
               </select>
             </label>
+            <label class="control-row">
+              <span>抓墙</span>
+              <select id="grabMode">
+                <option value="hold">按住</option>
+                <option value="toggle">切换</option>
+              </select>
+            </label>
             <div class="settings-section-title">&#22797;&#30424;</div>
             <div class="practice-report" id="practiceReport">无失误 0/10 / 分段损失 无 / 下个 Drill R1</div>
             <div class="practice-ledger" id="practiceLedger" aria-label="Room mastery ledger"></div>
@@ -158,6 +165,6 @@
     </section>
   </main>
 
-  <script src="summit-spark.js?v=20260603-panel"></script>
+  <script src="summit-spark.js?v=20260603-grab"></script>
 </body>
 </html>

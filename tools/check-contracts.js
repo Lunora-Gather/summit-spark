@@ -351,6 +351,8 @@ if (!indexHtml.includes('aria-label="设置"')) errors.push("settings button sho
 if (!indexHtml.includes('aria-live="polite"')) errors.push("game should expose live status text");
 if (!indexHtml.includes("settings-section-title")) errors.push("settings panel must group controls");
 if (!indexHtml.includes("settings-group-training") || !indexHtml.includes("settings-group-controls") || !indexHtml.includes("settings-group-feedback")) errors.push("settings panel must use grouped disclosure sections");
+if (indexHtml.includes("start-guide") || indexHtml.includes("start-copy")) errors.push("start overlay should not include explanatory guide blocks");
+if (/settings-group[^>]*\sopen\b/.test(indexHtml)) errors.push("settings groups should default collapsed for a cleaner panel");
 if (!indexHtml.includes('id="practicePlan"')) errors.push("settings panel must include a practice plan surface");
 if (!indexHtml.includes('id="routeContracts"')) errors.push("settings panel must include route contracts");
 if (!indexHtml.includes('id="feelLab"')) errors.push("settings panel must include feel lab");

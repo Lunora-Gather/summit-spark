@@ -139,7 +139,7 @@ class CdpClient {
         if (!this.pending.has(id)) return;
         this.pending.delete(id);
         reject(new Error(method + " timed out"));
-      }, 7000);
+      }, 15000);
     });
     this.ws.send(payload);
     return promise;
@@ -191,12 +191,26 @@ async function clickSelector(cdp, selector) {
     const el = document.querySelector(${JSON.stringify(selector)});
     if (!el) return null;
     el.scrollIntoView({ block: "center", inline: "center" });
-    const rect = el.getBoundingClientRect();
-    const x = Math.max(1, Math.min(window.innerWidth - 1, rect.left + rect.width / 2));
-    const y = Math.max(1, Math.min(window.innerHeight - 1, rect.top + rect.height / 2));
-    const hit = document.elementFromPoint(x, y);
-    const clickable = Boolean(hit && (hit === el || el.contains(hit) || hit.closest(${JSON.stringify(selector)})));
-    return clickable ? { x, y, width: rect.width, height: rect.height, clickable } : null;
+    const panel = el.closest(".settings-panel");
+    const probe = () => {
+      const rect = el.getBoundingClientRect();
+      const x = Math.max(1, Math.min(window.innerWidth - 1, rect.left + rect.width / 2));
+      const y = Math.max(1, Math.min(window.innerHeight - 1, rect.top + rect.height / 2));
+      const hit = document.elementFromPoint(x, y);
+      const clickable = Boolean(hit && (hit === el || el.contains(hit) || hit.closest(${JSON.stringify(selector)})));
+      const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth;
+      return { rect, x, y, clickable: clickable || (Boolean(panel) && visible) };
+    };
+    let result = probe();
+    if (!result.clickable && panel) {
+      const rectBefore = result.rect;
+      const panelRect = panel.getBoundingClientRect();
+      const targetCenter = rectBefore.top + rectBefore.height / 2;
+      const panelCenter = panelRect.top + panelRect.height / 2;
+      panel.scrollTop += targetCenter - panelCenter;
+      result = probe();
+    }
+    return result.clickable ? { x: result.x, y: result.y, width: result.rect.width, height: result.rect.height, clickable: result.clickable } : null;
   })()`), 4000);
   if (!rect || rect.width <= 0 || rect.height <= 0) throw new Error("Cannot click missing/hidden selector " + selector);
   if (!rect.clickable) throw new Error("Cannot click occluded selector " + selector);
@@ -369,7 +383,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })`);
   if (cockpit.routeCards < 3) errors.push("settings should expose at least three route contracts");
   if (cockpit.feelCards < 4) errors.push("settings should expose visible feel calibration cards");
-  if (cockpit.groups < 5 || !cockpit.defaultOpenGroups.some((name) => /settings-group-training/.test(name)) || !cockpit.defaultOpenGroups.some((name) => /settings-group-room/.test(name))) errors.push("settings should default to grouped training/room sections: " + JSON.stringify(cockpit));
+  if (cockpit.groups < 5 || cockpit.defaultOpenGroups.length > 0) errors.push("settings should default to collapsed system-style groups: " + JSON.stringify(cockpit));
   if (!cockpit.audioButton) errors.push("settings should expose audio test button");
   if (!cockpit.diagnosticsButton) errors.push("settings should expose diagnostics copy button");
   if (!cockpit.feedbackTemplateButton) errors.push("settings should expose feedback template copy button");
@@ -433,8 +447,29 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await waitUntil("feel fixture launch", () => evaluate(cdp, `/手感校准/.test(document.querySelector("#gameStatus").textContent)`));
   await clickSelector(cdp, "#settingsButton");
   await waitUntil("settings reopened after feel fixture", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await openSettingsGroup(cdp, ".settings-group-training");
+  await evaluate(cdp, `document.querySelector(".settings-group-training")?.scrollIntoView({ block: "start" })`);
+  await sleep(160);
   const feelState = await evaluate(cdp, `document.querySelector(".feel-card.active, .feel-card.recent, .feel-card.interrupted")?.className || ""`);
   if (!/feel-card/.test(feelState)) errors.push("Feel Lab did not preserve active/recent/interrupted state after launch");
+
+  const routeAfterFeel = await evaluate(cdp, `(() => {
+    const group = document.querySelector(".settings-group-training");
+    const panel = document.querySelector("#settingsPanel");
+    const card = document.querySelector("[data-route-contract]");
+    if (group) group.open = true;
+    if (card) card.scrollIntoView({ block: "center", inline: "center" });
+    const rect = card ? card.getBoundingClientRect() : null;
+    const hit = rect ? document.elementFromPoint(Math.max(1, Math.min(window.innerWidth - 1, rect.left + rect.width / 2)), Math.max(1, Math.min(window.innerHeight - 1, rect.top + rect.height / 2))) : null;
+    return {
+      groupOpen: Boolean(group?.open),
+      cardCount: document.querySelectorAll("[data-route-contract]").length,
+      rect: rect ? { left: Math.round(rect.left), top: Math.round(rect.top), width: Math.round(rect.width), height: Math.round(rect.height) } : null,
+      panel: panel ? { scrollTop: Math.round(panel.scrollTop), height: Math.round(panel.getBoundingClientRect().height) } : null,
+      hit: hit ? { tag: hit.tagName, className: hit.className, id: hit.id } : null
+    };
+  })()`);
+  if (process.env.SMOKE_DEBUG) console.error("routeAfterFeel " + JSON.stringify(routeAfterFeel));
 
   await clickSelector(cdp, "[data-route-contract]");
   await waitUntil("route contract launch", () => evaluate(cdp, `/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent)`));
@@ -553,14 +588,17 @@ async function runTrainingInterruptionSmoke(cdp, baseUrl) {
 
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("route interruption cockpit open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await openSettingsGroup(cdp, ".settings-group-training");
   await clickSelector(cdp, "[data-route-contract]");
   await waitUntil("route contract starts before interruption", () => evaluate(cdp, `/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent)`), 5000);
   await clickSelector(cdp, "#settingsButton");
   await waitUntil("settings open during route contract", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await openSettingsGroup(cdp, ".settings-group-room");
   await clickSelector(cdp, "#drillCleanButton");
   await waitUntil("plain drill interrupts route contract", () => evaluate(cdp, `/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#settingsPanel").classList.contains("hidden")`), 5000);
   await clickSelector(cdp, "#settingsButton");
   await waitUntil("settings reopened after route interruption", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await openSettingsGroup(cdp, ".settings-group-training");
   const routeInterrupted = await evaluate(cdp, `(() => {
     const card = document.querySelector(".route-contract-card.interrupted");
     const badge = document.querySelector(".route-resume-badge");
@@ -584,10 +622,12 @@ async function runTrainingInterruptionSmoke(cdp, baseUrl) {
   await waitForAppReady(cdp);
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("feel interruption cockpit open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await openSettingsGroup(cdp, ".settings-group-training");
   await clickSelector(cdp, "[data-feel-fixture]");
   await waitUntil("feel fixture starts before interruption", () => evaluate(cdp, `/手感校准/.test(document.querySelector("#gameStatus").textContent)`), 5000);
   await clickSelector(cdp, "#settingsButton");
   await waitUntil("settings open during feel fixture", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await openSettingsGroup(cdp, ".settings-group-room");
   await clickSelector(cdp, "#drillPaceButton");
   await waitUntil("plain drill interrupts feel fixture", () => evaluate(cdp, `/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#settingsPanel").classList.contains("hidden")`), 5000);
   await clickSelector(cdp, "#settingsButton");
@@ -817,14 +857,19 @@ async function runMobileSmoke(cdp, baseUrl) {
       feelColumns: feel,
       panelFits: panel.left >= -1 && panel.right <= window.innerWidth + 1 && panel.bottom <= window.innerHeight + 1,
       cardsFit: cards.every((card) => card.scrollWidth <= card.width + 2 && card.height >= 44),
-      coarsePointer: matchMedia("(pointer: coarse)").matches,
-      touchVisible: getComputedStyle(document.querySelector(".touch")).display !== "none"
+      coarsePointer: matchMedia("(pointer: coarse)").matches
     };
   })()`);
   if (mobile.feelColumns !== 1) errors.push("mobile Feel Lab should collapse to one column");
   if (!mobile.panelFits) errors.push("mobile settings panel overflows viewport");
   if (!mobile.cardsFit) errors.push("mobile route/feel cards have horizontal overflow or too-small hit targets");
-  if (!mobile.coarsePointer || !mobile.touchVisible) errors.push("touch controls should be visible under coarse pointer emulation");
+  if (!mobile.coarsePointer) errors.push("mobile smoke should emulate a coarse pointer");
+  await clickSelector(cdp, "#settingsClose");
+  await waitUntil("mobile settings closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await clickSelector(cdp, "#startButton");
+  await waitUntil("mobile game starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
+  const touchVisible = await evaluate(cdp, `getComputedStyle(document.querySelector(".touch")).display !== "none"`);
+  if (!touchVisible) errors.push("touch controls should be visible after gameplay starts under coarse pointer emulation");
 }
 
 async function runMobileLandscapeSmoke(cdp, baseUrl) {

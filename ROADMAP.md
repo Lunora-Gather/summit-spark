@@ -71,6 +71,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-05: Added P15 migration and visual guards: feedback templates, local save archive copy/download/import, non-sensitive gamepad status, browser save import/export checks, and mobile visual overflow guards.
 - 2026-06-05: Added P16 import robustness: save archives now get a live import preview, invalid JSON and wrong archive kinds fail in place, and browser smoke covers invalid/valid import paths.
 - 2026-06-05: Added P17 experience simplification: start copy and onboarding prompts are shorter, settings use grouped disclosure sections, and the visual system is quieter and less blue-heavy.
+- 2026-06-05: Added P18 interface simplification: start guide blocks and automatic teaching toasts are removed, settings open as collapsed system-style groups, the large room-intro teaching card is compacted, and UI/canvas typography uses lighter system-font weights.
 
 ## Next Milestones
 

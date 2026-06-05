@@ -1353,9 +1353,8 @@
     overlay.classList.add("hidden");
     settingsVisible = false;
     syncSettingsVisibility();
-    setGameStatus("游戏开始，首次输入后开始计时");
+    setGameStatus("游戏开始");
     focusGame();
-    maybeStartBeginnerFlow();
   }
 
   function startSummitChallenge(challengeId = "clear") {
@@ -1388,13 +1387,13 @@
     const progress = hasTrainingProgress();
     const canResume = progress && Number.isInteger(target) && target >= 0 && target < maps.length;
     overlay.classList.add("ready");
-    if (startReadiness) startReadiness.textContent = progress ? "训练档案已读取" : "准备完成";
+    if (startReadiness) startReadiness.textContent = progress ? "已读取" : "准备";
     if (loadStatus) {
       loadStatus.textContent = progress
-        ? `建议继续 R${target + 1} ${drillModeLabel(mode)} Drill`
-        : "首次输入后开始计时，设置阅读不会污染分段";
+        ? `R${target + 1} ${drillModeLabel(mode)}`
+        : "Ready";
     }
-    if (startButton) startButton.textContent = progress ? "完整路线" : "开始奔跑";
+    if (startButton) startButton.textContent = progress ? "路线" : "开始";
     if (resumeTrainingButton) {
       resumeTrainingButton.classList.toggle("hidden", !canResume);
       resumeTrainingButton.textContent = canResume ? `继续 R${target + 1} ${drillModeLabel(mode)}` : "继续训练";
@@ -1425,6 +1424,8 @@
 
   function showGameTip(title, detail = "", kind = "coach", duration = GAME_TIP_TIME, priority = 1) {
     if (!gameTip || !gameTipTitle || !gameTipDetail) return;
+    if (kind === "onboarding") return;
+    if (kind === "coach" && priority <= 2) return;
     if (gameTipTimer > 0 && gameTipPriority > priority) return;
     const resolvedKind = GAME_TIP_CLASSES.includes(kind) ? kind : "coach";
     gameTipKind = resolvedKind;
@@ -1477,44 +1478,20 @@
   }
 
   function maybeStartBeginnerFlow() {
-    if (!beginnerFlowActive()) return;
-    onboardingStep = 0;
-    showBeginnerCue(0);
+    onboardingStep = 2;
+    clearGameTip("onboarding");
   }
 
   function showBeginnerCue(step) {
-    const cues = [
-      ["开始", "A/D 移动，Space 跳，X 冲刺"],
-      ["重试", "R 立即重开；先通关，再追速度"]
-    ];
-    const cue = cues[step];
-    if (!cue) return;
     onboardingStep = Math.max(onboardingStep, step + 1);
-    showGameTip(cue[0], cue[1], "onboarding", 3.4, 2);
   }
 
   function updateOnboardingCues() {
-    if (!beginnerFlowActive()) {
-      clearGameTip("onboarding");
-      return;
-    }
-    if (player.deadTimer > 0) return;
-    const centerX = player.x + player.w / 2;
-    if (onboardingStep === 0) showBeginnerCue(0);
-    if (onboardingStep === 1 && centerX > 440) showBeginnerCue(1);
+    clearGameTip("onboarding");
   }
 
   function showBeginnerDeathTip(reason) {
-    if (!beginnerFlowActive() || deathCount > 4) return;
-    const normalized = normalizeDeathReason(reason);
-    const details = {
-      spike: "先停在安全格，确认红线位置，再把冲刺留给越线瞬间",
-      crumble: "脆冰只借一步；踩上去后立刻跳离，不要原地调整",
-      retry: "只练开局第一句：走、跳、落稳，再逐步加速",
-      room: "当前房间重开后先读路线，不急着抢第一拍",
-      fall: "下一次晚一点花冲刺，让落点留在画面中央"
-    };
-    showGameTip("这次只修一个点", details[normalized] || details.fall, "death", 5.6, 5);
+    return reason;
   }
 
   function hardReset(options = {}) {
@@ -6234,7 +6211,7 @@
     const cy = player.y - 16 - (1 - t) * 12;
     ctx.save();
     ctx.globalAlpha = Math.min(1, t * 1.35);
-    ctx.font = "800 18px system-ui, sans-serif";
+    ctx.font = "600 18px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = palette.cyan;
@@ -6256,7 +6233,7 @@
     const cy = player.y - 31 - (1 - t) * 10;
     ctx.save();
     ctx.globalAlpha = Math.min(1, t * 1.4);
-    ctx.font = "800 16px system-ui, sans-serif";
+    ctx.font = "600 16px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = palette.gold;
@@ -6372,7 +6349,7 @@
     const cx = player.x + player.w / 2;
     const y = Math.max(42, player.y - 44 - (1 - t) * 10);
     ctx.save();
-    ctx.font = "800 11px system-ui, sans-serif";
+    ctx.font = "600 11px system-ui, sans-serif";
     const title = fitText(feelCueText, 120);
     const detail = feelCueDetail ? fitText(feelCueDetail, 180) : "";
     const width = Math.min(210, Math.max(78, Math.max(ctx.measureText(title).width, detail ? ctx.measureText(detail).width : 0) + 24));
@@ -6395,7 +6372,7 @@
     ctx.fillStyle = feelCueColor;
     ctx.fillText(title, x + width / 2, y + (detail ? 12 : height / 2));
     if (detail) {
-      ctx.font = "800 9px system-ui, sans-serif";
+      ctx.font = "600 9px system-ui, sans-serif";
       ctx.shadowBlur = settings.calmEffects ? 2 : 5;
       ctx.fillStyle = "rgba(248,251,255,0.72)";
       ctx.fillText(detail, x + width / 2, y + 27);
@@ -6450,7 +6427,7 @@
     ctx.closePath();
     ctx.fill();
     ctx.rotate(-Math.atan2(dy, dx));
-    ctx.font = "800 9px system-ui, sans-serif";
+    ctx.font = "600 9px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const label = fitText(target.label || routeSlotShort(data.slot), 64);
@@ -6495,14 +6472,14 @@
     ctx.globalAlpha = alpha;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.font = "800 11px system-ui, sans-serif";
+    ctx.font = "600 11px system-ui, sans-serif";
     ctx.fillStyle = data.color;
     ctx.fillText(`${data.reason} · ${data.title}`, x + 14, y + 17);
-    ctx.font = `800 ${compact ? 13 : 12}px system-ui, sans-serif`;
+    ctx.font = `600 ${compact ? 13 : 12}px system-ui, sans-serif`;
     ctx.fillStyle = "rgba(248,251,255,0.86)";
     ctx.shadowBlur = settings.calmEffects ? 2 : 6;
     ctx.fillText(fitText(data.core, width - 28), x + 14, y + 38);
-    ctx.font = "800 10px system-ui, sans-serif";
+    ctx.font = "600 10px system-ui, sans-serif";
     ctx.fillStyle = `rgba(255,240,160,${0.68 + pulse * 0.12})`;
     ctx.fillText(fitText(data.detail, width - 28), x + 14, y + 57);
     drawRouteSegmentStrip(x + width - 156, y + 11, 138, 10, data.slot);
@@ -6514,7 +6491,7 @@
     const gap = 4;
     const segment = (width - gap * 2) / 3;
     ctx.save();
-    ctx.font = "800 8px system-ui, sans-serif";
+    ctx.font = "600 8px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     labels.forEach((label, index) => {
@@ -6558,10 +6535,10 @@
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillStyle = masteryPopupColor;
-    ctx.font = `800 ${compact ? 14 : 13}px system-ui, sans-serif`;
+    ctx.font = `600 ${compact ? 14 : 13}px system-ui, sans-serif`;
     ctx.fillText(fitText(masteryPopupText, width - 28), x + 14, y + (masteryPopupDetail ? 18 : height / 2) - rise);
     if (masteryPopupDetail) {
-      ctx.font = "800 10px system-ui, sans-serif";
+      ctx.font = "600 10px system-ui, sans-serif";
       ctx.shadowBlur = settings.calmEffects ? 2 : 5;
       ctx.fillStyle = `rgba(248,251,255,${0.72 + pulse * 0.08})`;
       ctx.fillText(fitText(masteryPopupDetail, width - 28), x + 14, y + 39 - rise);
@@ -6666,9 +6643,39 @@
 
   function drawRoomIntro(time) {
     if (roomIntroTimer <= 0) return;
+    if (!started || (overlay && !overlay.classList.contains("hidden"))) return;
     if (gameTipVisible("onboarding") || gameTipVisible("death")) return;
     if (failureCueActive()) return;
     const t = roomIntroTimer / ROOM_INTRO_TIME;
+    const introAlpha = Math.min(1, t * 1.4);
+    const introTarget = ROOM_TARGETS[roomIndex] || 0;
+    const introCompact = isCompactCanvas();
+    const width = introCompact ? 280 : 240;
+    const height = introCompact ? 48 : 42;
+    const x = W / 2 - width / 2;
+    const y = introCompact ? 82 : 74;
+    ctx.save();
+    ctx.globalAlpha = introAlpha * 0.78;
+    ctx.fillStyle = "rgba(12, 12, 13, 0.58)";
+    roundRect(ctx, x, y, width, height, 8);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, x + 0.5, y + 0.5, width - 1, height - 1, 8);
+    ctx.stroke();
+    ctx.globalAlpha = introAlpha;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.32)";
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = "rgba(249,247,240,0.9)";
+    ctx.font = `600 ${introCompact ? 15 : 14}px system-ui, sans-serif`;
+    ctx.fillText(`R${roomIndex + 1} ${ROOM_NAMES[roomIndex] || "Summit"}`, W / 2, y + 17);
+    ctx.fillStyle = "rgba(249,247,240,0.58)";
+    ctx.font = `500 ${introCompact ? 12 : 11}px system-ui, sans-serif`;
+    ctx.fillText(`target ${formatTime(introTarget)}`, W / 2, y + 33);
+    ctx.restore();
+    return;
     const best = bestRoomTimes[roomIndex] || 0;
     const target = ROOM_TARGETS[roomIndex] || 0;
     const route = routeFocusData(roomIndex);
@@ -6703,16 +6710,16 @@
     ctx.shadowColor = "rgba(0,0,0,0.62)";
     ctx.shadowBlur = 12;
     ctx.fillStyle = "rgba(248,251,255,0.92)";
-    ctx.font = `800 ${titleFont}px system-ui, sans-serif`;
+    ctx.font = `600 ${titleFont}px system-ui, sans-serif`;
     ctx.fillText(`${roomIndex + 1}. ${ROOM_NAMES[roomIndex] || "Summit"}`, W / 2, baseY - lift);
-    ctx.font = `800 ${bodyFont}px system-ui, sans-serif`;
+    ctx.font = `600 ${bodyFont}px system-ui, sans-serif`;
     ctx.fillStyle = compact ? "rgba(248,251,255,0.78)" : "rgba(248,251,255,0.68)";
     ctx.fillText(`target ${formatTime(target)}${best ? ` / best ${formatTime(best)}` : ""}`, W / 2, baseY + titleGap - lift);
     ctx.fillStyle = compact ? "rgba(248,251,255,0.72)" : "rgba(248,251,255,0.62)";
     ctx.fillText(`${roomMedalLabel(roomIndex)} / ${roomPaceLabel(roomIndex)} / ${roomCleanText(roomIndex)} / ${roomDrillText(roomIndex)}`, W / 2, baseY + titleGap + lineGap - lift);
     ctx.fillText(fitText(roomPurposeLabel(roomIndex), compact ? 620 : 560), W / 2, baseY + titleGap + lineGap * 2 - lift);
     drawRouteSegmentStrip(W / 2 + panelWidth / 2 - 158, panelY + 13, 132, 10, route.slot);
-    ctx.font = `800 ${fineFont}px system-ui, sans-serif`;
+    ctx.font = `600 ${fineFont}px system-ui, sans-serif`;
     if (drill) {
       ctx.fillStyle = compact ? "rgba(171,255,183,0.9)" : "rgba(143,227,155,0.82)";
       ctx.fillText(fitText(drill, compact ? 650 : 620), W / 2, baseY + titleGap + lineGap * 3.15 - lift);
@@ -6907,7 +6914,7 @@
     ctx.scale(pulse, pulse);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "800 15px system-ui, sans-serif";
+    ctx.font = "600 15px system-ui, sans-serif";
     ctx.shadowColor = splitPopupAhead ? palette.gold : palette.hot;
     ctx.shadowBlur = settings.calmEffects ? 6 : 13;
     ctx.fillStyle = splitPopupAhead ? palette.gold : "#ff99aa";
@@ -6924,13 +6931,13 @@
     ctx.globalAlpha = Math.min(1, t * 1.45);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "800 12px system-ui, sans-serif";
+    ctx.font = "600 12px system-ui, sans-serif";
     ctx.shadowColor = palette.hot;
     ctx.shadowBlur = settings.calmEffects ? 5 : 11;
     ctx.fillStyle = "#ff99aa";
     ctx.fillText(fitText(focusPopupText, isCompactCanvas() ? 680 : 560), W / 2, y + Math.sin(time * 16) * 1.2);
     if (focusPopupDetail) {
-      ctx.font = "800 10px system-ui, sans-serif";
+      ctx.font = "600 10px system-ui, sans-serif";
       ctx.fillStyle = "rgba(248,251,255,0.72)";
       ctx.shadowBlur = settings.calmEffects ? 3 : 7;
       ctx.fillText(fitText(focusPopupDetail, isCompactCanvas() ? 690 : 600), W / 2, y + 18);
@@ -6965,10 +6972,10 @@
     ctx.globalAlpha = alpha;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.font = `800 ${compact ? 13 : 12}px system-ui, sans-serif`;
+    ctx.font = `600 ${compact ? 13 : 12}px system-ui, sans-serif`;
     ctx.fillStyle = color;
     ctx.fillText(`${deathReasonLabel(deathCoachReason)} · ${deathCoachText}`, x + 14, y + 17);
-    ctx.font = `800 ${compact ? 12 : 11}px system-ui, sans-serif`;
+    ctx.font = `600 ${compact ? 12 : 11}px system-ui, sans-serif`;
     ctx.fillStyle = "rgba(248,251,255,0.78)";
     ctx.shadowBlur = settings.calmEffects ? 2 : 6;
     ctx.fillText(fitText(deathCoachDetail, width - 28), x + 14, y + 38);
@@ -6991,7 +6998,7 @@
     const y = roomIntroTimer > 0 ? 188 : 84;
     const pulse = 0.5 + Math.sin(time * 8) * 0.5;
     ctx.save();
-    ctx.font = "800 15px system-ui, sans-serif";
+    ctx.font = "600 15px system-ui, sans-serif";
     const label = fitText(text, 520);
     const detailLabel = detail ? fitText(detail, 500) : "";
     const width = Math.min(590, Math.max(260, Math.max(ctx.measureText(label).width, detailLabel ? ctx.measureText(detailLabel).width : 0) + 32));
@@ -7021,7 +7028,7 @@
     ctx.fillStyle = current ? "#fff0a0" : palette.green;
     ctx.fillText(label, W / 2, detailLabel ? y - 18 : y - 12);
     if (detailLabel) {
-      ctx.font = "800 11px system-ui, sans-serif";
+      ctx.font = "600 11px system-ui, sans-serif";
       ctx.shadowBlur = settings.calmEffects ? 2 : 5;
       ctx.fillStyle = "rgba(248,251,255,0.74)";
       ctx.fillText(detailLabel, W / 2, y + 3);
@@ -7061,10 +7068,10 @@
     ctx.globalAlpha = 1;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.font = "800 11px system-ui, sans-serif";
+    ctx.font = "600 11px system-ui, sans-serif";
     ctx.fillStyle = color;
     ctx.fillText(title, x + 14, y + 15);
-    ctx.font = "800 10px system-ui, sans-serif";
+    ctx.font = "600 10px system-ui, sans-serif";
     ctx.shadowBlur = settings.calmEffects ? 2 : 5;
     ctx.fillStyle = "rgba(248,251,255,0.74)";
     ctx.fillText(detail, x + 14, y + 33);
@@ -7086,7 +7093,7 @@
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "800 9px system-ui, sans-serif";
+    ctx.font = "600 9px system-ui, sans-serif";
     modes.forEach((mode, slot) => {
       const stats = drillContractStats(index, mode);
       const complete = stats.wins > 0;
@@ -7121,7 +7128,7 @@
     const text = flowScore >= 80 ? `${flowTierLabel(flowScore)} ${Math.floor(flowScore)}` : `${flowLabel.toUpperCase()} ${Math.floor(flowScore)}`;
     ctx.save();
     ctx.globalAlpha = Math.min(1, t * 1.25);
-    ctx.font = "800 13px system-ui, sans-serif";
+    ctx.font = "600 13px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = color;
@@ -7217,7 +7224,7 @@
     }
     if (active || over) {
       ctx.globalAlpha = alpha;
-      ctx.font = "800 10px system-ui, sans-serif";
+      ctx.font = "600 10px system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
       ctx.shadowBlur = settings.calmEffects ? 3 : 8;
@@ -7252,11 +7259,11 @@
     ctx.shadowColor = palette.cyan;
     ctx.shadowBlur = settings.calmEffects ? 4 : 10;
     ctx.fillStyle = timingInputReady ? palette.cyan : "rgba(255,240,160,0.92)";
-    ctx.font = `800 ${compact ? 13 : 12}px system-ui, sans-serif`;
+    ctx.font = `600 ${compact ? 13 : 12}px system-ui, sans-serif`;
     ctx.fillText(text, W / 2, y + 15);
     ctx.shadowBlur = settings.calmEffects ? 2 : 5;
     ctx.fillStyle = "rgba(248,251,255,0.7)";
-    ctx.font = `800 ${compact ? 11 : 10}px system-ui, sans-serif`;
+    ctx.font = `600 ${compact ? 11 : 10}px system-ui, sans-serif`;
     ctx.fillText(detail, W / 2, y + 31);
     ctx.restore();
   }
@@ -7715,7 +7722,7 @@
     ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.font = "800 10px system-ui, sans-serif";
+    ctx.font = "600 10px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const width = Math.min(88, Math.max(38, ctx.measureText(text).width + 14));
@@ -8070,7 +8077,7 @@
       ctx.stroke();
       ctx.save();
       ctx.rotate(-time * 1.8);
-      ctx.font = "800 9px system-ui, sans-serif";
+      ctx.font = "600 9px system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = color;
@@ -8082,7 +8089,7 @@
         failureCueRoom === mark.room &&
         Math.hypot(mark.x - failureCueX, mark.y - failureCueY) < 4
       ) {
-        ctx.font = "800 8px system-ui, sans-serif";
+        ctx.font = "600 8px system-ui, sans-serif";
         ctx.fillStyle = "rgba(255,240,160,0.9)";
         ctx.fillText("REHEARSE", 0, 24);
       }
@@ -8202,10 +8209,10 @@
     ctx.globalAlpha = alpha;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.font = "800 12px system-ui, sans-serif";
+    ctx.font = "600 12px system-ui, sans-serif";
     ctx.fillStyle = color;
     ctx.fillText(fitText(failureCueText, cardWidth - 28), cardX + 14, cardY + 18);
-    ctx.font = "800 10px system-ui, sans-serif";
+    ctx.font = "600 10px system-ui, sans-serif";
     ctx.shadowBlur = settings.calmEffects ? 2 : 6;
     ctx.fillStyle = "rgba(248,251,255,0.78)";
     ctx.fillText(fitText(failureCueDetail, cardWidth - 28), cardX + 14, cardY + 42);
@@ -8260,7 +8267,7 @@
     ctx.closePath();
     ctx.fill();
     ctx.rotate(-Math.atan2(dy, dx));
-    ctx.font = "800 8px system-ui, sans-serif";
+    ctx.font = "600 8px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.globalAlpha = Math.min(0.86, alpha * 0.72);

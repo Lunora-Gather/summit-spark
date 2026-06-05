@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-05 - p18
+
+- Bumped public build assets to `20260605-p18`.
+- Removed explanatory start-screen copy and the visible control guide.
+- Defaulted all settings groups to collapsed so the panel opens as a cleaner system-style index.
+- Suppressed automatic beginner/death coaching toasts; necessary storage, diagnostics, and error feedback remains.
+- Lightened UI typography and canvas HUD text from heavy 800/900 weights toward a calmer system-font hierarchy.
+- Replaced the large room-intro teaching card with a compact room/target chip that does not render behind the start screen.
+
 ## 2026-06-05 - p17
 
 - Bumped public build assets to `20260605-p17`.

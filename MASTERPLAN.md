@@ -103,6 +103,7 @@ Immediate direction:
 - Treat the settings panel as a training cockpit: review data should always produce a next action.
 - Treat practice cards as status surfaces: each card should expose both the next action and the contract result so far.
 - Treat room mastery as a sortable worklist: the weakest useful action should rise to the top automatically.
+- Treat the default screen as a game, not a manual: no explanatory guide blocks, no automatic coaching toast, and collapsed settings until the player asks for detail.
 
 ## One-Hour Work Queue
 

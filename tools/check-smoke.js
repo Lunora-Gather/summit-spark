@@ -111,6 +111,8 @@ async function main() {
       'settings-group-controls',
       'settings-group-feedback'
     ].forEach((marker) => expectIncludes("html", html, marker));
+    if (html.includes("start-guide") || html.includes("start-copy")) errors.push("html should not expose explanatory start guide blocks");
+    if (/settings-group[^>]*\sopen\b/.test(html)) errors.push("settings groups should default collapsed");
 
     [
       "markAppReady",

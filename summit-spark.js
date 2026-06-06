@@ -155,6 +155,7 @@
   const ROOM_FOCUS_SCHEMA_VERSION = 2;
   const SAVE_ARCHIVE_SCHEMA_VERSION = 1;
   const SAVE_ARCHIVE_KIND = "summit-spark-save";
+  const SAVE_BACKUP_KEY = "summit-spark-save-backup";
   const SAVE_ARCHIVE_MAX_CHARS = 240000;
   const ACTION_PULSE_TIME = 0.22;
   const BEST_FLOW_KEY = "summit-spark-best-flow";
@@ -5397,7 +5398,7 @@
     }
     setSaveImportStatus(`已导入：${saveArchiveSummary(result)}`, "valid");
     setGameStatus("存档已导入，正在刷新");
-    showGameTip("存档已导入", "刷新后使用导入的设置和训练档案", "storage", GAME_TIP_TIME, 3);
+    showGameTip("存档已导入", "旧档已本地备份，刷新后使用导入档案", "storage", GAME_TIP_TIME, 3);
     playSound("ui", 0.74);
     window.setTimeout(() => window.location.reload(), 520);
   }
@@ -5434,6 +5435,7 @@
 
   function writeNormalizedSaveArchive(normalized) {
     try {
+      backupCurrentSaveArchive(normalized.sourceBuild);
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalized.settings));
       localStorage.setItem(PROFILE_KEY, JSON.stringify(normalized.profile));
       localStorage.setItem(ROOM_BESTS_KEY, JSON.stringify(normalized.roomBests));
@@ -5447,6 +5449,20 @@
     } catch {
       throw new Error("浏览器存档不可写");
     }
+  }
+
+  function backupCurrentSaveArchive(sourceBuild = "") {
+    const backup = {
+      kind: "summit-spark-save-backup",
+      schemaVersion: 1,
+      savedAt: new Date().toISOString(),
+      reason: "before-import",
+      sourceBuild: sourceBuild || "",
+      archive: buildSaveArchive()
+    };
+    localStorage.setItem(SAVE_BACKUP_KEY, JSON.stringify(backup));
+    window.__summitLastSaveBackup = backup;
+    return backup;
   }
 
   function focusGame() {
@@ -8137,6 +8153,91 @@
     }
   }
 
+  function drawPlayerStateFrame(x, y, cx, cy, time, state) {
+    const dash = state.dashPulse;
+    const spark = state.sparkPulse;
+    const wall = state.wallPulse;
+    const side = state.walling ? player.wallDir : player.facing;
+    const accent = state.accent;
+
+    if (dash > 0.06) {
+      const dx = player.dashDirX || player.facing;
+      const dy = player.dashDirY || 0;
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.68, 0.18 + dash * 0.52);
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = settings.calmEffects ? 5 : 12;
+      ctx.beginPath();
+      ctx.moveTo(cx - dx * (28 + dash * 12), cy - dy * (28 + dash * 12));
+      ctx.lineTo(cx - dx * 7, cy - dy * 7);
+      ctx.stroke();
+      ctx.globalAlpha = Math.min(0.46, dash * 0.48);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - dx * 38 - dy * 7, cy - dy * 38 + dx * 7);
+      ctx.lineTo(cx - dx * 15 - dy * 4, cy - dy * 15 + dx * 4);
+      ctx.moveTo(cx - dx * 38 + dy * 7, cy - dy * 38 - dx * 7);
+      ctx.lineTo(cx - dx * 15 + dy * 4, cy - dy * 15 - dx * 4);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (state.walling || wall > 0.12) {
+      const grip = state.walling ? 1 : wall;
+      const wallSide = player.wallDir || player.wallCoyoteDir || side || 1;
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.72, 0.22 + grip * 0.5);
+      ctx.fillStyle = palette.green;
+      ctx.shadowColor = palette.green;
+      ctx.shadowBlur = settings.calmEffects ? 3 : 8;
+      const gx = cx + wallSide * 15;
+      ctx.fillRect(gx, y + 10, wallSide * 5, 3);
+      ctx.fillRect(gx - wallSide * 1, y + 17, wallSide * 4, 3);
+      ctx.strokeStyle = "rgba(247,245,240,0.7)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(gx + wallSide * 8, y + 7);
+      ctx.lineTo(gx + wallSide * 2, y + 14);
+      ctx.lineTo(gx + wallSide * 8, y + 21);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (state.airborne && dash <= 0.08 && spark <= 0.08) {
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.strokeStyle = "rgba(247,245,240,0.74)";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x + 4, y + 25);
+      ctx.lineTo(x + 9 - player.facing * 2, y + 30);
+      ctx.moveTo(x + 15, y + 24);
+      ctx.lineTo(x + 19 + player.facing * 2, y + 29);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (!state.airborne && state.run > 0.42) {
+      ctx.save();
+      ctx.globalAlpha = 0.18 + state.run * 0.16;
+      ctx.strokeStyle = "rgba(247,245,240,0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = "round";
+      const shift = Math.sin(time * 20) * 2;
+      ctx.beginPath();
+      ctx.moveTo(x - player.facing * (4 + shift), y + 30);
+      ctx.lineTo(x - player.facing * (16 + shift), y + 31);
+      ctx.moveTo(x + 6 - player.facing * (2 - shift), y + 31);
+      ctx.lineTo(x + 6 - player.facing * (12 - shift), y + 32);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   function drawPlayer(time) {
     const x = player.x;
     const y = player.y;
@@ -8207,6 +8308,16 @@
     ctx.beginPath();
     ctx.ellipse(cx, y + player.h + 4, 14 + run * 3 + landPulse * 5, 4.5, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    drawPlayerStateFrame(x, y, cx, cy, time, {
+      dashPulse,
+      sparkPulse,
+      wallPulse,
+      walling,
+      airborne,
+      run,
+      accent
+    });
 
     ctx.save();
     ctx.translate(cx, cy);

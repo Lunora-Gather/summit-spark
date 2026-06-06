@@ -434,6 +434,8 @@ if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("room focus schema ve
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay direct resume helper is missing");
 if (!js.includes("TRAINING_TRANSITIONS")) errors.push("training state transition table is missing");
 if (!js.includes("syncPlayModeClass")) errors.push("stage play-mode class sync helper is missing");
+if (!js.includes("SAVE_BACKUP_KEY") || !js.includes("backupCurrentSaveArchive")) errors.push("save import should preserve a local backup before overwrite");
+if (!js.includes("drawPlayerStateFrame")) errors.push("player state silhouette helper is missing");
 if (!css.includes("boot-fallback")) errors.push("start overlay should expose a delayed boot fallback");
 if (!css.includes("boot-noscript")) errors.push("noscript fallback styling is missing");
 if (!css.includes("app-ready")) errors.push("boot fallback should hide after JS initialization");
@@ -443,6 +445,8 @@ if (!css.includes("--touch-size")) errors.push("touch controls should expose a s
 if (!css.includes("touch-directions") || !css.includes("touch-actions")) errors.push("touch controls should use separated direction/action clusters");
 if (!css.includes("review-more") || !css.includes("review-grid-primary")) errors.push("finish review should keep extra detail collapsed behind a cleaner primary grid");
 if (!css.includes("P21 system polish") || !css.includes(".stage.free-play #splitTime") || !css.includes(".stage.training-active")) errors.push("p21 quiet HUD and system settings styles are missing");
+if (!css.includes("P22 mobile playability") || !css.includes("position: fixed") || !css.includes(".stage.settings-open .touch") || !/display:\s*flex;\s*z-index:\s*8/.test(css)) errors.push("p22 portrait touch detachment styles are missing");
+if (!css.includes(".settings-panel .settings-group-body > *") || !css.includes("#roomSelect") || !css.includes("overflow-wrap: anywhere")) errors.push("mobile settings width clamps are missing");
 if (!css.includes("resume-start.hidden")) errors.push("direct resume button hide state is missing");
 if (!css.includes("low-performance")) errors.push("low-performance visual state styling is missing");
 if (!css.includes("image-rendering: auto")) errors.push("canvas should not pixelate vector text overlays");
@@ -490,6 +494,7 @@ if (!counts.slice(6).some((room) => room.M > 0)) errors.push("late route should 
 if (!counts.slice(7).some((room) => room.B > 0)) errors.push("rooms 8-10 should include prism practice");
 
 if (!workflow.includes("npm run check")) errors.push("GitHub Pages workflow must run npm run check before deploy");
+if (!workflow.includes("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24") || !workflow.includes("node-version: 24")) errors.push("GitHub Pages workflow should opt into Node 24 for action/runtime compatibility");
 if (!fs.readFileSync(path.join(root, "package.json"), "utf8").includes("\"check\"")) errors.push("package.json must expose npm run check");
 if (!fs.readFileSync(path.join(root, "package.json"), "utf8").includes("\"browser-smoke\"")) errors.push("package.json must expose npm run browser-smoke");
 if (!fs.readFileSync(path.join(root, "package.json"), "utf8").includes("\"route-audit\"")) errors.push("package.json must expose npm run route-audit");

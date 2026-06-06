@@ -137,6 +137,7 @@ async function main() {
       "feedbackDiagnostics",
       "buildFeedbackTemplate",
       "buildSaveArchive",
+      "backupCurrentSaveArchive",
       "importSaveArchive",
       "normalizeSaveArchiveText",
       "updateSaveImportPreview",
@@ -164,6 +165,7 @@ async function main() {
       "review-more",
       "review-grid-primary",
       "P21 system polish",
+      "P22 mobile playability",
       "stage.free-play #splitTime",
       "settings-group"
     ].forEach((marker) => expectIncludes("css", css, marker));

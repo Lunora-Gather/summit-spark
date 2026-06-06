@@ -75,6 +75,7 @@ Long-term optimization source: `LONG_TERM_OPTIMIZATION_OUTLINE.md`. Super-push e
 - 2026-06-05: Added P19 pure-play simplification: visible death/fall correction, failure rehearsal overlays, death replays, and first-input timing prompts are silent by default; settings now opens as a controls-first single-column system panel with separate audio and display groups.
 - 2026-06-05: Added P20 real-use polish: mobile touch controls are split into direction/action clusters, controller status reports axis magnitude and near-deadzone risk, audio is quieter, late-room hazard visuals are less blue and more readable, and finish review detail is collapsible.
 - 2026-06-06: Added P21 interface hierarchy polish: free play hides advanced training HUD by default, training contexts keep their meters, settings render as a calmer one-column system list, and browser smoke guards the quieter presentation.
+- 2026-06-06: Added P22 real-play hardening: save imports preserve a local backup, the player silhouette better communicates dash/wall/air/run states, portrait touch controls detach below the playfield, mobile Room settings are clamped against cropping, and Pages opts into Node 24.
 
 ## Next Milestones
 

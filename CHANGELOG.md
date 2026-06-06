@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-06 - p22
+
+- Bumped public build assets to `20260606-p22`.
+- Save import now writes a local `summit-spark-save-backup` before replacing settings, profile, room times, paths, and Focus data.
+- Added clearer player state framing for dash direction, wall contact, airborne posture, and running foot motion without changing physics.
+- Moved portrait touch controls below the playfield and added browser smoke coverage so mobile thumbs do not cover the 16:9 stage.
+- Clamped mobile Room settings, route notes, and coach rows so narrow portrait settings do not crop text or controls.
+- Opted the Pages workflow into Node 24 for both project runtime and GitHub JavaScript action compatibility.
+
 ## 2026-06-06 - p21
 
 - Bumped public build assets to `20260606-p21`.

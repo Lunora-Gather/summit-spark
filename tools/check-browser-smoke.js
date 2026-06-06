@@ -795,6 +795,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     const settings = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     const profile = JSON.parse(localStorage.getItem("summit-spark-profile") || "{}");
     const focus = JSON.parse(localStorage.getItem("summit-spark-room-focus") || "{}");
+    const backup = JSON.parse(localStorage.getItem("summit-spark-save-backup") || "{}");
     return {
       settingsVersion: settings.schemaVersion,
       touchSize: settings.touchSize,
@@ -805,10 +806,14 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       focusVersion: focus.schemaVersion,
       focusRooms: Array.isArray(focus.rooms) ? focus.rooms.length : 0,
       bestFlow: Number(localStorage.getItem("summit-spark-best-flow") || 0),
+      backupKind: backup.kind,
+      backupReason: backup.reason,
+      backupArchiveKind: backup.archive?.kind,
+      backupOldTouchSize: backup.archive?.storage?.settings?.touchSize,
       stageTouchSize: getComputedStyle(document.querySelector(".stage")).getPropertyValue("--touch-size").trim()
     };
   })()`);
-  if (imported.settingsVersion !== 2 || imported.touchSize !== 62 || !imported.lowPerformance || imported.deadzone !== 0.18 || imported.profileVersion !== 2 || imported.clears !== 2 || imported.focusVersion !== 2 || imported.focusRooms !== 10 || imported.bestFlow !== 321 || imported.stageTouchSize !== "62px") {
+  if (imported.settingsVersion !== 2 || imported.touchSize !== 62 || !imported.lowPerformance || imported.deadzone !== 0.18 || imported.profileVersion !== 2 || imported.clears !== 2 || imported.focusVersion !== 2 || imported.focusRooms !== 10 || imported.bestFlow !== 321 || imported.backupKind !== "summit-spark-save-backup" || imported.backupReason !== "before-import" || imported.backupArchiveKind !== "summit-spark-save" || imported.backupOldTouchSize !== 48 || imported.stageTouchSize !== "62px") {
     errors.push("save archive import did not normalize and apply storage: " + JSON.stringify(imported));
   }
 }
@@ -872,6 +877,11 @@ async function runMobileSmoke(cdp, baseUrl) {
   await waitForAppReady(cdp);
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("mobile settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const roomGroupOpen = await evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`);
+  if (!roomGroupOpen) {
+    await clickSelector(cdp, ".settings-group-room summary");
+    await waitUntil("mobile room settings open", () => evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`));
+  }
   const mobile = await evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const feel = getComputedStyle(document.querySelector("#feelLab")).gridTemplateColumns.split(" ").filter(Boolean).length;
@@ -879,16 +889,23 @@ async function runMobileSmoke(cdp, baseUrl) {
       const rect = el.getBoundingClientRect();
       return { width: rect.width, scrollWidth: el.scrollWidth, height: rect.height };
     });
+    const roomItems = [...document.querySelectorAll("#roomSelect, #roomBrief, .drill-variants, .settings-group-room .coach-row")].map((el) => {
+      const rect = el.getBoundingClientRect();
+      return { id: el.id || el.className, left: rect.left, right: rect.right, width: rect.width, scrollWidth: el.scrollWidth };
+    });
     return {
       feelColumns: feel,
       panelFits: panel.left >= -1 && panel.right <= window.innerWidth + 1 && panel.bottom <= window.innerHeight + 1,
       cardsFit: cards.every((card) => card.scrollWidth <= card.width + 2 && card.height >= 44),
+      roomItemsFit: roomItems.every((item) => item.left >= -1 && item.right <= window.innerWidth + 1),
+      roomItems,
       coarsePointer: matchMedia("(pointer: coarse)").matches
     };
   })()`);
   if (mobile.feelColumns !== 1) errors.push("mobile Feel Lab should collapse to one column");
   if (!mobile.panelFits) errors.push("mobile settings panel overflows viewport");
   if (!mobile.cardsFit) errors.push("mobile route/feel cards have horizontal overflow or too-small hit targets");
+  if (!mobile.roomItemsFit) errors.push("mobile room settings should not overflow horizontally: " + JSON.stringify(mobile.roomItems));
   if (!mobile.coarsePointer) errors.push("mobile smoke should emulate a coarse pointer");
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("mobile settings closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
@@ -898,20 +915,23 @@ async function runMobileSmoke(cdp, baseUrl) {
     const touch = document.querySelector(".touch");
     const direction = document.querySelector(".touch-directions");
     const action = document.querySelector(".touch-actions");
+    const stage = document.querySelector(".stage").getBoundingClientRect();
     const buttons = [...document.querySelectorAll("[data-touch]")].map((button) => {
       const rect = button.getBoundingClientRect();
-      return { id: button.dataset.touch, width: Math.round(rect.width), height: Math.round(rect.height) };
+      return { id: button.dataset.touch, width: Math.round(rect.width), height: Math.round(rect.height), top: Math.round(rect.top), bottom: Math.round(rect.bottom) };
     });
     return {
       visible: getComputedStyle(touch).display !== "none",
+      position: getComputedStyle(touch).position,
       directionGrid: getComputedStyle(direction).display === "grid",
       actionGrid: getComputedStyle(action).display === "grid",
       buttons,
-      allButtonsLarge: buttons.every((button) => button.width >= 44 && button.height >= 44)
+      allButtonsLarge: buttons.every((button) => button.width >= 44 && button.height >= 44),
+      detachedFromPlayfield: getComputedStyle(touch).position === "fixed" && buttons.every((button) => button.top >= stage.bottom + 4)
     };
   })()`);
-  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !touchUi.allButtonsLarge) {
-    errors.push("touch controls should use visible direction/action grids with safe hit targets: " + JSON.stringify(touchUi));
+  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !touchUi.allButtonsLarge || !touchUi.detachedFromPlayfield) {
+    errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
 }
 

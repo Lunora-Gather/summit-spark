@@ -3929,3 +3929,44 @@ body {
     width: min(440px, calc(100% - 18px));
   }
 }
+
+/* P22 mobile playability: portrait touch controls live below the playfield. */
+.stage.settings-open .touch {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .settings-panel .settings-group-body > *,
+  .settings-panel .control-row,
+  .settings-panel .room-brief,
+  .settings-panel .drill-variants,
+  .settings-panel .coach-row {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #roomSelect {
+    flex: 1 1 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .settings-panel .room-brief,
+  .settings-panel .coach-row span {
+    overflow-wrap: anywhere;
+  }
+
+  .touch {
+    position: fixed;
+    inset: auto max(14px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+    display: flex;
+    z-index: 8;
+    gap: 14px;
+  }
+
+  .touch button {
+    background: rgba(20, 20, 21, 0.42);
+  }
+}

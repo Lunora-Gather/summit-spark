@@ -5,7 +5,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 ## Setup
 
 1. Open the local page from `npm start`.
-2. Confirm the start screen shows build `20260606-p21` in page markup if inspected.
+2. Confirm the start screen shows build `20260606-p22` in page markup if inspected.
 3. Use a clean browser profile for first-run checks, then repeat with an existing profile that has training progress.
 4. Keep audio on for one pass and off for one pass.
 5. Test desktop keyboard first; test touch and a physical gamepad when devices are available.
@@ -46,11 +46,14 @@ For each room, record `pass`, `friction`, or `blocked`.
 - Choose a feedback type, write a short note, then click `诊断 / 复制`; keep the local snapshot with the note. It should not upload anything by itself.
 - Click `反馈模板 / 复制` and confirm the pasted text has enough context for a tester to file a useful issue without copying raw input history.
 - Export a `summit-spark-save` JSON, paste a broken JSON once and confirm the preview reports an error without refreshing, then import it in another profile and confirm low-performance, touch size, Focus stats, best flow, and room bests survive.
+- After one valid import, confirm the browser has a `summit-spark-save-backup` entry for the prior local archive.
 - Corrupt or clear storage only after saving a copy of the browser profile; the app should keep running and explain repair once.
 
 ## Mobile And Comfort
 
 - At around 390x700, the start screen must show title, start, resume when present, and settings entry without horizontal scroll.
+- In 390x700 portrait play, touch controls should sit below the playfield instead of covering the character, spikes, or bottom landings.
+- In 390x700 portrait settings, expand Room and confirm the room select, room brief, Drill variant buttons, and coach row stay inside the panel.
 - At around 700x390, settings must scroll vertically and keep Route, Feel, audio, low performance, touch size, and gamepad deadzone reachable.
 - Confirm the controls-first setting groups are easy to scan and do not hide the primary start/Drill path from a new player.
 - Confirm the hand-held/mobile view has no horizontal scroll after opening feedback, save import, Route cards, and Feel Lab sections.

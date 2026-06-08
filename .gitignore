@@ -1,0 +1,6 @@
+.edge-profile/
+node_modules/
+*.log
+*-preview.png
+character-preview.png
+trail-settings-preview.png

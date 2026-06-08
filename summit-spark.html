@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="build-version" content="20260608-p23">
+  <title>山巅微光</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="summit-spark.css?v=20260608-p23">
+</head>
+<body>
+  <main class="shell" aria-label="山巅微光游戏">
+    <section class="stage">
+      <canvas id="game" width="960" height="544" aria-label="山巅微光"></canvas>
+
+      <div class="hud">
+        <div class="brand" aria-hidden="true">
+          <span class="mark"></span>
+          <span>山巅微光</span>
+        </div>
+        <div class="meters">
+          <div class="dash-meter" title="冲刺" aria-hidden="true">
+            <span></span>
+          </div>
+          <div class="stamina-meter" title="体力" aria-hidden="true">
+            <span></span>
+          </div>
+          <div class="pace-meter" title="房间目标节奏" aria-hidden="true">
+            <span></span>
+          </div>
+          <div class="counter" id="lumenCount" aria-label="微光数量">0/0</div>
+          <div class="counter stat" id="roomCount" aria-label="当前房间">1/1</div>
+          <div class="counter stat" id="splitTime" aria-label="当前分段时间">0:00.00</div>
+          <div class="counter stat delta" id="splitDelta" aria-label="分段差值">+0.00</div>
+          <div class="counter stat" id="flowCount" aria-label="Flow 值">F 0</div>
+          <div class="counter stat" id="runTime" aria-label="总时间">0:00.00</div>
+          <div class="counter stat" id="deathCount" aria-label="死亡次数">D 0</div>
+        </div>
+        <div class="hud-actions">
+          <button class="icon-button practice-icon" id="practiceButton" type="button" aria-label="练习" aria-controls="settingsPanel" aria-expanded="false">&#9678;</button>
+          <button class="icon-button" id="settingsButton" type="button" aria-label="设置" aria-controls="settingsPanel" aria-expanded="false">&#9881;</button>
+        </div>
+      </div>
+
+      <pre class="debug-panel hidden" id="debugPanel" aria-hidden="true"></pre>
+
+      <div class="game-tip hidden" id="gameTip" aria-live="polite" aria-atomic="true">
+        <strong id="gameTipTitle"></strong>
+        <em id="gameTipDetail"></em>
+        <i aria-hidden="true"></i>
+      </div>
+
+      <section class="settings-panel hidden" id="settingsPanel" role="dialog" aria-label="设置" aria-hidden="true">
+        <div class="settings-head">
+          <strong><span id="panelTitle">设置</span> <span class="pause-badge">暂停</span></strong>
+          <button class="mini-button" id="settingsClose" type="button" aria-label="关闭设置">&times;</button>
+        </div>
+        <div class="settings-body">
+          <div class="settings-column settings-column-main">
+            <button class="practice-priority practice-only" id="practicePriority" type="button">
+              <span>下一步</span>
+              <strong>R1 Drill</strong>
+              <em>读取训练建议</em>
+              <i class="priority-meter" aria-hidden="true"></i>
+            </button>
+            <details class="settings-group settings-group-controls settings-only" open>
+              <summary><span>控制</span></summary>
+              <div class="settings-group-body">
+                <label class="control-row">
+                  <span>键位</span>
+                  <select id="controlPreset">
+                    <option value="comfort">舒适</option>
+                    <option value="classic">经典</option>
+                  </select>
+                </label>
+                <label class="control-row">
+                  <span>抓墙</span>
+                  <select id="grabMode">
+                    <option value="hold">按住</option>
+                    <option value="toggle">切换</option>
+                  </select>
+                </label>
+                <label class="control-row">
+                  <span>手柄死区</span>
+                  <input id="gamepadDeadzoneSlider" type="range" min="0.12" max="0.45" step="0.01" value="0.28">
+                </label>
+                <div class="control-row gamepad-status-row">
+                  <span>手柄</span>
+                  <output id="gamepadStatus">未检测</output>
+                </div>
+                <label class="control-row">
+                  <span>触控大小</span>
+                  <input id="touchSizeSlider" type="range" min="44" max="64" step="2" value="48">
+                </label>
+              </div>
+            </details>
+            <details class="settings-group settings-group-audio settings-only">
+              <summary><span>声音</span></summary>
+              <div class="settings-group-body">
+                <label class="control-row">
+                  <span>音效</span>
+                  <input id="audioToggle" type="checkbox" checked>
+                </label>
+                <label class="control-row">
+                  <span>音量</span>
+                  <input id="audioVolumeSlider" type="range" min="0" max="1" step="0.05" value="0.35">
+                </label>
+                <div class="control-row">
+                  <span>试听</span>
+                  <button class="focus-button ghost" id="audioTestButton" type="button">播放</button>
+                </div>
+              </div>
+            </details>
+            <details class="settings-group settings-group-display settings-only">
+              <summary><span>显示</span></summary>
+              <div class="settings-group-body">
+                <label class="control-row">
+                  <span>柔和特效</span>
+                  <input id="calmEffectsToggle" type="checkbox" checked>
+                </label>
+                <label class="control-row">
+                  <span>低性能</span>
+                  <input id="lowPerformanceToggle" type="checkbox">
+                </label>
+                <label class="control-row">
+                  <span>练习线</span>
+                  <input id="practiceLinesToggle" type="checkbox" checked>
+                </label>
+                <label class="control-row">
+                  <span>影子</span>
+                  <input id="ghostOpacitySlider" type="range" min="0.2" max="1" step="0.05" value="0.75">
+                </label>
+                <label class="control-row">
+                  <span>震动</span>
+                  <input id="shakeSlider" type="range" min="0" max="1" step="0.05" value="0">
+                </label>
+                <label class="control-row">
+                  <span>调试</span>
+                  <input id="debugToggle" type="checkbox">
+                </label>
+              </div>
+            </details>
+          </div>
+          <div class="settings-column settings-column-side">
+            <details class="settings-group settings-group-room practice-only">
+              <summary><span>房间</span></summary>
+              <div class="settings-group-body">
+                <label class="control-row control-row-room">
+                  <span>房间</span>
+                  <select id="roomSelect"></select>
+                </label>
+                <div class="room-brief" id="roomBrief">R1 房间目标</div>
+                <div class="drill-variants" aria-label="Drill variants">
+                  <button class="variant-button" id="drillCleanButton" type="button">Clean</button>
+                  <button class="variant-button" id="drillPaceButton" type="button">Pace</button>
+                  <button class="variant-button" id="drillStyleButton" type="button">Style</button>
+                  <button class="variant-button" id="drillExpertButton" type="button">Expert</button>
+                </div>
+                <div class="coach-row">
+                  <span id="coachSummary">R1 Drill</span>
+                  <div class="coach-actions">
+                    <button class="focus-button" id="focusRoomButton" type="button">R1 Drill</button>
+                    <button class="focus-button ghost" id="focusResetButton" type="button">Reset</button>
+                  </div>
+                </div>
+              </div>
+            </details>
+            <details class="settings-group settings-group-feedback settings-only">
+              <summary><span>反馈与存档</span></summary>
+              <div class="settings-group-body">
+                <label class="control-row">
+                  <span>反馈类型</span>
+                  <select id="feedbackType">
+                    <option value="route">路线摩擦</option>
+                    <option value="feel">输入手感</option>
+                    <option value="mobile">移动端</option>
+                    <option value="audio">音频</option>
+                    <option value="storage">存档</option>
+                    <option value="other">其他</option>
+                  </select>
+                </label>
+                <label class="feedback-box">
+                  <span>反馈备注</span>
+                  <textarea id="feedbackNote" maxlength="240" rows="2" placeholder="R7 风场和脆冰同时出现时看不清"></textarea>
+                </label>
+                <div class="control-row">
+                  <span>诊断</span>
+                  <button class="focus-button ghost" id="diagnosticsButton" type="button">复制</button>
+                </div>
+                <div class="control-row">
+                  <span>反馈模板</span>
+                  <button class="focus-button ghost" id="feedbackTemplateButton" type="button">复制</button>
+                </div>
+                <div class="control-row storage-actions">
+                  <span>存档</span>
+                  <div class="compact-actions">
+                    <button class="focus-button ghost" id="saveExportButton" type="button">复制</button>
+                    <button class="focus-button ghost" id="saveDownloadButton" type="button">下载</button>
+                    <button class="focus-button ghost" id="saveImportButton" type="button">导入</button>
+                    <button class="focus-button ghost" id="saveRestoreButton" type="button">恢复</button>
+                  </div>
+                </div>
+                <label class="feedback-box save-import-box">
+                  <span>导入 JSON</span>
+                  <textarea id="saveImportText" maxlength="240000" rows="2" placeholder="粘贴 summit-spark-save JSON"></textarea>
+                </label>
+                <div class="save-import-status" id="saveImportStatus" aria-live="polite">等待存档 JSON</div>
+                <div class="save-import-status backup-status" id="saveBackupStatus" aria-live="polite">暂无导入前备份</div>
+              </div>
+            </details>
+            <details class="settings-group settings-group-profile practice-only">
+              <summary><span>档案</span></summary>
+              <div class="settings-group-body">
+                <div class="practice-report" id="practiceReport">无失误 0/10 / 分段损失 无 / 下个 Drill R1</div>
+                <div class="profile-summary" id="profileSummary" aria-label="长期档案"></div>
+                <div class="practice-ledger" id="practiceLedger" aria-label="Room mastery ledger"></div>
+              </div>
+            </details>
+            <details class="settings-group settings-group-training practice-only">
+              <summary><span>训练</span></summary>
+              <div class="settings-group-body">
+                <div class="chapter-overview" id="chapterOverview" aria-label="章节完成度"></div>
+                <div class="practice-plan" id="practicePlan" aria-label="训练计划"></div>
+                <div class="route-contracts" id="routeContracts" aria-label="航线合同"></div>
+                <div class="feel-lab" id="feelLab" aria-label="手感校准"></div>
+              </div>
+            </details>
+            <details class="settings-group settings-group-advanced practice-only">
+              <summary><span>进阶</span></summary>
+              <div class="settings-group-body">
+                <div class="settings-section-title">连续训练</div>
+                <div class="practice-queue" id="practiceQueue" aria-label="Practice queue"></div>
+                <div class="challenge-board" id="challengeBoard" aria-label="长期挑战"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <div class="overlay" id="overlay">
+        <div class="start-panel" id="startPanel">
+          <span class="start-eyebrow" id="startReadiness">准备游戏</span>
+          <h1>山巅微光</h1>
+          <div class="start-actions">
+            <button class="primary" id="startButton" type="button">开始</button>
+            <button class="secondary-start resume-start hidden" id="resumeTrainingButton" type="button" aria-hidden="true">继续训练</button>
+            <button class="secondary-start" id="openTrainingButton" type="button">练习</button>
+            <button class="secondary-start subtle" id="startSettingsButton" type="button">设置</button>
+          </div>
+          <div class="load-strip" aria-hidden="true"><span id="loadStatus">正在准备训练数据</span></div>
+          <p class="boot-fallback" id="bootFallback">如果长时间停留在这里，请刷新页面；线上刚更新时浏览器可能还在使用旧资源。</p>
+          <noscript><p class="boot-noscript">需要启用 JavaScript 才能运行游戏。</p></noscript>
+        </div>
+      </div>
+
+      <div class="sr-status" id="gameStatus" aria-live="polite" aria-atomic="true"></div>
+
+      <div class="touch" aria-label="触控">
+        <div class="touch-cluster touch-directions" aria-label="移动">
+          <button type="button" data-touch="up" aria-label="上">↑</button>
+          <button type="button" data-touch="left" aria-label="左">‹</button>
+          <button type="button" data-touch="down" aria-label="下">↓</button>
+          <button type="button" data-touch="right" aria-label="右">›</button>
+        </div>
+        <div class="touch-cluster touch-actions" aria-label="动作">
+          <button type="button" data-touch="grab" aria-label="抓墙">✦</button>
+          <button type="button" data-touch="jump" aria-label="跳跃">↥</button>
+          <button type="button" data-touch="dash" aria-label="冲刺">◆</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="summit-spark.js?v=20260608-p23"></script>
+</body>
+</html>

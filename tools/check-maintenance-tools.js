@@ -13,6 +13,7 @@ const requiredToolFiles = [
   "tools/check-public-surface.js",
   "tools/check-data-contracts.js",
   "tools/check-maps.js",
+  "tools/check-route-audit.js",
   "tools/export-room-data.js",
   "tools/report-room-data.js",
   "tools/lib/read-summit-data.js",
@@ -100,6 +101,14 @@ if (!mapCheck.includes("loadRoomDataSnapshot")) {
 }
 if (mapCheck.includes("summit-spark.js")) {
   push("tools/check-maps.js should not read summit-spark.js directly; use the preferred loader");
+}
+
+const routeAudit = read("tools/check-route-audit.js");
+if (!routeAudit.includes("loadRoomDataSnapshot")) {
+  push("tools/check-route-audit.js should use loadRoomDataSnapshot for route data");
+}
+if (!routeAudit.includes("TRAINING_TRANSITIONS") || !routeAudit.includes("gamepadDeadzone")) {
+  push("tools/check-route-audit.js should keep runtime hook guards while route data moves to the preferred loader");
 }
 
 const exporter = read("tools/export-room-data.js");

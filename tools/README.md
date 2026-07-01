@@ -8,6 +8,7 @@ This directory contains local and CI quality gates for Summit Spark.
 | --- | --- |
 | `check-docs.js` | Verifies required documentation, templates, and process files. |
 | `check-public-surface.js` | Verifies `index.html` / `summit-spark.html` consistency, build version, and public UI anchors. |
+| `check-maintenance-tools.js` | Verifies maintenance tool syntax and prevents duplicated parsing/validation logic. |
 | `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures. |
 | `export-room-data.js` | Exports the room/training data currently embedded in `summit-spark.js`. |
 | `report-room-data.js` | Prints a human-readable room data summary and validation result. |
@@ -55,6 +56,16 @@ Print a readable room data report:
 ```bash
 node tools/report-room-data.js
 ```
+
+Check maintenance tool syntax and guardrails:
+
+```bash
+node tools/check-maintenance-tools.js
+```
+
+## CI
+
+The `Maintenance Tools` workflow runs `node tools/check-maintenance-tools.js` on pull requests and manually via `workflow_dispatch`.
 
 ## Policy
 

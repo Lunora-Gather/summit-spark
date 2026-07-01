@@ -107,7 +107,18 @@
 
 ### `npm run route-audit`
 
-用于路线可读性、Route contracts、Feel Lab fixture 和关键视觉辅助。
+路线可读性、Route contracts、Feel Lab fixture 和关键视觉辅助检查。`npm run check` 会运行它。
+
+它会检查 preferred room-data source：若 `data/rooms.generated.json` 存在，则验证快照中的路线/训练数据；否则回退验证 `summit-spark.js` 中的源数据。同时，它仍会读取 `summit-spark.js` 来确认关键运行时钩子存在。
+
+它会检查：
+
+- 10-room campaign 范围。
+- 房间名称、guide、purpose 是否是正式文案。
+- safe / fast / expert 路线说明是否明确。
+- Route contract 是否覆盖足够多的房间/mode pair。
+- Feel fixture id、房间编号、延迟窗口和 expected tech 是否有效。
+- 关键运行时钩子：training transitions、gamepad deadzone、resume training、schema version、low performance、failure arrow、Spark variant visuals。
 
 适用场景：
 
@@ -146,7 +157,7 @@
 | 风险 | 类型 | 必须检查 |
 | --- | --- | --- |
 | Low | README、docs、Issue 模板、PR 模板 | `node tools/check-docs.js` + `node tools/check-public-surface.js` |
-| Medium | 地图元数据、训练文案、release checklist | `node tools/check-data-contracts.js` + `node tools/check-maps.js` + `node tools/export-room-data.js --check` + `npm run check` + 相关人工检查 |
+| Medium | 地图元数据、训练文案、release checklist | `node tools/check-data-contracts.js` + `node tools/check-maps.js` + `npm run route-audit` + `node tools/export-room-data.js --check` + `npm run check` + 相关人工检查 |
 | High | 输入、存档、移动端 UI、Route/Feel/Drill 状态 | `npm run check` + `npm run browser-smoke` |
 | Critical | 物理、碰撞、房间地图、渲染主循环 | `npm run check` + `npm run browser-smoke` + 人工 R1-R10 |
 
@@ -156,15 +167,16 @@
 2. `node tools/check-public-surface.js`
 3. `node tools/check-data-contracts.js`
 4. `node tools/check-maps.js`
-5. `node tools/export-room-data.js --check`
-6. `npm run check`
-7. `git diff --check`
-8. 本地 `npm start` 打开一次。
-9. 确认 `index.html` 和 `summit-spark.html` 一致。
-10. 确认 build version 和资源 query string 一致。
-11. 更新 `CHANGELOG.md`。
-12. 按变更类型更新相关文档。
-13. 合并后打开线上 Pages 检查版本。
+5. `npm run route-audit`
+6. `node tools/export-room-data.js --check`
+7. `npm run check`
+8. `git diff --check`
+9. 本地 `npm start` 打开一次。
+10. 确认 `index.html` 和 `summit-spark.html` 一致。
+11. 确认 build version 和资源 query string 一致。
+12. 更新 `CHANGELOG.md`。
+13. 按变更类型更新相关文档。
+14. 合并后打开线上 Pages 检查版本。
 
 ## 失败处理
 

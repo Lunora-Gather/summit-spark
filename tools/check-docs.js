@@ -43,7 +43,9 @@ const requiredFiles = [
   "docs/QUALITY_GATES.md",
   "docs/AI_HANDOFF.md",
   "tools/README.md",
+  "tools/report-room-data.js",
   "tools/lib/read-summit-data.js",
+  "tools/lib/validate-room-data.js",
   ".github/pull_request_template.md",
   ".github/ISSUE_TEMPLATE/bug_report.yml",
   ".github/ISSUE_TEMPLATE/playtest_feedback.yml",
@@ -92,7 +94,9 @@ requireIncludes("docs/QUALITY_GATES.md", [
 
 requireIncludes("tools/README.md", [
   "tools/lib/read-summit-data.js",
+  "tools/lib/validate-room-data.js",
   "export-room-data.js",
+  "report-room-data.js",
   "check-data-contracts.js"
 ]);
 

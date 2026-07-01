@@ -33,6 +33,18 @@ jobs:
         with:
           node-version: 24
 
+      - name: Run documentation gate
+        run: node tools/check-docs.js
+
+      - name: Run public surface gate
+        run: node tools/check-public-surface.js
+
+      - name: Run data contract gate
+        run: node tools/check-data-contracts.js
+
+      - name: Verify room data export
+        run: node tools/export-room-data.js --check
+
       - name: Run quality gate
         run: npm run check
 

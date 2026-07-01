@@ -1,0 +1,86 @@
+name: Playtest feedback
+description: Record real playtest friction from Summit Spark.
+title: "playtest: "
+labels: ["playtest"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for real playtest results. Please keep one issue focused on one session, device, or room cluster.
+  - type: input
+    id: build
+    attributes:
+      label: Build / version
+      description: Example: 20260608-p23
+      placeholder: 20260608-p23
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device/input
+      options:
+        - Desktop keyboard
+        - Desktop gamepad
+        - Phone touch
+        - Tablet touch
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: viewport
+    attributes:
+      label: Viewport / screen
+      placeholder: 390x700 portrait, 700x390 landscape, 1440x900 desktop
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Free Play
+        - Drill
+        - Route contract
+        - Feel Lab
+        - Settings / Save / Feedback
+        - Full R1-R10 pass
+    validations:
+      required: true
+  - type: input
+    id: room
+    attributes:
+      label: Room(s)
+      placeholder: R1, R7-R8, R1-R10
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened?
+      description: Describe the actual friction, death, confusion, clipping, or input issue.
+      placeholder: R7 wind + crumble was readable, but the first safe landing after the updraft was unclear.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      placeholder: I expected the safe platform to be visible before committing to the dash.
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: Start from R7, hold right, jump into wind, dash diagonally after relay...
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / diagnostics
+      description: Paste diagnostics or feedback template output if available. Do not paste secrets.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - P0 - Cannot start or progress
+        - P1 - Blocks normal R1-R10 play
+        - P2 - Clear friction but playable
+        - P3 - Polish
+    validations:
+      required: true

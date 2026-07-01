@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible bug in Summit Spark.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: input
+    id: build
+    attributes:
+      label: Build / version
+      placeholder: 20260608-p23
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Start / boot
+        - Movement / physics
+        - Collision / hazards
+        - Rendering / canvas
+        - Settings panel
+        - Practice panel
+        - Drill / Route / Feel Lab
+        - Save import/export
+        - Keyboard input
+        - Touch input
+        - Gamepad input
+        - GitHub Pages / deployment
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. Open page...
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device / browser / input
+      placeholder: Chrome desktop keyboard, Android touch, Edge gamepad...
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics or console output
+      description: Paste local diagnostics, feedback template output, or relevant console errors. Do not paste secrets.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I checked KNOWN_ISSUES.md for duplicates.
+        - label: I can reproduce this more than once.
+        - label: This affects public demo confidence.

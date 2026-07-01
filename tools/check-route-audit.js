@@ -3,50 +3,13 @@
 
 const fs = require("fs");
 const path = require("path");
+const { loadRoomDataSnapshot } = require("./lib/read-summit-data");
 
 const root = path.resolve(__dirname, "..");
 const js = fs.readFileSync(path.join(root, "summit-spark.js"), "utf8");
+const snapshot = loadRoomDataSnapshot();
 const errors = [];
 const warnings = [];
-
-function extractArray(name) {
-  return extractLiteral(name, "[");
-}
-
-function extractLiteral(name, opener) {
-  const needle = "const " + name + " = ";
-  const start = js.indexOf(needle);
-  if (start === -1) throw new Error("Missing " + name);
-  const literalStart = js.indexOf(opener, start);
-  if (literalStart === -1) throw new Error("Missing literal for " + name);
-  const close = opener === "[" ? "]" : "}";
-  let depth = 0;
-  let inString = false;
-  let quote = "";
-  let escaped = false;
-  for (let i = literalStart; i < js.length; i += 1) {
-    const ch = js[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === quote) inString = false;
-      continue;
-    }
-    if (ch === "\"" || ch === "'" || ch === "`") {
-      inString = true;
-      quote = ch;
-      continue;
-    }
-    if (ch === opener) depth += 1;
-    if (ch === close) {
-      depth -= 1;
-      if (depth === 0) {
-        return Function("\"use strict\"; return (" + js.slice(literalStart, i + 1) + ");")();
-      }
-    }
-  }
-  throw new Error("Unclosed literal for " + name);
-}
 
 function countTiles(room) {
   const counts = {};
@@ -83,13 +46,13 @@ function hasBadPlaceholder(text) {
   return /todo|tbd|placeholder|lorem|待定/i.test(String(text));
 }
 
-const maps = extractArray("maps");
-const names = extractArray("ROOM_NAMES");
-const guides = extractArray("ROOM_GUIDES");
-const purposes = extractArray("ROOM_PURPOSES");
-const routeLines = extractArray("ROOM_ROUTE_LINES");
-const routeContracts = extractArray("ROUTE_CONTRACTS");
-const feelFixtures = extractArray("FEEL_REPLAY_FIXTURES");
+const maps = snapshot.maps;
+const names = snapshot.roomNames;
+const guides = snapshot.roomGuides;
+const purposes = snapshot.roomPurposes;
+const routeLines = snapshot.roomRouteLines;
+const routeContracts = snapshot.routeContracts;
+const feelFixtures = snapshot.feelReplayFixtures;
 const expectedRouteLabels = ["安全线", "进阶线", "高手线"];
 const allowedModes = new Set(["clean", "pace", "style", "expert"]);
 const allowedFeelTech = new Set(["jump", "wall", "dash", "spark", "wallSpark", "prismSpark", "prism", "crumble"]);

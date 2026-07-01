@@ -42,6 +42,9 @@ jobs:
       - name: Run data contract gate
         run: node tools/check-data-contracts.js
 
+      - name: Verify room data export
+        run: node tools/export-room-data.js --check
+
       - name: Run quality gate
         run: npm run check
 

@@ -38,6 +38,13 @@
 
 目标：开始拆 `summit-spark.js`，但只拆低风险内容。
 
+已完成的前置防护：
+
+- [x] 增加 `docs/DATA_CONTRACTS.md`，明确房间、路线、Style、Expert、Route、Feel 数据关系。
+- [x] 增加 `tools/check-data-contracts.js`，自动检查房间数据与训练数据同步。
+- [x] 将数据契约检查接入 PR workflow。
+- [x] 将数据契约检查接入 Pages workflow。
+
 推荐顺序：
 
 1. 抽出 `src/core/constants.js`，保留原常量名。
@@ -48,6 +55,7 @@
 
 验收：
 
+- `node tools/check-data-contracts.js` 通过。
 - `npm run check` 通过。
 - `index.html` 和 `summit-spark.html` 仍然可直接运行。
 - 不改变物理常量和房间数据语义。
@@ -119,15 +127,16 @@
 2. 更新 `CHANGELOG.md`。
 3. 跑 `node tools/check-docs.js`。
 4. 跑 `node tools/check-public-surface.js`。
-5. 跑 `npm run check`。
-6. 对高风险改动跑 `npm run browser-smoke`。
-7. 按 `RELEASE_CHECKLIST.md` 做人工确认。
-8. 合并后检查 Pages 线上版本。
+5. 跑 `node tools/check-data-contracts.js`。
+6. 跑 `npm run check`。
+7. 对高风险改动跑 `npm run browser-smoke`。
+8. 按 `RELEASE_CHECKLIST.md` 做人工确认。
+9. 合并后检查 Pages 线上版本。
 
 ## 当前优先级建议
 
 下一步最值得做的三件事：
 
-1. 等 PR checks 跑完，确认文档门、公开页面门和默认质量门是否通过。
-2. 做一次 R1-R10 真人试玩，拿到真实摩擦点。
-3. 开始 P2，只抽房间数据和纯函数，不改物理与手感。
+1. 等 PR checks 跑完，确认文档门、公开页面门、数据契约门和默认质量门是否通过。
+2. 真正开始 P2 数据抽取：先生成独立数据文件，再让检查脚本优先读取新数据源。
+3. 做一次 R1-R10 真人试玩，拿到真实摩擦点。

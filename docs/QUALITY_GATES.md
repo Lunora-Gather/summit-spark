@@ -29,7 +29,7 @@
 
 - 核心文档是否存在。
 - README 是否保留运行、操作、开发方向和最新推进。
-- 发布、试玩、已知限制、架构、内容和重构说明是否齐全。
+- 发布、试玩、已知限制、架构、内容、数据契约和重构说明是否齐全。
 - PR 模板和 Issue 模板是否存在。
 
 文档不是装饰。它承担三个作用：
@@ -49,6 +49,21 @@
 - Canvas、开始按钮、设置面板、练习按钮、反馈备注、存档导入、触控按钮和主脚本引用仍存在。
 
 这个检查专门防止公开 demo 常见失误：入口页不同步、版本号没改全、部署出旧资源、关键按钮被误删。
+
+### `node tools/check-data-contracts.js`
+
+房间与训练数据契约门。PR 和 Pages 部署前都会运行。
+
+它会检查：
+
+- `maps` 与 `ROOM_TARGETS`、`ROOM_NAMES`、`ROOM_TIERS`、`ROOM_SKILLS`、`ROOM_GUIDES`、`ROOM_PURPOSES`、`ROOM_ROUTE_LINES`、`ROOM_STYLE_TRIALS`、`EXPERT_REQUIREMENTS` 数量一致。
+- 每房都有 safe / fast / expert 三条路线说明。
+- Style 合同必须包含 `kind`、`label`、`goal`、`clean`、`tech`、`timeScale`。
+- Expert 和 Style 引用的技术 key 必须存在显示名。
+- Route contract 的房间 index 和 mode 有效。
+- Feel replay fixture 的房间编号、延迟和 expected 有效。
+
+这个检查是 P2 低风险模块化的前置防护：先固定数据关系，再移动数据文件。
 
 ### `npm run browser-smoke`
 
@@ -105,7 +120,7 @@
 | 风险 | 类型 | 必须检查 |
 | --- | --- | --- |
 | Low | README、docs、Issue 模板、PR 模板 | `node tools/check-docs.js` + `node tools/check-public-surface.js` |
-| Medium | 地图元数据、训练文案、release checklist | `npm run check` + 相关人工检查 |
+| Medium | 地图元数据、训练文案、release checklist | `node tools/check-data-contracts.js` + `npm run check` + 相关人工检查 |
 | High | 输入、存档、移动端 UI、Route/Feel/Drill 状态 | `npm run check` + `npm run browser-smoke` |
 | Critical | 物理、碰撞、房间地图、渲染主循环 | `npm run check` + `npm run browser-smoke` + 人工 R1-R10 |
 
@@ -113,14 +128,15 @@
 
 1. `node tools/check-docs.js`
 2. `node tools/check-public-surface.js`
-3. `npm run check`
-4. `git diff --check`
-5. 本地 `npm start` 打开一次。
-6. 确认 `index.html` 和 `summit-spark.html` 一致。
-7. 确认 build version 和资源 query string 一致。
-8. 更新 `CHANGELOG.md`。
-9. 按变更类型更新相关文档。
-10. 合并后打开线上 Pages 检查版本。
+3. `node tools/check-data-contracts.js`
+4. `npm run check`
+5. `git diff --check`
+6. 本地 `npm start` 打开一次。
+7. 确认 `index.html` 和 `summit-spark.html` 一致。
+8. 确认 build version 和资源 query string 一致。
+9. 更新 `CHANGELOG.md`。
+10. 按变更类型更新相关文档。
+11. 合并后打开线上 Pages 检查版本。
 
 ## 失败处理
 

@@ -21,6 +21,11 @@ This directory contains local and CI quality gates for Summit Spark.
 
 `tools/lib/read-summit-data.js` is the single shared reader for extracting room/training data from `summit-spark.js` during P2 migration.
 
+It exposes two intentionally different paths:
+
+- Source-only export path: `buildRoomDataSnapshot()` / `buildRoomDataSnapshotFromSource()` reads `summit-spark.js`. Use this for generating `data/rooms.generated.json`.
+- Preferred read path: `loadRoomDataSnapshot()` reads `data/rooms.generated.json` when it exists, otherwise falls back to `summit-spark.js`. Use this for checks and reports.
+
 `tools/lib/validate-room-data.js` is the shared validator for room/training data contracts. Use it from reporting, checking, and migration tools instead of duplicating validation rules.
 
 Use these helpers instead of duplicating parsing or validation logic in new tools. Once the source of truth moves to `src/game` or `data`, update the shared helpers first, then keep the callers stable.
@@ -71,5 +76,6 @@ The `Maintenance Tools` workflow runs `node tools/check-maintenance-tools.js` on
 
 - Do not add new parsing logic for `summit-spark.js` in multiple scripts.
 - Do not duplicate room/training data validation rules across multiple scripts.
+- Do not make checks and reports source-only once a generated snapshot exists; use the preferred read path.
 - Do not make browser smoke part of the default gate unless CI browser availability is guaranteed.
 - Do not silently skip failed map, data, storage, or public-surface checks.

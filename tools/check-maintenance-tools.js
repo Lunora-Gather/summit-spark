@@ -12,6 +12,7 @@ const requiredToolFiles = [
   "tools/check-docs.js",
   "tools/check-public-surface.js",
   "tools/check-data-contracts.js",
+  "tools/check-maps.js",
   "tools/export-room-data.js",
   "tools/report-room-data.js",
   "tools/lib/read-summit-data.js",
@@ -52,6 +53,10 @@ for (const file of requiredToolFiles) {
     push(`${file} should not define extractConst; use ${sourceReader}`);
   }
 
+  if (file !== sourceReader && /function\s+extractArray\s*\(/.test(content)) {
+    push(`${file} should not define extractArray; use ${sourceReader}`);
+  }
+
   if (file !== sourceReader && content.includes('Function("\\"use strict\\"; return ("')) {
     push(`${file} should not eval summit-spark.js constants directly; use ${sourceReader}`);
   }
@@ -87,6 +92,14 @@ if (!dataCheck.includes("loadRoomDataSnapshot")) {
 }
 if (!dataCheck.includes("validateRoomDataSnapshot") || !dataCheck.includes("getRoomDataSummary")) {
   push("tools/check-data-contracts.js should use the shared validator and summary helper");
+}
+
+const mapCheck = read("tools/check-maps.js");
+if (!mapCheck.includes("loadRoomDataSnapshot")) {
+  push("tools/check-maps.js should use loadRoomDataSnapshot so it can validate generated snapshots");
+}
+if (mapCheck.includes("summit-spark.js")) {
+  push("tools/check-maps.js should not read summit-spark.js directly; use the preferred loader");
 }
 
 const exporter = read("tools/export-room-data.js");

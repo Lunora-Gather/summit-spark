@@ -36,6 +36,9 @@ jobs:
       - name: Run documentation gate
         run: node tools/check-docs.js
 
+      - name: Run public surface gate
+        run: node tools/check-public-surface.js
+
       - name: Run quality gate
         run: npm run check
 

@@ -115,15 +115,40 @@ node tools/check-data-contracts.js
 
 PR 和 Pages workflow 会在默认质量门前运行它。
 
+## 导出工具
+
+`tools/export-room-data.js` 用于把当前单体脚本中的房间和训练数据导出为 JSON，作为 P2 真正迁移前的桥。
+
+查看导出内容：
+
+```bash
+node tools/export-room-data.js
+```
+
+写入快照：
+
+```bash
+node tools/export-room-data.js --write
+```
+
+检查快照是否同步：
+
+```bash
+node tools/export-room-data.js --check
+```
+
+当前 `--check` 的行为是：如果 `data/rooms.generated.json` 已提交，就检查快照是否与 `summit-spark.js` 同步；如果尚未提交快照，则只验证导出路径可用。
+
 ## 后续抽取计划
 
 P2 真正拆分时，建议按以下顺序：
 
-1. 创建 `src/game/rooms.js` 或 `data/rooms.js`。
-2. 先迁移只读数据，不迁移物理和渲染逻辑。
-3. 让 `tools/check-data-contracts.js` 优先从新数据文件读取。
-4. 再更新 `tools/check-maps.js`。
-5. 最后让 `summit-spark.js` 从新数据入口读取或在构建前生成静态数据。
+1. 使用 `tools/export-room-data.js --write` 生成 `data/rooms.generated.json`。
+2. Review 生成文件，确认没有手抄或编码错误。
+3. 创建 `src/game/rooms.js` 或 `data/rooms.js`，先迁移只读数据，不迁移物理和渲染逻辑。
+4. 让 `tools/check-data-contracts.js` 优先从新数据文件读取。
+5. 再更新 `tools/check-maps.js`。
+6. 最后让 `summit-spark.js` 从新数据入口读取或在构建前生成静态数据。
 
 ## 禁止事项
 

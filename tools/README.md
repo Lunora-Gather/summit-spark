@@ -11,9 +11,9 @@ This directory contains local and CI quality gates for Summit Spark.
 | `check-maintenance-tools.js` | Verifies maintenance tool syntax and prevents duplicated parsing/validation logic. |
 | `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures from the preferred room-data source. |
 | `check-maps.js` | Validates map shape, tile usage, room structure, and pre-release map quality from the preferred room-data source. |
+| `check-route-audit.js` | Validates route/training semantics from the preferred room-data source while keeping runtime hook guards against `summit-spark.js`. |
 | `export-room-data.js` | Exports the room/training data currently embedded in `summit-spark.js`. |
 | `report-room-data.js` | Prints a human-readable room data summary and validation result from the preferred room-data source. |
-| `check-route-audit.js` | Validates route and training semantics. |
 | `check-training-state.js` | Validates training state transitions and persistence boundaries. |
 | `check-browser-smoke.js` | Runs browser-level smoke coverage when Chrome/Edge is available. |
 
@@ -62,6 +62,12 @@ Validate maps from the preferred source:
 node tools/check-maps.js
 ```
 
+Audit route/training semantics from the preferred source:
+
+```bash
+node tools/check-route-audit.js
+```
+
 Print a readable room data report:
 
 ```bash
@@ -83,5 +89,6 @@ The `Maintenance Tools` workflow runs `node tools/check-maintenance-tools.js` on
 - Do not add new parsing logic for `summit-spark.js` in multiple scripts.
 - Do not duplicate room/training data validation rules across multiple scripts.
 - Do not make checks and reports source-only once a generated snapshot exists; use the preferred read path.
+- Keep runtime hook guards explicit when a tool still needs to verify `summit-spark.js` wiring.
 - Do not make browser smoke part of the default gate unless CI browser availability is guaranteed.
 - Do not silently skip failed map, data, storage, or public-surface checks.

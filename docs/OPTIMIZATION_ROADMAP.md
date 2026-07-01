@@ -25,10 +25,14 @@
 - [x] 增加 `docs/PLAYTEST_PROTOCOL.md`。
 - [x] 增加 `docs/REFACTORING_GUIDE.md`。
 - [x] 增加 `docs/QUALITY_GATES.md`。
+- [x] 增加 `docs/AI_HANDOFF.md`。
 - [x] 增加 PR 模板和 Issue 模板。
-- [x] 增加 `tools/check-docs.js`，把文档完整性接入质量门。
+- [x] 增加 `tools/check-docs.js`，把文档完整性接入 PR 和 Pages 质量门。
+- [x] 增加 `tools/check-public-surface.js`，检查入口页、版本号和关键公开 UI。
+- [x] 扩展 PR workflow：文档检查、公开页面检查、默认 `npm run check`。
+- [x] 扩展 Pages workflow：部署前先跑文档检查和公开页面检查。
 
-验收：`npm run check` 通过，且文档缺失会失败。
+验收：PR 和 Pages 部署前会检查文档/入口页/默认质量门；文档缺失、入口页不同步或资源版本不同步会失败。
 
 ## P2：低风险模块化
 
@@ -113,15 +117,17 @@
 
 1. 修改 build version。
 2. 更新 `CHANGELOG.md`。
-3. 跑 `npm run check`。
-4. 对高风险改动跑 `npm run browser-smoke`。
-5. 按 `RELEASE_CHECKLIST.md` 做人工确认。
-6. 合并后检查 Pages 线上版本。
+3. 跑 `node tools/check-docs.js`。
+4. 跑 `node tools/check-public-surface.js`。
+5. 跑 `npm run check`。
+6. 对高风险改动跑 `npm run browser-smoke`。
+7. 按 `RELEASE_CHECKLIST.md` 做人工确认。
+8. 合并后检查 Pages 线上版本。
 
 ## 当前优先级建议
 
 下一步最值得做的三件事：
 
-1. 做一次 R1-R10 真人试玩，拿到真实摩擦点。
-2. 开始 P2，只抽房间数据和纯函数。
-3. 改进 README 首页导航，让试玩者先看到“在线试玩 / 操作 / 反馈”。
+1. 等 PR checks 跑完，确认文档门、公开页面门和默认质量门是否通过。
+2. 做一次 R1-R10 真人试玩，拿到真实摩擦点。
+3. 开始 P2，只抽房间数据和纯函数，不改物理与手感。

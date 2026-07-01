@@ -34,6 +34,8 @@ const requiredFiles = [
   "PLAYTEST_CHECKLIST.md",
   "KNOWN_ISSUES.md",
   "CONTRIBUTING.md",
+  "data/README.md",
+  "data/rooms.generated.json",
   "docs/ARCHITECTURE.md",
   "docs/CONTENT_BIBLE.md",
   "docs/DATA_CONTRACTS.md",
@@ -101,6 +103,11 @@ requireIncludes("tools/README.md", [
   "export-room-data.js",
   "report-room-data.js",
   "check-data-contracts.js"
+]);
+
+requireIncludes("data/README.md", [
+  "rooms.generated.json",
+  "summit-spark.js"
 ]);
 
 requireIncludes(".github/workflows/maintenance-tools.yml", [

@@ -42,6 +42,8 @@ const requiredFiles = [
   "docs/REFACTORING_GUIDE.md",
   "docs/QUALITY_GATES.md",
   "docs/AI_HANDOFF.md",
+  "tools/README.md",
+  "tools/lib/read-summit-data.js",
   ".github/pull_request_template.md",
   ".github/ISSUE_TEMPLATE/bug_report.yml",
   ".github/ISSUE_TEMPLATE/playtest_feedback.yml",
@@ -72,7 +74,8 @@ requireIncludes("docs/CONTENT_BIBLE.md", [
 requireIncludes("docs/DATA_CONTRACTS.md", [
   "当前数据源",
   "必须保持的关系",
-  "tools/check-data-contracts.js"
+  "tools/check-data-contracts.js",
+  "tools/export-room-data.js"
 ]);
 
 requireIncludes("docs/OPTIMIZATION_ROADMAP.md", [
@@ -85,6 +88,12 @@ requireIncludes("docs/QUALITY_GATES.md", [
   "npm run check",
   "npm run browser-smoke",
   "改动风险分级"
+]);
+
+requireIncludes("tools/README.md", [
+  "tools/lib/read-summit-data.js",
+  "export-room-data.js",
+  "check-data-contracts.js"
 ]);
 
 requireIncludes("RELEASE_CHECKLIST.md", [

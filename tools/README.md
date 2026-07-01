@@ -9,10 +9,10 @@ This directory contains local and CI quality gates for Summit Spark.
 | `check-docs.js` | Verifies required documentation, templates, and process files. |
 | `check-public-surface.js` | Verifies `index.html` / `summit-spark.html` consistency, build version, and public UI anchors. |
 | `check-maintenance-tools.js` | Verifies maintenance tool syntax and prevents duplicated parsing/validation logic. |
-| `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures. |
+| `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures from the preferred room-data source. |
+| `check-maps.js` | Validates map shape, tile usage, room structure, and pre-release map quality from the preferred room-data source. |
 | `export-room-data.js` | Exports the room/training data currently embedded in `summit-spark.js`. |
-| `report-room-data.js` | Prints a human-readable room data summary and validation result. |
-| `check-maps.js` | Validates map shape, tile usage, room structure, and pre-release map quality. |
+| `report-room-data.js` | Prints a human-readable room data summary and validation result from the preferred room-data source. |
 | `check-route-audit.js` | Validates route and training semantics. |
 | `check-training-state.js` | Validates training state transitions and persistence boundaries. |
 | `check-browser-smoke.js` | Runs browser-level smoke coverage when Chrome/Edge is available. |
@@ -54,6 +54,12 @@ Validate data contracts:
 
 ```bash
 node tools/check-data-contracts.js
+```
+
+Validate maps from the preferred source:
+
+```bash
+node tools/check-maps.js
 ```
 
 Print a readable room data report:

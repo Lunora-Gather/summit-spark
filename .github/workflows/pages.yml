@@ -33,6 +33,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Run documentation gate
+        run: node tools/check-docs.js
+
       - name: Run quality gate
         run: npm run check
 

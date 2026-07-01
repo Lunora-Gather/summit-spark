@@ -61,12 +61,30 @@ for (const file of requiredToolFiles) {
   }
 }
 
+const reader = read("tools/lib/read-summit-data.js");
+for (const required of [
+  "hasGeneratedSnapshot",
+  "readGeneratedSnapshot",
+  "buildRoomDataSnapshotFromSource",
+  "loadRoomDataSnapshot"
+]) {
+  if (!reader.includes(required)) {
+    push(`tools/lib/read-summit-data.js should export ${required}`);
+  }
+}
+
 const report = read("tools/report-room-data.js");
+if (!report.includes("loadRoomDataSnapshot")) {
+  push("tools/report-room-data.js should use loadRoomDataSnapshot so it can read generated snapshots");
+}
 if (!report.includes("validateRoomDataSnapshot") || !report.includes("getRoomDataSummary")) {
   push("tools/report-room-data.js should use the shared validator and summary helper");
 }
 
 const dataCheck = read("tools/check-data-contracts.js");
+if (!dataCheck.includes("loadRoomDataSnapshot")) {
+  push("tools/check-data-contracts.js should use loadRoomDataSnapshot so it can validate generated snapshots");
+}
 if (!dataCheck.includes("validateRoomDataSnapshot") || !dataCheck.includes("getRoomDataSummary")) {
   push("tools/check-data-contracts.js should use the shared validator and summary helper");
 }
@@ -74,6 +92,9 @@ if (!dataCheck.includes("validateRoomDataSnapshot") || !dataCheck.includes("getR
 const exporter = read("tools/export-room-data.js");
 if (!exporter.includes("buildRoomDataSnapshot") || !exporter.includes("normalizeSnapshot")) {
   push("tools/export-room-data.js should use the shared reader and snapshot normalizer");
+}
+if (exporter.includes("loadRoomDataSnapshot")) {
+  push("tools/export-room-data.js should generate from source, not from the preferred snapshot loader");
 }
 
 if (errors.length > 0) {

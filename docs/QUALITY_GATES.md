@@ -18,9 +18,37 @@
 - 合约检查。
 - route audit。
 - training state 检查。
-- 文档完整性检查。
 
 原则：默认质量门不能强依赖浏览器可执行文件，因为 CI 或受限环境可能没有 Chrome/Edge。
+
+### `node tools/check-docs.js`
+
+文档完整性门。PR 和 Pages 部署前都会运行。
+
+它会检查：
+
+- 核心文档是否存在。
+- README 是否保留运行、操作、开发方向和最新推进。
+- 发布、试玩、已知限制、架构、内容和重构说明是否齐全。
+- PR 模板和 Issue 模板是否存在。
+
+文档不是装饰。它承担三个作用：
+
+1. 给试玩者入口。
+2. 给维护者边界。
+3. 给 AI/自动化任务明确约束，避免无边界改动。
+
+### `node tools/check-public-surface.js`
+
+公开页面一致性门。PR 和 Pages 部署前都会运行。
+
+它会检查：
+
+- `index.html` 与 `summit-spark.html` 保持一致。
+- HTML `meta build-version` 与 CSS/JS 资源 query string 一致。
+- Canvas、开始按钮、设置面板、练习按钮、反馈备注、存档导入、触控按钮和主脚本引用仍存在。
+
+这个检查专门防止公开 demo 常见失误：入口页不同步、版本号没改全、部署出旧资源、关键按钮被误删。
 
 ### `npm run browser-smoke`
 
@@ -72,40 +100,27 @@
 
 人工检查结果应写入 Issue 或 `KNOWN_ISSUES.md`。
 
-## 文档检查
-
-`tools/check-docs.js` 会检查：
-
-- 核心文档是否存在。
-- README 是否保留运行、操作、开发方向和最新推进。
-- 发布、试玩、已知限制、架构、内容和重构说明是否齐全。
-- PR 模板和 Issue 模板是否存在。
-
-文档不是装饰。它承担三个作用：
-
-1. 给试玩者入口。
-2. 给维护者边界。
-3. 给 AI/自动化任务明确约束，避免无边界改动。
-
 ## 改动风险分级
 
 | 风险 | 类型 | 必须检查 |
 | --- | --- | --- |
-| Low | README、docs、Issue 模板、PR 模板 | `npm run check` |
+| Low | README、docs、Issue 模板、PR 模板 | `node tools/check-docs.js` + `node tools/check-public-surface.js` |
 | Medium | 地图元数据、训练文案、release checklist | `npm run check` + 相关人工检查 |
 | High | 输入、存档、移动端 UI、Route/Feel/Drill 状态 | `npm run check` + `npm run browser-smoke` |
 | Critical | 物理、碰撞、房间地图、渲染主循环 | `npm run check` + `npm run browser-smoke` + 人工 R1-R10 |
 
 ## 发布前最低清单
 
-1. `npm run check`
-2. `git diff --check`
-3. 本地 `npm start` 打开一次。
-4. 确认 `index.html` 和 `summit-spark.html` 一致。
-5. 确认 build version 和资源 query string 一致。
-6. 更新 `CHANGELOG.md`。
-7. 按变更类型更新相关文档。
-8. 合并后打开线上 Pages 检查版本。
+1. `node tools/check-docs.js`
+2. `node tools/check-public-surface.js`
+3. `npm run check`
+4. `git diff --check`
+5. 本地 `npm start` 打开一次。
+6. 确认 `index.html` 和 `summit-spark.html` 一致。
+7. 确认 build version 和资源 query string 一致。
+8. 更新 `CHANGELOG.md`。
+9. 按变更类型更新相关文档。
+10. 合并后打开线上 Pages 检查版本。
 
 ## 失败处理
 

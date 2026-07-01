@@ -10,6 +10,11 @@ const {
   normalizeSnapshot
 } = require("./lib/read-summit-data");
 
+function readNormalizedSnapshot(snapshotPath) {
+  const current = fs.readFileSync(snapshotPath, "utf8");
+  return normalizeSnapshot(JSON.parse(current));
+}
+
 function main() {
   const args = new Set(process.argv.slice(2));
   const snapshot = buildRoomDataSnapshot();
@@ -24,7 +29,7 @@ function main() {
 
   if (args.has("--check")) {
     if (fs.existsSync(defaultSnapshotPath)) {
-      const current = fs.readFileSync(defaultSnapshotPath, "utf8").replace(/\r\n/g, "\n");
+      const current = readNormalizedSnapshot(defaultSnapshotPath);
       if (current !== json) {
         console.error("Room data snapshot is out of date. Run: node tools/export-room-data.js --write");
         process.exit(1);

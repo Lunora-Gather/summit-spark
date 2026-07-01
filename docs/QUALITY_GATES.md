@@ -65,6 +65,14 @@
 
 这个检查是 P2 低风险模块化的前置防护：先固定数据关系，再移动数据文件。
 
+### `node tools/export-room-data.js --check`
+
+房间数据导出通道检查。PR 和 Pages 部署前都会运行。
+
+它会从当前 `summit-spark.js` 中抽取房间、路线、Style/Expert、Route contract 和 Feel fixture 数据，确认数据可以被稳定导出。若已经提交了 `data/rooms.generated.json`，它会检查快照是否与当前源码同步；如果尚未提交快照，则只验证导出路径可用。
+
+这个检查用于 P2 迁移桥接：先保证可从单体脚本生成独立数据，再在后续 PR 中把数据源真正迁到 `src/game` 或 `data`。
+
 ### `npm run browser-smoke`
 
 强质量门，需要本机 Chrome/Edge headless。
@@ -120,7 +128,7 @@
 | 风险 | 类型 | 必须检查 |
 | --- | --- | --- |
 | Low | README、docs、Issue 模板、PR 模板 | `node tools/check-docs.js` + `node tools/check-public-surface.js` |
-| Medium | 地图元数据、训练文案、release checklist | `node tools/check-data-contracts.js` + `npm run check` + 相关人工检查 |
+| Medium | 地图元数据、训练文案、release checklist | `node tools/check-data-contracts.js` + `node tools/export-room-data.js --check` + `npm run check` + 相关人工检查 |
 | High | 输入、存档、移动端 UI、Route/Feel/Drill 状态 | `npm run check` + `npm run browser-smoke` |
 | Critical | 物理、碰撞、房间地图、渲染主循环 | `npm run check` + `npm run browser-smoke` + 人工 R1-R10 |
 
@@ -129,14 +137,15 @@
 1. `node tools/check-docs.js`
 2. `node tools/check-public-surface.js`
 3. `node tools/check-data-contracts.js`
-4. `npm run check`
-5. `git diff --check`
-6. 本地 `npm start` 打开一次。
-7. 确认 `index.html` 和 `summit-spark.html` 一致。
-8. 确认 build version 和资源 query string 一致。
-9. 更新 `CHANGELOG.md`。
-10. 按变更类型更新相关文档。
-11. 合并后打开线上 Pages 检查版本。
+4. `node tools/export-room-data.js --check`
+5. `npm run check`
+6. `git diff --check`
+7. 本地 `npm start` 打开一次。
+8. 确认 `index.html` 和 `summit-spark.html` 一致。
+9. 确认 build version 和资源 query string 一致。
+10. 更新 `CHANGELOG.md`。
+11. 按变更类型更新相关文档。
+12. 合并后打开线上 Pages 检查版本。
 
 ## 失败处理
 

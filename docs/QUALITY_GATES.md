@@ -54,6 +54,8 @@
 
 房间与训练数据契约门。PR 和 Pages 部署前都会运行。
 
+它会检查 preferred room-data source：若 `data/rooms.generated.json` 存在，则验证快照；否则回退验证 `summit-spark.js` 中的源数据。
+
 它会检查：
 
 - `maps` 与 `ROOM_TARGETS`、`ROOM_NAMES`、`ROOM_TIERS`、`ROOM_SKILLS`、`ROOM_GUIDES`、`ROOM_PURPOSES`、`ROOM_ROUTE_LINES`、`ROOM_STYLE_TRIALS`、`EXPERT_REQUIREMENTS` 数量一致。
@@ -64,6 +66,22 @@
 - Feel replay fixture 的房间编号、延迟和 expected 有效。
 
 这个检查是 P2 低风险模块化的前置防护：先固定数据关系，再移动数据文件。
+
+### `node tools/check-maps.js`
+
+地图结构与难度曲线检查。`npm run check` 会运行它。
+
+它会检查 preferred room-data source：若 `data/rooms.generated.json` 存在，则验证快照中的地图；否则回退验证 `summit-spark.js` 中的源数据。
+
+它会检查：
+
+- 每房行列数。
+- 入口、出口、起点和终点数量。
+- 未知 tile。
+- 早中晚房间压力曲线。
+- 脆冰出现阶段和数量。
+- 可读落点数量。
+- Expert / Style 要求与地图 tile 是否匹配。
 
 ### `node tools/export-room-data.js --check`
 
@@ -128,7 +146,7 @@
 | 风险 | 类型 | 必须检查 |
 | --- | --- | --- |
 | Low | README、docs、Issue 模板、PR 模板 | `node tools/check-docs.js` + `node tools/check-public-surface.js` |
-| Medium | 地图元数据、训练文案、release checklist | `node tools/check-data-contracts.js` + `node tools/export-room-data.js --check` + `npm run check` + 相关人工检查 |
+| Medium | 地图元数据、训练文案、release checklist | `node tools/check-data-contracts.js` + `node tools/check-maps.js` + `node tools/export-room-data.js --check` + `npm run check` + 相关人工检查 |
 | High | 输入、存档、移动端 UI、Route/Feel/Drill 状态 | `npm run check` + `npm run browser-smoke` |
 | Critical | 物理、碰撞、房间地图、渲染主循环 | `npm run check` + `npm run browser-smoke` + 人工 R1-R10 |
 
@@ -137,15 +155,16 @@
 1. `node tools/check-docs.js`
 2. `node tools/check-public-surface.js`
 3. `node tools/check-data-contracts.js`
-4. `node tools/export-room-data.js --check`
-5. `npm run check`
-6. `git diff --check`
-7. 本地 `npm start` 打开一次。
-8. 确认 `index.html` 和 `summit-spark.html` 一致。
-9. 确认 build version 和资源 query string 一致。
-10. 更新 `CHANGELOG.md`。
-11. 按变更类型更新相关文档。
-12. 合并后打开线上 Pages 检查版本。
+4. `node tools/check-maps.js`
+5. `node tools/export-room-data.js --check`
+6. `npm run check`
+7. `git diff --check`
+8. 本地 `npm start` 打开一次。
+9. 确认 `index.html` 和 `summit-spark.html` 一致。
+10. 确认 build version 和资源 query string 一致。
+11. 更新 `CHANGELOG.md`。
+12. 按变更类型更新相关文档。
+13. 合并后打开线上 Pages 检查版本。
 
 ## 失败处理
 

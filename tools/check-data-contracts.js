@@ -1,77 +1,35 @@
 #!/usr/bin/env node
 "use strict";
 
-const fs = require("fs");
-const path = require("path");
+const { buildRoomDataSnapshot } = require("./lib/read-summit-data");
 
-const root = path.resolve(__dirname, "..");
-const source = fs.readFileSync(path.join(root, "summit-spark.js"), "utf8");
 const errors = [];
 
 function push(message) {
   errors.push(message);
 }
 
-function extractConst(name, expectedStart) {
-  const needle = `const ${name} = `;
-  const start = source.indexOf(needle);
-  if (start === -1) throw new Error(`Missing ${name}`);
-  const expressionStart = source.indexOf(expectedStart, start);
-  if (expressionStart === -1) throw new Error(`Missing ${expectedStart} for ${name}`);
-  const open = source[expressionStart];
-  const close = open === "[" ? "]" : "}";
-  let depth = 0;
-  let inString = false;
-  let quote = "";
-  let escaped = false;
-
-  for (let i = expressionStart; i < source.length; i += 1) {
-    const ch = source[i];
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (ch === "\\") {
-        escaped = true;
-      } else if (ch === quote) {
-        inString = false;
-      }
-      continue;
-    }
-    if (ch === "\"" || ch === "'" || ch === "`") {
-      inString = true;
-      quote = ch;
-      continue;
-    }
-    if (ch === open) depth += 1;
-    if (ch === close) {
-      depth -= 1;
-      if (depth === 0) {
-        const expression = source.slice(expressionStart, i + 1);
-        return Function("\"use strict\"; return (" + expression + ");")();
-      }
-    }
-  }
-  throw new Error(`Unclosed ${name}`);
-}
-
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-const maps = extractConst("maps", "[");
-const targets = extractConst("ROOM_TARGETS", "[");
-const names = extractConst("ROOM_NAMES", "[");
-const tiers = extractConst("ROOM_TIERS", "[");
-const skills = extractConst("ROOM_SKILLS", "[");
-const skillLabels = extractConst("SKILL_LABELS", "{");
-const guides = extractConst("ROOM_GUIDES", "[");
-const purposes = extractConst("ROOM_PURPOSES", "[");
-const routeLines = extractConst("ROOM_ROUTE_LINES", "[");
-const styleTrials = extractConst("ROOM_STYLE_TRIALS", "[");
-const expertRequirements = extractConst("EXPERT_REQUIREMENTS", "[");
-const expertLabels = extractConst("EXPERT_REQUIREMENT_LABELS", "{");
-const routeContracts = extractConst("ROUTE_CONTRACTS", "[");
-const feelFixtures = extractConst("FEEL_REPLAY_FIXTURES", "[");
+const snapshot = buildRoomDataSnapshot();
+const {
+  maps,
+  roomTargets: targets,
+  roomNames: names,
+  roomTiers: tiers,
+  roomSkills: skills,
+  skillLabels,
+  roomGuides: guides,
+  roomPurposes: purposes,
+  roomRouteLines: routeLines,
+  roomStyleTrials: styleTrials,
+  expertRequirements,
+  expertRequirementLabels: expertLabels,
+  routeContracts,
+  feelReplayFixtures: feelFixtures
+} = snapshot;
 
 const roomCount = maps.length;
 const roomArrays = {
@@ -166,6 +124,7 @@ expertRequirements.forEach((requirements, roomIndex) => {
   }
 });
 
+const allowedStepModes = new Set(["clean", "pace", "style", "expert"]);
 routeContracts.forEach((contract, contractIndex) => {
   if (!contract || typeof contract !== "object") {
     push(`ROUTE_CONTRACTS ${contractIndex + 1} must be an object`);
@@ -181,7 +140,7 @@ routeContracts.forEach((contract, contractIndex) => {
       if (!Number.isInteger(step.index) || step.index < 0 || step.index >= roomCount) {
         push(`ROUTE_CONTRACTS ${contractIndex + 1} has out-of-range room index ${step.index}`);
       }
-      if (!new Set(["clean", "pace", "style", "expert"]).has(step.mode)) {
+      if (!allowedStepModes.has(step.mode)) {
         push(`ROUTE_CONTRACTS ${contractIndex + 1} has unknown step mode ${step.mode}`);
       }
     }

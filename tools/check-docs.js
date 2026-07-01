@@ -36,10 +36,12 @@ const requiredFiles = [
   "CONTRIBUTING.md",
   "docs/ARCHITECTURE.md",
   "docs/CONTENT_BIBLE.md",
+  "docs/DATA_CONTRACTS.md",
   "docs/OPTIMIZATION_ROADMAP.md",
   "docs/PLAYTEST_PROTOCOL.md",
   "docs/REFACTORING_GUIDE.md",
   "docs/QUALITY_GATES.md",
+  "docs/AI_HANDOFF.md",
   ".github/pull_request_template.md",
   ".github/ISSUE_TEMPLATE/bug_report.yml",
   ".github/ISSUE_TEMPLATE/playtest_feedback.yml",
@@ -65,6 +67,12 @@ requireIncludes("docs/CONTENT_BIBLE.md", [
   "一句话定位",
   "核心体验",
   "内容扩展规则"
+]);
+
+requireIncludes("docs/DATA_CONTRACTS.md", [
+  "当前数据源",
+  "必须保持的关系",
+  "tools/check-data-contracts.js"
 ]);
 
 requireIncludes("docs/OPTIMIZATION_ROADMAP.md", [

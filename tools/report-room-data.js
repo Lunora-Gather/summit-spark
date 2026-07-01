@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 "use strict";
 
-const { buildRoomDataSnapshot } = require("./lib/read-summit-data");
+const { loadRoomDataSnapshot } = require("./lib/read-summit-data");
 const {
   validateRoomDataSnapshot,
   getRoomDataSummary
 } = require("./lib/validate-room-data");
 
-const snapshot = buildRoomDataSnapshot();
+const snapshot = loadRoomDataSnapshot();
 const summary = getRoomDataSummary(snapshot);
 const errors = validateRoomDataSnapshot(snapshot);
 

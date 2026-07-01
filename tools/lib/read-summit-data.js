@@ -11,6 +11,14 @@ function readSource(sourcePath = defaultSourcePath) {
   return fs.readFileSync(sourcePath, "utf8");
 }
 
+function hasGeneratedSnapshot(snapshotPath = defaultSnapshotPath) {
+  return fs.existsSync(snapshotPath);
+}
+
+function readGeneratedSnapshot(snapshotPath = defaultSnapshotPath) {
+  return JSON.parse(fs.readFileSync(snapshotPath, "utf8"));
+}
+
 function extractConst(source, name, expectedStart) {
   const needle = `const ${name} = `;
   const start = source.indexOf(needle);
@@ -53,7 +61,7 @@ function extractConst(source, name, expectedStart) {
   throw new Error(`Unclosed ${name}`);
 }
 
-function buildRoomDataSnapshot(source = readSource()) {
+function buildRoomDataSnapshotFromSource(source = readSource()) {
   const maps = extractConst(source, "maps", "[");
   return {
     generatedFrom: "summit-spark.js",
@@ -77,6 +85,24 @@ function buildRoomDataSnapshot(source = readSource()) {
   };
 }
 
+function loadRoomDataSnapshot(options = {}) {
+  const {
+    preferGenerated = true,
+    snapshotPath = defaultSnapshotPath,
+    sourcePath = defaultSourcePath
+  } = options;
+
+  if (preferGenerated && hasGeneratedSnapshot(snapshotPath)) {
+    return readGeneratedSnapshot(snapshotPath);
+  }
+
+  return buildRoomDataSnapshotFromSource(readSource(sourcePath));
+}
+
+function buildRoomDataSnapshot(source = readSource()) {
+  return buildRoomDataSnapshotFromSource(source);
+}
+
 function normalizeSnapshot(value) {
   return JSON.stringify(value, null, 2) + "\n";
 }
@@ -86,7 +112,11 @@ module.exports = {
   defaultSourcePath,
   defaultSnapshotPath,
   readSource,
+  hasGeneratedSnapshot,
+  readGeneratedSnapshot,
   extractConst,
   buildRoomDataSnapshot,
+  buildRoomDataSnapshotFromSource,
+  loadRoomDataSnapshot,
   normalizeSnapshot
 };

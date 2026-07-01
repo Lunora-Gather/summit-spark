@@ -39,6 +39,9 @@ jobs:
       - name: Run public surface gate
         run: node tools/check-public-surface.js
 
+      - name: Run data contract gate
+        run: node tools/check-data-contracts.js
+
       - name: Run quality gate
         run: npm run check
 

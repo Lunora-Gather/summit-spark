@@ -10,6 +10,8 @@ This directory contains local and CI quality gates for Summit Spark.
 | `check-public-surface.js` | Verifies `index.html` / `summit-spark.html` consistency, build version, and public UI anchors. |
 | `check-maintenance-tools.js` | Verifies maintenance tool syntax and prevents duplicated parsing/validation logic. |
 | `check-room-data-migration.js` | Verifies the staged room-data migration plan, generated snapshot, and current runtime source boundary. |
+| `check-room-data-adapter-plan.js` | Verifies the documented runtime-adapter boundary stays explicit before implementation. |
+| `check-room-data-runtime-view.js` | Verifies the pure room-data runtime view helper preserves all adapter fields without side effects. |
 | `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures from the preferred room-data source. |
 | `check-maps.js` | Validates map shape, tile usage, room structure, and pre-release map quality from the preferred room-data source. |
 | `check-route-audit.js` | Validates route/training semantics from the preferred room-data source while keeping runtime hook guards against `summit-spark.js`. |
@@ -29,7 +31,9 @@ It exposes two intentionally different paths:
 
 `tools/lib/validate-room-data.js` is the shared validator for room/training data contracts. Use it from reporting, checking, and migration tools instead of duplicating validation rules.
 
-Use these helpers instead of duplicating parsing or validation logic in new tools. Once the source of truth moves to `src/game` or `data`, update the shared helpers first, then keep the callers stable.
+`tools/lib/room-data-runtime-view.js` is a pure helper that converts a validated snapshot into the planned runtime adapter shape. It is intentionally not wired into gameplay runtime yet.
+
+Use these helpers instead of duplicating parsing, validation, or adapter-shape logic in new tools. Once the source of truth moves to `src/game` or `data`, update the shared helpers first, then keep the callers stable.
 
 ## Data migration commands
 
@@ -75,6 +79,18 @@ Verify room-data migration guardrails:
 node tools/check-room-data-migration.js
 ```
 
+Verify runtime-adapter plan:
+
+```bash
+node tools/check-room-data-adapter-plan.js
+```
+
+Verify pure runtime-view helper:
+
+```bash
+node tools/check-room-data-runtime-view.js
+```
+
 Print a readable room data report:
 
 ```bash
@@ -89,12 +105,13 @@ node tools/check-maintenance-tools.js
 
 ## CI
 
-The `Maintenance Tools` workflow runs `node tools/check-room-data-migration.js` and `node tools/check-maintenance-tools.js` on pull requests and manually via `workflow_dispatch`.
+The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime-view, and maintenance-tool checks on pull requests and manually via `workflow_dispatch`.
 
 ## Policy
 
 - Do not add new parsing logic for `summit-spark.js` in multiple scripts.
 - Do not duplicate room/training data validation rules across multiple scripts.
+- Do not duplicate the room-data runtime adapter field list across unrelated tools.
 - Do not make checks and reports source-only once a generated snapshot exists; use the preferred read path.
 - Keep runtime hook guards explicit when a tool still needs to verify `summit-spark.js` wiring.
 - Do not make browser smoke part of the default gate unless CI browser availability is guaranteed.

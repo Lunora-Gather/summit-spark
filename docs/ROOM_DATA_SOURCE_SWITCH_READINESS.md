@@ -22,6 +22,7 @@ node tools/check-room-data-adapter-plan.js
 node tools/check-room-data-runtime-view.js
 node tools/check-room-data-legacy-constants.js
 node tools/check-room-data-source-switch-readiness.js
+node tools/check-room-data-source-switch-playtest-template.js
 npm run check
 ```
 
@@ -29,7 +30,7 @@ npm run check
 
 ## Required manual checks
 
-A runtime source-switch PR must record:
+A runtime source-switch PR must record the manual notes from `docs/ROOM_DATA_SOURCE_SWITCH_PLAYTEST.md`:
 
 - R1-R10 route sanity pass.
 - At least one keyboard pass.
@@ -75,5 +76,5 @@ The source-switch PR must keep rollback simple:
 - [ ] Public surface is unchanged unless explicitly reviewed.
 - [ ] Save schema is unchanged unless separately reviewed.
 - [ ] Automated checks listed above pass.
-- [ ] Manual R1-R10 and UI checks are recorded.
+- [ ] Manual R1-R10 and UI checks are recorded using `docs/ROOM_DATA_SOURCE_SWITCH_PLAYTEST.md`.
 - [ ] Rollback path is documented in the PR body.

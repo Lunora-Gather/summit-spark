@@ -19,5 +19,8 @@ jobs:
         with:
           node-version: 24
 
+      - name: Check room data migration
+        run: node tools/check-room-data-migration.js
+
       - name: Check maintenance tools
         run: node tools/check-maintenance-tools.js

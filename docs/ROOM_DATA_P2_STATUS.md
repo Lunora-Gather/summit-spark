@@ -65,4 +65,4 @@ A runtime source switch is still blocked until:
 
 ## Status summary
 
-P2 is ready for the tiny runtime compatibility seam insertion PR. It is not ready for the actual runtime source switch yet.
+P2 is ready for a small runtime compatibility seam PR. More specifically, the next step is the tiny runtime compatibility seam insertion PR. It is not ready for the actual runtime source switch yet.

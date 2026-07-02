@@ -14,6 +14,7 @@ This directory contains local and CI quality gates for Summit Spark.
 | `check-room-data-runtime-view.js` | Verifies the pure room-data runtime view helper preserves all adapter fields without side effects. |
 | `check-room-data-legacy-constants.js` | Verifies the legacy runtime constant mapping preserves current names without switching data source. |
 | `check-room-data-source-switch-readiness.js` | Verifies the source-switch gate, manual test requirements, rollback path, and unchanged current runtime source. |
+| `check-room-data-tool-registry.js` | Verifies room-data tools and helpers are registered in CI and this README. |
 | `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures from the preferred room-data source. |
 | `check-maps.js` | Validates map shape, tile usage, room structure, and pre-release map quality from the preferred room-data source. |
 | `check-route-audit.js` | Validates route/training semantics from the preferred room-data source while keeping runtime hook guards against `summit-spark.js`. |
@@ -107,6 +108,12 @@ Verify source-switch readiness before a runtime-source PR:
 node tools/check-room-data-source-switch-readiness.js
 ```
 
+Verify room-data tool registration:
+
+```bash
+node tools/check-room-data-tool-registry.js
+```
+
 Print a readable room data report:
 
 ```bash
@@ -121,7 +128,7 @@ node tools/check-maintenance-tools.js
 
 ## CI
 
-The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime-view, legacy-constants, source-switch-readiness, and maintenance-tool checks on pull requests and manually via `workflow_dispatch`.
+The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime-view, legacy-constants, source-switch-readiness, tool-registry, and maintenance-tool checks on pull requests and manually via `workflow_dispatch`.
 
 ## Policy
 
@@ -129,6 +136,7 @@ The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime
 - Do not duplicate room/training data validation rules across multiple scripts.
 - Do not duplicate the room-data runtime adapter field list across unrelated tools.
 - Do not duplicate legacy constant mapping logic outside `tools/lib/room-data-legacy-constants.js`.
+- Do not add room-data migration tools without registering them in `tools/check-room-data-tool-registry.js`, this README, and the Maintenance Tools workflow.
 - Do not switch the runtime source until source-switch readiness and manual R1-R10 checks are recorded.
 - Do not make checks and reports source-only once a generated snapshot exists; use the preferred read path.
 - Keep runtime hook guards explicit when a tool still needs to verify `summit-spark.js` wiring.

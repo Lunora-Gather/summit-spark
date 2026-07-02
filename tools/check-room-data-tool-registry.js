@@ -19,6 +19,7 @@ const roomDataTools = [
   "tools/check-room-data-runtime-compat-seam.js",
   "tools/check-room-data-seam-insertion-guide.js",
   "tools/check-room-data-seam-preflight.js",
+  "tools/insert-room-data-runtime-seam.js",
   "tools/check-room-data-p2-status.js"
 ];
 
@@ -75,6 +76,7 @@ for (const helper of roomDataHelperFiles) {
 if (!workflow.includes("Check room data migration")) push("workflow should keep the migration gate step named explicitly");
 if (!workflow.includes("Check room data seam insertion guide")) push("workflow should keep the seam insertion guide step named explicitly");
 if (!workflow.includes("Check room data seam preflight")) push("workflow should keep the seam preflight step named explicitly");
+if (!workflow.includes("Check room data seam insertion dry run")) push("workflow should keep the seam insertion dry-run step named explicitly");
 if (!workflow.includes("Check room data P2 status")) push("workflow should keep the P2 status step named explicitly");
 if (!workflow.includes("Check room data source switch playtest template")) push("workflow should keep the source-switch playtest template step named explicitly");
 if (!workflow.includes("Check room data runtime call-site plan")) push("workflow should keep the runtime call-site plan step named explicitly");

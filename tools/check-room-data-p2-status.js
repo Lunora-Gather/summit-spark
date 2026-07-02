@@ -37,6 +37,7 @@ const status = requireIncludes("docs/ROOM_DATA_P2_STATUS.md", [
   "Next safe implementation step",
   "Still blocked",
   "Status summary",
+  "tiny runtime compatibility seam insertion PR",
   "not ready for the actual runtime source switch yet"
 ]);
 
@@ -65,6 +66,9 @@ const requiredFiles = [
   "tools/check-room-data-source-switch-playtest-template.js",
   "tools/check-room-data-runtime-callsite-plan.js",
   "tools/check-room-data-runtime-compat-seam.js",
+  "tools/check-room-data-seam-insertion-guide.js",
+  "tools/check-room-data-seam-preflight.js",
+  "tools/insert-room-data-runtime-seam.js",
   "tools/check-room-data-tool-registry.js",
   "tools/check-maintenance-tools.js",
   "tools/lib/room-data-runtime-view.js",
@@ -74,6 +78,17 @@ const requiredFiles = [
 for (const file of requiredFiles) {
   if (!fs.existsSync(path.join(root, file))) push(`missing required P2 status file: ${file}`);
   if (!status.includes(file)) push(`P2 status should mention: ${file}`);
+}
+
+const insertionTool = requireIncludes("tools/insert-room-data-runtime-seam.js", [
+  "--check",
+  "--write",
+  "createRoomDataRuntimeViewFromEmbeddedConstants",
+  "const insertionAnchor = \"  const maps = [\""
+]);
+
+if (!insertionTool.includes("Object.freeze")) {
+  push("seam insertion tool should preserve the frozen runtime-view shape");
 }
 
 const source = requireIncludes("summit-spark.js", [
@@ -98,4 +113,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log(`Room data P2 status check passed: ${snapshot.roomCount} rooms, staging gates documented, source switch still blocked.`);
+console.log(`Room data P2 status check passed: ${snapshot.roomCount} rooms, seam insertion tool documented, source switch still blocked.`);

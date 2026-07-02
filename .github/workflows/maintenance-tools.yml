@@ -22,5 +22,8 @@ jobs:
       - name: Check room data migration
         run: node tools/check-room-data-migration.js
 
+      - name: Check room data adapter plan
+        run: node tools/check-room-data-adapter-plan.js
+
       - name: Check maintenance tools
         run: node tools/check-maintenance-tools.js

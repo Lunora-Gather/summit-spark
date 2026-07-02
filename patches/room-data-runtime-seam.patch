@@ -1,7 +1,7 @@
 diff --git a/summit-spark.js b/summit-spark.js
 --- a/summit-spark.js
 +++ b/summit-spark.js
-@@ -390,6 +390,28 @@
+@@ -391,6 +391,26 @@
      })
    });
  

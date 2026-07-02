@@ -58,35 +58,27 @@ For compatibility, runtime code can then map those normalized names back to the 
 - No public HTML/CSS changes unless a later runtime-source PR explicitly requires it.
 - Keep rollback simple: one revert should restore the old embedded-source path.
 
-## First implementation step
+## Staged helper
 
-The safest next code PR should add a non-invasive adapter helper that can be checked by tooling but is not yet used by gameplay runtime.
-
-Suggested first helper:
+`tools/lib/room-data-runtime-view.js` now provides a pure, unused helper for the planned adapter shape:
 
 ```js
-function createRoomDataRuntimeView(snapshot) {
-  return {
-    roomCount: snapshot.roomCount,
-    maps: snapshot.maps,
-    roomTargets: snapshot.roomTargets,
-    roomNames: snapshot.roomNames,
-    roomTiers: snapshot.roomTiers,
-    roomSkills: snapshot.roomSkills,
-    skillLabels: snapshot.skillLabels,
-    roomGuides: snapshot.roomGuides,
-    roomPurposes: snapshot.roomPurposes,
-    roomRouteLines: snapshot.roomRouteLines,
-    roomStyleTrials: snapshot.roomStyleTrials,
-    expertRequirements: snapshot.expertRequirements,
-    expertRequirementLabels: snapshot.expertRequirementLabels,
-    routeContracts: snapshot.routeContracts,
-    feelReplayFixtures: snapshot.feelReplayFixtures
-  };
-}
+createRoomDataRuntimeView(snapshot)
 ```
 
-This helper should be pure and should not read the DOM, localStorage, canvas, audio, timers, or global input state.
+The helper only projects a validated room-data snapshot into the documented runtime-view fields. It does not read DOM state, localStorage, canvas, audio, timers, input state, or `summit-spark.js` directly.
+
+The helper is validated by:
+
+```bash
+node tools/check-room-data-runtime-view.js
+```
+
+This is still a staging step. Gameplay runtime is not wired to this helper yet.
+
+## Next implementation step
+
+The next code PR may introduce a compatibility layer near the runtime constants, but it should still avoid switching the actual source of truth until checks and review are in place.
 
 ## Review checklist
 

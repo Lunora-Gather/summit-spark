@@ -25,5 +25,8 @@ jobs:
       - name: Check room data adapter plan
         run: node tools/check-room-data-adapter-plan.js
 
+      - name: Check room data runtime view
+        run: node tools/check-room-data-runtime-view.js
+
       - name: Check maintenance tools
         run: node tools/check-maintenance-tools.js

@@ -14,10 +14,18 @@ const requiredToolFiles = [
   "tools/check-data-contracts.js",
   "tools/check-maps.js",
   "tools/check-route-audit.js",
+  "tools/check-room-data-migration.js",
+  "tools/check-room-data-adapter-plan.js",
+  "tools/check-room-data-runtime-view.js",
+  "tools/check-room-data-legacy-constants.js",
+  "tools/check-room-data-source-switch-readiness.js",
+  "tools/check-room-data-tool-registry.js",
   "tools/export-room-data.js",
   "tools/report-room-data.js",
   "tools/lib/read-summit-data.js",
-  "tools/lib/validate-room-data.js"
+  "tools/lib/validate-room-data.js",
+  "tools/lib/room-data-runtime-view.js",
+  "tools/lib/room-data-legacy-constants.js"
 ];
 
 function push(message) {
@@ -26,6 +34,16 @@ function push(message) {
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
+}
+
+function runTool(relativePath) {
+  const result = spawnSync(process.execPath, [path.join(root, relativePath)], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  if (result.status !== 0) {
+    push(`${relativePath} failed:\n${result.stderr || result.stdout}`);
+  }
 }
 
 for (const file of requiredToolFiles) {
@@ -45,6 +63,8 @@ for (const file of requiredToolFiles) {
 
 const sourceReader = "tools/lib/read-summit-data.js";
 const sharedValidator = "tools/lib/validate-room-data.js";
+const runtimeViewHelper = "tools/lib/room-data-runtime-view.js";
+const legacyConstantsHelper = "tools/lib/room-data-legacy-constants.js";
 
 for (const file of requiredToolFiles) {
   if (!fs.existsSync(path.join(root, file))) continue;
@@ -64,6 +84,14 @@ for (const file of requiredToolFiles) {
 
   if (file !== sharedValidator && file.includes("check-data-contracts") && content.includes("ROOM_STYLE_TRIALS")) {
     push(`${file} should delegate detailed validation to ${sharedValidator}`);
+  }
+
+  if (file !== runtimeViewHelper && file !== legacyConstantsHelper && /const\s+runtimeRoomDataFields\s*=/.test(content)) {
+    push(`${file} should not duplicate runtimeRoomDataFields; use ${runtimeViewHelper}`);
+  }
+
+  if (file !== legacyConstantsHelper && /const\s+legacyRoomDataConstantMap\s*=/.test(content)) {
+    push(`${file} should not duplicate legacyRoomDataConstantMap; use ${legacyConstantsHelper}`);
   }
 }
 
@@ -118,6 +146,16 @@ if (!exporter.includes("buildRoomDataSnapshot") || !exporter.includes("normalize
 if (exporter.includes("loadRoomDataSnapshot")) {
   push("tools/export-room-data.js should generate from source, not from the preferred snapshot loader");
 }
+
+const registry = read("tools/check-room-data-tool-registry.js");
+if (!registry.includes("roomDataTools") || !registry.includes("roomDataHelperFiles")) {
+  push("tools/check-room-data-tool-registry.js should own room-data tool and helper registration lists");
+}
+if (!registry.includes("tools/check-room-data-source-switch-readiness.js")) {
+  push("tools/check-room-data-tool-registry.js should include the source-switch readiness check");
+}
+
+runTool("tools/check-room-data-tool-registry.js");
 
 if (errors.length > 0) {
   console.error("Maintenance tool check failed:");

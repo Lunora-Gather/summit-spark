@@ -34,5 +34,8 @@ jobs:
       - name: Check room data source switch readiness
         run: node tools/check-room-data-source-switch-readiness.js
 
+      - name: Check room data tool registry
+        run: node tools/check-room-data-tool-registry.js
+
       - name: Check maintenance tools
         run: node tools/check-maintenance-tools.js

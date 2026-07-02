@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Playtest protocol
+    url: https://github.com/Lunora-Gather/summit-spark/blob/main/docs/PLAYTEST_PROTOCOL.md
+    about: Read this before filing structured playtest feedback.
+  - name: Known issues
+    url: https://github.com/Lunora-Gather/summit-spark/blob/main/KNOWN_ISSUES.md
+    about: Check real known limits before filing a duplicate.

@@ -1,0 +1,35 @@
+name: Repository Quality
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check documentation surface
+        run: node tools/check-docs.js
+
+      - name: Check public surface
+        run: node tools/check-public-surface.js
+
+      - name: Check data contracts
+        run: node tools/check-data-contracts.js
+
+      - name: Verify room data export
+        run: node tools/export-room-data.js --check
+
+      - name: Run default quality gate
+        run: npm run check

@@ -17,6 +17,7 @@ This directory contains local and CI quality gates for Summit Spark.
 | `check-room-data-source-switch-playtest-template.js` | Verifies the source-switch manual playtest template covers R1-R10, UI, save, and rollback notes. |
 | `check-room-data-runtime-callsite-plan.js` | Verifies the runtime-facing call-site staging plan without switching the data source. |
 | `check-room-data-runtime-compat-seam.js` | Verifies the runtime compatibility seam fixture against embedded constants and adapter helpers. |
+| `check-room-data-seam-insertion-guide.js` | Verifies the review procedure for the future runtime seam insertion PR. |
 | `check-room-data-p2-status.js` | Verifies the P2 migration status dashboard and next-step boundaries stay aligned. |
 | `check-room-data-tool-registry.js` | Verifies room-data tools and helpers are registered in CI and this README. |
 | `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures from the preferred room-data source. |
@@ -130,6 +131,12 @@ Verify runtime compatibility seam fixture:
 node tools/check-room-data-runtime-compat-seam.js
 ```
 
+Verify runtime seam insertion guide:
+
+```bash
+node tools/check-room-data-seam-insertion-guide.js
+```
+
 Verify P2 migration status:
 
 ```bash
@@ -158,7 +165,7 @@ node tools/check-maintenance-tools.js
 
 ## CI
 
-The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime-view, legacy-constants, source-switch-readiness, source-switch-playtest-template, runtime-callsite-plan, runtime-compat-seam, P2-status, tool-registry, and maintenance-tool checks on pull requests and manually via `workflow_dispatch`.
+The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime-view, legacy-constants, source-switch-readiness, source-switch-playtest-template, runtime-callsite-plan, runtime-compat-seam, seam-insertion-guide, P2-status, tool-registry, and maintenance-tool checks on pull requests and manually via `workflow_dispatch`.
 
 ## Policy
 
@@ -169,7 +176,7 @@ The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime
 - Do not add room-data migration tools without registering them in `tools/check-room-data-tool-registry.js`, this README, and the Maintenance Tools workflow.
 - Do not switch the runtime source until source-switch readiness and manual R1-R10 checks are recorded.
 - Do not add a runtime-facing call site until the call-site staging plan is documented and passing.
-- Do not add the runtime compatibility seam until its fixture check is documented and passing.
+- Do not add the runtime compatibility seam until its fixture check and seam insertion guide are documented and passing.
 - Do not merge a runtime source-switch PR without filling `docs/ROOM_DATA_SOURCE_SWITCH_PLAYTEST.md` in the PR body or comments.
 - Keep `docs/ROOM_DATA_P2_STATUS.md` aligned with the current migration state before starting source-switch work.
 - Do not make checks and reports source-only once a generated snapshot exists; use the preferred read path.

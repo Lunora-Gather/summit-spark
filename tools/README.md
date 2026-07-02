@@ -8,7 +8,7 @@ This directory contains local and CI quality gates for Summit Spark.
 | --- | --- |
 | `check-docs.js` | Verifies required documentation, templates, and process files. |
 | `check-public-surface.js` | Verifies `index.html` / `summit-spark.html` consistency, build version, and public UI anchors. |
-| `check-maintenance-tools.js` | Verifies maintenance tool syntax and prevents duplicated parsing/validation logic. |
+| `check-maintenance-tools.js` | Verifies maintenance tool syntax, prevents duplicated parsing/validation logic, and delegates to the room-data tool registry. |
 | `check-room-data-migration.js` | Verifies the staged room-data migration plan, generated snapshot, and current runtime source boundary. |
 | `check-room-data-adapter-plan.js` | Verifies the documented runtime-adapter boundary stays explicit before implementation. |
 | `check-room-data-runtime-view.js` | Verifies the pure room-data runtime view helper preserves all adapter fields without side effects. |
@@ -125,6 +125,8 @@ Check maintenance tool syntax and guardrails:
 ```bash
 node tools/check-maintenance-tools.js
 ```
+
+`check-maintenance-tools.js` also delegates to `check-room-data-tool-registry.js`, so the umbrella check fails if room-data tools fall out of CI or documentation registration.
 
 ## CI
 

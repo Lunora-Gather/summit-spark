@@ -15,6 +15,7 @@ Runtime still reads room maps, room metadata, route contracts, Style trials, Exp
 - Keep `node tools/check-data-contracts.js`, `node tools/check-maps.js`, and `node tools/check-route-audit.js` passing against the preferred room-data source.
 - Keep `tools/lib/read-summit-data.js` as the only script that parses embedded data from `summit-spark.js`.
 - Keep `tools/lib/validate-room-data.js` as the shared validator instead of duplicating validation rules.
+- Keep `tools/lib/room-data-runtime-view.js` and `tools/lib/room-data-legacy-constants.js` as pure staging helpers until a separate runtime-source PR is reviewed.
 
 ## Migration phases
 
@@ -36,11 +37,12 @@ Status: active.
 
 ### Phase 2: Runtime adapter design
 
-Status: planned.
+Status: active.
 
 - Design a tiny runtime adapter before changing how the game loads data.
 - Keep all existing constant names or provide a compatibility layer.
 - Avoid module/bundler migration in the same PR.
+- Stage a normalized runtime-view helper and a legacy constant mapping helper before wiring runtime call sites.
 
 ### Phase 3: Runtime source switch
 
@@ -63,5 +65,6 @@ Status: planned.
 - [ ] Canonical room-data source is documented.
 - [ ] Generated snapshot is synchronized with `summit-spark.js` or intentionally replaced.
 - [ ] Existing room-data checks pass.
+- [ ] Runtime adapter helpers are staged and validated without switching the source of truth.
 - [ ] Runtime smoke checks pass.
 - [ ] Manual R1-R10 route sanity pass is recorded before new content work.

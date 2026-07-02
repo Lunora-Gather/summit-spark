@@ -49,6 +49,31 @@ A future runtime adapter should expose one normalized room-data object with thes
 
 For compatibility, runtime code can then map those normalized names back to the current constant names or read them through a small accessor layer.
 
+## Staged helpers
+
+`tools/lib/room-data-runtime-view.js` provides a pure, unused helper for the planned adapter shape:
+
+```js
+createRoomDataRuntimeView(snapshot)
+```
+
+The helper only projects a validated room-data snapshot into the documented runtime-view fields. It does not read DOM state, localStorage, canvas, audio, timers, input state, or `summit-spark.js` directly.
+
+`tools/lib/room-data-legacy-constants.js` provides a pure legacy compatibility mapping:
+
+```js
+createLegacyRoomDataConstants(snapshotOrView)
+```
+
+This maps the normalized runtime-view fields back to the current runtime constant names such as `ROOM_TARGETS`, `ROOM_NAMES`, `ROUTE_CONTRACTS`, and `FEEL_REPLAY_FIXTURES`. It is still not wired into gameplay runtime.
+
+The helpers are validated by:
+
+```bash
+node tools/check-room-data-runtime-view.js
+node tools/check-room-data-legacy-constants.js
+```
+
 ## Constraints
 
 - No module or bundler migration in the same PR as the adapter.
@@ -58,31 +83,14 @@ For compatibility, runtime code can then map those normalized names back to the 
 - No public HTML/CSS changes unless a later runtime-source PR explicitly requires it.
 - Keep rollback simple: one revert should restore the old embedded-source path.
 
-## Staged helper
-
-`tools/lib/room-data-runtime-view.js` now provides a pure, unused helper for the planned adapter shape:
-
-```js
-createRoomDataRuntimeView(snapshot)
-```
-
-The helper only projects a validated room-data snapshot into the documented runtime-view fields. It does not read DOM state, localStorage, canvas, audio, timers, input state, or `summit-spark.js` directly.
-
-The helper is validated by:
-
-```bash
-node tools/check-room-data-runtime-view.js
-```
-
-This is still a staging step. Gameplay runtime is not wired to this helper yet.
-
 ## Next implementation step
 
-The next code PR may introduce a compatibility layer near the runtime constants, but it should still avoid switching the actual source of truth until checks and review are in place.
+The next code PR may introduce a tiny runtime-facing compatibility call site near the existing constants, but it should still avoid switching the actual source of truth until checks and review are in place.
 
 ## Review checklist
 
 - [ ] The adapter keeps every current room-data field available.
+- [ ] Legacy constants are mapped from the normalized runtime view without duplicating parsing logic.
 - [ ] Existing checks continue to validate the generated snapshot and preferred loader path.
 - [ ] Runtime still reads the old embedded constants until a separate source-switch PR.
 - [ ] No gameplay, physics, save, or public-surface behavior changes are included.

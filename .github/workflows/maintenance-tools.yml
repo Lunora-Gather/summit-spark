@@ -28,5 +28,8 @@ jobs:
       - name: Check room data runtime view
         run: node tools/check-room-data-runtime-view.js
 
+      - name: Check room data legacy constants
+        run: node tools/check-room-data-legacy-constants.js
+
       - name: Check maintenance tools
         run: node tools/check-maintenance-tools.js

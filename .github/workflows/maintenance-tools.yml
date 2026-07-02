@@ -52,6 +52,9 @@ jobs:
       - name: Check room data seam insertion dry run
         run: node tools/insert-room-data-runtime-seam.js --check
 
+      - name: Check room data runtime seam patch
+        run: node tools/check-room-data-runtime-seam-patch.js
+
       - name: Check room data P2 status
         run: node tools/check-room-data-p2-status.js
 

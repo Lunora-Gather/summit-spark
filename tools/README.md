@@ -9,6 +9,7 @@ This directory contains local and CI quality gates for Summit Spark.
 | `check-docs.js` | Verifies required documentation, templates, and process files. |
 | `check-public-surface.js` | Verifies `index.html` / `summit-spark.html` consistency, build version, and public UI anchors. |
 | `check-maintenance-tools.js` | Verifies maintenance tool syntax and prevents duplicated parsing/validation logic. |
+| `check-room-data-migration.js` | Verifies the staged room-data migration plan, generated snapshot, and current runtime source boundary. |
 | `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures from the preferred room-data source. |
 | `check-maps.js` | Validates map shape, tile usage, room structure, and pre-release map quality from the preferred room-data source. |
 | `check-route-audit.js` | Validates route/training semantics from the preferred room-data source while keeping runtime hook guards against `summit-spark.js`. |
@@ -68,6 +69,12 @@ Audit route/training semantics from the preferred source:
 node tools/check-route-audit.js
 ```
 
+Verify room-data migration guardrails:
+
+```bash
+node tools/check-room-data-migration.js
+```
+
 Print a readable room data report:
 
 ```bash
@@ -82,7 +89,7 @@ node tools/check-maintenance-tools.js
 
 ## CI
 
-The `Maintenance Tools` workflow runs `node tools/check-maintenance-tools.js` on pull requests and manually via `workflow_dispatch`.
+The `Maintenance Tools` workflow runs `node tools/check-room-data-migration.js` and `node tools/check-maintenance-tools.js` on pull requests and manually via `workflow_dispatch`.
 
 ## Policy
 

@@ -37,6 +37,9 @@ jobs:
       - name: Check room data runtime call-site plan
         run: node tools/check-room-data-runtime-callsite-plan.js
 
+      - name: Check room data runtime compat seam
+        run: node tools/check-room-data-runtime-compat-seam.js
+
       - name: Check room data tool registry
         run: node tools/check-room-data-tool-registry.js
 

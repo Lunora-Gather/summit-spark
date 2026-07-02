@@ -34,6 +34,9 @@ jobs:
       - name: Check room data source switch readiness
         run: node tools/check-room-data-source-switch-readiness.js
 
+      - name: Check room data source switch playtest template
+        run: node tools/check-room-data-source-switch-playtest-template.js
+
       - name: Check room data runtime call-site plan
         run: node tools/check-room-data-runtime-callsite-plan.js
 

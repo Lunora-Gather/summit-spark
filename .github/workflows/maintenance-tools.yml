@@ -46,6 +46,9 @@ jobs:
       - name: Check room data seam insertion guide
         run: node tools/check-room-data-seam-insertion-guide.js
 
+      - name: Check room data seam preflight
+        run: node tools/check-room-data-seam-preflight.js
+
       - name: Check room data P2 status
         run: node tools/check-room-data-p2-status.js
 

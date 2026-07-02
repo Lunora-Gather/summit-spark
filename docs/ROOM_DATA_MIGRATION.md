@@ -16,6 +16,7 @@ Runtime still reads room maps, room metadata, route contracts, Style trials, Exp
 - Keep `tools/lib/read-summit-data.js` as the only script that parses embedded data from `summit-spark.js`.
 - Keep `tools/lib/validate-room-data.js` as the shared validator instead of duplicating validation rules.
 - Keep `tools/lib/room-data-runtime-view.js` and `tools/lib/room-data-legacy-constants.js` as pure staging helpers until a separate runtime-source PR is reviewed.
+- Keep `docs/ROOM_DATA_SOURCE_SWITCH_READINESS.md` and `tools/check-room-data-source-switch-readiness.js` passing before opening any runtime source-switch PR.
 
 ## Migration phases
 
@@ -43,6 +44,7 @@ Status: active.
 - Keep all existing constant names or provide a compatibility layer.
 - Avoid module/bundler migration in the same PR.
 - Stage a normalized runtime-view helper and a legacy constant mapping helper before wiring runtime call sites.
+- Add a source-switch readiness gate before changing runtime data loading.
 
 ### Phase 3: Runtime source switch
 
@@ -51,6 +53,7 @@ Status: planned.
 - Switch runtime data loading only after Phase 2 has a reviewed adapter.
 - Preserve `index.html` and `summit-spark.html` public surface.
 - Run smoke, route audit, state check, and manual R1-R10 playtest notes.
+- Keep rollback to the embedded `summit-spark.js` source simple.
 
 ### Phase 4: Cleanup
 
@@ -66,5 +69,6 @@ Status: planned.
 - [ ] Generated snapshot is synchronized with `summit-spark.js` or intentionally replaced.
 - [ ] Existing room-data checks pass.
 - [ ] Runtime adapter helpers are staged and validated without switching the source of truth.
+- [ ] Source-switch readiness gate is documented and passing.
 - [ ] Runtime smoke checks pass.
 - [ ] Manual R1-R10 route sanity pass is recorded before new content work.

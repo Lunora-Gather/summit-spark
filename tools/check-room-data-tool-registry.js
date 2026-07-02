@@ -16,7 +16,8 @@ const roomDataTools = [
   "tools/check-room-data-source-switch-readiness.js",
   "tools/check-room-data-source-switch-playtest-template.js",
   "tools/check-room-data-runtime-callsite-plan.js",
-  "tools/check-room-data-runtime-compat-seam.js"
+  "tools/check-room-data-runtime-compat-seam.js",
+  "tools/check-room-data-p2-status.js"
 ];
 
 const roomDataHelperFiles = [
@@ -70,6 +71,7 @@ for (const helper of roomDataHelperFiles) {
 }
 
 if (!workflow.includes("Check room data migration")) push("workflow should keep the migration gate step named explicitly");
+if (!workflow.includes("Check room data P2 status")) push("workflow should keep the P2 status step named explicitly");
 if (!workflow.includes("Check room data source switch playtest template")) push("workflow should keep the source-switch playtest template step named explicitly");
 if (!workflow.includes("Check room data runtime call-site plan")) push("workflow should keep the runtime call-site plan step named explicitly");
 if (!workflow.includes("Check room data runtime compat seam")) push("workflow should keep the runtime compat seam step named explicitly");

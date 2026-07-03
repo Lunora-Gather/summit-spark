@@ -25,6 +25,10 @@ const roomDataTools = [
   "tools/check-room-data-p2-status.js"
 ];
 
+const roomDataPostSeamTools = [
+  "tools/check-room-data-runtime-seam-landed.js"
+];
+
 const roomDataHelperFiles = [
   "tools/lib/read-summit-data.js",
   "tools/lib/validate-room-data.js",
@@ -49,7 +53,7 @@ function requireFile(relativePath) {
   return true;
 }
 
-for (const file of [...roomDataTools, ...roomDataHelperFiles]) {
+for (const file of [...roomDataTools, ...roomDataPostSeamTools, ...roomDataHelperFiles]) {
   if (!requireFile(file)) continue;
   const result = spawnSync(process.execPath, ["--check", path.join(root, file)], {
     cwd: root,
@@ -69,6 +73,10 @@ for (const tool of roomDataTools) {
   const command = `node ${tool}`;
   if (!workflow.includes(command)) push(`Maintenance Tools workflow should run: ${command}`);
   if (!toolsReadme.includes(path.basename(tool))) push(`tools/README.md should document: ${path.basename(tool)}`);
+}
+
+for (const tool of roomDataPostSeamTools) {
+  if (!toolsReadme.includes(path.basename(tool))) push(`tools/README.md should document post-seam tool: ${path.basename(tool)}`);
 }
 
 for (const helper of roomDataHelperFiles) {
@@ -99,4 +107,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log(`Room data tool registry check passed: ${roomDataTools.length} tools and ${roomDataHelperFiles.length} helpers registered.`);
+console.log(`Room data tool registry check passed: ${roomDataTools.length} tools, ${roomDataPostSeamTools.length} post-seam tool, and ${roomDataHelperFiles.length} helpers registered.`);

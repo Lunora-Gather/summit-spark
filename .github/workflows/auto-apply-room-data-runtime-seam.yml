@@ -114,4 +114,7 @@ jobs:
             --base main \
             --head "$BRANCH_NAME" \
             --title "runtime: insert room data compatibility seam" \
-            --body-file pr-body.md
+            --body-file pr-body.md || {
+              echo "::warning::Created branch $BRANCH_NAME, but this organization does not allow GitHub Actions to create pull requests."
+              echo "Open the pull request manually from branch $BRANCH_NAME."
+            }

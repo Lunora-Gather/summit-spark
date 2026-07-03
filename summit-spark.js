@@ -391,6 +391,26 @@
     })
   });
 
+  function createRoomDataRuntimeViewFromEmbeddedConstants() {
+    return Object.freeze({
+      roomCount: maps.length,
+      maps,
+      roomTargets: ROOM_TARGETS,
+      roomNames: ROOM_NAMES,
+      roomTiers: ROOM_TIERS,
+      roomSkills: ROOM_SKILLS,
+      skillLabels: SKILL_LABELS,
+      roomGuides: ROOM_GUIDES,
+      roomPurposes: ROOM_PURPOSES,
+      roomRouteLines: ROOM_ROUTE_LINES,
+      roomStyleTrials: ROOM_STYLE_TRIALS,
+      expertRequirements: EXPERT_REQUIREMENTS,
+      expertRequirementLabels: EXPERT_REQUIREMENT_LABELS,
+      routeContracts: ROUTE_CONTRACTS,
+      feelReplayFixtures: FEEL_REPLAY_FIXTURES
+    });
+  }
+
   const maps = [
     [
       "..............................",

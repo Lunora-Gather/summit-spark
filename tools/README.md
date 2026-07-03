@@ -22,6 +22,7 @@ This directory contains local and CI quality gates for Summit Spark.
 | `insert-room-data-runtime-seam.js` | Dry-runs or applies the tiny embedded runtime seam insertion. |
 | `check-room-data-runtime-seam-patch.js` | Verifies the checked-in seam patch stays aligned with the insertion tool and fixture fields. |
 | `check-room-data-runtime-seam-patch-apply.js` | Verifies the checked-in seam patch applies cleanly and keeps patched runtime syntax valid. |
+| `check-room-data-runtime-seam-landed.js` | Deferred post-seam check for the runtime seam insertion PR. |
 | `check-room-data-p2-status.js` | Verifies the P2 migration status dashboard and next-step boundaries stay aligned. |
 | `check-room-data-tool-registry.js` | Verifies room-data tools and helpers are registered in CI and this README. |
 | `check-data-contracts.js` | Verifies room metadata, route lines, Style/Expert contracts, Route contracts, and Feel fixtures from the preferred room-data source. |
@@ -171,6 +172,12 @@ Verify checked-in runtime seam patch applies cleanly:
 node tools/check-room-data-runtime-seam-patch-apply.js
 ```
 
+Verify the seam after applying it in the dedicated runtime PR:
+
+```bash
+node tools/check-room-data-runtime-seam-landed.js
+```
+
 Apply the checked-in patch manually when needed:
 
 ```bash
@@ -207,6 +214,8 @@ node tools/check-maintenance-tools.js
 
 The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime-view, legacy-constants, source-switch-readiness, source-switch-playtest-template, runtime-callsite-plan, runtime-compat-seam, seam-insertion-guide, seam-preflight, seam-insertion-dry-run, runtime-seam-patch, runtime-seam-patch-apply, P2-status, tool-registry, and maintenance-tool checks on pull requests and manually via `workflow_dispatch`.
 
+`check-room-data-runtime-seam-landed.js` is intentionally deferred. Run it in the dedicated runtime seam PR after `summit-spark.js` contains `createRoomDataRuntimeViewFromEmbeddedConstants()`.
+
 ## Policy
 
 - Do not add new parsing logic for `summit-spark.js` in multiple scripts.
@@ -217,6 +226,7 @@ The `Maintenance Tools` workflow runs room-data migration, adapter-plan, runtime
 - Do not switch the runtime source until source-switch readiness and manual R1-R10 checks are recorded.
 - Do not add a runtime-facing call site until the call-site staging plan is documented and passing.
 - Do not add the runtime compatibility seam until its fixture check, seam insertion guide, seam preflight, insertion dry run, checked-in patch check, and patch-apply check are passing.
+- After the runtime compatibility seam is inserted, run `node tools/check-room-data-runtime-seam-landed.js` before opening source-switch work.
 - Do not merge a runtime source-switch PR without filling `docs/ROOM_DATA_SOURCE_SWITCH_PLAYTEST.md` in the PR body or comments.
 - Keep `docs/ROOM_DATA_P2_STATUS.md` aligned with the current migration state before starting source-switch work.
 - Do not make checks and reports source-only once a generated snapshot exists; use the preferred read path.

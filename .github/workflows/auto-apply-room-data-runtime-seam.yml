@@ -1,0 +1,113 @@
+name: Auto Apply Room Data Runtime Seam
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/auto-apply-room-data-runtime-seam.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-apply-room-data-runtime-seam
+  cancel-in-progress: false
+
+jobs:
+  auto-apply-runtime-seam:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Skip if runtime seam already exists
+        id: seam_status
+        run: |
+          if grep -q "function createRoomDataRuntimeViewFromEmbeddedConstants()" summit-spark.js; then
+            echo "seam_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "seam_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip if generated PR already exists
+        id: pr_status
+        if: steps.seam_status.outputs.seam_exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing_count="$(gh pr list --head room-data-runtime-seam-auto --state open --json number --jq 'length')"
+          if [ "$existing_count" != "0" ]; then
+            echo "pr_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pr_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify patch applies
+        if: steps.seam_status.outputs.seam_exists == 'false' && steps.pr_status.outputs.pr_exists == 'false'
+        run: node tools/check-room-data-runtime-seam-patch-apply.js
+
+      - name: Apply runtime seam patch
+        if: steps.seam_status.outputs.seam_exists == 'false' && steps.pr_status.outputs.pr_exists == 'false'
+        run: git apply patches/room-data-runtime-seam.patch
+
+      - name: Verify patched runtime syntax
+        if: steps.seam_status.outputs.seam_exists == 'false' && steps.pr_status.outputs.pr_exists == 'false'
+        run: node --check summit-spark.js
+
+      - name: Verify room data guards
+        if: steps.seam_status.outputs.seam_exists == 'false' && steps.pr_status.outputs.pr_exists == 'false'
+        run: |
+          node tools/check-room-data-runtime-compat-seam.js
+          node tools/check-room-data-seam-preflight.js
+          node tools/check-room-data-p2-status.js
+          npm run check
+
+      - name: Create runtime seam pull request
+        if: steps.seam_status.outputs.seam_exists == 'false' && steps.pr_status.outputs.pr_exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: room-data-runtime-seam-auto
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH_NAME"
+          git add summit-spark.js
+          git commit -m "runtime: insert room data compatibility seam"
+          git push --force-with-lease origin "$BRANCH_NAME"
+          gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "runtime: insert room data compatibility seam" \
+            --body "## Summary
+
+Applies the checked room-data runtime seam patch from \`patches/room-data-runtime-seam.patch\`.
+
+This inserts \`createRoomDataRuntimeViewFromEmbeddedConstants()\` near the embedded room-data constants in \`summit-spark.js\`.
+
+## Runtime impact
+
+- No gameplay reads are replaced.
+- No room-data source switch is performed.
+- Runtime still reads embedded \`summit-spark.js\` constants.
+- No physics constants, save schema, HTML/CSS, module system, bundler, or async loading behavior is changed.
+
+## Checks run by workflow
+
+- \`node tools/check-room-data-runtime-seam-patch-apply.js\`
+- \`node --check summit-spark.js\`
+- \`node tools/check-room-data-runtime-compat-seam.js\`
+- \`node tools/check-room-data-seam-preflight.js\`
+- \`node tools/check-room-data-p2-status.js\`
+- \`npm run check\`
+
+Refs #2."

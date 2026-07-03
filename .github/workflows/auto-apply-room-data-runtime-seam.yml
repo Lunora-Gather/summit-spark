@@ -85,30 +85,33 @@ jobs:
           git add summit-spark.js
           git commit -m "runtime: insert room data compatibility seam"
           git push --force-with-lease origin "$BRANCH_NAME"
+          cat > pr-body.md <<'PR_BODY'
+          ## Summary
+
+          Applies the checked room-data runtime seam patch from `patches/room-data-runtime-seam.patch`.
+
+          This inserts `createRoomDataRuntimeViewFromEmbeddedConstants()` near the embedded room-data constants in `summit-spark.js`.
+
+          ## Runtime impact
+
+          - No gameplay reads are replaced.
+          - No room-data source switch is performed.
+          - Runtime still reads embedded `summit-spark.js` constants.
+          - No physics constants, save schema, HTML/CSS, module system, bundler, or async loading behavior is changed.
+
+          ## Checks run by workflow
+
+          - `node tools/check-room-data-runtime-seam-patch-apply.js`
+          - `node --check summit-spark.js`
+          - `node tools/check-room-data-runtime-compat-seam.js`
+          - `node tools/check-room-data-seam-preflight.js`
+          - `node tools/check-room-data-p2-status.js`
+          - `npm run check`
+
+          Refs #2.
+          PR_BODY
           gh pr create \
             --base main \
             --head "$BRANCH_NAME" \
             --title "runtime: insert room data compatibility seam" \
-            --body "## Summary
-
-Applies the checked room-data runtime seam patch from \`patches/room-data-runtime-seam.patch\`.
-
-This inserts \`createRoomDataRuntimeViewFromEmbeddedConstants()\` near the embedded room-data constants in \`summit-spark.js\`.
-
-## Runtime impact
-
-- No gameplay reads are replaced.
-- No room-data source switch is performed.
-- Runtime still reads embedded \`summit-spark.js\` constants.
-- No physics constants, save schema, HTML/CSS, module system, bundler, or async loading behavior is changed.
-
-## Checks run by workflow
-
-- \`node tools/check-room-data-runtime-seam-patch-apply.js\`
-- \`node --check summit-spark.js\`
-- \`node tools/check-room-data-runtime-compat-seam.js\`
-- \`node tools/check-room-data-seam-preflight.js\`
-- \`node tools/check-room-data-p2-status.js\`
-- \`npm run check\`
-
-Refs #2."
+            --body-file pr-body.md

@@ -1,7 +1,9 @@
 diff --git a/summit-spark.js b/summit-spark.js
 --- a/summit-spark.js
 +++ b/summit-spark.js
-@@ -391,4 +391,24 @@
+@@ -389,6 +389,26 @@
+       routeReason: "跳房中断",
+       feelReason: "跳房中断"
      })
    });
  

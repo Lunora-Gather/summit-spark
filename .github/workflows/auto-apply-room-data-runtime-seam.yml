@@ -1,5 +1,6 @@
 name: Auto Apply Room Data Runtime Seam
 
+# Trigger note: touching this workflow after it exists on main intentionally runs the one-shot generator.
 on:
   push:
     branches:

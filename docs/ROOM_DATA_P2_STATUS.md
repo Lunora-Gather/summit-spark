@@ -71,4 +71,4 @@ A runtime source switch is still blocked until:
 
 ## Status summary
 
-P2 is ready for a generated tiny runtime compatibility seam insertion PR via the manual workflow. It is not ready for the actual runtime source switch yet.
+P2 is ready for a small runtime compatibility seam PR. More specifically, P2 is ready for a generated tiny runtime compatibility seam insertion PR via the manual workflow. It is not ready for the actual runtime source switch yet.

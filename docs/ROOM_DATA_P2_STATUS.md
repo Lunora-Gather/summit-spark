@@ -19,6 +19,8 @@ Runtime still reads room maps, room metadata, route contracts, Style trials, Exp
 - Runtime compatibility seam fixture: `docs/ROOM_DATA_RUNTIME_COMPAT_SEAM.md`, `tools/check-room-data-runtime-compat-seam.js`.
 - Seam insertion guide and preflight: `docs/ROOM_DATA_SEAM_INSERTION_GUIDE.md`, `tools/check-room-data-seam-insertion-guide.js`, `tools/check-room-data-seam-preflight.js`.
 - Controlled seam insertion tool: `tools/insert-room-data-runtime-seam.js`.
+- Checked runtime seam patch and apply gate: `patches/room-data-runtime-seam.patch`, `tools/check-room-data-runtime-seam-patch.js`, `tools/check-room-data-runtime-seam-patch-apply.js`.
+- Manual runtime seam PR workflow: `.github/workflows/apply-room-data-runtime-seam.yml`, `docs/ROOM_DATA_RUNTIME_SEAM_WORKFLOW.md`.
 - Source-switch playtest template: `docs/ROOM_DATA_SOURCE_SWITCH_PLAYTEST.md`, `tools/check-room-data-source-switch-playtest-template.js`.
 - Tool registry and umbrella guard: `tools/check-room-data-tool-registry.js`, `tools/check-maintenance-tools.js`.
 
@@ -39,19 +41,23 @@ Runtime still reads room maps, room metadata, route contracts, Style trials, Exp
 - `node tools/check-room-data-seam-insertion-guide.js`
 - `node tools/check-room-data-seam-preflight.js`
 - `node tools/insert-room-data-runtime-seam.js --check`
+- `node tools/check-room-data-runtime-seam-patch.js`
+- `node tools/check-room-data-runtime-seam-patch-apply.js`
 - `node tools/check-room-data-tool-registry.js`
 - `node tools/check-maintenance-tools.js`
 - `npm run check`
 
 ## Next safe implementation step
 
-The next code PR should apply the reviewed seam insertion tool with:
+Run the manual GitHub Actions workflow:
 
-```bash
-node tools/insert-room-data-runtime-seam.js --write
+```text
+Apply Room Data Runtime Seam
 ```
 
-That PR should only insert `createRoomDataRuntimeViewFromEmbeddedConstants()` near the current embedded constants in `summit-spark.js`, keep existing gameplay reads unchanged, and preserve the embedded source of truth.
+That workflow applies `patches/room-data-runtime-seam.patch`, runs the required syntax and room-data checks, then opens a generated PR that should only modify `summit-spark.js` by inserting `createRoomDataRuntimeViewFromEmbeddedConstants()` near the embedded room-data constants.
+
+The generated PR must keep existing gameplay reads unchanged and preserve the embedded source of truth.
 
 ## Still blocked
 
@@ -65,4 +71,4 @@ A runtime source switch is still blocked until:
 
 ## Status summary
 
-P2 is ready for a small runtime compatibility seam PR. More specifically, the next step is the tiny runtime compatibility seam insertion PR. It is not ready for the actual runtime source switch yet.
+P2 is ready for a small runtime compatibility seam PR. More specifically, P2 is ready for a generated tiny runtime compatibility seam insertion PR via the manual workflow. It is not ready for the actual runtime source switch yet.

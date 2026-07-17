@@ -5,7 +5,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 ## Setup
 
 1. Open the local page from `npm start`.
-2. Confirm the start screen shows build `20260608-p23` in page markup if inspected.
+2. Inspect the page markup and confirm `meta build-version` matches the current CSS/JS asset version; `node tools/check-public-surface.js` should report the same build before manual play begins.
 3. Use a clean browser profile for first-run checks, then repeat with an existing profile that has training progress.
 4. Keep audio on for one pass and off for one pass.
 5. Test desktop keyboard first; test touch and a physical gamepad when devices are available.
@@ -13,7 +13,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 ## First Three Minutes
 
 - Start from a clean profile and do not open settings first.
-- Verify the first-room flow starts without automatic teaching toast or visible control guide.
+- Verify the first room starts without an automatic teaching toast or head-level coaching copy. On a clean desktop keyboard profile, only the compact bottom Move → Jump → Dash strip should appear; it must advance from real input and disappear after Dash. It must stay hidden when labelled touch controls are rendered.
 - Confirm free play shows only core HUD status; split delta, Flow, and pace meter should stay out of the default view until training/challenge context needs them.
 - Die once to spikes and once by falling; the game should not interrupt with explanatory coaching copy.
 - Press `O`, open settings, press `Escape`, and return to play without stuck movement.
@@ -60,8 +60,9 @@ For each room, record `pass`, `friction`, or `blocked`.
 - At around 700x390, practice must scroll vertically and keep Route, Feel, Room, and Profile reachable.
 - Confirm the controls-first settings groups are easy to scan and the separate practice entry keeps the primary Drill path obvious.
 - Confirm the hand-held/mobile view has no horizontal scroll after opening feedback, save import, backup restore status, Route cards, and Feel Lab sections.
-- Increase touch size to 64 and confirm direction/action touch clusters grow without covering critical HUD text.
+- Increase touch size to 64 and confirm both clusters stay fully inside the viewport, remain separated, and keep Jump/Dash paired without covering critical HUD text or the playfield.
 - Enable low-performance mode and confirm hazards, route compass, and Drill HUD remain readable.
+- Enable the operating system's reduced-motion preference and confirm UI transitions, ambient ribbons, snowfall, velocity wakes, and idle entity drift stop while player movement, hazards, and action confirmation remain visible.
 - If a physical gamepad is available, verify the settings panel reports connected standard mapping, axis strength, and near-deadzone risk without exposing the controller name.
 
 ## Exit Criteria

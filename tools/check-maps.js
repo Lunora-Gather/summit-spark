@@ -109,6 +109,13 @@ if (!(latePressure >= midPressure + 20)) {
 for (let i = 0; i < Math.min(6, maps.length); i += 1) {
   if (maps[i].some((line) => line.includes("C"))) errors.push("crumble C should not appear before room 7");
 }
+for (let i = 0; i < Math.min(8, maps.length); i += 1) {
+  if (maps[i].some((line) => line.includes("M"))) errors.push("echo anchor M should first appear in room 9");
+}
+if ((maps[1]?.join("").match(/A/g) || []).length < 2) errors.push("room 2 should establish a two-relay movement sentence");
+if ((maps[2]?.join("").match(/T/g) || []).length < 2) errors.push("room 3 should establish a two-spring height rhythm");
+const finalGoalRow = maps[maps.length - 1]?.findIndex((line) => line.includes("H")) ?? -1;
+if (finalGoalRow < 0 || finalGoalRow >= Math.floor(rows / 2)) errors.push("final summit goal H should resolve in the upper half of room 10");
 for (let i = 6; i < maps.length; i += 1) {
   if ((crumbleRooms[i] || 0) < 3) errors.push("late room " + (i + 1) + " should use at least 3 crumble tiles");
 }

@@ -26,6 +26,7 @@ function extractOne(label, source, pattern) {
 
 const indexHtml = read("index.html");
 const gameHtml = read("summit-spark.html");
+const playtestChecklist = read("PLAYTEST_CHECKLIST.md");
 
 if (indexHtml !== gameHtml) {
   fail("index.html and summit-spark.html must stay identical until the dual-entry policy changes");
@@ -53,6 +54,14 @@ if (buildVersion && cssVersion && buildVersion !== cssVersion) {
 
 if (buildVersion && jsVersion && buildVersion !== jsVersion) {
   fail(`js version ${jsVersion} does not match build version ${buildVersion}`);
+}
+
+if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js")) {
+  fail("PLAYTEST_CHECKLIST.md should verify the current build through the public-surface check");
+}
+
+if (/20\d{6}-p\d+/.test(playtestChecklist)) {
+  fail("PLAYTEST_CHECKLIST.md should not pin a release build that becomes stale after the next update");
 }
 
 const requiredFragments = [

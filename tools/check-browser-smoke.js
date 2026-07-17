@@ -275,7 +275,7 @@ function sleep(ms) {
 
 function virtualKeyCode(code, key) {
   if (key && key.length === 1) return key.toUpperCase().charCodeAt(0);
-  const named = { Enter: 13, Escape: 27, F3: 114, Space: 32 };
+  const named = { Enter: 13, Escape: 27, Tab: 9, F3: 114, Space: 32 };
   return named[key] || named[code] || 0;
 }
 
@@ -364,19 +364,51 @@ async function runDesktopSmoke(cdp, baseUrl) {
     mobile: false
   });
   await navigateApp(cdp, baseUrl, "desktop smoke");
+  await cdp.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "reduce" }]
+  });
+  const reducedMotionState = await waitUntil("reduced motion preference", () => evaluate(cdp, `(() => {
+    const stage = document.querySelector(".stage");
+    const canvas = document.querySelector("#game");
+    return stage.classList.contains("reduced-motion")
+      ? { matches: matchMedia("(prefers-reduced-motion: reduce)").matches, stageClass: true, canvasTransition: getComputedStyle(canvas).transitionDuration, transitionSeconds: parseFloat(getComputedStyle(canvas).transitionDuration) }
+      : null;
+  })()`));
+  if (!reducedMotionState.matches || !reducedMotionState.stageClass || !Number.isFinite(reducedMotionState.transitionSeconds) || reducedMotionState.transitionSeconds > 0.001) {
+    errors.push("system reduced-motion preference should quiet both UI transitions and nonessential canvas ambience: " + JSON.stringify(reducedMotionState));
+  }
+  await cdp.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "no-preference" }]
+  });
+  await waitUntil("reduced motion preference clears", () => evaluate(cdp, `!document.querySelector(".stage").classList.contains("reduced-motion")`));
   const initial = await evaluate(cdp, `({
     build: document.querySelector('meta[name="build-version"]')?.content || "",
     ready: document.documentElement.classList.contains("app-ready"),
     startVisible: !!document.querySelector("#startButton"),
+    overlayAvailable: document.querySelector("#overlay")?.hidden === false
+      && !document.querySelector("#overlay")?.hasAttribute("inert")
+      && document.querySelector("#overlay")?.getAttribute("aria-hidden") === "false",
+    gameSurfaceHidden: document.querySelector("#gameHud")?.hasAttribute("inert")
+      && document.querySelector("#touchControls")?.hasAttribute("inert")
+      && document.querySelector("#gameHud")?.hidden === true
+      && document.querySelector("#touchControls")?.hidden === true
+      && getComputedStyle(document.querySelector("#gameHud"))?.display === "none"
+      && getComputedStyle(document.querySelector("#touchControls"))?.display === "none"
+      && document.querySelector("#game")?.tabIndex === -1
+      && document.querySelector("#game")?.getAttribute("aria-hidden") === "true",
     canvasSize: (() => {
       const rect = document.querySelector("#game").getBoundingClientRect();
       return { width: rect.width, height: rect.height };
+    })(),
+    startActionLayout: (() => {
+      const primary = document.querySelector("#startButton").getBoundingClientRect();
+      const practice = document.querySelector("#openTrainingButton").getBoundingClientRect();
+      return { primaryWidth: Math.round(primary.width), practiceWidth: Math.round(practice.width) };
     })()
   })`);
   if (!/^\d{8}-p\d+$/.test(initial.build)) errors.push("browser smoke found invalid build version " + initial.build);
-  if (!initial.ready || initial.canvasSize.width < 300 || initial.canvasSize.height < 160) errors.push("browser smoke initial canvas/start state is invalid");
-  const initialCanvas = await canvasInkSummary(cdp);
-  if (initialCanvas.varied < 20 || initialCanvas.bright < 20) errors.push("canvas appears blank before gameplay: " + JSON.stringify(initialCanvas));
+  if (!initial.ready || !initial.overlayAvailable || !initial.gameSurfaceHidden || initial.canvasSize.width < 300 || initial.canvasSize.height < 160) errors.push("browser smoke initial canvas/start state is invalid or exposed behind overlay: " + JSON.stringify(initial));
+  if (initial.startActionLayout.primaryWidth < initial.startActionLayout.practiceWidth * 1.8) errors.push("primary start action should span the full two-column menu row: " + JSON.stringify(initial.startActionLayout));
 
   await clickSelector(cdp, "#startButton");
   await waitUntil("start button begins game", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden") && /游戏开始/.test(document.querySelector("#gameStatus").textContent)`));
@@ -391,22 +423,63 @@ async function runDesktopSmoke(cdp, baseUrl) {
       flowVisible: visible("#flowCount"),
       paceVisible: visible(".pace-meter"),
       roomVisible: visible("#roomCount"),
-      timeVisible: visible("#runTime")
+      timeVisible: visible("#runTime"),
+      gameSurfaceAvailable: !document.querySelector("#gameHud")?.hasAttribute("inert")
+        && !document.querySelector("#touchControls")?.hasAttribute("inert")
+        && document.querySelector("#gameHud")?.hidden === false
+        && document.querySelector("#touchControls")?.hidden === false
+        && document.querySelector("#game")?.tabIndex === 0
+        && document.querySelector("#game")?.getAttribute("aria-hidden") === "false",
+      overlayHidden: document.querySelector("#overlay")?.hidden === true
+        && document.querySelector("#overlay")?.hasAttribute("inert")
+        && document.querySelector("#overlay")?.getAttribute("aria-hidden") === "true"
     };
   })()`);
-  if (!quietHud.freePlay || quietHud.trainingActive || quietHud.splitTimeVisible || quietHud.splitDeltaVisible || quietHud.flowVisible || quietHud.paceVisible || !quietHud.roomVisible || !quietHud.timeVisible) {
+  if (!quietHud.freePlay || quietHud.trainingActive || quietHud.splitTimeVisible || quietHud.splitDeltaVisible || quietHud.flowVisible || quietHud.paceVisible || !quietHud.roomVisible || !quietHud.timeVisible || !quietHud.gameSurfaceAvailable || !quietHud.overlayHidden) {
     errors.push("free-play HUD should hide advanced timing/flow meters while keeping core status: " + JSON.stringify(quietHud));
   }
   await clickSelector(cdp, "#settingsButton");
-  await waitUntil("settings open after start", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  await waitUntil("settings open after start", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings") && document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === -1`));
+  await openSettingsGroup(cdp, ".settings-group-audio");
+  const settingsAccordion = await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel");
+    return {
+      audioOpen: document.querySelector(".settings-group-audio").open,
+      controlsClosed: !document.querySelector(".settings-group-controls").open,
+      displayClosed: !document.querySelector(".settings-group-display").open,
+      feedbackClosed: !document.querySelector(".settings-group-feedback").open,
+      noForcedScroll: panel.scrollHeight <= panel.clientHeight + 2
+    };
+  })()`);
+  if (!settingsAccordion.audioOpen || !settingsAccordion.controlsClosed || !settingsAccordion.displayClosed || !settingsAccordion.feedbackClosed || !settingsAccordion.noForcedScroll) {
+    errors.push("settings-only groups should keep a compact single-open accordion: " + JSON.stringify(settingsAccordion));
+  }
   await clickSelector(cdp, "#settingsClose");
-  await waitUntil("settings close after start", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await waitUntil("settings close after start", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === 0`));
   await enableDebugPanel(cdp);
   const beforeMove = await debugPosition(cdp);
   await keyHold(cdp, "KeyD", "D", 360);
   const afterMove = await debugPosition(cdp);
   const moved = afterMove.x - beforeMove.x;
   if (moved < 8) errors.push("keyboard movement did not shift player enough: " + moved.toFixed(2));
+  await clickSelector(cdp, "#settingsButton");
+  await waitUntil("settings pause opens after timed movement", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const pausedClockStart = await evaluate(cdp, `document.querySelector("#runTime").textContent`);
+  await sleep(360);
+  const pausedClockEnd = await evaluate(cdp, `document.querySelector("#runTime").textContent`);
+  if (pausedClockEnd !== pausedClockStart) errors.push("run timer advanced while settings paused the game: " + pausedClockStart + " -> " + pausedClockEnd);
+  await clickSelector(cdp, "#settingsClose");
+  await waitUntil("settings pause closes after timer check", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const retryDeathsBefore = await evaluate(cdp, `document.querySelector("#deathCount").textContent`);
+  await keyTap(cdp, "KeyR", "R");
+  const retryState = await waitUntil("quick retry status", () => evaluate(cdp, `(() => {
+    const status = document.querySelector("#gameStatus").textContent;
+    const deaths = document.querySelector("#deathCount").textContent;
+    return /快速重开 · R1/.test(status) && deaths !== ${JSON.stringify(retryDeathsBefore)}
+      ? { status, deaths }
+      : null;
+  })()`));
+  if (!/失 1/.test(retryState.deaths)) errors.push("quick retry should increment the visible mistake count once: " + JSON.stringify({ retryDeathsBefore, retryState }));
   const gameplayCanvas = await canvasInkSummary(cdp);
   if (gameplayCanvas.varied < 20 || gameplayCanvas.bright < 20) errors.push("canvas appears blank during gameplay: " + JSON.stringify(gameplayCanvas));
   await navigateApp(cdp, baseUrl, "desktop reset");
@@ -591,9 +664,67 @@ async function runDesktopSmoke(cdp, baseUrl) {
   const gameplay = await evaluate(cdp, `({
     overlayHidden: document.querySelector("#overlay").classList.contains("hidden"),
     status: document.querySelector("#gameStatus").textContent,
-    room: document.querySelector("#roomCount").textContent
+    room: document.querySelector("#roomCount").textContent,
+    hudBackground: getComputedStyle(document.querySelector(".meters")).backgroundImage,
+    counterBackground: getComputedStyle(document.querySelector(".counter")).backgroundColor,
+    actionBackground: getComputedStyle(document.querySelector(".icon-button")).backgroundColor
   })`);
   if (!gameplay.overlayHidden || !gameplay.room) errors.push("gameplay did not remain active after route contract launch");
+  if (!/74, 99, 108/.test(gameplay.hudBackground) || !/232, 241, 235/.test(gameplay.counterBackground) || !/61, 82, 91/.test(gameplay.actionBackground)) errors.push("desktop HUD should use the mist-blue surface system instead of near-black slabs: " + JSON.stringify(gameplay));
+
+  await navigateApp(cdp, baseUrl, "selected room Drill action");
+  await clickSelector(cdp, "#openTrainingButton");
+  await waitUntil("selected room practice opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(cdp, ".settings-group-room");
+  await evaluate(cdp, `(() => {
+    const select = document.querySelector("#roomSelect");
+    select.value = "1";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitUntil("room selector previews R2 without launching", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#roomSelect").value === "1" && document.querySelector("#roomCount").textContent.startsWith("R1/")`));
+  const selectedRoomAction = await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
+    const button = document.querySelector("#focusRoomButton").getBoundingClientRect();
+    const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
+    const body = document.querySelector("#settingsPanel .settings-body");
+    return {
+      selected: document.querySelector("#roomSelect").value,
+      label: document.querySelector("#focusRoomButton").textContent.trim(),
+      summary: document.querySelector("#coachSummary").textContent.trim(),
+      priority: document.querySelector("#practicePriority").textContent.trim(),
+      launchInsidePanel: button.top >= panel.top && button.bottom <= panel.bottom && dock.bottom <= panel.bottom,
+      launchHeight: Math.round(button.height),
+      bodyScrolls: ["auto", "scroll"].includes(getComputedStyle(body).overflowY)
+    };
+  })()`);
+  if (selectedRoomAction.selected !== "1" || !/^开始 R2 /.test(selectedRoomAction.label) || !/R2 光继横桥/.test(selectedRoomAction.summary) || /R10 星顶终线/.test(selectedRoomAction.summary) || !/R1 起势山门/.test(selectedRoomAction.priority) || /R2 光继横桥/.test(selectedRoomAction.priority) || !selectedRoomAction.launchInsidePanel || selectedRoomAction.launchHeight < 42 || !selectedRoomAction.bodyScrolls) errors.push("room selection should preview R2 without replacing the global R1 priority, while its action and summary remain in the fixed launch dock: " + JSON.stringify(selectedRoomAction));
+  await clickSelector(cdp, "#focusRoomButton");
+  await waitUntil("selected room action starts R2 Drill", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R2/.test(document.querySelector("#gameStatus").textContent)`));
+
+  await navigateApp(cdp, baseUrl, "first-run keyboard onboarding seed");
+  await evaluate(cdp, `localStorage.clear()`);
+  await navigateApp(cdp, baseUrl, "first-run keyboard onboarding clean");
+  await clickSelector(cdp, "#startButton");
+  await waitUntil("first-run move hint appears", () => evaluate(cdp, `!document.querySelector("#controlHint").classList.contains("hidden") && /移动/.test(document.querySelector("#controlHint").textContent)`));
+  const onboardingGeometry = await evaluate(cdp, `(() => {
+    const hint = document.querySelector("#controlHint");
+    const rect = hint.getBoundingClientRect();
+    const stage = document.querySelector(".stage").getBoundingClientRect();
+    return {
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      insideStage: rect.left >= stage.left && rect.right <= stage.right && rect.bottom <= stage.bottom,
+      pointerEvents: getComputedStyle(hint).pointerEvents,
+      background: getComputedStyle(hint).backgroundColor
+    };
+  })()`);
+  if (onboardingGeometry.width > 220 || onboardingGeometry.height > 36 || !onboardingGeometry.insideStage || onboardingGeometry.pointerEvents !== "none" || !/203, 217, 211/.test(onboardingGeometry.background)) errors.push("first-run control hint should stay compact, non-blocking, and visually quiet: " + JSON.stringify(onboardingGeometry));
+  await keyHold(cdp, "KeyD", "D", 180);
+  await waitUntil("first-run jump hint appears", () => evaluate(cdp, `/跳跃/.test(document.querySelector("#controlHint").textContent)`));
+  await keyTap(cdp, "Space", " ");
+  await waitUntil("first-run dash hint appears", () => evaluate(cdp, `/冲刺/.test(document.querySelector("#controlHint").textContent)`));
+  await keyTap(cdp, "KeyX", "X");
+  await waitUntil("first-run hint exits after dash", () => evaluate(cdp, `document.querySelector("#controlHint").classList.contains("hidden")`));
 }
 
 async function runResumeSmoke(cdp, baseUrl) {
@@ -627,7 +758,7 @@ async function runResumeSmoke(cdp, baseUrl) {
     settingsVersion: JSON.parse(localStorage.getItem("summit-spark-settings")).schemaVersion,
     focusVersion: JSON.parse(localStorage.getItem("summit-spark-room-focus")).schemaVersion
   })`);
-  if (!startState.resumeVisible || !/继续 R/.test(startState.resumeText)) errors.push("start overlay should expose direct resume training after progress storage");
+  if (!startState.resumeVisible || !/继续训练 · R/.test(startState.resumeText)) errors.push("start overlay should distinguish direct training resume from free play");
   if (!startState.lowPerformance || startState.touchSize !== "62px") errors.push("comfort settings did not apply from stored settings: " + JSON.stringify(startState));
   if (startState.settingsVersion !== 2 || startState.focusVersion !== 2) errors.push("stored settings/focus should migrate to current schema: " + JSON.stringify(startState));
   await clickSelector(cdp, "#resumeTrainingButton");
@@ -673,8 +804,36 @@ async function runKeyboardSettingsSmoke(cdp, baseUrl) {
   await waitUntil("settings closes from keyboard Escape", () => evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel");
     const button = document.querySelector("#settingsButton");
-    return panel.classList.contains("hidden") && button.getAttribute("aria-expanded") === "false";
+    return panel.classList.contains("hidden") && button.getAttribute("aria-expanded") === "false" && document.activeElement === document.querySelector("#startButton");
   })()`), 3500);
+
+  await clickSelector(cdp, "#startSettingsButton");
+  await waitUntil("pointer-opened settings focuses close", () => evaluate(cdp, `document.activeElement === document.querySelector("#settingsClose")`), 3500);
+  await openSettingsGroup(cdp, ".settings-group-audio");
+  await clickSelector(cdp, "#audioTestButton");
+  await waitUntil("modal action keeps focus inside panel", () => evaluate(cdp, `document.querySelector("#settingsPanel").contains(document.activeElement)`), 3500);
+  await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel");
+    const visible = [...panel.querySelectorAll("button, select, input, textarea, summary, [tabindex]")].filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
+    visible[visible.length - 1]?.focus();
+  })()`);
+  await keyTap(cdp, "Tab", "Tab");
+  await sleep(120);
+  const focusWrapState = await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel");
+    const visible = [...panel.querySelectorAll("button, select, input, textarea, summary, [tabindex]")].filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
+    const describe = (element) => element ? (element.id || element.className || element.tagName) : "none";
+    return {
+      active: describe(document.activeElement),
+      first: describe(visible[0]),
+      last: describe(visible[visible.length - 1]),
+      inside: panel.contains(document.activeElement),
+      count: visible.length
+    };
+  })()`);
+  if (focusWrapState.active !== "settingsClose") errors.push("modal Tab should wrap to the close button: " + JSON.stringify(focusWrapState));
+  await keyTap(cdp, "Escape", "Escape");
+  await waitUntil("pointer opener regains focus", () => evaluate(cdp, `document.activeElement === document.querySelector("#startSettingsButton")`), 3500);
 
   await keyTap(cdp, "KeyO", "O");
   await waitUntil("settings reopens from keyboard O", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
@@ -978,15 +1137,87 @@ async function runVisualRegressionSmoke(cdp, baseUrl) {
   }
 }
 
+async function runCanvasDensitySmoke(cdp, baseUrl) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 960,
+    height: 640,
+    deviceScaleFactor: 2,
+    mobile: false
+  });
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+  await navigateApp(cdp, baseUrl, "high-DPI canvas");
+  await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    saved.lowPerformance = false;
+    localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
+    location.reload();
+  })()`);
+  await waitForAppReady(cdp);
+
+  const normal = await evaluate(cdp, `(() => {
+    const canvas = document.querySelector("#game");
+    return { width: canvas.width, height: canvas.height, dpr: window.devicePixelRatio };
+  })()`);
+  if (normal.dpr !== 2 || normal.width !== 1440 || normal.height !== 816) {
+    errors.push("normal high-DPI canvas should use the capped 1.5x buffer: " + JSON.stringify(normal));
+  }
+
+  await clickSelector(cdp, "#startSettingsButton");
+  await waitUntil("high-DPI settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await openSettingsGroup(cdp, ".settings-group-display");
+  await clickSelector(cdp, "#lowPerformanceToggle");
+  const reduced = await waitUntil("low-performance canvas buffer", () => evaluate(cdp, `(() => {
+    const canvas = document.querySelector("#game");
+    return canvas.width === 960 && canvas.height === 544
+      ? { width: canvas.width, height: canvas.height, enabled: document.querySelector("#lowPerformanceToggle").checked }
+      : null;
+  })()`));
+  if (!reduced.enabled) errors.push("low-performance toggle should remain enabled after rebuilding the canvas");
+
+  await clickSelector(cdp, "#lowPerformanceToggle");
+  const restored = await waitUntil("restored high-DPI canvas buffer", () => evaluate(cdp, `(() => {
+    const canvas = document.querySelector("#game");
+    return canvas.width === 1440 && canvas.height === 816
+      ? { width: canvas.width, height: canvas.height, enabled: document.querySelector("#lowPerformanceToggle").checked }
+      : null;
+  })()`));
+  if (restored.enabled) errors.push("normal high-DPI canvas should be restored after disabling low-performance mode");
+}
+
 async function runMobileSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 390,
-    height: 700,
+    height: 844,
     deviceScaleFactor: 1,
     mobile: true
   });
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
   await navigateApp(cdp, baseUrl, "mobile portrait");
+  const mobileStartContext = await evaluate(cdp, `(() => {
+    const resume = document.querySelector("#resumeTrainingButton");
+    const resumeVisible = !!resume && !resume.classList.contains("hidden");
+    const resumeText = resume?.textContent.trim() || "";
+    const chapter = document.querySelector("#portraitChapter").textContent.trim();
+    const title = document.querySelector("#portraitRoomTitle").textContent.trim();
+    const goal = document.querySelector("#portraitRoomGoal").textContent.trim();
+    const resumeRoom = resumeText.match(/R([0-9]+)/)?.[1] || "";
+    const titleRoom = title.match(/R([0-9]+)/)?.[1] || "";
+    const resumeMode = resumeText.match(/(Clean|Pace|Style|Expert)/)?.[1] || "";
+    const startActions = [...document.querySelectorAll(".start-panel button")].filter((button) => getComputedStyle(button).display !== "none");
+    return {
+      resumeVisible,
+      resumeText,
+      chapter,
+      title,
+      goal,
+      startTouchSafe: startActions.length >= 3 && startActions.every((button) => button.getBoundingClientRect().height >= 44),
+      aligned: resumeVisible
+        ? chapter.includes("上次训练") && resumeRoom === titleRoom && !!resumeMode && goal.includes(resumeMode)
+        : chapter.includes("攀登起点") && titleRoom === "1"
+    };
+  })()`);
+  if (!mobileStartContext.aligned) errors.push("mobile start portrait brief should match the resume target or clearly identify the R1 climb start: " + JSON.stringify(mobileStartContext));
+  if (!mobileStartContext.startTouchSafe) errors.push("mobile start actions should retain 44px hit targets: " + JSON.stringify(mobileStartContext));
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("mobile practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   const roomGroupOpen = await evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`);
@@ -994,6 +1225,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     await tapSelector(cdp, ".settings-group-room summary");
     await waitUntil("mobile room settings open", () => evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`));
   }
+  await openSettingsGroup(cdp, ".settings-group-training");
   const mobile = await evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const feel = getComputedStyle(document.querySelector("#feelLab")).gridTemplateColumns.split(" ").filter(Boolean).length;
@@ -1005,11 +1237,23 @@ async function runMobileSmoke(cdp, baseUrl) {
       const rect = el.getBoundingClientRect();
       return { id: el.id || el.className, left: rect.left, right: rect.right, width: rect.width, scrollWidth: el.scrollWidth };
     });
+    const variants = [...document.querySelectorAll(".variant-button")].map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { text: button.textContent.trim(), width: rect.width, height: rect.height };
+    });
+    const launch = document.querySelector("#focusRoomButton").getBoundingClientRect();
+    const closeTarget = document.querySelector("#settingsClose").getBoundingClientRect();
+    const roomSelectTarget = document.querySelector("#roomSelect").getBoundingClientRect();
+    const visibleSummaries = [...document.querySelectorAll(".settings-group > summary")].filter((summary) => summary.getBoundingClientRect().height > 0);
     return {
       modePractice: document.querySelector("#settingsPanel").classList.contains("mode-practice"),
       feelColumns: feel,
       panelFits: panel.left >= -1 && panel.right <= window.innerWidth + 1 && panel.bottom <= window.innerHeight + 1,
       cardsFit: cards.every((card) => card.scrollWidth <= card.width + 2 && card.height >= 44),
+      variantsTouchSafe: variants.length === 4 && variants.every((button) => button.width >= 44 && button.height >= 44),
+      variantsExplained: variants.every((button) => /无失误|节奏|类型|高手/.test(button.text)),
+      launchTouchSafe: launch.top >= panel.top && launch.bottom <= panel.bottom && launch.width >= 44 && launch.height >= 44,
+      panelControlsTouchSafe: closeTarget.width >= 44 && closeTarget.height >= 44 && roomSelectTarget.height >= 44 && visibleSummaries.every((summary) => summary.getBoundingClientRect().height >= 44),
       roomItemsFit: roomItems.every((item) => item.left >= -1 && item.right <= window.innerWidth + 1),
       roomItems,
       coarsePointer: matchMedia("(pointer: coarse)").matches
@@ -1019,6 +1263,9 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (mobile.feelColumns !== 1) errors.push("mobile Feel Lab should collapse to one column");
   if (!mobile.panelFits) errors.push("mobile practice panel overflows viewport");
   if (!mobile.cardsFit) errors.push("mobile route/feel cards have horizontal overflow or too-small hit targets");
+  if (!mobile.variantsTouchSafe || !mobile.variantsExplained) errors.push("mobile Drill variants should be explained and touch-safe: " + JSON.stringify(mobile));
+  if (!mobile.launchTouchSafe) errors.push("mobile selected-room launch dock should remain visible and touch-safe: " + JSON.stringify(mobile));
+  if (!mobile.panelControlsTouchSafe) errors.push("mobile practice close, room select and disclosure targets should remain at least 44px: " + JSON.stringify(mobile));
   if (!mobile.roomItemsFit) errors.push("mobile room settings should not overflow horizontally: " + JSON.stringify(mobile.roomItems));
   if (!mobile.coarsePointer) errors.push("mobile smoke should emulate a coarse pointer");
   await evaluate(cdp, `(() => {
@@ -1069,7 +1316,16 @@ async function runMobileSmoke(cdp, baseUrl) {
     const touch = document.querySelector(".touch");
     const direction = document.querySelector(".touch-directions");
     const action = document.querySelector(".touch-actions");
+    const shell = document.querySelector(".shell");
+    const ridgeStyle = getComputedStyle(shell, "::before");
     const stage = document.querySelector(".stage").getBoundingClientRect();
+    const portraitBrief = document.querySelector("#portraitBrief");
+    const portraitBriefRect = portraitBrief.getBoundingClientRect();
+    const controlHint = document.querySelector("#controlHint");
+    const hudActions = [document.querySelector("#practiceButton"), document.querySelector("#settingsButton")].map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { id: button.id, width: Math.round(rect.width), height: Math.round(rect.height), left: Math.round(rect.left), right: Math.round(rect.right) };
+    });
     const buttons = [...document.querySelectorAll("[data-touch]")].map((button) => {
       const rect = button.getBoundingClientRect();
       return { id: button.dataset.touch, width: Math.round(rect.width), height: Math.round(rect.height), top: Math.round(rect.top), bottom: Math.round(rect.bottom) };
@@ -1079,13 +1335,86 @@ async function runMobileSmoke(cdp, baseUrl) {
       position: getComputedStyle(touch).position,
       directionGrid: getComputedStyle(direction).display === "grid",
       actionGrid: getComputedStyle(action).display === "grid",
+      buttonBackground: getComputedStyle(document.querySelector("[data-touch]")).backgroundImage,
       buttons,
+      hudActions,
+      hudActionsTouchSafe: hudActions.every((button) => button.width >= 44 && button.height >= 44 && button.left >= 0 && button.right <= window.innerWidth),
       allButtonsLarge: buttons.every((button) => button.width >= 44 && button.height >= 44),
-      detachedFromPlayfield: getComputedStyle(touch).position === "fixed" && buttons.every((button) => button.top >= stage.bottom + 4)
+      detachedFromPlayfield: getComputedStyle(touch).position === "fixed" && buttons.every((button) => button.top >= stage.bottom + 4),
+      playfieldGap: Math.round(Math.min(...buttons.map((button) => button.top)) - stage.bottom),
+      portraitBriefVisible: getComputedStyle(portraitBrief).display !== "none" && getComputedStyle(portraitBrief).opacity !== "0",
+      portraitBriefAbove: portraitBriefRect.bottom <= stage.top - 8,
+      portraitBriefGap: Math.round(stage.top - portraitBriefRect.bottom),
+      portraitAtmosphere: shell.dataset.portraitChapter === "gate" && ridgeStyle.content !== "none" && ridgeStyle.clipPath !== "none",
+      portraitBriefText: portraitBrief.textContent.trim(),
+      controlHintHidden: controlHint.classList.contains("hidden") && getComputedStyle(controlHint).display === "none",
+      stageTop: Math.round(stage.top)
     };
   })()`);
-  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !touchUi.allButtonsLarge || !touchUi.detachedFromPlayfield) {
+  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap > 150 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap > 160 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintHidden || touchUi.stageTop > 360) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
+  }
+  const largeTouchUi = await evaluate(cdp, `(() => {
+    const stage = document.querySelector(".stage");
+    const previousSize = stage.style.getPropertyValue("--touch-size");
+    stage.style.setProperty("--touch-size", "64px");
+    const direction = document.querySelector(".touch-directions");
+    const action = document.querySelector(".touch-actions");
+    const directionRect = direction.getBoundingClientRect();
+    const actionRect = action.getBoundingClientRect();
+    const buttons = [...document.querySelectorAll("[data-touch]")].map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { id: button.dataset.touch, left: rect.left, right: rect.right, top: rect.top, width: rect.width, height: rect.height };
+    });
+    const grab = buttons.find((button) => button.id === "grab");
+    const jump = buttons.find((button) => button.id === "jump");
+    const dash = buttons.find((button) => button.id === "dash");
+    const result = {
+      withinViewport: buttons.every((button) => button.left >= -1 && button.right <= window.innerWidth + 1),
+      clustersSeparated: actionRect.left >= directionRect.right + 4,
+      actionColumns: getComputedStyle(action).gridTemplateColumns.split(" ").length,
+      commonActionsPaired: Math.abs(jump.top - dash.top) < 1 && grab.top < jump.top,
+      minSize: Math.min(...buttons.map((button) => Math.min(button.width, button.height))),
+      maxSize: Math.max(...buttons.map((button) => Math.max(button.width, button.height))),
+      directionRight: Math.round(directionRect.right),
+      actionLeft: Math.round(actionRect.left),
+      dashRight: Math.round(dash.right),
+      viewportWidth: window.innerWidth
+    };
+    if (previousSize) stage.style.setProperty("--touch-size", previousSize);
+    else stage.style.removeProperty("--touch-size");
+    return result;
+  })()`);
+  if (!largeTouchUi.withinViewport || !largeTouchUi.clustersSeparated || largeTouchUi.actionColumns !== 2 || !largeTouchUi.commonActionsPaired || largeTouchUi.minSize < 44 || largeTouchUi.maxSize > 64.5) {
+    errors.push("64px portrait touch setting should adapt within the phone width and keep Jump/Dash reachable: " + JSON.stringify(largeTouchUi));
+  }
+
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 320,
+    height: 480,
+    deviceScaleFactor: 1,
+    mobile: true
+  });
+  await sleep(100);
+  const shortPortrait = await evaluate(cdp, `(() => {
+    const brief = document.querySelector("#portraitBrief").getBoundingClientRect();
+    const hud = document.querySelector(".hud").getBoundingClientRect();
+    const stage = document.querySelector(".stage").getBoundingClientRect();
+    const touch = document.querySelector("#touchControls").getBoundingClientRect();
+    const buttons = [...document.querySelectorAll("[data-touch]")].map((button) => button.getBoundingClientRect());
+    return {
+      briefAboveHud: brief.bottom <= hud.top - 6,
+      briefTop: Math.round(brief.top),
+      briefBottom: Math.round(brief.bottom),
+      hudTop: Math.round(hud.top),
+      controlsDetached: buttons.every((button) => button.top >= stage.bottom + 4),
+      controlsFit: buttons.every((button) => button.left >= -1 && button.right <= window.innerWidth + 1 && button.bottom <= window.innerHeight + 1),
+      touchBottom: Math.round(touch.bottom),
+      viewport: { width: window.innerWidth, height: window.innerHeight }
+    };
+  })()`);
+  if (!shortPortrait.briefAboveHud || !shortPortrait.controlsDetached || !shortPortrait.controlsFit) {
+    errors.push("320x480 portrait should keep the room brief clear of the HUD and all touch controls on-screen: " + JSON.stringify(shortPortrait));
   }
 }
 
@@ -1100,25 +1429,92 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   await navigateApp(cdp, baseUrl, "mobile landscape");
   await tapSelector(cdp, "#startSettingsButton");
   await waitUntil("mobile landscape settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  await openSettingsGroup(cdp, ".settings-group-audio");
+  const landscapeAudioTouchSafe = await evaluate(cdp, `document.querySelector("#audioTestButton").getBoundingClientRect().height >= 44`);
+  await openSettingsGroup(cdp, ".settings-group-feedback");
+  const landscapeFeedbackTouchSafe = await evaluate(cdp, ` [...document.querySelectorAll(".settings-group-feedback button")].filter((button) => button.getBoundingClientRect().height > 0).every((button) => button.getBoundingClientRect().height >= 44 && button.getBoundingClientRect().width >= 44)`);
   const landscape = await evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
+    const close = document.querySelector("#settingsClose").getBoundingClientRect();
+    const selects = [...document.querySelectorAll(".settings-group-controls select")].filter((el) => el.getBoundingClientRect().height > 0);
+    const ranges = [...document.querySelectorAll(".settings-group-controls input[type=range]")].filter((el) => el.getBoundingClientRect().height > 0);
     return {
       panelFits: panel.left >= -1 && panel.right <= window.innerWidth + 1 && panel.bottom <= window.innerHeight + 1,
       modeSettings: document.querySelector("#settingsPanel").classList.contains("mode-settings"),
       deadzone: !!document.querySelector("#gamepadDeadzoneSlider"),
-      touchSize: !!document.querySelector("#touchSizeSlider")
+      touchSize: !!document.querySelector("#touchSizeSlider"),
+      controlsTouchSafe: close.width >= 44 && close.height >= 44 && selects.every((el) => el.getBoundingClientRect().height >= 44) && ranges.every((el) => el.getBoundingClientRect().height >= 44)
     };
   })()`);
   if (!landscape.panelFits) errors.push("mobile landscape settings panel overflows viewport");
   if (!landscape.modeSettings) errors.push("mobile landscape should open the quiet settings panel");
   if (!landscape.deadzone || !landscape.touchSize) errors.push("mobile landscape should keep control accessibility settings visible");
+  if (!landscape.controlsTouchSafe) errors.push("mobile landscape settings controls should retain 44px hit targets: " + JSON.stringify(landscape));
+  if (!landscapeAudioTouchSafe || !landscapeFeedbackTouchSafe) errors.push("mobile landscape audio and feedback/save buttons should retain 44px hit targets");
   await tapSelector(cdp, "#settingsClose");
+  await tapSelector(cdp, "#startButton");
+  await waitUntil("mobile landscape game starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
+  const landscapeTouch = await evaluate(cdp, `(() => {
+    const touch = document.querySelector("#touchControls");
+    const buttons = [...touch.querySelectorAll("button")];
+    const rgba = getComputedStyle(buttons[0]).backgroundColor.match(/[\\d.]+/g)?.map(Number) || [];
+    return {
+      visible: getComputedStyle(touch).display === "flex",
+      buttonCount: buttons.length,
+      allLarge: buttons.every((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.width >= 44 && rect.height >= 44;
+      }),
+      backgroundAlpha: rgba.length >= 4 ? rgba[3] : 1,
+      backdrop: getComputedStyle(buttons[0]).backdropFilter || ""
+    };
+  })()`);
+  if (!landscapeTouch.visible || landscapeTouch.buttonCount !== 7 || !landscapeTouch.allLarge || landscapeTouch.backgroundAlpha > 0.34 || !/blur\(4px\)/.test(landscapeTouch.backdrop)) {
+    errors.push("mobile landscape touch controls should remain usable without obscuring terrain: " + JSON.stringify(landscapeTouch));
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 568,
+    height: 320,
+    deviceScaleFactor: 1,
+    mobile: true
+  });
+  await sleep(100);
+  await tapSelector(cdp, "#practiceButton");
+  await waitUntil("short landscape practice opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  const shortLandscapePractice = await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
+    const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
+    const launch = document.querySelector("#focusRoomButton").getBoundingClientRect();
+    const reset = document.querySelector("#focusResetButton").getBoundingClientRect();
+    return {
+      panelFits: panel.left >= -1 && panel.right <= window.innerWidth + 1 && panel.bottom <= window.innerHeight + 1,
+      dockFits: dock.top >= panel.top && dock.bottom <= panel.bottom + 1,
+      actionsTouchSafe: launch.height >= 44 && reset.height >= 44,
+      launchHeight: Math.round(launch.height),
+      resetHeight: Math.round(reset.height),
+      viewport: { width: window.innerWidth, height: window.innerHeight }
+    };
+  })()`);
+  if (!shortLandscapePractice.panelFits || !shortLandscapePractice.dockFits || !shortLandscapePractice.actionsTouchSafe) {
+    errors.push("568x320 touch landscape should keep the practice dock visible with 44px launch/reset targets: " + JSON.stringify(shortLandscapePractice));
+  }
+  await tapSelector(cdp, "#settingsClose");
+  await waitUntil("short landscape practice closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await evaluate(cdp, `(() => {
     const overlay = document.querySelector("#overlay");
+    overlay.classList.add("finish-overlay");
     overlay.classList.remove("hidden");
-    overlay.innerHTML = '<h1>登顶</h1><p class="finish-line">0:30.00 · D 1 · Relay 3 · Flow 120</p><div class="review-grid">' +
+    overlay.hidden = false;
+    overlay.removeAttribute("inert");
+    overlay.setAttribute("aria-hidden", "false");
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-labelledby", "finishTitle");
+    overlay.innerHTML = '<h1 id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">0:30.00 · 失误 1 · 光继连锁 3 · Flow 120</p><div class="review-grid">' +
       Array.from({ length: 9 }, (_, index) => '<article class="review-card ' + (index < 4 ? 'primary' : 'secondary') + '"><span>复盘项 ' + index + '</span><strong>长文本安全检查 R' + index + '</strong><p>这是一段用于横屏移动端滚动和断行的复盘内容，不能横向溢出。</p></article>').join('') +
       '</div><div class="review-actions"><button class="review-button primary-review" type="button">下一 Drill</button></div>';
+    document.querySelector("#finishTitle").focus({ preventScroll: true });
+    overlay.scrollTop = 0;
   })()`);
   const review = await evaluate(cdp, `(() => {
     const overlay = document.querySelector("#overlay");
@@ -1126,13 +1522,18 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
       const rect = el.getBoundingClientRect();
       return { width: rect.width, scrollWidth: el.scrollWidth };
     });
+    const overlayRect = overlay.getBoundingClientRect();
+    const titleRect = document.querySelector("#finishTitle").getBoundingClientRect();
     return {
       scrollSafe: getComputedStyle(overlay).overflowY === "auto" && overlay.scrollHeight >= overlay.clientHeight,
+      topReachable: titleRect.top >= overlayRect.top - 1 && titleRect.bottom <= overlayRect.bottom + 1,
+      focusInside: document.activeElement === document.querySelector("#finishTitle"),
       noHorizontalOverflow: articles.every((item) => item.scrollWidth <= item.width + 2),
       primaryCount: document.querySelectorAll(".review-card.primary").length
     };
   })()`);
   if (!review.scrollSafe) errors.push("finish review overlay should remain vertically scroll-safe on mobile landscape");
+  if (!review.topReachable || !review.focusInside) errors.push("finish review should keep its labelled top reachable and focused on mobile landscape: " + JSON.stringify(review));
   if (!review.noHorizontalOverflow) errors.push("finish review cards overflow horizontally on mobile landscape");
   if (review.primaryCount < 4) errors.push("finish review should preserve primary card priority markers");
 }
@@ -1249,6 +1650,7 @@ async function main() {
     await runTrainingInterruptionSmoke(cdp, baseUrl);
     await runStorageSmoke(cdp, baseUrl);
     await runSaveArchiveSmoke(cdp, baseUrl);
+    await runCanvasDensitySmoke(cdp, baseUrl);
     await runVisualRegressionSmoke(cdp, baseUrl);
     await runMobileSmoke(cdp, baseUrl);
     await runMobileLandscapeSmoke(cdp, baseUrl);
@@ -1265,7 +1667,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

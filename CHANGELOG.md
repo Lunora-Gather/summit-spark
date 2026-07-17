@@ -1,5 +1,663 @@
 # Changelog
 
+## 2026-07-17 - p114
+
+- Raised the in-game HUD Practice and Settings actions from 36×36px to 44×44px on narrow or coarse-pointer layouts.
+- Kept the seven movement/action touch controls at 48px and preserved compact desktop HUD sizing and icon styling.
+- Added browser and contract guards for the two remaining mobile HUD targets and bumped public assets to `20260717-p114`.
+
+## 2026-07-17 - p113
+
+- Raised the audio preview and feedback/save copy, download, import and restore buttons from 30px to at least 44px on narrow or coarse-pointer layouts.
+- Preserved save validation, automatic pre-import backup, reversible restore behavior and compact desktop sizing.
+- Added browser and contract coverage for the remaining settings actions and bumped public assets to `20260717-p113`.
+
+## 2026-07-17 - p112
+
+- Raised all visible start-screen actions from 40–42px to at least 44px on narrow or coarse-pointer layouts.
+- Preserved the existing primary/secondary hierarchy, widths, desktop density and short-landscape fit.
+- Added browser and contract guards for mobile start hit targets and bumped public assets to `20260717-p112`.
+
+## 2026-07-17 - p111
+
+- Raised the settings close button, disclosure rows, selects and range inputs to at least 44px on narrow or coarse-pointer layouts.
+- Preserved the compact desktop mouse layout and the existing internal scrolling behavior on short landscape screens.
+- Added browser and contract guards for mobile settings hit targets and bumped public assets to `20260717-p111`.
+
+## 2026-07-17 - p110
+
+- Fixed the top “Next step” card displaying the manually selected room while its click action still launched the global recommendation.
+- Kept the top card consistently global and the room brief, variants, coaching dock and Start action consistently bound to the manual selection.
+- Added source and browser regression guards for the two distinct entry points and bumped public assets to `20260717-p110`.
+
+## 2026-07-17 - p109
+
+- Stopped the practice-room selector from immediately closing the panel and teleporting into gameplay on every change.
+- Room selection now updates the room brief, coaching summary, Drill variants and explicit launch action in place.
+- Kept gameplay entry behind the existing Start/variant buttons, updated browser and contract coverage, and bumped public assets to `20260717-p109`.
+
+## 2026-07-17 - p108
+
+- Fixed updraft rendering ending nearly two tiles above the bottom of its actual physics field.
+- Centralized updraft field bounds so collision and drawing now share the same full-height rectangle.
+- Modestly raised the static fill and dashed-edge contrast without adding particles, glow, or animation, added a contract guard, and bumped public assets to `20260717-p108`.
+
+## 2026-07-17 - p107
+
+- Replaced the wide, thin airborne leg fork with a short tucked pose that stays visually attached beneath the coat at gameplay scale.
+- Pulled the rear leg inward, limited the lead-leg opening, and brought both stroke weights closer to the grounded silhouette.
+- Kept rounded integrated endpoints with no separate toe or boot geometry, updated the player contract, and bumped public assets to `20260717-p107`.
+
+## 2026-07-17 - p106
+
+- Converted the critical dash and climbing-stamina HUD meters from color-only decorative elements into localized live progressbars.
+- Exposed remaining dash charges and stamina percentage without adding persistent explanatory copy or enlarging the compact HUD.
+- Raised the in-meter visual labels from 7px to 8px, retained the existing short-landscape footprint, added contract guards, and bumped public assets to `20260717-p106`.
+
+## 2026-07-17 - p105
+
+- Renamed the visible `D/death` metric to the accurate Chinese `mistake` semantic because hazards, falls, quick retries and room restarts all contribute to it.
+- Updated the summit summary, no-mistake challenge, challenge progress and long-term profile copy while preserving the existing counting rules.
+- Kept internal save keys such as `bestDeathCount` unchanged for backward compatibility, updated browser/contract guards, and bumped public assets to `20260717-p105`.
+
+## 2026-07-17 - p104
+
+- Removed the redundant red death burst that was immediately covered by the white respawn burst during an intentional quick retry.
+- Matched calm-mode current-room restarts to the normal respawn particle budget while preserving the full non-calm count.
+- Kept status copy, audio, counters and restart behavior unchanged, added a contract guard, and bumped public assets to `20260717-p104`.
+
+## 2026-07-17 - p103
+
+- Reduced idle visual density for relay and prism clusters in R9–R10 when calm effects are enabled.
+- Slowed idle rotation and hid secondary ready-state side ticks, arcs and chevrons while preserving the core mechanic silhouettes, cooldown rings and trigger pulses.
+- Left collision, timing, colors and the explicit non-calm presentation unchanged, added a contract guard, and bumped public assets to `20260717-p103`.
+
+## 2026-07-17 - p102
+
+- Added a portrait-only player render scale so the character remains locatable when the complete 1200px room is reduced to a narrow phone playfield.
+- Kept the scale anchored at the feet and left collision geometry, physics, desktop/landscape rendering and map framing unchanged.
+- Avoided locator rings, arrows, labels or extra effects, added a contract guard, and bumped public assets to `20260717-p102`.
+
+## 2026-07-17 - p101
+
+- Moved the moon along a four-chapter right-to-left track instead of pinning it behind every room's right-edge exit.
+- Added small per-room offsets and chapter-specific heights so the sky composition evolves across the climb while R1, R7 and R10 goals retain a clear focal area.
+- Kept the change static and background-only with no added particles, glow budget or gameplay markers, and bumped public assets to `20260717-p101`.
+
+## 2026-07-17 - p100
+
+- Replaced the dangling airborne leg strokes with a compact articulated jump pose: the lead leg opens while the rear leg folds back.
+- Gave ascent and descent distinct knee/toe geometry, softened the rear-leg hierarchy, and ended both feet as rounded continuations of the legs rather than dark boot shapes.
+- Updated the player silhouette contract and bumped public assets to `20260717-p100`.
+
+## 2026-07-17 - p99
+
+- Removed the duplicate dash afterimage created at the start position on the first physics frame.
+- Made afterimage cadence, opacity and lifetime respect calm and low-performance settings, reducing the default 135ms dash from roughly six overlapping silhouettes to about three while preserving direction readability.
+- Added a contract guard for the quiet cadence and bumped public assets to `20260717-p99`.
+
+## 2026-07-17 - p98
+
+- Restored the airborne legs' minimum readability after frame-by-frame review showed the previous slim pass nearly disappearing at normal play size.
+- Kept the asymmetrical front/rear curves and block-free rounded ends while modestly increasing lower contrast, stroke weight, rear-leg opacity and extension.
+- Updated the player silhouette contract and bumped public assets to `20260717-p98`.
+
+## 2026-07-16 - p97
+
+- Restored 44px minimum hit targets for the practice launch and reset actions on short coarse-pointer landscape screens such as 568×320.
+- Kept the compact 38px dock for mouse-driven short landscape windows so the change does not unnecessarily reduce panel content space.
+- Added a live 568×320 touch-landscape guard for panel/dock bounds and both action heights, and bumped public assets to `20260716-p97`.
+
+## 2026-07-16 - p96
+
+- Fixed the room brief overlapping the stage HUD on short 320×480 portrait screens.
+- Moved only the short-portrait brief into the upper safe field and tightened its three-line typography while preserving normal-phone spacing, stage scale and touch layout.
+- Added a live 320×480 browser guard for brief/HUD separation and on-screen touch controls, and bumped public assets to `20260716-p96`.
+
+## 2026-07-16 - p95
+
+- Extended the compact room-entry card's fully readable hold while retaining one quiet fade and its existing footprint.
+- Raised the mist-light surface, hairline border and secondary chapter/target text contrast without adding glow, motion or player-adjacent labels.
+- Added a contract guard for the readable timing and palette, and bumped public build assets to `20260716-p95`.
+
+## 2026-07-16 - p94
+
+- Reconciled the manual playtest checklist with the current quiet first-run keyboard strip: toast/head-level coaching stays forbidden, while the compact Move → Jump → Dash strip is expected to advance and exit from real input.
+- Added explicit manual/release checks for touch-label suppression, the 390px/64px control boundary and operating-system reduced-motion behavior.
+- Added contract guards preventing the human verification standard from drifting away from the browser-tested product behavior.
+- Bumped public build assets to `20260716-p94`.
+
+## 2026-07-16 - p93
+
+- Added operating-system `prefers-reduced-motion` support across CSS and Canvas rendering.
+- Disabled nonessential ribbons, snowfall and velocity wakes; froze ambient moon/entity drift and rotation; reduced particle budgets while preserving gameplay movement, hazards and action confirmation.
+- Added a live browser-smoke check that toggles the emulated system preference and verifies both UI and Canvas reduced-motion state.
+- Bumped public build assets to `20260716-p93`.
+
+## 2026-07-16 - p92
+
+- Redrew spring entities with a distinct green cap, two compressible coils and a blue-gray base so intentional midair relay springs no longer resemble floating status bars.
+- Preserved every spring position, collision box, launch force and dash/stamina restore behavior.
+- Bumped public build assets to `20260716-p92`.
+
+## 2026-07-16 - p91
+
+- Changed portrait action controls to a two-column layout so the 64px comfort setting keeps Dash on-screen at 390px width.
+- Kept Jump and Dash paired on the lower thumb row, placed Grab above, and responsively capped the requested size only when the viewport cannot safely fit it.
+- Added a mobile browser-smoke guard that measures the 64px state for viewport bounds, cluster separation and action placement.
+- Bumped public build assets to `20260716-p91`.
+
+## 2026-07-16 - p90
+
+- Replaced the manual playtest checklist's stale pinned build with a dynamic meta/CSS/JS version check backed by `check-public-surface.js`.
+- Expanded the default `npm run check` gate to include documentation, public surface, data contracts and maintenance tool validation.
+- Added guards preventing future playtest checklists from pinning a release version that will immediately drift.
+- Bumped public build assets to `20260716-p90`.
+
+## 2026-07-16 - p89
+
+- Increased the static outline contrast of inactive echo anchors in R9–R10 so they remain readable against green and violet late-chapter backgrounds.
+- Preserved the existing anchor silhouette, activation feedback and mechanics without adding rings, links or animation.
+- Bumped public build assets to `20260716-p89`.
+
+## 2026-07-16 - p88
+
+- Raised the at-rest readability of R7–R8 updraft fields, dashed boundaries, short stream marks and compact direction arrows.
+- Kept the existing effect count and avoided new particles, glow, flashing or long trails.
+- Bumped public build assets to `20260716-p88`.
+
+## 2026-07-16 - p87
+
+- Extended the mobile portrait atmosphere beyond the fixed-ratio canvas with chapter-aware page tones for Gate, Old Peak, Wind Gorge and Summit.
+- Added one static, low-contrast ridge behind the brief, playfield and touch zone; no animation or new gameplay marks were introduced.
+- Reduced the portrait room brief's floating-card treatment while preserving stage size and touch safe areas.
+- Bumped public build assets to `20260716-p87`.
+
+## 2026-07-16 - p86
+
+- Reworked airborne legs into two slimmer, asymmetrical strokes: the rear leg now tucks and recedes while the front leg opens with vertical speed.
+- Removed the remaining equal-weight boot-blob impression without adding detached soles or extra airborne effects.
+- Bumped public build assets to `20260716-p86`.
+
+## 2026-07-16 - p85
+
+### Changed
+- Lifted normal rock faces from near-black navy to layered blue-gray values.
+- Reduced exposed side and bottom edge darkness while keeping snow caps and landing boundaries crisp.
+- Slightly increased rock crack visibility without adding per-frame work or changing cached-sprite behavior.
+- Preserved crumble contrast, hazards, collision geometry, and all room layouts.
+- Bumped public build assets to `20260716-p85`.
+
+## 2026-07-16 - p84
+
+### Changed
+- Audited settings and practice panels at desktop, 390x844 portrait, and 844x390 landscape sizes.
+- Collapsed the short-landscape practice dock from a two-line label plus summary to one ellipsized summary line.
+- Reduced only the short-landscape launch action height while preserving fixed reachability, scroll separation, and touch targets elsewhere.
+- Bumped public build assets to `20260716-p84`.
+
+## 2026-07-16 - p83
+
+### Changed
+- Reduced persistent relay and prism blur from 8px to 2px in calm mode and tightened their idle rings.
+- Shrunk relay/prism pulse expansion while keeping contact-triggered alpha response and cooldown rings.
+- Removed calm-mode glow from inactive echo anchors and reduced active anchor blur, breathing amplitude, and outer radius.
+- Bumped public build assets to `20260716-p83`.
+
+## 2026-07-16 - p82
+
+### Changed
+- Replaced full-height glowing updraft strokes with three or four short local flow segments.
+- Reduced each updraft to one compact moving chevron and a smaller top boundary marker.
+- Lowered in-field snow spawning while preserving the complete physical field, pull, stamina recovery, and rise speed.
+- Bumped public build assets to `20260716-p82`.
+
+## 2026-07-16 - p81
+
+### Changed
+- Brightened R1 from a dense cold-blue opening to a clearer dawn-mist palette while preserving terrain contrast.
+- Increased only the first chapter's landmark presence after representative R1/R4/R7/R10 visual comparison.
+- Added two small static gate lanterns with no shadow blur, pulse, particles, or gameplay obstruction.
+- Bumped public build assets to `20260716-p81`.
+
+## 2026-07-16 - p80
+
+### Changed
+- Reduced both arm strokes and hand circles, and muted the hand color so the upper-body silhouette no longer reads as two bright floating balls.
+- Removed the duplicate green wall-grip hand dot while preserving the actual grip hand and wall-state framing.
+- Replaced the square backpack block with a narrower, lighter rounded side pack.
+- Bumped public build assets to `20260716-p80`.
+
+## 2026-07-16 - p79
+
+### Changed
+- Increased the player render scale from 1.015 to 1.09 around the existing foot anchor without changing collision dimensions.
+- Removed respawn from both aura-ring render paths so restarting no longer stacks two oversized circles over the character.
+- Matched grounded legs to the thinner mist-blue airborne silhouette instead of restoring two dark boot-like columns on landing.
+- Preserved action-relevant dash, prism, recall, wall, landing, and death feedback.
+- Bumped public build assets to `20260716-p79`.
+
+## 2026-07-16 - p78
+
+### Changed
+- Removed the pale airborne and grounded sole strokes that became detached horizontal dashes at gameplay scale.
+- Narrowed, lengthened, and slightly separated the airborne legs so both connect visibly to the coat hem and finish as rounded endpoints.
+- Added a contract guard against reintroducing detached sole highlights.
+- Bumped public build assets to `20260716-p78`.
+
+## 2026-07-16 - p77
+
+### Changed
+- Localized all player-facing death and retry causes while preserving the existing internal save keys.
+- Replaced exposed Focus/watch/saved/score wording in practice summaries, room selectors, popups, and the mastery ledger with concise Chinese labels.
+- Added contract coverage for localized reason labels and English diagnostic-copy regressions.
+- Bumped public build assets to `20260716-p77`.
+
+## 2026-07-16 - p76
+
+### Changed
+- Removed the duplicate “no mistakes” claim from the Clean Drill canvas title.
+- Replaced diagnostic `!1` / `run !1` notation with natural Chinese mistake counts across HUD, practice summaries, focus feedback, and room labels.
+- Split practice-card target conditions from route advice so Clean and Pace no longer repeat the same requirement in two phrasings.
+- Let the active Clean HUD show route advice plus the live mistake count, avoiding the contradictory “no mistakes … mistake 1” state.
+- Standardized compact training detail separators to middle dots for calmer scanning.
+- Bumped public build assets to `20260716-p76`.
+
+## 2026-07-16 - p75
+
+### Changed
+- Reduced the persistent route compass to a thin low-alpha dashed line with a small open chevron and no glow.
+- Replaced the remaining dark compass label with the shared mist surface and dark text.
+- Removed pulsing opacity from the compass so navigation remains steady and secondary to the route.
+- Bumped public build assets to `20260716-p75`.
+
+## 2026-07-16 - p74
+
+### Changed
+- Unified route guidance, Drill objectives, active challenges, and mastery popups with a shared light-mist canvas card and dark text hierarchy.
+- Removed repeated black panels, colored glow borders, and glowing copy from training feedback.
+- Moved advanced move feedback (buffer, coyote, spark, wall grace) into a fixed edge card so text never follows the character's head.
+- Retained functional color only in thin progress strips and compact state segments.
+- Bumped public build assets to `20260716-p74`.
+
+## 2026-07-16 - p73
+
+### Changed
+- Unified the desktop first-run keyboard strip and mobile touch buttons with the same restrained mist-blue input surface language.
+- Replaced the bright white keyboard card and near-black touch blocks while preserving compact geometry and readable labels.
+- Reduced touch feedback to a subtle gold pressed state and kept low-performance mode visually consistent.
+- Added browser checks for the final computed keyboard and touch surfaces.
+- Bumped public build assets to `20260716-p73`.
+
+## 2026-07-16 - p72
+
+### Changed
+- Replaced near-black brand, telemetry, counter, and action surfaces with one mist-blue glass HUD language.
+- Lightened the internal meter tracks and softened shadows while preserving high-contrast white telemetry.
+- Increased the active-play brand opacity slightly so the mark remains legible without becoming a focal point.
+- Added browser coverage for the final computed HUD surfaces.
+- Bumped public build assets to `20260716-p72`.
+
+## 2026-07-16 - p71
+
+### Changed
+- Coupled the portrait room brief to the fixed-aspect playfield with a viewport-height-aware offset, removing the large arbitrary gap on tall phones.
+- Hide the first-run keyboard strip whenever touch controls are actually rendered, covering hybrid/narrow input environments where pointer media queries alone can disagree.
+- Bumped public build assets to `20260716-p71`.
+
+## 2026-07-16 - p70
+
+### Changed
+- Replaced the large dark room-entry banner with a compact warm-light chapter card that matches the brighter stage language.
+- Tightened the intro from 1.15s to 0.95s and reduced its footprint while preserving room, chapter, and target-time context.
+- Removed heavy text glow and high-contrast framing so the cue does not compete with the route.
+- Bumped public build assets to `20260716-p70`.
+
+## 2026-07-16 - p69
+
+### Changed
+- Removed the character-attached contact shadow while airborne so it cannot read as an extra dark foot.
+- Unified idle and running legs with the same soft rounded silhouette used in the revised jump animation.
+- Removed the two standalone dark grounded boot blocks and softened the remaining floor shadow.
+- Bumped public build assets to `20260716-p69`.
+
+## 2026-07-16 - p68
+
+### Changed
+- Redrew airborne legs as two separated rounded phase-aware strokes, removing the fused dark blob and detached-boot silhouette at gameplay scale.
+- Kept the tiny sole edge low-contrast so feet remain readable over dark platforms without creating a black border.
+- Suppressed the first-run keyboard strip at the logic layer on coarse-pointer devices as well as through CSS.
+- Bumped public build assets to `20260716-p68`.
+
+## 2026-07-16 - p67
+
+### Changed
+- Replaced the disabled first-run onboarding path with a quiet bottom keyboard strip for move, jump, and dash.
+- Advance each cue only after the corresponding real input, then remove the strip after the first dash.
+- Keep the hint off the character, out of modal panels, and entirely hidden on coarse-pointer/touch layouts whose buttons are already labelled.
+- Added an empty-save browser behavior flow covering all three onboarding transitions.
+- Bumped public build assets to `20260716-p67`.
+
+## 2026-07-16 - p66
+
+### Changed
+- Made the portrait brief context-aware on the start overlay: saved players see “last training” with the same recommended room/mode as the resume button.
+- New players see an explicit “climb start” R1 brief, while active play continues showing the live current room.
+- Added mobile start-context coverage so the portrait brief cannot contradict the resume action again.
+- Bumped public build assets to `20260716-p66`.
+
+## 2026-07-16 - p65
+
+### Fixed
+- Bound the persistent practice-dock coaching summary to the selected room, matching its launch button and room selector.
+- Kept the top priority card bound to the global recommendation so the two surfaces no longer contradict each other.
+- Added a browser behavior guard that selects R2 and verifies both the dock copy and actual Drill launch remain on R2.
+- Bumped public build assets to `20260716-p65`.
+
+## 2026-07-16 - p64
+
+### Performance
+- Cached rock tiles by left/right/below adjacency, snow-cap exposure, crack variant, and canvas density.
+- Removed per-frame gradient/path construction for the 46–66 ordinary rock tiles in every room.
+- Made both rock and crumble sprites density-aware so normal 1.5x buffers retain sharp edges while low-performance mode uses 1x assets.
+- Bumped public build assets to `20260716-p64`.
+
+## 2026-07-16 - p63
+
+### Performance
+- Pre-rendered the static crumble-tile gradient, highlight, and base cracks once instead of rebuilding them for every tile on every frame.
+- Kept triggered crumble jitter, countdown, danger wash, and expanding cracks fully dynamic.
+- Targeted the late-room cost increase where R9/R10 contain 20/21 crumble blocks.
+- Bumped public build assets to `20260716-p63`.
+
+## 2026-07-16 - p62
+
+### Changed
+- Split settings/practice panels into a fixed header, independently scrolling body, and non-scrolling footer.
+- Moved the selected-room Drill action into a persistent practice launch dock so it remains reachable at 720px and shorter viewport heights.
+- Kept the selected-room coaching summary in the desktop dock and simplified mobile to a full-width 44px launch action plus reset.
+- Bumped public build assets to `20260716-p62`.
+
+## 2026-07-16 - p61
+
+### Changed
+- Rebalanced portrait play so the stage is centered against the fixed thumb-control zone instead of drifting too low.
+- Added a quiet live chapter/room/goal brief to the otherwise unused upper portrait field without cropping the map.
+- Hide the portrait brief while settings or practice is open to keep panel focus clean.
+- Added portrait geometry and live-copy coverage to the browser smoke suite.
+- Bumped public build assets to `20260716-p61`.
+
+## 2026-07-16 - p60
+
+### Changed
+- Replaced the fixed pair of bulbous airborne leg shapes with one connected hip-to-toe silhouette.
+- Added restrained rise/fall phase shaping so ascent tucks and descent extends toward landing without extra particles or speed lines.
+- Removed detached dark shoe reads and used one low-contrast fabric seam to clarify the forward knee.
+- Bumped public build assets to `20260716-p60`.
+
+## 2026-07-16 - p59
+
+- Found that the room card's primary action always launched the globally recommended room even when the room selector and all four variant buttons targeted a different room.
+- Made the room-card coach summary and primary action follow `practiceTargetRoom()`, with an explicit `开始 Rn Mode` label.
+- Kept the top priority card as the sole global recommendation entry, removing a duplicated and misleading route inside the selected-room context.
+- Added a browser behavior test that selects R2, verifies the button label, clicks it, and confirms an R2 Drill starts.
+- Bumped public build assets to `20260716-p59`.
+
+## 2026-07-16 - p58
+
+- Audited the expanded room-practice flow on desktop and portrait mobile.
+- Replaced unexplained `Clean / Pace / Style / Expert` buttons with bilingual action labels that expose each mode's purpose at the decision point.
+- Raised mobile Drill variant buttons from 30px to a 44px minimum while retaining the existing two-column portrait layout.
+- Added mobile browser coverage for all four labels and touch target geometry.
+- Bumped public build assets to `20260716-p58`.
+
+## 2026-07-16 - p57
+
+- Audited the expanded audio settings state and found the default controls group remained open, forcing a scrollbar and pushing display/feedback entries out of the first view.
+- Made settings-only details behave as a single-open accordion; opening audio, display, or feedback now closes the other settings groups.
+- Restored true collapsed-details behavior by explicitly removing closed group bodies from layout and keyboard focus; author grid styles had overridden the native hidden state.
+- Kept practice-only groups unchanged so training information can still be cross-referenced.
+- Added desktop browser coverage for group state and the absence of forced panel scrolling when audio is expanded.
+- Bumped public build assets to `20260716-p57`.
+
+## 2026-07-16 - p56
+
+- Audited real 700×390 gameplay geometry and the coarse-pointer CSS path for landscape touch controls.
+- Reduced landscape-only over-map button opacity from 50% to 30%, blur from 8px to 4px, and shadow weight so bottom terrain stays readable beneath controls.
+- Kept portrait controls unchanged because they already live outside the playfield.
+- Added mobile landscape browser coverage for control visibility, seven usable hit targets, background alpha, and restrained blur.
+- Bumped public build assets to `20260716-p56`.
+
+## 2026-07-16 - p55
+
+- Audited the start screen on desktop and 390×844 portrait layouts and found the primary free-climb action occupied only the left half of its row while the right half remained empty.
+- Made the primary start action span the full menu width, restoring clear hierarchy over resume/practice/settings without adding copy or decoration.
+- Added desktop browser coverage for the two-column start menu geometry.
+- Bumped public build assets to `20260716-p55`.
+
+## 2026-07-16 - p54
+
+- Audited R8-R10 as full desktop scenes and found the summit goal still shared the same enlarged gold-diamond language as lumen and prism objects.
+- Replaced the final collectible-like diamond with a unique restrained summit beacon: open ring, mountain line, summit star, and short base marker.
+- Reduced the goal's bob distance and ambient halo so it stays legible beside the R10 moon without adding spectacle.
+- Replaced stale panel status after deaths and manual retries with quiet current room/restart announcements; no additional visual toast is introduced.
+- Added browser coverage for one-key retry status and its single death-count increment.
+- Added a contract guard preventing the summit from falling back to the generic diamond renderer.
+- Bumped public build assets to `20260716-p54`.
+
+## 2026-07-16 - p53
+
+- Measured a roughly 190px visual gap between the playfield and fixed touch controls on a 390×844 portrait viewport.
+- Added a capped, excess-height-only portrait stage shift so tall phones keep the character and thumb controls visually coupled without changing ordinary portrait or landscape layouts.
+- Upgraded the mobile browser smoke to a 390×844 viewport and added a maximum 150px playfield-to-control gap guard.
+- Bumped public build assets to `20260716-p53`.
+
+## 2026-07-16 - p52
+
+- Added quiet in-meter labels for dash and stamina so the two compact bars no longer rely on color or hover titles alone.
+- Added restrained `✦` and `R` prefixes to lumen and room counters, improving first-glance HUD comprehension without expanding the top bar.
+- Covered the HUD labels and counter prefixes in the public contract guard.
+- Bumped public build assets to `20260716-p52`.
+
+## 2026-07-16 - p51
+
+- Replaced the two rotated capsule legs with a single visually connected, softly curved tucked pose that stays attached to the coat at gameplay scale.
+- Removed the ordinary-jump square particle burst beneath the player; jump confirmation now relies on motion, sound, and restrained camera feedback instead of debris that could read as detached feet.
+- Added contract coverage for the curved airborne silhouette and the absence of the regular-jump debris burst.
+- Bumped public build assets to `20260716-p51`.
+
+## 2026-07-16 - p50
+
+- Replaced the thin articulated airborne legs and detached tiny boots, which still read as a broken fork at gameplay scale.
+- Airborne lower-body motion now uses two compact rounded tucked silhouettes attached directly beneath the coat, with the darker boot area integrated into each shape.
+- Kept explicit separate feet only for grounded running and landing poses.
+- Bumped public build assets to `20260716-p50`.
+
+## 2026-07-16 - p49
+
+- Prevented ordinary vertical jumps from triggering long velocity wakes beneath the boots, which visually stretched the feet toward the platform.
+- Velocity wakes now belong only to dash, Spark, spring, overdrive, or genuinely boosted horizontal motion.
+- Bumped public build assets to `20260716-p49`.
+
+## 2026-07-16 - p48
+
+- Removed the duplicate pale airborne leg strokes that read as broken extra feet beneath the character.
+- Rebuilt the actual airborne legs as a compact articulated front/back tuck with smaller boots aligned to each leg.
+- Bumped public build assets to `20260716-p48`.
+
+## 2026-07-16 - p47
+
+- Removed the remaining gold jump chevron found during a real airborne-state visual check. Jumping now reads through character motion without any symbol above the head.
+- Bumped public build assets to `20260716-p47`.
+
+## 2026-07-16 - p46
+
+- Removed both sources of the line above the airborne player: the apex input stroke and the detached physics-driven hair strand. Hair now remains entirely inside the head silhouette.
+- Hid the persistent dotted dash-aim arrow during free climbing; it remains available only in explicit practice sessions where route visualization is expected.
+- Bumped public build assets to `20260716-p46`.
+
+## 2026-07-16 - p45
+
+- Removed the sticker-like black outline from the face, coat, and backpack; legs and boots now use softer blue-grey structure and the ground shadow is smaller and lighter.
+- Removed player-attached Flow, relay-chain, PB, and Feel text popups. Results remain available through the HUD, room feedback, and finish review without covering the character.
+- Bumped public build assets to `20260716-p45`.
+
+## 2026-07-16 - p44
+
+- Replaced the seven-segment yellow broom-like hair chain with a short five-segment tuft that follows the character's actual hair state.
+- Rebuilt the boxy robot-like body as a lighter climber silhouette with a shaped coat, backpack, smaller boots, articulated arms, softer face, and restrained outline.
+- Replaced solid glowing dash slabs with shorter tapered line trails and restored stronger cool/warm separation across all ten room atmospheres.
+- Hid the large canvas PACE ribbon during free climbing; it now appears only in explicit pace, Route, Feel, or pace-challenge sessions.
+- Bumped public build assets to `20260716-p44`.
+
+## 2026-07-15 - p43
+
+- Raised the normal canvas buffer cap from 1.25x to a restrained 1.5x for sharper rendering on high-DPI displays.
+- Kept low-performance mode at a true 1x buffer and rebuild the canvas immediately when the setting changes.
+- Added browser coverage for 2x device-pixel-ratio rendering and live normal/low-performance density switching.
+- Bumped public build assets to `20260715-p43`.
+
+## 2026-07-15 - p42
+
+- Switched the long finish review from centered overflow to top-aligned scrolling so mobile landscape can always reach the heading and run summary.
+- Moved the recommended training actions above optional collapsed detail, keeping the next meaningful choice in the first review screen.
+- Demoted an inactive route contract to extra detail; it remains a primary card only when the completed run produced an actual route-contract result.
+- Bumped public build assets to `20260715-p42`.
+
+## 2026-07-15 - p41
+
+- Moved keyboard and screen-reader focus from the newly inert canvas to a labelled modal finish heading when the summit review opens.
+- Localized the finish summary as 新纪录 / 死亡 / 光继连锁 while keeping Flow as the established metric.
+- Reduced the summit burst from 64 high-speed particles to 30 lower-speed particles, preserving celebration without overwhelming the review.
+- Bumped public build assets to `20260715-p41`.
+
+## 2026-07-15 - p40
+
+- Synchronized the visual overlay class with real `hidden`, `inert`, and `aria-hidden` state so startup controls disappear from the accessibility tree after gameplay begins.
+- Kept a visible start/finish overlay accessible only while it owns interaction; opening settings from the start screen now preserves its backdrop while isolating its controls behind the modal.
+- Bumped public build assets to `20260715-p40`.
+
+## 2026-07-15 - p39
+
+- Fixed an author-style conflict where `.hud { display: flex }` overrode the HTML hidden state, leaving unnamed background HUD nodes rendered under the start overlay.
+- Added computed-style browser coverage requiring both HUD and touch controls to resolve to `display: none` while the overlay owns interaction.
+- Bumped public build assets to `20260715-p39`.
+
+## 2026-07-15 - p38
+
+- Fully hid the HUD and touch controls while the start or finish overlay owns the page, eliminating even unnamed background nodes from the startup accessibility tree.
+- Kept the rendered canvas as the quiet visual backdrop while removing it from focus order; active settings/practice modals still preserve a dimmed visual HUD but make it inert.
+- Bumped public build assets to `20260715-p38`.
+
+## 2026-07-15 - p37
+
+- Made the canvas, HUD, and touch controls inert and hidden from assistive technology while the start/finish overlay or a modal panel owns interaction.
+- Restored the gameplay surface only after free play or training actually begins, removing duplicate hidden 练习/设置 controls from the startup focus order.
+- Bumped public build assets to `20260715-p37`.
+
+## 2026-07-15 - p36
+
+- Corrected manual practice-panel closure to announce 练习面板已关闭 instead of the unrelated 设置已关闭 status.
+- Localized the successful destructive action as 专注训练统计已清空, matching its confirmation labels.
+- Extended browser regression coverage to prove the run timer remains frozen while settings pause an active timed room.
+- Bumped public build assets to `20260715-p36`.
+
+## 2026-07-15 - p35
+
+- Renamed the progress-state primary action from the misleading 路线 to 自由攀登 because it starts free play rather than a route contract.
+- Clarified the separate recommendation as 继续训练 · Rn Mode and labeled the quiet status strip as 建议, while new profiles now see 开始攀登.
+- Bumped public build assets to `20260715-p35`.
+
+## 2026-07-15 - p34
+
+- Replaced the large translucent checkpoint diamond behind the player with a small offset ground flag, keeping the character silhouette readable at every room spawn.
+- Checkpoints now emit activation particles only when the respawn point actually changes instead of probabilistically spawning particles every frame while the player remains nearby.
+- Bumped public build assets to `20260715-p34`.
+
+## 2026-07-15 - p33
+
+- Audited R7-R10 as rendered scenes: R7 retains a safe wind introduction and fallback surfaces before its wind/crumble combinations, so its pressure jump does not require a route rewrite.
+- Replaced the dominant solid arrow above every updraft with a shorter low-contrast stroke marker, preserving direction clarity without overpowering platforms or the player.
+- Gave echo anchors a distinct pin-and-fork silhouette so R9/R10 no longer rely on green versus cyan alone to distinguish anchors from relays.
+- Bumped public build assets to `20260715-p33`.
+
+## 2026-07-15 - p32
+
+- Added a real keyboard focus loop to the settings/practice modal so Tab and Shift+Tab cannot move into the obscured game surface.
+- Restored focus to the exact control that opened the panel, including the start overlay, instead of always sending focus to the game canvas.
+- Guarded game-focus requests while the modal is open so audio tests, control changes, and destructive-stat actions keep keyboard context inside the panel.
+- Bumped public build assets to `20260715-p32`.
+
+## 2026-07-15 - p31
+
+- Unified short route labels as 稳健/快速/高手 while keeping Clean/Pace/Style/Expert as distinct training mode names.
+- Reworked destructive practice reset copy into explicit 清空统计/确认清空 states with a clearer confirmation status and tooltip.
+- Rebuilt the room brief from eight equal-weight debug-like lines into a layered overview, objective block, and three compact route cards.
+- Added contract guards against reintroducing direct one-dash resets that would discard an unused lumen reserve.
+- Localized the no-script practice fallbacks and bumped public build assets to `20260715-p31`.
+
+## 2026-07-15 - p30
+
+- Centralized dash restoration so lumen reserve now survives landing, refills, relays, prisms, springs, echo recall, death retry, and manual room retry until the bonus dash is actually used.
+- Fixed the previous reward-loss edge case where a collected lumen disappeared permanently but its unused reserve was cleared on death.
+- Replaced the settings/practice dialog's generated subtitle with real dynamic text, `aria-labelledby`, mode-aware close labels, and modal semantics.
+- Localized remaining player-facing room target and HUD delta labels plus several English-only training accessibility labels.
+- Bumped public build assets to `20260715-p30`.
+
+## 2026-07-15 - p29
+
+- Rebuilt normal rock rendering around connected platform silhouettes: continuous snow caps, boundary-only side shading, quieter seams, and less repeated tile-box rhythm.
+- Reduced overlapping updraft strokes in calm-effects mode from three streams to one and halved the guide-field emphasis.
+- Gave lumens a distinct restrained bracket mark so optional route resources no longer read like small goals or refills.
+- Added a one-time short lumen-reserve explanation plus a persistent HUD tooltip; no new screen shake or large pickup effects.
+- Bumped public build assets to `20260715-p29`.
+
+## 2026-07-15 - p28
+
+- Lifted every room into a brighter dawn/twilight palette with clearer separation between sky, landmarks, mountains, platforms, hazards, and the player.
+- Reworked the settings and practice surfaces into a warm light map-sheet treatment with cleaner open/closed hierarchy and less nested-card weight.
+- Reduced playfield dimming while a panel is open so settings no longer make the game disappear behind a black veil.
+- Turned the 12 optional lumens into route resources: each restores a dash, and collecting one while charged banks a restrained second dash until used.
+- Added a quiet gold dash-meter state for the lumen reserve and reduced the pickup burst.
+- Bumped public build assets to `20260715-p28`.
+
+## 2026-07-15 - p27
+
+- Made the game stage fit against both viewport width and dynamic viewport height while preserving the 960:544 scene ratio.
+- Added safe-area-aware page padding and stable centering for resized, split-screen, and portrait windows.
+- Added stage-size container rules so the HUD compacts when the game surface is narrow, even if the browser window itself is wide.
+- Tightened short-landscape settings, tips, and touch controls without stretching or cropping the Canvas.
+- Bumped public build assets to `20260715-p27`.
+
+## 2026-07-15 - p26
+
+- Reframed the ten-room slice as four visible chapter phases: 山门, 旧峰, 风峡, and 星顶. Room entry chips now identify the current phase without adding tutorial copy.
+- Added restrained phase-specific background landmarks: mountain gates and cairns, broken bridge ruins, wind banners, and a summit observatory with a small constellation line.
+- Strengthened early-room identity: R2 now teaches a two-relay movement sentence and R3 uses two springs to build a distinct vertical rhythm; guides, purposes, route lines, and Style goals were updated to match.
+- Removed the premature echo anchor from R7 so wind and crumble own the pressure introduction, making R9 the deliberate first reveal of the echo mechanic.
+- Moved the R10 summit goal from the floor to the upper skyline so the complete tool chain resolves spatially as an ascent.
+- Practice paths, relay route lines, and best ghosts now render only during Drill, Route, or Feel sessions; free play keeps the chapter scenery and mechanics unobstructed.
+- Added map guards for the R2 double relay, R3 double spring, R9 echo reveal, and upper-half R10 summit goal, then refreshed the generated room-data snapshot.
+- Bumped public build assets to `20260715-p26`.
+
+## 2026-07-15 - p25
+
+- Completed a second autonomous polish pass across desktop, gamepad, touch, free play, late-room mechanics, training overlays, death, and retry behavior.
+- Opposing directional inputs now resolve to neutral instead of silently preferring right or down, and losing window focus releases held keyboard, touch, gamepad, grab, jump-buffer, and dash-buffer state while pausing the simulation.
+- Free play no longer opens with an automatic route compass; explicit Drill, Route, and Feel sessions still arm focused guidance with a shorter display window, while Drill start avoids stacking the contract bar, focus popup, route card, and compass at once.
+- Shortened death recovery and reduced death, respawn, retry, relay, prism, goal, wind, trail, aura, and global particle intensity under the default restrained-effects setting.
+- Rebalanced crumble, wind, relay, prism, and goal rendering so late-room mechanics remain readable without overpowering the player silhouette.
+- Replaced ambiguous touch action symbols with direct Chinese labels and added a calmer portrait control surface.
+- Bumped public build assets to `20260715-p25`.
+
+## 2026-07-15 - p24
+
+- Reworked the ten-room atmosphere into clearer twilight color families with stronger foreground/background separation, quieter sky motion, restrained moonlight, and more readable rock, snow, and spike silhouettes.
+- Increased the player silhouette slightly and strengthened its dark outline so dash availability, facing, airborne posture, and wall contact remain legible against every room palette.
+- Reduced stacked spectacle during jump, wall jump, dash, Spark, trails, ghosts, auras, and particles; feedback now prioritizes direction and timing over glow volume.
+- Improved control forgiveness with slightly longer jump, ledge, and wall grace windows, more responsive air steering, and a softer variable-jump release without changing maps or core abilities.
+- Bumped public build assets to `20260715-p24`.
+
 ## 2026-06-08 - p23
 
 - Bumped public build assets to `20260608-p23`.

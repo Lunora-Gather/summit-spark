@@ -3,26 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="build-version" content="20260608-p23">
+  <meta name="build-version" content="20260717-p114">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260608-p23">
+  <link rel="stylesheet" href="summit-spark.css?v=20260717-p114">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
     <section class="stage">
-      <canvas id="game" width="960" height="544" aria-label="山巅微光"></canvas>
+      <canvas id="game" width="960" height="544" aria-label="山巅微光" aria-hidden="true" tabindex="-1" inert></canvas>
 
-      <div class="hud">
+      <div class="hud" id="gameHud" aria-hidden="true" inert hidden>
         <div class="brand" aria-hidden="true">
           <span class="mark"></span>
           <span>山巅微光</span>
         </div>
         <div class="meters">
-          <div class="dash-meter" title="冲刺" aria-hidden="true">
+          <div class="dash-meter" title="冲刺" data-meter-label="冲" role="progressbar" aria-label="冲刺储备" aria-valuemin="0" aria-valuemax="2" aria-valuenow="1" aria-valuetext="1 次冲刺可用">
             <span></span>
           </div>
-          <div class="stamina-meter" title="体力" aria-hidden="true">
+          <div class="stamina-meter" title="体力" data-meter-label="体" role="progressbar" aria-label="攀墙体力" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" aria-valuetext="体力 100%">
             <span></span>
           </div>
           <div class="pace-meter" title="房间目标节奏" aria-hidden="true">
@@ -34,7 +34,7 @@
           <div class="counter stat delta" id="splitDelta" aria-label="分段差值">+0.00</div>
           <div class="counter stat" id="flowCount" aria-label="Flow 值">F 0</div>
           <div class="counter stat" id="runTime" aria-label="总时间">0:00.00</div>
-          <div class="counter stat" id="deathCount" aria-label="死亡次数">D 0</div>
+          <div class="counter stat" id="deathCount" aria-label="失误次数">失 0</div>
         </div>
         <div class="hud-actions">
           <button class="icon-button practice-icon" id="practiceButton" type="button" aria-label="练习" aria-controls="settingsPanel" aria-expanded="false">&#9678;</button>
@@ -50,16 +50,19 @@
         <i aria-hidden="true"></i>
       </div>
 
-      <section class="settings-panel hidden" id="settingsPanel" role="dialog" aria-label="设置" aria-hidden="true">
+      <div class="control-hint hidden" id="controlHint" role="status" aria-live="polite" aria-hidden="true"></div>
+
+      <section class="settings-panel hidden" id="settingsPanel" role="dialog" aria-labelledby="panelTitle" aria-modal="true" aria-hidden="true">
         <div class="settings-head">
           <strong><span id="panelTitle">设置</span> <span class="pause-badge">暂停</span></strong>
+          <span class="panel-subtitle" id="panelSubtitle">操作 · 声音 · 显示</span>
           <button class="mini-button" id="settingsClose" type="button" aria-label="关闭设置">&times;</button>
         </div>
         <div class="settings-body">
           <div class="settings-column settings-column-main">
             <button class="practice-priority practice-only" id="practicePriority" type="button">
               <span>下一步</span>
-              <strong>R1 Drill</strong>
+              <strong>R1 训练</strong>
               <em>读取训练建议</em>
               <i class="priority-meter" aria-hidden="true"></i>
             </button>
@@ -115,7 +118,7 @@
               <summary><span>显示</span></summary>
               <div class="settings-group-body">
                 <label class="control-row">
-                  <span>柔和特效</span>
+                  <span>克制特效</span>
                   <input id="calmEffectsToggle" type="checkbox" checked>
                 </label>
                 <label class="control-row">
@@ -150,18 +153,11 @@
                   <select id="roomSelect"></select>
                 </label>
                 <div class="room-brief" id="roomBrief">R1 房间目标</div>
-                <div class="drill-variants" aria-label="Drill variants">
-                  <button class="variant-button" id="drillCleanButton" type="button">Clean</button>
-                  <button class="variant-button" id="drillPaceButton" type="button">Pace</button>
-                  <button class="variant-button" id="drillStyleButton" type="button">Style</button>
-                  <button class="variant-button" id="drillExpertButton" type="button">Expert</button>
-                </div>
-                <div class="coach-row">
-                  <span id="coachSummary">R1 Drill</span>
-                  <div class="coach-actions">
-                    <button class="focus-button" id="focusRoomButton" type="button">R1 Drill</button>
-                    <button class="focus-button ghost" id="focusResetButton" type="button">Reset</button>
-                  </div>
+                <div class="drill-variants" aria-label="训练变体">
+                  <button class="variant-button" id="drillCleanButton" type="button">无失误 · Clean</button>
+                  <button class="variant-button" id="drillPaceButton" type="button">节奏 · Pace</button>
+                  <button class="variant-button" id="drillStyleButton" type="button">类型 · Style</button>
+                  <button class="variant-button" id="drillExpertButton" type="button">高手 · Expert</button>
                 </div>
               </div>
             </details>
@@ -211,9 +207,9 @@
             <details class="settings-group settings-group-profile practice-only">
               <summary><span>档案</span></summary>
               <div class="settings-group-body">
-                <div class="practice-report" id="practiceReport">无失误 0/10 / 分段损失 无 / 下个 Drill R1</div>
+                <div class="practice-report" id="practiceReport">无失误 0/10 / 分段损失 无 / 下一训练 R1</div>
                 <div class="profile-summary" id="profileSummary" aria-label="长期档案"></div>
-                <div class="practice-ledger" id="practiceLedger" aria-label="Room mastery ledger"></div>
+                <div class="practice-ledger" id="practiceLedger" aria-label="房间掌握度"></div>
               </div>
             </details>
             <details class="settings-group settings-group-training practice-only">
@@ -229,20 +225,30 @@
               <summary><span>进阶</span></summary>
               <div class="settings-group-body">
                 <div class="settings-section-title">连续训练</div>
-                <div class="practice-queue" id="practiceQueue" aria-label="Practice queue"></div>
+                <div class="practice-queue" id="practiceQueue" aria-label="连续训练队列"></div>
                 <div class="challenge-board" id="challengeBoard" aria-label="长期挑战"></div>
               </div>
             </details>
           </div>
         </div>
+        <div class="practice-launch-dock practice-only" id="practiceLaunchDock">
+          <div class="practice-launch-copy">
+            <b>选中房间</b>
+            <span id="coachSummary">R1 训练</span>
+          </div>
+          <div class="coach-actions">
+            <button class="focus-button" id="focusRoomButton" type="button">开始 R1 Clean</button>
+            <button class="focus-button ghost" id="focusResetButton" type="button">清空统计</button>
+          </div>
+        </div>
       </section>
 
-      <div class="overlay" id="overlay">
+      <div class="overlay" id="overlay" aria-hidden="false">
         <div class="start-panel" id="startPanel">
           <span class="start-eyebrow" id="startReadiness">准备游戏</span>
           <h1>山巅微光</h1>
           <div class="start-actions">
-            <button class="primary" id="startButton" type="button">开始</button>
+            <button class="primary" id="startButton" type="button">开始攀登</button>
             <button class="secondary-start resume-start hidden" id="resumeTrainingButton" type="button" aria-hidden="true">继续训练</button>
             <button class="secondary-start" id="openTrainingButton" type="button">练习</button>
             <button class="secondary-start subtle" id="startSettingsButton" type="button">设置</button>
@@ -255,7 +261,7 @@
 
       <div class="sr-status" id="gameStatus" aria-live="polite" aria-atomic="true"></div>
 
-      <div class="touch" aria-label="触控">
+      <div class="touch" id="touchControls" aria-label="触控" aria-hidden="true" inert hidden>
         <div class="touch-cluster touch-directions" aria-label="移动">
           <button type="button" data-touch="up" aria-label="上">↑</button>
           <button type="button" data-touch="left" aria-label="左">‹</button>
@@ -263,14 +269,19 @@
           <button type="button" data-touch="right" aria-label="右">›</button>
         </div>
         <div class="touch-cluster touch-actions" aria-label="动作">
-          <button type="button" data-touch="grab" aria-label="抓墙">✦</button>
-          <button type="button" data-touch="jump" aria-label="跳跃">↥</button>
-          <button type="button" data-touch="dash" aria-label="冲刺">◆</button>
+          <button type="button" data-touch="grab" aria-label="抓墙">抓</button>
+          <button type="button" data-touch="jump" aria-label="跳跃">跳</button>
+          <button type="button" data-touch="dash" aria-label="冲刺">冲</button>
         </div>
       </div>
     </section>
+    <aside class="portrait-brief" id="portraitBrief" aria-hidden="true">
+      <span id="portraitChapter">I · 山门</span>
+      <strong id="portraitRoomTitle">R1 · 起势山门</strong>
+      <small id="portraitRoomGoal">信任跳跃弧线和安全落点</small>
+    </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260608-p23"></script>
+  <script src="summit-spark.js?v=20260717-p114"></script>
 </body>
 </html>

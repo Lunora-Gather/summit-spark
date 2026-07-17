@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-17 - p115
+
+- Added a non-collapsing 16px rhythm and a quiet separator between the display controls and the feedback/save section.
+- Added browser geometry and source-contract guards so those sections cannot regress into a visually merged stack.
+- Re-ran the complete interaction suite covering settings persistence, audio/display controls, diagnostics, feedback templates, save export/import/backup restore and responsive layouts; bumped public assets to `20260717-p115`.
+
 ## 2026-07-17 - p114
 
 - Raised the in-game HUD Practice and Settings actions from 36×36px to 44×44px on narrow or coarse-pointer layouts.

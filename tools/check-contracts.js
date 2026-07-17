@@ -458,6 +458,7 @@ if (!css.includes("review-roadmap")) errors.push("finish review roadmap styling 
 if (!css.includes("roadmap-row")) errors.push("finish review roadmap rows are missing");
 if (!css.includes("settings-body")) errors.push("settings panel should use the refined cockpit layout");
 if (!css.includes("settings-group")) errors.push("settings grouped disclosure styling is missing");
+if (!css.includes(".settings-panel.mode-settings .settings-column {\n  display: block;") || !css.includes(".settings-panel.mode-settings .settings-column + .settings-column") || !css.includes("border-top: 1px solid rgba(58, 85, 96, 0.12)")) errors.push("feedback/save settings must retain a non-collapsing visual separator from display settings");
 if (!css.includes("start-panel")) errors.push("start overlay should use the refined ready panel");
 if (!js.includes("markAppReady")) errors.push("start overlay needs a JS-ready marker");
 if (!js.includes("grabLatched")) errors.push("toggle grab mode state is missing");

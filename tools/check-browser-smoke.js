@@ -533,6 +533,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
       return !!el && getComputedStyle(el).display !== "none";
     };
     const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
+    const displayRect = document.querySelector(".settings-group-display").getBoundingClientRect();
+    const feedbackRect = document.querySelector(".settings-group-feedback").getBoundingClientRect();
     return {
       title: document.querySelector("#panelTitle")?.textContent || "",
       modeSettings: document.querySelector("#settingsPanel").classList.contains("mode-settings"),
@@ -550,6 +552,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       gamepadDeadzone: visible("#gamepadDeadzoneSlider"),
       systemList: getComputedStyle(document.querySelector(".settings-body")).display === "block",
       panelWidthCalm: rect.width <= 620,
+      displayToFeedbackGap: Math.round(feedbackRect.top - displayRect.bottom),
       panelBox: {
         left: Math.round(rect.left),
         right: Math.round(rect.right),
@@ -573,6 +576,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!/未连接|standard|不支持|未检测/.test(settingsAudit.gamepadStatus)) errors.push("settings should expose non-sensitive gamepad status: " + settingsAudit.gamepadStatus);
   if (!settingsAudit.gamepadDeadzone) errors.push("settings should expose gamepad deadzone control");
   if (!settingsAudit.systemList || !settingsAudit.panelWidthCalm) errors.push("settings should render as a calm one-column system list: " + JSON.stringify(settingsAudit));
+  if (settingsAudit.displayToFeedbackGap < 14) errors.push("feedback/save section should be visually separated from display settings: " + JSON.stringify(settingsAudit));
   const comfortControls = await evaluate(cdp, `({
     lowPerformance: !!document.querySelector("#lowPerformanceToggle"),
     touchSize: !!document.querySelector("#touchSizeSlider")

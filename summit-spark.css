@@ -5194,3 +5194,74 @@ body {
     min-height: 44px;
   }
 }
+
+/* P116: cool-mist depth with warm ascent accents.
+   The canvas stays readable, while the page frame, HUD and title stop competing
+   with the playable route. */
+body {
+  background:
+    radial-gradient(circle at 66% 8%, rgba(255, 234, 180, 0.5), transparent 26%),
+    radial-gradient(circle at 24% 72%, rgba(91, 139, 151, 0.22), transparent 38%),
+    linear-gradient(145deg, #c8d9da 0%, #aebfc5 50%, #cdbfb3 100%);
+}
+
+.shell {
+  background: radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.2), transparent 60%);
+}
+
+.stage {
+  border-color: rgba(233, 242, 238, 0.48);
+  box-shadow:
+    0 30px 70px rgba(35, 54, 64, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.44) inset;
+}
+
+#game {
+  filter: saturate(1.08) brightness(1) contrast(1.045);
+}
+
+.overlay:not(.hidden) {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(31, 54, 67, 0.06), transparent 34%),
+    linear-gradient(180deg, rgba(22, 39, 54, 0.04), rgba(22, 34, 47, 0.16));
+}
+
+.overlay h1 {
+  color: #fff1c6;
+  text-shadow:
+    0 2px 0 rgba(50, 63, 72, 0.5),
+    0 10px 26px rgba(25, 41, 53, 0.32);
+}
+
+.primary {
+  border-color: rgba(255, 242, 198, 0.52);
+  background: linear-gradient(180deg, #f0c96f, #dfad54);
+  color: #263744;
+  box-shadow: 0 4px 0 #a86151, 0 10px 24px rgba(41, 58, 65, 0.18);
+}
+
+.primary:hover {
+  background: linear-gradient(180deg, #f6d583, #e8ba60);
+}
+
+.brand,
+.meters,
+.hud-actions {
+  border-color: rgba(228, 240, 234, 0.24);
+  background: linear-gradient(180deg, rgba(48, 73, 87, 0.74), rgba(28, 48, 63, 0.66));
+  box-shadow:
+    0 8px 22px rgba(25, 44, 56, 0.16),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(9px) saturate(1.06);
+}
+
+.counter {
+  border-color: rgba(232, 242, 236, 0.11);
+  background: rgba(227, 239, 234, 0.075);
+}
+
+.icon-button,
+.mini-button {
+  border-color: rgba(231, 241, 235, 0.22);
+  background: rgba(39, 62, 76, 0.64);
+}

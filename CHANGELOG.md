@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-18 - p116
+
+- Rebuilt the mountain atmosphere around clear aerial perspective: pale distant ridges, structured midground facets and a grounded dark foreground.
+- Replaced the repetitive eight-peak sawtooth silhouette with six wider peaks, shoulder breaks and restrained illuminated faces.
+- Softened the moon and title shadows, refined rock values, cooled the page frame and consolidated the HUD into quieter deep-mist glass; bumped public assets to `20260718-p116`.
+
 ## 2026-07-17 - p115
 
 - Added a non-collapsing 16px rhythm and a quiet separator between the display controls and the feedback/save section.

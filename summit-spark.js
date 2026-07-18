@@ -601,9 +601,9 @@
     skyTop: "#273b59",
     skyMid: "#5b7084",
     skyLow: "#b4917f",
-    rock: "#3d5268",
-    rockDark: "#26364b",
-    rockLight: "#71869a",
+    rock: "#455f74",
+    rockDark: "#30465b",
+    rockLight: "#8298a8",
     snow: "#eaf4f4",
     hot: "#ef6f78",
     gold: "#f4c66d",
@@ -616,16 +616,16 @@
   const CANVAS_PANEL_INK = "rgba(36,58,68,0.9)";
   const CANVAS_PANEL_MUTED = "rgba(48,72,80,0.68)";
   const ROOM_ATMOSPHERES = [
-    { top: "#2a4564", mid: "#64839a", low: "#c89b86", back: "#39546f", midPeak: "#4c6a82", front: "#637f92", haze: "#b3dbe0", rim: "#f0cf79", moon: "#fff0c8" },
-    { top: "#20434f", mid: "#4f756f", low: "#a69b70", back: "#2f555e", midPeak: "#416a69", front: "#5b7f78", haze: "#93cec4", rim: "#b8dda0", moon: "#f4f5df" },
-    { top: "#343452", mid: "#655a7d", low: "#b7868b", back: "#454260", midPeak: "#5b5274", front: "#746581", haze: "#c9afd4", rim: "#f1cb73", moon: "#fff0cb" },
-    { top: "#38324f", mid: "#70536d", low: "#be7e78", back: "#4b3e5d", midPeak: "#63506c", front: "#7d5f69", haze: "#d6a5b2", rim: "#a3d3de", moon: "#fae5d0" },
-    { top: "#244750", mid: "#557974", low: "#a09b75", back: "#345a61", midPeak: "#486e6d", front: "#5d8176", haze: "#9ed3bd", rim: "#9fd1da", moon: "#eff5dd" },
-    { top: "#443347", mid: "#785968", low: "#c18070", back: "#574254", midPeak: "#6e5565", front: "#8b6568", haze: "#dcb076", rim: "#ed9a6e", moon: "#f9e9c4" },
-    { top: "#244151", mid: "#4e7080", low: "#929982", back: "#325466", midPeak: "#466879", front: "#5d7f86", haze: "#9bcbd8", rim: "#acd9ae", moon: "#eef4e7" },
-    { top: "#32314e", mid: "#695a77", low: "#a48191", back: "#45415f", midPeak: "#5b526f", front: "#74647d", haze: "#d3b07e", rim: "#d99bad", moon: "#f8e9c8" },
-    { top: "#24474f", mid: "#587a73", low: "#929e7c", back: "#365a60", midPeak: "#4b706a", front: "#628474", haze: "#a2d2b7", rim: "#e9c66d", moon: "#eef5df" },
-    { top: "#40304d", mid: "#76566f", low: "#be7477", back: "#553d58", midPeak: "#6b4f69", front: "#895f70", haze: "#d894a7", rim: "#ebbd67", moon: "#fae6cd" }
+    { top: "#294563", mid: "#66869c", low: "#c99b84", back: "#728b9c", midPeak: "#536f86", front: "#354c64", haze: "#b9dde0", rim: "#f0cf79", moon: "#fff0c8" },
+    { top: "#20434f", mid: "#52786f", low: "#a89d72", back: "#718e84", midPeak: "#50736c", front: "#324f55", haze: "#9bd2c6", rim: "#b8dda0", moon: "#f4f5df" },
+    { top: "#343452", mid: "#685d80", low: "#b9898e", back: "#827690", midPeak: "#645b79", front: "#443f5f", haze: "#ceb5d6", rim: "#f1cb73", moon: "#fff0cb" },
+    { top: "#38324f", mid: "#72566f", low: "#c1827b", back: "#8a7080", midPeak: "#6a586f", front: "#493d58", haze: "#daacb8", rim: "#a3d3de", moon: "#fae5d0" },
+    { top: "#244750", mid: "#587c76", low: "#a39e78", back: "#749188", midPeak: "#577870", front: "#36565a", haze: "#a5d7c1", rim: "#9fd1da", moon: "#eff5dd" },
+    { top: "#443347", mid: "#7b5c6b", low: "#c48473", back: "#96747d", midPeak: "#745765", front: "#4e3f50", haze: "#dfb47b", rim: "#ed9a6e", moon: "#f9e9c4" },
+    { top: "#244151", mid: "#527483", low: "#969c86", back: "#738b94", midPeak: "#546f7b", front: "#344d5c", haze: "#a1d0dc", rim: "#acd9ae", moon: "#eef4e7" },
+    { top: "#32314e", mid: "#6c5d7a", low: "#a78494", back: "#867687", midPeak: "#645771", front: "#443e59", haze: "#d7b582", rim: "#d99bad", moon: "#f8e9c8" },
+    { top: "#24474f", mid: "#5b7d76", low: "#969f80", back: "#7b9589", midPeak: "#5a786d", front: "#385558", haze: "#a9d7bd", rim: "#e9c66d", moon: "#eef5df" },
+    { top: "#40304d", mid: "#795972", low: "#c1787a", back: "#956e7d", midPeak: "#725167", front: "#4d394f", haze: "#dc9baa", rim: "#ebbd67", moon: "#fae6cd" }
   ];
   const cachedRockTiles = new Map();
   const cachedCrumbleTiles = new Map();
@@ -7567,10 +7567,13 @@
     moonGlow.addColorStop(1, `${atmosphere.moon}00`);
     ctx.fillStyle = moonGlow;
     ctx.fillRect(moonX - 78, moonY - 78, 156, 156);
-    ctx.fillStyle = `${atmosphere.moon}c8`;
+    ctx.fillStyle = `${atmosphere.moon}b8`;
     ctx.beginPath();
-    ctx.arc(moonX, moonY, 34, 0, Math.PI * 2);
+    ctx.arc(moonX, moonY, 29, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = `${atmosphere.rim}36`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
     ctx.fillStyle = "rgba(23, 31, 47, 0.12)";
     ctx.beginPath();
     ctx.arc(moonX + 10, moonY - 7, 7, 0, Math.PI * 2);
@@ -7777,23 +7780,46 @@
   function drawMountainLayer(color, yBase, offset, sway) {
     ctx.save();
     ctx.fillStyle = color;
-    ctx.globalAlpha = yBase < 0.4 ? 0.72 : yBase < 0.6 ? 0.84 : 0.94;
+    ctx.globalAlpha = yBase < 0.4 ? 0.62 : yBase < 0.6 ? 0.8 : 0.97;
     ctx.beginPath();
-    ctx.moveTo(-100, H);
-    const baseY = H * yBase + 105;
-    for (let i = 0; i < 8; i += 1) {
-      const startX = -100 + i * 150;
-      const peakX = startX + 58 + ((i * 29 + roomIndex * 17) % 42);
-      const peakY = H * yBase - 34 - ((i * 47 + Math.round(offset)) % 68) * (0.72 + sway);
-      ctx.lineTo(startX, baseY + (i % 2) * 16);
+    const mountainPeaks = 6;
+    const step = (W + 180) / mountainPeaks;
+    const baseY = H * yBase + 110;
+    const peaks = [];
+    ctx.moveTo(-90, H);
+    ctx.lineTo(-90, baseY);
+    for (let i = 0; i < mountainPeaks; i += 1) {
+      const startX = -90 + i * step;
+      const nextX = startX + step;
+      const peakX = startX + step * (0.38 + ((i * 17 + roomIndex * 7) % 18) / 100);
+      const peakY = H * yBase - 32 - ((i * 47 + Math.round(offset)) % 76) * (0.7 + sway);
+      const valleyY = baseY + (i % 2) * 18;
+      const nextValleyY = baseY + ((i + 1) % 2) * 18;
+      ctx.lineTo(startX, valleyY);
+      ctx.lineTo(peakX - step * 0.17, peakY + 38);
       ctx.lineTo(peakX, peakY);
-      ctx.lineTo(startX + 150, baseY + ((i + 1) % 2) * 16);
+      ctx.lineTo(peakX + step * 0.22, peakY + 48);
+      ctx.lineTo(nextX, nextValleyY);
+      peaks.push({ peakX, peakY, nextX, nextValleyY, step });
     }
     ctx.lineTo(W, H);
     ctx.closePath();
     ctx.fill();
-    ctx.globalAlpha = 0.06;
-    ctx.strokeStyle = "rgba(224, 239, 242, 0.7)";
+
+    ctx.globalAlpha = yBase < 0.4 ? 0.055 : yBase < 0.6 ? 0.07 : 0.085;
+    ctx.fillStyle = "rgba(230, 240, 239, 0.9)";
+    for (const peak of peaks) {
+      ctx.beginPath();
+      ctx.moveTo(peak.peakX, peak.peakY);
+      ctx.lineTo(peak.peakX + peak.step * 0.22, peak.peakY + 48);
+      ctx.lineTo(peak.nextX, peak.nextValleyY);
+      ctx.lineTo(peak.peakX + peak.step * 0.08, peak.peakY + 30);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 0.08;
+    ctx.strokeStyle = "rgba(231, 241, 241, 0.76)";
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
@@ -7830,7 +7856,7 @@
     const key = `${scale}:${Number(leftSolid)}${Number(rightSolid)}${Number(belowSolid)}${Number(topOpen)}${Number(alternateCrack)}`;
     if (cachedRockTiles.has(key)) return cachedRockTiles.get(key);
     const { sprite, spriteCtx } = createTileSpriteSurface();
-    spriteCtx.fillStyle = "#1e2b3e";
+    spriteCtx.fillStyle = "#2b4054";
     spriteCtx.fillRect(0, 0, TILE, TILE);
     const grad = spriteCtx.createLinearGradient(0, 0, 0, TILE);
     grad.addColorStop(0, palette.rockLight);

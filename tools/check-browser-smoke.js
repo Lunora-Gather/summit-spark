@@ -674,7 +674,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     actionBackground: getComputedStyle(document.querySelector(".icon-button")).backgroundColor
   })`);
   if (!gameplay.overlayHidden || !gameplay.room) errors.push("gameplay did not remain active after route contract launch");
-  if (!/74, 99, 108/.test(gameplay.hudBackground) || !/232, 241, 235/.test(gameplay.counterBackground) || !/61, 82, 91/.test(gameplay.actionBackground)) errors.push("desktop HUD should use the mist-blue surface system instead of near-black slabs: " + JSON.stringify(gameplay));
+  if (!/48, 73, 87/.test(gameplay.hudBackground) || !/227, 239, 234/.test(gameplay.counterBackground) || !/39, 62, 76/.test(gameplay.actionBackground)) errors.push("desktop HUD should use the refined deep-mist surface system instead of near-black slabs: " + JSON.stringify(gameplay));
 
   await navigateApp(cdp, baseUrl, "selected room Drill action");
   await clickSelector(cdp, "#openTrainingButton");

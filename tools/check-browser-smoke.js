@@ -499,7 +499,18 @@ async function runDesktopSmoke(cdp, baseUrl) {
     settingsHidden: !visible(".settings-group-controls") && !visible(".settings-group-feedback"),
     groups: document.querySelectorAll(".settings-group").length,
     systemList: getComputedStyle(document.querySelector(".settings-body")).display === "block",
-    panelWidthCalm: document.querySelector("#settingsPanel").getBoundingClientRect().width <= 620,
+    panelWidthCalm: document.querySelector("#settingsPanel").getBoundingClientRect().width <= 540,
+    panelSurface: getComputedStyle(document.querySelector("#settingsPanel")).backgroundImage,
+    actionTray: (() => {
+      const tray = getComputedStyle(document.querySelector(".hud-actions"));
+      const practice = getComputedStyle(document.querySelector("#practiceButton"));
+      return {
+        trayBackground: tray.backgroundImage,
+        trayShadow: tray.boxShadow,
+        buttonBackground: practice.backgroundImage,
+        buttonRadius: practice.borderRadius
+      };
+    })(),
     panelBox: (() => {
       const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
       return {
@@ -520,7 +531,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (cockpit.feelCards < 4) errors.push("practice panel should expose visible feel calibration cards");
   if (!cockpit.modePractice || !/练习/.test(cockpit.title) || !cockpit.practiceVisible || !cockpit.settingsHidden) errors.push("practice panel should be separate from quiet settings: " + JSON.stringify(cockpit));
   if (cockpit.groups < 7) errors.push("practice/settings panel should keep the full grouped surface in DOM: " + JSON.stringify(cockpit));
-  if (!cockpit.systemList || !cockpit.panelWidthCalm) errors.push("practice panel should render as a calm one-column system list: " + JSON.stringify(cockpit));
+  if (!cockpit.systemList || !cockpit.panelWidthCalm || !/224, 233, 226/.test(cockpit.panelSurface)) errors.push("practice panel should render as a compact cool-mist system sheet: " + JSON.stringify(cockpit));
+  if (cockpit.actionTray.trayBackground !== "none" || cockpit.actionTray.trayShadow !== "none" || !/103, 142, 121/.test(cockpit.actionTray.buttonBackground) || cockpit.actionTray.buttonRadius !== "11px") errors.push("upper-right actions should remain unboxed, individually surfaced tools with a restrained practice-active state: " + JSON.stringify(cockpit.actionTray));
   if (cockpit.panelBox.overflow) errors.push("practice panel overflows desktop viewport: " + JSON.stringify(cockpit.panelBox));
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("practice panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
@@ -551,7 +563,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       gamepadStatus: document.querySelector("#gamepadStatus")?.textContent || "",
       gamepadDeadzone: visible("#gamepadDeadzoneSlider"),
       systemList: getComputedStyle(document.querySelector(".settings-body")).display === "block",
-      panelWidthCalm: rect.width <= 620,
+      panelWidthCalm: rect.width <= 540,
       displayToFeedbackGap: Math.round(feedbackRect.top - displayRect.bottom),
       panelBox: {
         left: Math.round(rect.left),
@@ -671,10 +683,10 @@ async function runDesktopSmoke(cdp, baseUrl) {
     room: document.querySelector("#roomCount").textContent,
     hudBackground: getComputedStyle(document.querySelector(".meters")).backgroundImage,
     counterBackground: getComputedStyle(document.querySelector(".counter")).backgroundColor,
-    actionBackground: getComputedStyle(document.querySelector(".icon-button")).backgroundColor
+    actionSurface: getComputedStyle(document.querySelector(".icon-button")).backgroundImage
   })`);
   if (!gameplay.overlayHidden || !gameplay.room) errors.push("gameplay did not remain active after route contract launch");
-  if (!/48, 73, 87/.test(gameplay.hudBackground) || !/227, 239, 234/.test(gameplay.counterBackground) || !/39, 62, 76/.test(gameplay.actionBackground)) errors.push("desktop HUD should use the refined deep-mist surface system instead of near-black slabs: " + JSON.stringify(gameplay));
+  if (!/48, 73, 87/.test(gameplay.hudBackground) || !/227, 239, 234/.test(gameplay.counterBackground) || !/55, 80, 92/.test(gameplay.actionSurface)) errors.push("desktop HUD should use the refined deep-mist surface system instead of near-black slabs: " + JSON.stringify(gameplay));
 
   await navigateApp(cdp, baseUrl, "selected room Drill action");
   await clickSelector(cdp, "#openTrainingButton");

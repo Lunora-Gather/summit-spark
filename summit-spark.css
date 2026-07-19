@@ -5265,3 +5265,235 @@ body {
   border-color: rgba(231, 241, 235, 0.22);
   background: rgba(39, 62, 76, 0.64);
 }
+
+/* P117: quiet right-side tools and a cohesive mist-sheet panel.
+   Gold marks the next action, sage marks practice/state, and blue-grey carries
+   structure so the panel belongs to the mountain scene instead of floating as
+   a bright white web card above it. */
+.hud-actions {
+  gap: 7px;
+  min-height: 0;
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.hud-actions .icon-button {
+  width: 38px;
+  height: 38px;
+  border-color: rgba(222, 237, 232, 0.3);
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(55, 80, 92, 0.76), rgba(34, 57, 71, 0.72));
+  box-shadow:
+    0 7px 16px rgba(24, 43, 54, 0.16),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+  color: rgba(245, 249, 243, 0.86);
+}
+
+.hud-actions .icon-button:hover {
+  border-color: rgba(238, 218, 157, 0.44);
+  background: linear-gradient(180deg, rgba(79, 96, 96, 0.82), rgba(47, 68, 78, 0.78));
+}
+
+.hud-actions #practiceButton[aria-expanded="true"] {
+  border-color: rgba(169, 205, 178, 0.56);
+  background: linear-gradient(180deg, rgba(103, 142, 121, 0.76), rgba(57, 94, 80, 0.76));
+  color: #eff8ec;
+}
+
+.hud-actions #settingsButton[aria-expanded="true"] {
+  border-color: rgba(239, 207, 126, 0.58);
+  background: linear-gradient(180deg, rgba(157, 130, 73, 0.76), rgba(95, 79, 52, 0.78));
+  color: #fff3cf;
+}
+
+.settings-panel,
+.settings-panel.mode-practice {
+  right: 18px;
+  top: 64px;
+  width: min(520px, calc(100% - 36px));
+  max-height: min(calc(100% - 82px), calc(100dvh - 82px));
+  padding: 0;
+  border: 1px solid rgba(231, 241, 235, 0.66);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(224, 233, 226, 0.985), rgba(199, 216, 214, 0.985)),
+    #d4e0dc;
+  box-shadow:
+    0 18px 44px rgba(25, 45, 56, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.72) inset;
+  color: #29414d;
+  backdrop-filter: blur(16px) saturate(0.94);
+  scrollbar-color: rgba(83, 111, 116, 0.4) rgba(238, 244, 238, 0.36);
+}
+
+.settings-head {
+  min-height: 58px;
+  padding: 11px 52px 11px 17px;
+  border-bottom-color: rgba(59, 88, 98, 0.13);
+  background: linear-gradient(180deg, rgba(242, 244, 234, 0.9), rgba(223, 232, 225, 0.78));
+}
+
+.settings-head strong {
+  color: #2b414d;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.panel-subtitle {
+  left: 17px;
+  bottom: 7px;
+  color: rgba(49, 73, 82, 0.56);
+}
+
+.settings-panel .settings-head .mini-button {
+  position: absolute;
+  top: 10px;
+  right: 11px;
+  border-color: rgba(62, 88, 97, 0.18);
+  background: rgba(244, 247, 240, 0.62);
+  color: #3e5660;
+  box-shadow: 0 3px 9px rgba(45, 68, 77, 0.08);
+}
+
+.settings-body {
+  padding: 11px 12px 13px;
+}
+
+.settings-group {
+  margin-bottom: 8px;
+  border-color: rgba(60, 88, 97, 0.14);
+  border-radius: 11px;
+  background: rgba(238, 243, 237, 0.5);
+}
+
+.settings-group[open] {
+  border-color: rgba(69, 101, 108, 0.22);
+  background: rgba(241, 245, 239, 0.78);
+  box-shadow: 0 5px 14px rgba(48, 71, 79, 0.065);
+}
+
+.settings-group summary {
+  min-height: 44px;
+  padding: 10px 13px;
+}
+
+.settings-group summary span::before {
+  width: 6px;
+  height: 6px;
+  flex-basis: 6px;
+  background: #7899a0;
+  box-shadow: 0 0 0 3px rgba(120, 153, 160, 0.08);
+}
+
+.settings-group-room summary span::before {
+  background: #bc994b;
+  box-shadow: 0 0 0 3px rgba(188, 153, 75, 0.09);
+}
+
+.settings-group-display summary span::before,
+.settings-group-training summary span::before {
+  background: #719d82;
+  box-shadow: 0 0 0 3px rgba(113, 157, 130, 0.09);
+}
+
+.settings-group-audio summary span::before,
+.settings-group-advanced summary span::before {
+  background: #ba8e70;
+  box-shadow: 0 0 0 3px rgba(186, 142, 112, 0.08);
+}
+
+.settings-group-feedback summary span::before,
+.settings-group-profile summary span::before {
+  background: #8f879d;
+  box-shadow: 0 0 0 3px rgba(143, 135, 157, 0.08);
+}
+
+.settings-group[open] summary {
+  border-bottom-color: rgba(57, 86, 95, 0.1);
+  background: rgba(205, 220, 215, 0.5);
+}
+
+.settings-panel .control-row {
+  background: rgba(207, 222, 217, 0.46);
+}
+
+.practice-priority,
+.settings-panel.mode-practice .practice-priority {
+  min-height: 70px;
+  margin-bottom: 10px;
+  border-color: rgba(176, 137, 62, 0.25);
+  background:
+    linear-gradient(130deg, rgba(242, 211, 127, 0.38), rgba(178, 205, 181, 0.26)),
+    rgba(239, 242, 231, 0.72);
+  box-shadow: none;
+}
+
+.practice-launch-dock {
+  gap: 14px;
+  padding: 10px 12px 12px;
+  border-top-color: rgba(59, 87, 96, 0.14);
+  background: rgba(205, 219, 214, 0.96);
+  box-shadow: 0 -8px 20px rgba(45, 67, 75, 0.055);
+}
+
+.practice-launch-copy {
+  gap: 3px;
+  padding-left: 2px;
+}
+
+.practice-launch-copy b {
+  color: #81652f;
+}
+
+.practice-launch-copy span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgba(43, 66, 75, 0.7);
+  line-height: 1.35;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.practice-launch-dock .coach-actions {
+  grid-template-columns: minmax(128px, auto) auto;
+}
+
+.settings-panel .focus-button:not(.ghost),
+.settings-panel .variant-button.active {
+  border-color: rgba(176, 133, 50, 0.28);
+  background: linear-gradient(180deg, rgba(238, 208, 133, 0.46), rgba(217, 183, 105, 0.34));
+  color: #584622;
+}
+
+@media (max-width: 760px) {
+  .settings-panel,
+  .settings-panel.mode-practice {
+    right: 12px;
+    left: 12px;
+    top: 58px;
+    width: auto;
+    max-height: calc(100dvh - 70px);
+    border-radius: 14px;
+  }
+
+  .settings-body {
+    padding: 9px 9px 11px;
+  }
+
+  .practice-launch-dock {
+    padding: 9px 9px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .settings-panel,
+  .settings-panel.mode-practice {
+    top: 48px;
+    max-height: calc(100dvh - 58px);
+  }
+}

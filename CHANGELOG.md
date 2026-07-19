@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-19 - p117
+
+- Removed the dark shared capsule around the upper-right Practice and Settings actions; each tool now has its own quiet deep-mist surface, with sage and gold reserved for active state.
+- Narrowed both panels, replaced the stark white sheet with a low-saturation mist palette, tightened the recommendation card and clarified disclosure color roles.
+- Rebuilt the sticky launch area with a two-line room summary and calmer button hierarchy while preserving all settings, feedback, save and training behavior; bumped public assets to `20260719-p117`.
+
 ## 2026-07-18 - p116
 
 - Rebuilt the mountain atmosphere around clear aerial perspective: pale distant ridges, structured midground facets and a grounded dark foreground.

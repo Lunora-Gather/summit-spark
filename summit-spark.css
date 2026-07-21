@@ -5497,3 +5497,124 @@ body {
     max-height: calc(100dvh - 58px);
   }
 }
+
+/* P118: remove repeated coaching and make the right sheet task-first.
+   The header names the surface once, the body contains choices, and the dock
+   carries one primary action. Decorative category dots and duplicated summaries
+   no longer compete with the game route behind the sheet. */
+.settings-panel,
+.settings-panel.mode-practice {
+  width: min(470px, calc(100% - 36px));
+  background:
+    linear-gradient(145deg, rgba(214, 226, 220, 0.985), rgba(191, 209, 207, 0.985)),
+    #ccd9d5;
+}
+
+.settings-head {
+  min-height: 48px;
+  padding: 12px 50px 11px 16px;
+  background: linear-gradient(180deg, rgba(232, 237, 226, 0.88), rgba(210, 222, 216, 0.76));
+}
+
+.settings-head strong {
+  align-self: center;
+  font-size: 15px;
+}
+
+.settings-head::after,
+.settings-panel.mode-practice .settings-head::after {
+  display: none;
+  content: none;
+}
+
+.settings-panel .settings-head .mini-button {
+  top: 7px;
+  right: 9px;
+  width: 34px;
+  height: 34px;
+}
+
+.settings-body {
+  padding: 10px 11px 11px;
+}
+
+.settings-group {
+  margin-bottom: 7px;
+  background: rgba(232, 239, 233, 0.5);
+}
+
+.settings-group summary {
+  min-height: 42px;
+  padding: 9px 13px;
+}
+
+.settings-group summary span {
+  gap: 0;
+}
+
+.settings-group summary span::before {
+  display: none;
+  content: none;
+}
+
+.settings-group[open] summary {
+  box-shadow: 3px 0 0 rgba(103, 137, 129, 0.48) inset;
+}
+
+.settings-panel.mode-practice .settings-group[open] summary {
+  box-shadow: 3px 0 0 rgba(177, 143, 72, 0.5) inset;
+}
+
+.practice-launch-dock {
+  display: none;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 9px 11px 11px;
+  background: rgba(193, 209, 204, 0.97);
+}
+
+.settings-panel.mode-practice .practice-launch-dock {
+  display: grid;
+}
+
+.practice-launch-dock .coach-actions {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.practice-launch-dock .focus-button {
+  width: 100%;
+  min-height: 42px;
+}
+
+.practice-reset-row {
+  margin-top: 8px !important;
+  border-top: 1px solid rgba(60, 87, 96, 0.11);
+}
+
+.practice-reset-row .focus-button {
+  min-width: 76px;
+}
+
+@media (max-width: 760px) {
+  .settings-panel,
+  .settings-panel.mode-practice {
+    width: auto;
+  }
+
+  .settings-head {
+    min-height: 50px;
+    padding-top: 12px;
+  }
+
+  .settings-group summary {
+    min-height: 44px;
+  }
+
+  .settings-panel .settings-head .mini-button {
+    top: 3px;
+  }
+
+  .practice-launch-dock .focus-button {
+    min-height: 44px;
+  }
+}

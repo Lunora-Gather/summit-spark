@@ -495,11 +495,12 @@ async function runDesktopSmoke(cdp, baseUrl) {
     feelCards: document.querySelectorAll("[data-feel-fixture]").length,
     modePractice: document.querySelector("#settingsPanel").classList.contains("mode-practice"),
     title: document.querySelector("#panelTitle")?.textContent || "",
-    practiceVisible: visible("#practicePriority") && visible(".settings-group-training") && visible(".settings-group-room"),
+    practiceVisible: visible(".settings-group-training") && visible(".settings-group-room"),
+    redundantPriorityRemoved: !document.querySelector("#practicePriority"),
     settingsHidden: !visible(".settings-group-controls") && !visible(".settings-group-feedback"),
     groups: document.querySelectorAll(".settings-group").length,
     systemList: getComputedStyle(document.querySelector(".settings-body")).display === "block",
-    panelWidthCalm: document.querySelector("#settingsPanel").getBoundingClientRect().width <= 540,
+    panelWidthCalm: document.querySelector("#settingsPanel").getBoundingClientRect().width <= 490,
     panelSurface: getComputedStyle(document.querySelector("#settingsPanel")).backgroundImage,
     actionTray: (() => {
       const tray = getComputedStyle(document.querySelector(".hud-actions"));
@@ -529,11 +530,23 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })()`);
   if (cockpit.routeCards < 3) errors.push("practice panel should expose at least three route contracts");
   if (cockpit.feelCards < 4) errors.push("practice panel should expose visible feel calibration cards");
-  if (!cockpit.modePractice || !/练习/.test(cockpit.title) || !cockpit.practiceVisible || !cockpit.settingsHidden) errors.push("practice panel should be separate from quiet settings: " + JSON.stringify(cockpit));
+  if (!cockpit.modePractice || !/练习/.test(cockpit.title) || !cockpit.practiceVisible || !cockpit.settingsHidden || !cockpit.redundantPriorityRemoved) errors.push("practice panel should be separate from quiet settings without a duplicate recommendation card: " + JSON.stringify(cockpit));
   if (cockpit.groups < 7) errors.push("practice/settings panel should keep the full grouped surface in DOM: " + JSON.stringify(cockpit));
-  if (!cockpit.systemList || !cockpit.panelWidthCalm || !/224, 233, 226/.test(cockpit.panelSurface)) errors.push("practice panel should render as a compact cool-mist system sheet: " + JSON.stringify(cockpit));
+  if (!cockpit.systemList || !cockpit.panelWidthCalm || !/214, 226, 220/.test(cockpit.panelSurface)) errors.push("practice panel should render as a compact cool-mist system sheet: " + JSON.stringify(cockpit));
   if (cockpit.actionTray.trayBackground !== "none" || cockpit.actionTray.trayShadow !== "none" || !/103, 142, 121/.test(cockpit.actionTray.buttonBackground) || cockpit.actionTray.buttonRadius !== "11px") errors.push("upper-right actions should remain unboxed, individually surfaced tools with a restrained practice-active state: " + JSON.stringify(cockpit.actionTray));
   if (cockpit.panelBox.overflow) errors.push("practice panel overflows desktop viewport: " + JSON.stringify(cockpit.panelBox));
+  await openSettingsGroup(cdp, ".settings-group-advanced");
+  await clickSelector(cdp, "#focusResetButton");
+  const resetArmed = await evaluate(cdp, `document.querySelector("#focusResetButton").textContent.trim()`);
+  if (resetArmed !== "确认清空") errors.push("advanced reset should retain its first-step confirmation after being moved out of the launch dock: " + resetArmed);
+  await clickSelector(cdp, "#focusResetButton");
+  const resetComplete = await waitUntil("advanced reset completes", () => evaluate(cdp, `(() => {
+    const status = document.querySelector("#gameStatus").textContent;
+    const label = document.querySelector("#focusResetButton").textContent.trim();
+    return /统计已清空/.test(status) && label === "清空" ? { status, label } : null;
+  })()`));
+  if (!/统计已清空/.test(resetComplete.status) || resetComplete.label !== "清空") errors.push("advanced reset should finish and return to its concise label: " + JSON.stringify(resetComplete));
+  await evaluate(cdp, `document.querySelector(".settings-group-advanced").open = false`);
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("practice panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
 
@@ -551,7 +564,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       title: document.querySelector("#panelTitle")?.textContent || "",
       modeSettings: document.querySelector("#settingsPanel").classList.contains("mode-settings"),
       settingsVisible: visible(".settings-group-controls") && visible(".settings-group-feedback"),
-      practiceHidden: !visible(".settings-group-training") && !visible(".settings-group-room") && !visible("#practicePriority"),
+      practiceHidden: !visible(".settings-group-training") && !visible(".settings-group-room"),
       defaultOpenGroups: [...document.querySelectorAll(".settings-group[open]")].map((group) => group.className),
       audioButton: visible("#audioTestButton"),
       diagnosticsButton: visible("#diagnosticsButton"),
@@ -563,7 +576,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       gamepadStatus: document.querySelector("#gamepadStatus")?.textContent || "",
       gamepadDeadzone: visible("#gamepadDeadzoneSlider"),
       systemList: getComputedStyle(document.querySelector(".settings-body")).display === "block",
-      panelWidthCalm: rect.width <= 540,
+      panelWidthCalm: rect.width <= 490,
       displayToFeedbackGap: Math.round(feedbackRect.top - displayRect.bottom),
       panelBox: {
         left: Math.round(rect.left),
@@ -706,14 +719,14 @@ async function runDesktopSmoke(cdp, baseUrl) {
     return {
       selected: document.querySelector("#roomSelect").value,
       label: document.querySelector("#focusRoomButton").textContent.trim(),
-      summary: document.querySelector("#coachSummary").textContent.trim(),
-      priority: document.querySelector("#practicePriority").textContent.trim(),
+      roomBrief: document.querySelector("#roomBrief").textContent.trim(),
+      singleDockAction: document.querySelectorAll("#practiceLaunchDock button").length === 1,
       launchInsidePanel: button.top >= panel.top && button.bottom <= panel.bottom && dock.bottom <= panel.bottom,
       launchHeight: Math.round(button.height),
       bodyScrolls: ["auto", "scroll"].includes(getComputedStyle(body).overflowY)
     };
   })()`);
-  if (selectedRoomAction.selected !== "1" || !/^开始 R2 /.test(selectedRoomAction.label) || !/R2 光继横桥/.test(selectedRoomAction.summary) || /R10 星顶终线/.test(selectedRoomAction.summary) || !/R1 起势山门/.test(selectedRoomAction.priority) || /R2 光继横桥/.test(selectedRoomAction.priority) || !selectedRoomAction.launchInsidePanel || selectedRoomAction.launchHeight < 42 || !selectedRoomAction.bodyScrolls) errors.push("room selection should preview R2 without replacing the global R1 priority, while its action and summary remain in the fixed launch dock: " + JSON.stringify(selectedRoomAction));
+  if (selectedRoomAction.selected !== "1" || !/^开始 R2 /.test(selectedRoomAction.label) || !/R2 光继横桥/.test(selectedRoomAction.roomBrief) || /R10 星顶终线/.test(selectedRoomAction.roomBrief) || !selectedRoomAction.singleDockAction || !selectedRoomAction.launchInsidePanel || selectedRoomAction.launchHeight < 42 || !selectedRoomAction.bodyScrolls) errors.push("room selection should preview R2 while the fixed dock keeps one clear launch action: " + JSON.stringify(selectedRoomAction));
   await clickSelector(cdp, "#focusRoomButton");
   await waitUntil("selected room action starts R2 Drill", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R2/.test(document.querySelector("#gameStatus").textContent)`));
 
@@ -721,26 +734,16 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await evaluate(cdp, `localStorage.clear()`);
   await navigateApp(cdp, baseUrl, "first-run keyboard onboarding clean");
   await clickSelector(cdp, "#startButton");
-  await waitUntil("first-run move hint appears", () => evaluate(cdp, `!document.querySelector("#controlHint").classList.contains("hidden") && /移动/.test(document.querySelector("#controlHint").textContent)`));
-  const onboardingGeometry = await evaluate(cdp, `(() => {
-    const hint = document.querySelector("#controlHint");
-    const rect = hint.getBoundingClientRect();
-    const stage = document.querySelector(".stage").getBoundingClientRect();
-    return {
-      width: Math.round(rect.width),
-      height: Math.round(rect.height),
-      insideStage: rect.left >= stage.left && rect.right <= stage.right && rect.bottom <= stage.bottom,
-      pointerEvents: getComputedStyle(hint).pointerEvents,
-      background: getComputedStyle(hint).backgroundColor
-    };
-  })()`);
-  if (onboardingGeometry.width > 220 || onboardingGeometry.height > 36 || !onboardingGeometry.insideStage || onboardingGeometry.pointerEvents !== "none" || !/203, 217, 211/.test(onboardingGeometry.background)) errors.push("first-run control hint should stay compact, non-blocking, and visually quiet: " + JSON.stringify(onboardingGeometry));
+  const quietOnboarding = await evaluate(cdp, `({
+    controlHintRemoved: !document.querySelector("#controlHint"),
+    ordinaryTipHidden: document.querySelector("#gameTip").classList.contains("hidden")
+  })`);
+  if (!quietOnboarding.controlHintRemoved || !quietOnboarding.ordinaryTipHidden) errors.push("first-run play should start without redundant move/jump/dash strips or coach cards: " + JSON.stringify(quietOnboarding));
   await keyHold(cdp, "KeyD", "D", 180);
-  await waitUntil("first-run jump hint appears", () => evaluate(cdp, `/跳跃/.test(document.querySelector("#controlHint").textContent)`));
   await keyTap(cdp, "Space", " ");
-  await waitUntil("first-run dash hint appears", () => evaluate(cdp, `/冲刺/.test(document.querySelector("#controlHint").textContent)`));
   await keyTap(cdp, "KeyX", "X");
-  await waitUntil("first-run hint exits after dash", () => evaluate(cdp, `document.querySelector("#controlHint").classList.contains("hidden")`));
+  const afterInputsTipHidden = await evaluate(cdp, `document.querySelector("#gameTip").classList.contains("hidden")`);
+  if (!afterInputsTipHidden) errors.push("ordinary movement inputs should not raise a coaching card");
 }
 
 async function runResumeSmoke(cdp, baseUrl) {
@@ -1337,7 +1340,6 @@ async function runMobileSmoke(cdp, baseUrl) {
     const stage = document.querySelector(".stage").getBoundingClientRect();
     const portraitBrief = document.querySelector("#portraitBrief");
     const portraitBriefRect = portraitBrief.getBoundingClientRect();
-    const controlHint = document.querySelector("#controlHint");
     const hudActions = [document.querySelector("#practiceButton"), document.querySelector("#settingsButton")].map((button) => {
       const rect = button.getBoundingClientRect();
       return { id: button.id, width: Math.round(rect.width), height: Math.round(rect.height), left: Math.round(rect.left), right: Math.round(rect.right) };
@@ -1363,11 +1365,11 @@ async function runMobileSmoke(cdp, baseUrl) {
       portraitBriefGap: Math.round(stage.top - portraitBriefRect.bottom),
       portraitAtmosphere: shell.dataset.portraitChapter === "gate" && ridgeStyle.content !== "none" && ridgeStyle.clipPath !== "none",
       portraitBriefText: portraitBrief.textContent.trim(),
-      controlHintHidden: controlHint.classList.contains("hidden") && getComputedStyle(controlHint).display === "none",
+      controlHintRemoved: !document.querySelector("#controlHint"),
       stageTop: Math.round(stage.top)
     };
   })()`);
-  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap > 150 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap > 160 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintHidden || touchUi.stageTop > 360) {
+  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap > 150 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap > 160 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 360) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
   const largeTouchUi = await evaluate(cdp, `(() => {
@@ -1501,18 +1503,17 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
     const launch = document.querySelector("#focusRoomButton").getBoundingClientRect();
-    const reset = document.querySelector("#focusResetButton").getBoundingClientRect();
     return {
       panelFits: panel.left >= -1 && panel.right <= window.innerWidth + 1 && panel.bottom <= window.innerHeight + 1,
       dockFits: dock.top >= panel.top && dock.bottom <= panel.bottom + 1,
-      actionsTouchSafe: launch.height >= 44 && reset.height >= 44,
+      actionTouchSafe: launch.height >= 44,
+      resetNestedInAdvanced: !!document.querySelector(".settings-group-advanced #focusResetButton"),
       launchHeight: Math.round(launch.height),
-      resetHeight: Math.round(reset.height),
       viewport: { width: window.innerWidth, height: window.innerHeight }
     };
   })()`);
-  if (!shortLandscapePractice.panelFits || !shortLandscapePractice.dockFits || !shortLandscapePractice.actionsTouchSafe) {
-    errors.push("568x320 touch landscape should keep the practice dock visible with 44px launch/reset targets: " + JSON.stringify(shortLandscapePractice));
+  if (!shortLandscapePractice.panelFits || !shortLandscapePractice.dockFits || !shortLandscapePractice.actionTouchSafe || !shortLandscapePractice.resetNestedInAdvanced) {
+    errors.push("568x320 touch landscape should keep one 44px launch action visible while reset stays under Advanced: " + JSON.stringify(shortLandscapePractice));
   }
   await tapSelector(cdp, "#settingsClose");
   await waitUntil("short landscape practice closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));

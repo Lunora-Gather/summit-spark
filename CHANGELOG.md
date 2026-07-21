@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-21 - p118
+
+- Removed the repeated pause/category subtitle, recommendation card, selected-room summary and decorative category dots from the right-side sheets.
+- Reduced Practice to four task groups plus one primary launch action, moving destructive statistics reset into Advanced while retaining its two-step confirmation.
+- Removed the first-run move/jump/dash strip and routine coach cards; warnings and save/storage confirmations remain available. Both panels were narrowed and darkened slightly; bumped public assets to `20260721-p118`.
+
 ## 2026-07-19 - p117
 
 - Removed the dark shared capsule around the upper-right Practice and Settings actions; each tool now has its own quiet deep-mist surface, with sage and gold reserved for active state.

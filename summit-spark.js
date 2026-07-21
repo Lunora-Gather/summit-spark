@@ -1582,6 +1582,7 @@
 
   function showGameTip(title, detail = "", kind = "coach", duration = GAME_TIP_TIME, priority = 1) {
     if (!gameTip || !gameTipTitle || !gameTipDetail) return;
+    if (kind === "coach" || kind === "onboarding") return;
     if (kind === "onboarding") return;
     if (kind === "coach" && priority <= 2) return;
     if (gameTipTimer > 0 && gameTipPriority > priority) return;
@@ -5885,9 +5886,9 @@
   function updateFocusResetButton() {
     if (!focusResetButton) return;
     const armed = focusResetArmed();
-    focusResetButton.textContent = armed ? "确认清空" : "清空统计";
+    focusResetButton.textContent = armed ? "确认清空" : "清空";
     focusResetButton.classList.toggle("armed", armed);
-    focusResetButton.title = armed ? "再次点击，清空所有专注与训练统计" : "清空专注训练统计，需要二次确认";
+    focusResetButton.title = armed ? "再次点击，清空所有训练统计" : "清空训练统计，需要二次确认";
   }
 
   function clearFocusResetConfirm() {

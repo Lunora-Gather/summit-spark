@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="build-version" content="20260719-p117">
+  <meta name="build-version" content="20260721-p118">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260719-p117">
+  <link rel="stylesheet" href="summit-spark.css?v=20260721-p118">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -50,22 +50,13 @@
         <i aria-hidden="true"></i>
       </div>
 
-      <div class="control-hint hidden" id="controlHint" role="status" aria-live="polite" aria-hidden="true"></div>
-
       <section class="settings-panel hidden" id="settingsPanel" role="dialog" aria-labelledby="panelTitle" aria-modal="true" aria-hidden="true">
         <div class="settings-head">
-          <strong><span id="panelTitle">设置</span> <span class="pause-badge">暂停</span></strong>
-          <span class="panel-subtitle" id="panelSubtitle">操作 · 声音 · 显示</span>
+          <strong><span id="panelTitle">设置</span></strong>
           <button class="mini-button" id="settingsClose" type="button" aria-label="关闭设置">&times;</button>
         </div>
         <div class="settings-body">
           <div class="settings-column settings-column-main">
-            <button class="practice-priority practice-only" id="practicePriority" type="button">
-              <span>下一步</span>
-              <strong>R1 训练</strong>
-              <em>读取训练建议</em>
-              <i class="priority-meter" aria-hidden="true"></i>
-            </button>
             <details class="settings-group settings-group-controls settings-only" open>
               <summary><span>控制</span></summary>
               <div class="settings-group-body">
@@ -227,18 +218,17 @@
                 <div class="settings-section-title">连续训练</div>
                 <div class="practice-queue" id="practiceQueue" aria-label="连续训练队列"></div>
                 <div class="challenge-board" id="challengeBoard" aria-label="长期挑战"></div>
+                <div class="control-row practice-reset-row">
+                  <span>训练统计</span>
+                  <button class="focus-button ghost" id="focusResetButton" type="button">清空</button>
+                </div>
               </div>
             </details>
           </div>
         </div>
         <div class="practice-launch-dock practice-only" id="practiceLaunchDock">
-          <div class="practice-launch-copy">
-            <b>选中房间</b>
-            <span id="coachSummary">R1 训练</span>
-          </div>
           <div class="coach-actions">
             <button class="focus-button" id="focusRoomButton" type="button">开始 R1 Clean</button>
-            <button class="focus-button ghost" id="focusResetButton" type="button">清空统计</button>
           </div>
         </div>
       </section>
@@ -282,6 +272,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260719-p117"></script>
+  <script src="summit-spark.js?v=20260721-p118"></script>
 </body>
 </html>

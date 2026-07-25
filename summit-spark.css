@@ -7032,6 +7032,192 @@ textarea {
   }
 }
 
+/* P127: HUD-grade coaching and keyboard-first control profiles. */
+.game-tip {
+  gap: 10px;
+  min-height: 36px;
+  padding: 7px 12px 10px;
+  border: 1px solid rgba(228, 240, 234, 0.24);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(48, 73, 87, 0.78), rgba(28, 48, 63, 0.7)),
+    rgba(35, 57, 70, 0.82);
+  box-shadow:
+    0 8px 22px rgba(25, 44, 56, 0.16),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(9px) saturate(1.06);
+}
+
+.game-tip strong,
+.game-tip em {
+  text-shadow: 0 1px 4px rgba(12, 29, 39, 0.36);
+}
+
+.game-tip strong {
+  color: rgba(247, 251, 249, 0.96);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.game-tip em {
+  padding-left: 10px;
+  border-left: 1px solid rgba(224, 237, 231, 0.14);
+  color: rgba(220, 232, 230, 0.74);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.game-tip i {
+  right: 10px;
+  bottom: 4px;
+  left: 10px;
+  height: 2px;
+  background: rgba(220, 234, 233, 0.12);
+}
+
+.game-tip i::after {
+  background: linear-gradient(90deg, #83b8aa, #b7cba7);
+}
+
+.control-profile-note {
+  display: grid;
+  gap: 2px;
+  margin: 8px 4px 2px;
+  padding: 9px 11px;
+  border: 1px solid rgba(61, 94, 101, 0.1);
+  border-radius: 9px;
+  background: rgba(247, 250, 248, 0.34);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.52) inset;
+}
+
+.control-profile-note strong {
+  color: #36545b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.control-profile-note span {
+  color: #75878b;
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.key-binding-editor {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px 4px 5px;
+}
+
+.binding-section {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(51, 82, 91, 0.1);
+  border-radius: 10px;
+  background: rgba(245, 249, 247, 0.26);
+}
+
+.binding-section-title {
+  display: block;
+  margin-bottom: 7px;
+  color: #6b7f84;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.binding-direction-pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.binding-direction-pad [data-binding-action="up"] {
+  grid-column: 2;
+}
+
+.binding-direction-pad [data-binding-action="left"] {
+  grid-column: 1;
+}
+
+.binding-direction-pad [data-binding-action="down"] {
+  grid-column: 2;
+}
+
+.binding-direction-pad [data-binding-action="right"] {
+  grid-column: 3;
+}
+
+.binding-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.key-binding-editor button {
+  min-height: 42px;
+  padding: 5px 6px;
+  border-color: rgba(55, 86, 94, 0.11);
+  border-radius: 8px;
+  background: rgba(250, 252, 250, 0.42);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.54) inset,
+    0 2px 5px rgba(41, 66, 73, 0.035);
+}
+
+.binding-direction-pad button {
+  min-height: 48px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.key-binding-editor button:hover {
+  border-color: rgba(65, 122, 129, 0.25);
+  background: rgba(250, 252, 250, 0.72);
+}
+
+.key-binding-editor button span {
+  color: #718388;
+  font-size: 8.5px;
+  font-weight: 650;
+}
+
+.key-binding-editor kbd {
+  min-width: 32px;
+  max-width: 72px;
+  padding: 4px 6px;
+  border-color: rgba(48, 76, 83, 0.12);
+  border-bottom-color: rgba(48, 76, 83, 0.23);
+  border-radius: 6px;
+  background: rgba(47, 72, 81, 0.82);
+  color: #f1f6f4;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  font-size: 9px;
+}
+
+.key-binding-editor button.capturing {
+  border-color: rgba(65, 126, 132, 0.38);
+  background: rgba(109, 162, 158, 0.12);
+  box-shadow: 0 0 0 2px rgba(78, 137, 143, 0.1) inset;
+}
+
+@media (max-width: 430px) {
+  .key-binding-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .binding-section {
+    padding: 8px;
+  }
+
+  .binding-direction-pad {
+    max-width: 210px;
+    margin-inline: auto;
+  }
+}
+
 .start-panel.entry-pending {
   display: none !important;
 }

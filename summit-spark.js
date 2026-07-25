@@ -58,6 +58,7 @@
   const feedbackTemplateButton = document.getElementById("feedbackTemplateButton");
   const controlPresetSelect = document.getElementById("controlPreset");
   const keyboardLayoutSelect = document.getElementById("keyboardLayout");
+  const controlProfileNote = document.getElementById("controlProfileNote");
   const keyBindingEditor = document.getElementById("keyBindingEditor");
   const keyBindingStatus = document.getElementById("keyBindingStatus");
   const resetKeyBindingsButton = document.getElementById("resetKeyBindings");
@@ -244,18 +245,32 @@
 
   const SOLID = new Set(["#", "C"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
-  const CONTROL_PRESETS = {
-    comfort: {
-      jump: ["Space", "KeyC", "KeyJ"],
-      dash: ["KeyX", "KeyK", "ShiftLeft", "ShiftRight", "KeyE"],
-      grab: ["KeyZ", "KeyL", "ControlLeft", "ControlRight", "KeyV"]
-    },
-    classic: {
-      jump: ["Space", "KeyZ", "KeyJ"],
-      dash: ["KeyX", "ShiftLeft", "ShiftRight", "KeyK"],
-      grab: ["KeyC", "ControlLeft", "ControlRight", "KeyL", "KeyV"]
-    }
-  };
+  const CONTROL_PRESETS = Object.freeze({
+    comfort: Object.freeze({
+      pc: Object.freeze({
+        left: "KeyA", right: "KeyD", up: "KeyW", down: "KeyS",
+        jump: "Space", dash: "KeyK", grab: "KeyJ",
+        recall: "KeyQ", retry: "KeyR", roomRestart: "KeyT"
+      }),
+      mac: Object.freeze({
+        left: "KeyA", right: "KeyD", up: "KeyW", down: "KeyS",
+        jump: "Space", dash: "KeyK", grab: "KeyJ",
+        recall: "KeyQ", retry: "KeyR", roomRestart: "KeyT"
+      })
+    }),
+    classic: Object.freeze({
+      pc: Object.freeze({
+        left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown",
+        jump: "KeyC", dash: "KeyX", grab: "KeyZ",
+        recall: "KeyQ", retry: "KeyR", roomRestart: "KeyT"
+      }),
+      mac: Object.freeze({
+        left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown",
+        jump: "KeyC", dash: "KeyX", grab: "KeyZ",
+        recall: "KeyQ", retry: "KeyR", roomRestart: "KeyT"
+      })
+    })
+  });
   const KEYBOARD_LAYOUT_DEFAULTS = Object.freeze({
     pc: Object.freeze({
       left: "KeyA",
@@ -296,18 +311,9 @@
     roomRestart: "重开房间"
   });
   const RESERVED_BINDING_CODES = new Set(["Escape", "Tab", "Enter", "KeyO", "KeyP", "F3"]);
-  const MOVEMENT_CODES = Object.freeze({
-    left: ["ArrowLeft", "KeyA"],
-    right: ["ArrowRight", "KeyD"],
-    up: ["ArrowUp", "KeyW"],
-    down: ["ArrowDown", "KeyS"]
-  });
-  const RECALL_CODES = new Set(["KeyQ", "Backspace"]);
-  const ALL_ACTION_CODES = new Set(Object.values(CONTROL_PRESETS).flatMap((preset) => [
-    ...preset.jump,
-    ...preset.dash,
-    ...preset.grab
-  ]));
+  const ALL_ACTION_CODES = new Set(Object.values(CONTROL_PRESETS).flatMap((preset) =>
+    Object.values(preset).flatMap((bindings) => [bindings.jump, bindings.dash, bindings.grab])
+  ));
   const START_CODES = new Set(["Enter", ...ALL_ACTION_CODES]);
   const BLOCKED_CODES = new Set([
     ...ALL_ACTION_CODES,
@@ -1271,12 +1277,13 @@
   });
   keyboardLayoutSelect?.addEventListener("change", () => {
     settings.keyboardLayout = keyboardLayoutSelect.value === "mac" ? "mac" : "pc";
-    settings.customBindings = defaultBindingsForLayout(settings.keyboardLayout);
-    settings.controlsPreset = "custom";
+    if (settings.controlsPreset === "custom") {
+      settings.customBindings = defaultBindingsForLayout(settings.keyboardLayout);
+    }
     releaseAllInputs();
     syncKeyBindingEditor();
     writeSettings();
-    setGameStatus(settings.keyboardLayout === "mac" ? "已应用 Mac 基础布局" : "已应用 Windows / Linux 基础布局");
+    setGameStatus(settings.keyboardLayout === "mac" ? "已切换 Mac 键盘标识" : "已切换 Windows / Linux 键盘标识");
   });
   document.querySelectorAll("[data-layout-choice]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1832,14 +1839,13 @@
 
   function currentControlHint() {
     const gamepad = lastGamepadStatus.connected;
-    if (onboardingStep === 0) return gamepad ? "左摇杆移动" : "A D / ← →  移动";
+    const bindings = effectiveBindings();
+    if (onboardingStep === 0) return gamepad ? "左摇杆移动" : `${keyCodeLabel(bindings.left)} ${keyCodeLabel(bindings.right)}  移动`;
     if (onboardingStep === 1) {
       if (gamepad) return "A  跳跃";
-      return settings.controlsPreset === "custom"
-        ? `${keyCodeLabel(settings.customBindings.jump)}  跳跃`
-        : `${settings.controlsPreset === "classic" ? "Space / Z" : "Space / C"}  跳跃`;
+      return `${keyCodeLabel(bindings.jump)}  跳跃`;
     }
-    if (onboardingStep === 2) return gamepad ? "X  冲刺" : "X / Shift  冲刺";
+    if (onboardingStep === 2) return gamepad ? "X  冲刺" : `${keyCodeLabel(bindings.dash)}  冲刺`;
     return "";
   }
 
@@ -5354,17 +5360,8 @@
   }
 
   function actionCodes(action) {
-    if (settings.controlsPreset === "custom") {
-      const customCode = settings.customBindings?.[action];
-      return customCode ? [customCode] : [];
-    }
-    const presetCodes = CONTROL_PRESETS[settings.controlsPreset]?.[action] || CONTROL_PRESETS.comfort[action];
-    if (presetCodes) return presetCodes;
-    if (MOVEMENT_CODES[action]) return MOVEMENT_CODES[action];
-    if (action === "recall") return [...RECALL_CODES];
-    if (action === "retry") return ["KeyR"];
-    if (action === "roomRestart") return ["KeyT"];
-    return [];
+    const code = effectiveBindings()[action];
+    return code ? [code] : [];
   }
 
   function isActionCode(code, action) {
@@ -5381,6 +5378,18 @@
 
   function defaultBindingsForLayout(layout) {
     return { ...KEYBOARD_LAYOUT_DEFAULTS[layout === "mac" ? "mac" : "pc"] };
+  }
+
+  function presetBindingsFor(preset = settings.controlsPreset, layout = settings.keyboardLayout) {
+    const presetName = CONTROL_PRESETS[preset] ? preset : "comfort";
+    const layoutName = layout === "mac" ? "mac" : "pc";
+    return CONTROL_PRESETS[presetName][layoutName];
+  }
+
+  function effectiveBindings() {
+    return settings.controlsPreset === "custom"
+      ? settings.customBindings
+      : presetBindingsFor();
   }
 
   function validBindingCode(code) {
@@ -5413,6 +5422,9 @@
 
   function beginKeyBindingCapture(action) {
     if (!BINDING_ACTIONS.includes(action)) return;
+    if (settings.controlsPreset !== "custom") {
+      settings.customBindings = { ...effectiveBindings() };
+    }
     pendingBindingAction = action;
     settings.controlsPreset = "custom";
     syncKeyBindingEditor();
@@ -5467,9 +5479,29 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
+    const visibleBindings = effectiveBindings();
+    if (controlProfileNote) {
+      const title = controlProfileNote.querySelector("strong");
+      const detail = controlProfileNote.querySelector("span");
+      const isMac = settings.keyboardLayout === "mac";
+      if (settings.controlsPreset === "classic") {
+        if (title) title.textContent = "经典 · 蔚蓝键位";
+        if (detail) detail.textContent = "方向键移动，C 跳跃，X 冲刺，Z 抓墙；左右手职责清晰。";
+      } else if (settings.controlsPreset === "comfort") {
+        if (title) title.textContent = "舒适 · 双手分区";
+        if (detail) detail.textContent = isMac
+          ? "WASD 移动，Space 跳跃，J / K 操作；避开 ⌘ 与 ⌥ 系统快捷键。"
+          : "WASD 移动，Space 跳跃，J / K 分担抓墙与冲刺。";
+      } else {
+        if (title) title.textContent = "自定义 · 点击改键";
+        if (detail) detail.textContent = isMac
+          ? "点击任一键位后直接按新键；会显示 ⌘、⌥、⌃ 等 Mac 标识。"
+          : "点击任一键位后直接按新键；重复按键会自动交换。";
+      }
+    }
     keyBindingEditor?.querySelectorAll("[data-binding-action]").forEach((button) => {
       const action = button.dataset.bindingAction || "";
-      const code = settings.customBindings?.[action] || "";
+      const code = visibleBindings?.[action] || "";
       const key = button.querySelector("kbd");
       if (key) key.textContent = pendingBindingAction === action ? "按键…" : keyCodeLabel(code);
       button.classList.toggle("capturing", pendingBindingAction === action);
@@ -8238,40 +8270,55 @@
     const over = roomTime > limit;
     const delta = roomTime - limit;
     const active = Boolean(activeDrill && activeDrill.room === roomIndex);
-    const width = active ? 160 : 124;
-    const height = 3;
+    const width = active ? 168 : 146;
+    const height = 20;
     const x = W / 2 - width / 2;
-    const y = H - 18;
+    const y = H - height - 8;
     const color = over ? palette.hot : delta <= -1.5 ? palette.green : palette.gold;
-    const alpha = active || over || roomIntroTimer > 0 ? 0.86 : 0.52;
+    const alpha = active || over || roomIntroTimer > 0 ? 0.94 : 0.72;
+    const trackX = x + 9;
+    const trackY = y + height - 5;
+    const trackWidth = width - 18;
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = "rgba(32,52,64,0.5)";
-    roundRect(ctx, x, y, width, height, 3);
+    ctx.shadowColor = "rgba(18,36,47,0.24)";
+    ctx.shadowBlur = settings.calmEffects ? 0 : 8;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = "rgba(38,60,73,0.88)";
+    roundRect(ctx, x, y, width, height, 7);
     ctx.fill();
-    ctx.shadowColor = color;
-    ctx.shadowBlur = settings.calmEffects ? 0 : 4;
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = over ? "rgba(255,101,125,0.46)" : "rgba(226,239,234,0.22)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, x + 0.5, y + 0.5, width - 1, height - 1, 6.5);
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(215,229,228,0.14)";
+    roundRect(ctx, trackX, trackY, trackWidth, 2, 1);
+    ctx.fill();
     ctx.fillStyle = color;
-    roundRect(ctx, x, y, width * progress, height, 3);
+    roundRect(ctx, trackX, trackY, trackWidth * progress, 2, 1);
     ctx.fill();
     if (over) {
       const warning = 0.5 + Math.sin(time * 9) * 0.5;
-      ctx.globalAlpha = 0.34 + warning * 0.18;
+      ctx.globalAlpha = 0.08 + warning * 0.05;
       ctx.fillStyle = palette.hot;
-      roundRect(ctx, x, y - 2, width, height + 4, 4);
+      roundRect(ctx, x + 1, y + 1, width - 2, height - 2, 6);
       ctx.fill();
     }
-    if (active || over) {
-      ctx.globalAlpha = alpha;
-      ctx.font = "600 9px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "bottom";
-      ctx.shadowBlur = settings.calmEffects ? 3 : 8;
-      ctx.fillStyle = color;
-      const label = active ? `${drillModeLabel(activeDrill.mode)} ${formatDelta(delta)}` : `PACE ${formatDelta(delta)}`;
-      ctx.fillText(label, W / 2, y - 4);
-    }
+    ctx.globalAlpha = alpha;
+    ctx.font = "650 9px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(241,247,244,0.9)";
+    const label = active ? drillModeLabel(activeDrill.mode) : "Pace";
+    ctx.fillText(label, x + 10, y + 8);
+    ctx.textAlign = "right";
+    ctx.fillStyle = color;
+    ctx.font = "700 9px system-ui, sans-serif";
+    ctx.fillText(formatDelta(delta), x + width - 10, y + 8);
     ctx.restore();
   }
 

@@ -636,12 +636,33 @@ async function runDesktopSmoke(cdp, baseUrl) {
     return {
       layout: saved.keyboardLayout,
       preset: saved.controlsPreset,
-      left: saved.customBindings?.left,
+      left: document.querySelector('[data-binding-action="left"] kbd')?.textContent.trim(),
+      profile: document.querySelector("#controlProfileNote")?.textContent || "",
       visibleBindings: document.querySelectorAll("[data-binding-action]").length
     };
   })()`);
-  if (macLayoutApplied.layout !== "mac" || macLayoutApplied.preset !== "custom" || macLayoutApplied.left !== "ArrowLeft" || macLayoutApplied.visibleBindings < 10) {
-    errors.push("keyboard layout selection should apply a complete Mac custom-binding base: " + JSON.stringify(macLayoutApplied));
+  if (macLayoutApplied.layout !== "mac" || macLayoutApplied.preset !== "comfort" || macLayoutApplied.left !== "A" || !/避开.*⌘.*⌥/.test(macLayoutApplied.profile) || macLayoutApplied.visibleBindings < 10) {
+    errors.push("keyboard layout selection should preserve the Mac-safe comfort profile: " + JSON.stringify(macLayoutApplied));
+  }
+  await clickSelector(cdp, '[data-preset-choice="classic"]');
+  const classicBindings = await evaluate(cdp, `(() => Object.fromEntries(
+    ["left", "up", "jump", "dash", "grab"].map((action) => [
+      action,
+      document.querySelector('[data-binding-action="' + action + '"] kbd')?.textContent.trim()
+    ])
+  ))()`);
+  if (classicBindings.left !== "←" || classicBindings.up !== "↑" || classicBindings.jump !== "C" || classicBindings.dash !== "X" || classicBindings.grab !== "Z") {
+    errors.push("classic preset should expose Celeste-style arrows plus C/X/Z: " + JSON.stringify(classicBindings));
+  }
+  await clickSelector(cdp, '[data-preset-choice="comfort"]');
+  const comfortBindings = await evaluate(cdp, `(() => Object.fromEntries(
+    ["left", "up", "jump", "dash", "grab"].map((action) => [
+      action,
+      document.querySelector('[data-binding-action="' + action + '"] kbd')?.textContent.trim()
+    ])
+  ))()`);
+  if (comfortBindings.left !== "A" || comfortBindings.up !== "W" || comfortBindings.jump !== "Space" || comfortBindings.dash !== "K" || comfortBindings.grab !== "J") {
+    errors.push("comfort preset should split WASD movement from Space/J/K actions: " + JSON.stringify(comfortBindings));
   }
   await clickSelector(cdp, '[data-binding-action="jump"]');
   await keyTap(cdp, "KeyF", "f");

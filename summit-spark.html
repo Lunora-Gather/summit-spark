@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="build-version" content="20260725-p126">
+  <meta name="build-version" content="20260725-p127">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260725-p126">
+  <link rel="stylesheet" href="summit-spark.css?v=20260725-p127">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -136,17 +136,31 @@
                     <option value="custom">自定义</option>
                   </select>
                 </div>
+                <div class="control-profile-note" id="controlProfileNote" aria-live="polite">
+                  <strong>舒适 · 双手分区</strong>
+                  <span>WASD 移动，Space 跳跃，J / K 分担抓墙与冲刺。</span>
+                </div>
                 <div class="key-binding-editor" id="keyBindingEditor" aria-label="自定义键位">
-                  <button type="button" data-binding-action="left"><span>向左</span><kbd>A</kbd></button>
-                  <button type="button" data-binding-action="right"><span>向右</span><kbd>D</kbd></button>
-                  <button type="button" data-binding-action="up"><span>向上</span><kbd>W</kbd></button>
-                  <button type="button" data-binding-action="down"><span>向下</span><kbd>S</kbd></button>
-                  <button type="button" data-binding-action="jump"><span>跳跃</span><kbd>Space</kbd></button>
-                  <button type="button" data-binding-action="dash"><span>冲刺</span><kbd>Shift</kbd></button>
-                  <button type="button" data-binding-action="grab"><span>抓墙</span><kbd>Z</kbd></button>
-                  <button type="button" data-binding-action="recall"><span>召回</span><kbd>Q</kbd></button>
-                  <button type="button" data-binding-action="retry"><span>重开</span><kbd>R</kbd></button>
-                  <button type="button" data-binding-action="roomRestart"><span>重开房间</span><kbd>T</kbd></button>
+                  <section class="binding-section binding-section-movement" aria-labelledby="movementBindingsTitle">
+                    <strong class="binding-section-title" id="movementBindingsTitle">移动</strong>
+                    <div class="binding-direction-pad">
+                      <button type="button" data-binding-action="up"><span>向上</span><kbd>W</kbd></button>
+                      <button type="button" data-binding-action="left"><span>向左</span><kbd>A</kbd></button>
+                      <button type="button" data-binding-action="down"><span>向下</span><kbd>S</kbd></button>
+                      <button type="button" data-binding-action="right"><span>向右</span><kbd>D</kbd></button>
+                    </div>
+                  </section>
+                  <section class="binding-section binding-section-actions" aria-labelledby="actionBindingsTitle">
+                    <strong class="binding-section-title" id="actionBindingsTitle">动作</strong>
+                    <div class="binding-action-grid">
+                      <button type="button" data-binding-action="jump"><span>跳跃</span><kbd>Space</kbd></button>
+                      <button type="button" data-binding-action="dash"><span>冲刺</span><kbd>K</kbd></button>
+                      <button type="button" data-binding-action="grab"><span>抓墙</span><kbd>J</kbd></button>
+                      <button type="button" data-binding-action="recall"><span>召回</span><kbd>Q</kbd></button>
+                      <button type="button" data-binding-action="retry"><span>重开</span><kbd>R</kbd></button>
+                      <button type="button" data-binding-action="roomRestart"><span>房间</span><kbd>T</kbd></button>
+                    </div>
+                  </section>
                 </div>
                 <div class="binding-tools">
                   <output id="keyBindingStatus" aria-live="polite">点击键位后按下新按键</output>
@@ -383,6 +397,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260725-p126"></script>
+  <script src="summit-spark.js?v=20260725-p127"></script>
 </body>
 </html>

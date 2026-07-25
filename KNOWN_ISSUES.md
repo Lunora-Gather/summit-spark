@@ -15,7 +15,7 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 
 - The demo is a 10-room vertical slice, not a complete chapter campaign.
 - Route contracts and Feel Lab are local training tools; they do not yet produce exportable replay data.
-- Long-term profile data is localStorage-based and intentionally lightweight; local JSON import writes a browser-side backup before overwrite and the settings panel can restore that backup, but there is no cloud sync.
+- Progress remains local-first and intentionally lightweight; signed-in players also receive private Appwrite cloud sync with conflict protection, while local JSON import still writes a browser-side backup before overwrite and can restore it from settings.
 - Low-performance mode reduces visual budget only. If a low-end device still struggles, the next fix should target render cost, not gameplay simplification.
 
 ## Not Worth Fixing Right Now

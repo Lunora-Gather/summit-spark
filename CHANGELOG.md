@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-07-26
+
+- Restored the guest-to-cloud entry as a full-width, readable 44px action on narrow screens, raised mobile authentication fields to touch-safe height, strengthened small settings typography, updated stale cloud-sync documentation, and bumped public assets to `20260726-p131`.
+
 ## 2026-07-25
 
 - Added an adaptive entry choice between guest play (device-only progress) and email login (cloud sync), with signed-in sessions skipping the choice automatically.

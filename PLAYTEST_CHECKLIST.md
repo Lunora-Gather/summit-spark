@@ -58,7 +58,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 - In 390x700 portrait practice, expand Room and confirm the room select, room brief, Drill variant buttons, and coach row stay inside the panel.
 - At around 700x390, settings must scroll vertically and keep audio, low performance, touch size, gamepad deadzone, save import, and restore reachable.
 - At around 700x390, practice must scroll vertically and keep Route, Feel, Room, and Profile reachable.
-- Confirm the controls-first settings groups are easy to scan and the separate practice entry keeps the primary Drill path obvious.
+- Confirm settings opens with every group collapsed, the group labels remain easy to scan, and the separate practice entry keeps the primary Drill path obvious.
 - Confirm the hand-held/mobile view has no horizontal scroll after opening feedback, save import, backup restore status, Route cards, and Feel Lab sections.
 - Increase touch size to 64 and confirm both clusters stay fully inside the viewport, remain separated, and keep Jump/Dash paired without covering critical HUD text or the playfield.
 - Enable low-performance mode and confirm hazards, route compass, and Drill HUD remain readable.

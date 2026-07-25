@@ -1373,6 +1373,12 @@ async function runMobileSmoke(cdp, baseUrl) {
     const titleRoom = title.match(/R([0-9]+)/)?.[1] || "";
     const resumeMode = resumeText.match(/(Clean|Pace|Style|Expert)/)?.[1] || "";
     const startActions = [...document.querySelectorAll(".start-panel button")].filter((button) => getComputedStyle(button).display !== "none");
+    const startButton = document.querySelector("#startButton");
+    const accountButton = document.querySelector("#startAccountButton");
+    const startRect = startButton?.getBoundingClientRect();
+    const accountRect = accountButton?.getBoundingClientRect();
+    const accountBackground = getComputedStyle(accountButton).backgroundColor.match(/[\d.]+/g)?.map(Number) || [];
+    const accountBackgroundAlpha = accountBackground.length >= 4 ? accountBackground[3] : 1;
     return {
       resumeVisible,
       resumeText,
@@ -1380,6 +1386,11 @@ async function runMobileSmoke(cdp, baseUrl) {
       title,
       goal,
       startTouchSafe: startActions.length >= 3 && startActions.every((button) => button.getBoundingClientRect().height >= 44),
+      accountEntryReadable: !!startRect && !!accountRect
+        && accountRect.width >= startRect.width * 0.9
+        && accountRect.height >= 44
+        && accountBackgroundAlpha >= 0.5
+        && accountButton.scrollWidth <= accountButton.clientWidth + 2,
       aligned: resumeVisible
         ? chapter.includes("上次训练") && resumeRoom === titleRoom && !!resumeMode && goal.includes(resumeMode)
         : chapter.includes("攀登起点") && titleRoom === "1"
@@ -1387,6 +1398,19 @@ async function runMobileSmoke(cdp, baseUrl) {
   })()`);
   if (!mobileStartContext.aligned) errors.push("mobile start portrait brief should match the resume target or clearly identify the R1 climb start: " + JSON.stringify(mobileStartContext));
   if (!mobileStartContext.startTouchSafe) errors.push("mobile start actions should retain 44px hit targets: " + JSON.stringify(mobileStartContext));
+  if (!mobileStartContext.accountEntryReadable) errors.push("mobile cloud-login entry should remain full-width, readable and touch-safe: " + JSON.stringify(mobileStartContext));
+  await clickSelector(cdp, "#startAccountButton");
+  await waitUntil("mobile account panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("account-focused")`));
+  const mobileAccountTouchSafe = await evaluate(cdp, `(() => {
+    const controls = [...document.querySelectorAll(".settings-group-account button, .settings-group-account input")].filter((control) => {
+      const rect = control.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    return controls.length >= 6 && controls.every((control) => control.getBoundingClientRect().height >= 44);
+  })()`);
+  if (!mobileAccountTouchSafe) errors.push("mobile account inputs and actions should retain 44px touch targets");
+  await clickSelector(cdp, "#settingsClose");
+  await waitUntil("mobile account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("mobile practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   const roomGroupOpen = await evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`);

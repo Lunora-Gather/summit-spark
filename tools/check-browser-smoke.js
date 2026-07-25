@@ -364,6 +364,10 @@ async function runDesktopSmoke(cdp, baseUrl) {
     mobile: false
   });
   await navigateApp(cdp, baseUrl, "desktop smoke");
+  await waitUntil("entry chooser after session check", () => evaluate(cdp, `(() => {
+    const gate = document.querySelector("#entryGate");
+    return !!gate && !gate.classList.contains("hidden") && !document.querySelector("#overlay")?.classList.contains("entry-checking");
+  })()`), 7000);
   const entryChoice = await evaluate(cdp, `(() => {
     const gate = document.querySelector("#entryGate");
     const guest = document.querySelector("#guestEntryButton");
@@ -824,6 +828,55 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await keyTap(cdp, "KeyX", "X");
   const afterInputsTipHidden = await evaluate(cdp, `document.querySelector("#gameTip").classList.contains("hidden")`);
   if (!afterInputsTipHidden) errors.push("ordinary movement inputs should not raise a coaching card");
+}
+
+async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async get() { return { $id: "smoke-user", email: "signed-in@example.com" }; }
+      }
+      class TablesDB {
+        async getRow() { throw { code: 500, message: "smoke cloud read skipped" }; }
+      }
+      window.Appwrite = { Client, Account, TablesDB };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "authenticated refresh seed");
+    await waitUntil("authenticated session restored", () => evaluate(cdp, `(() => (
+      document.querySelector("#entryGate")?.classList.contains("hidden")
+      && !document.querySelector("#startPanel")?.classList.contains("entry-pending")
+      && document.querySelector("#accountEmailLabel")?.textContent === "signed-in@example.com"
+    ))()`), 7000);
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await waitForAppReady(cdp);
+    const refreshed = await waitUntil("authenticated refresh remains past entry chooser", () => evaluate(cdp, `(() => {
+      const gate = document.querySelector("#entryGate");
+      const start = document.querySelector("#startPanel");
+      const overlay = document.querySelector("#overlay");
+      const email = document.querySelector("#accountEmailLabel")?.textContent || "";
+      if (!gate || !start || overlay?.classList.contains("entry-checking")) return null;
+      return {
+        gateHidden: gate.classList.contains("hidden"),
+        startReady: !start.classList.contains("entry-pending"),
+        email
+      };
+    })()`), 7000);
+    if (!refreshed.gateHidden || !refreshed.startReady || refreshed.email !== "signed-in@example.com") {
+      errors.push("authenticated refresh should bypass the guest/login chooser: " + JSON.stringify(refreshed));
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+  }
 }
 
 async function runResumeSmoke(cdp, baseUrl) {
@@ -1752,6 +1805,7 @@ async function main() {
     await runMobileSmoke(cdp, baseUrl);
     await runMobileLandscapeSmoke(cdp, baseUrl);
     await runGamepadSmoke(cdp, baseUrl);
+    await runAuthenticatedRefreshSmoke(cdp, baseUrl);
   } finally {
     if (cdp) cdp.close();
     await killProcess(browser);
@@ -1764,7 +1818,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, authenticated refresh recovery, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

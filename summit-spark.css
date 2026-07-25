@@ -7222,6 +7222,22 @@ textarea {
   display: none !important;
 }
 
+.overlay.entry-checking::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(225, 237, 232, 0.42);
+  border-top-color: #6e9a96;
+  border-radius: 50%;
+  animation: entry-checking-spin 720ms linear infinite;
+}
+
+@keyframes entry-checking-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .stage.settings-open .entry-gate {
   opacity: 0;
   transform: translateX(-14px) scale(0.985);

@@ -5898,7 +5898,16 @@
       resolveEntryMode("guest", false);
       return;
     }
+    entryMode = saved === "account" ? "account" : "";
+    overlay?.classList.add("entry-checking");
+    entryGate?.classList.add("hidden");
+    startPanel?.classList.add("entry-pending");
+  }
+
+  function revealEntryGate() {
+    if (entryMode === "guest") return;
     entryMode = "";
+    overlay?.classList.remove("entry-checking");
     entryGate?.classList.remove("hidden");
     startPanel?.classList.add("entry-pending");
   }
@@ -5910,6 +5919,7 @@
     } catch {
       // Session preference is optional.
     }
+    overlay?.classList.remove("entry-checking");
     entryGate?.classList.add("hidden");
     startPanel?.classList.remove("entry-pending");
     if (focus) startButton?.focus({ preventScroll: true });
@@ -5959,6 +5969,7 @@
     script.async = true;
     script.addEventListener("load", initCloudAccount, { once: true });
     script.addEventListener("error", () => {
+      revealEntryGate();
       setAccountStatus("云服务暂时未载入，本地存档不受影响", "error");
     }, { once: true });
     document.head.append(script);
@@ -5971,6 +5982,7 @@
       await finishAccountLogin();
     } catch {
       accountUser = null;
+      revealEntryGate();
       syncAccountUi();
       setAccountStatus("进度保存在本机，登录后可同步");
     }
@@ -6350,9 +6362,7 @@
         // Session preference is optional.
       }
       if (!started) {
-        entryMode = "";
-        entryGate?.classList.remove("hidden");
-        startPanel?.classList.add("entry-pending");
+        revealEntryGate();
         closeSettings();
       }
     } catch (error) {

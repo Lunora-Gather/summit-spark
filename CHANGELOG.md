@@ -4,6 +4,7 @@
 
 - Added an adaptive entry choice between guest play (device-only progress) and email login (cloud sync), with signed-in sessions skipping the choice automatically.
 - Moved email authentication into a compact focused account drawer and added responsive widths/layouts for desktop, tablet, portrait mobile, and short landscape; bumped public assets to `20260725-p125`.
+- Restored the settings header's clipped top corners, kept account summary metadata and disclosure control on one row, removed the redundant account intro block, and bumped public assets to `20260725-p126`.
 - Rebuilt settings and practice around an opaque mist-white surface with fixed font weights, clean contrast, custom segmented controls, and compact non-obstructive training feedback.
 - Added Appwrite email OTP registration/login, password login and recovery, authenticated password changes, private per-user cloud saves, first-sync conflict protection, and debounced automatic progress sync.
 - Provisioned the `summit-spark` Appwrite project, web platforms, auth methods, and row-secured `saves` table; bumped public assets to `20260725-p123`.

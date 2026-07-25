@@ -118,9 +118,7 @@ async function main() {
     ].forEach((marker) => expectIncludes("html", html, marker));
     if (html.includes("start-guide") || html.includes("start-copy")) errors.push("html should not expose explanatory start guide blocks");
     const openSettingsGroups = html.match(/<details class="settings-group [^"]+" open>/g) || [];
-    if (openSettingsGroups.length !== 1 || !openSettingsGroups[0].includes("settings-group-controls")) {
-      errors.push("settings controls group should be the only default-open group");
-    }
+    if (openSettingsGroups.length !== 0) errors.push("settings groups should all start collapsed");
     ["首次输入开始计时", "松开按键后待命", "修正路线", "REHEARSE"].forEach((marker) => {
       if (js.includes(marker)) errors.push("runtime should not expose quiet-mode prompt text: " + marker);
     });

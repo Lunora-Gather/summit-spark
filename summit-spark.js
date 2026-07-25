@@ -1180,6 +1180,7 @@
   }
   settingsButton?.addEventListener("click", toggleSettings);
   practiceButton?.addEventListener("click", togglePracticePanel);
+  document.addEventListener("pointerdown", closeSettingsFromOutside, true);
   settingsCloseButton?.addEventListener("click", closeSettings);
   settingsCloseButton?.addEventListener("pointerup", closeSettingsFromTouch);
   settingsCloseButton?.addEventListener("touchend", closeSettingsFromTouch);
@@ -1729,6 +1730,9 @@
 
   function openSettingsPanel() {
     accountFocused = false;
+    document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
+      group.open = false;
+    });
     openPanel("settings");
   }
 
@@ -6635,7 +6639,7 @@
     openStartTrainingPanel();
   }
 
-  function closeSettings() {
+  function closeSettings({ restoreFocus = true } = {}) {
     const returnTarget = panelReturnFocus;
     const closingPractice = panelMode === "practice";
     pendingBindingAction = "";
@@ -6645,6 +6649,7 @@
     clearFocusResetConfirm();
     syncSettingsVisibility();
     setGameStatus(closingPractice ? "练习面板已关闭" : "设置已关闭");
+    if (!restoreFocus) return;
     if (returnTarget instanceof HTMLElement && returnTarget.isConnected && !returnTarget.hasAttribute("disabled")) {
       returnTarget.focus({ preventScroll: true });
     } else if (!overlay.classList.contains("hidden")) {
@@ -6659,6 +6664,12 @@
     if (event.type === "pointerup" && event.pointerType !== "touch" && event.pointerType !== "pen") return;
     event.preventDefault();
     closeSettings();
+  }
+
+  function closeSettingsFromOutside(event) {
+    if (!settingsVisible || !settingsPanel || settingsPanel.contains(event.target)) return;
+    if (event.target instanceof Element && event.target.closest("#settingsButton")) return;
+    closeSettings({ restoreFocus: false });
   }
 
   function syncSettingsVisibility() {

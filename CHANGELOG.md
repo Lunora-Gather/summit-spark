@@ -8,6 +8,7 @@
 - Refined the room coaching and bottom Pace bars to match the primary HUD, rebuilt keyboard editing into movement/action groups, added exact Celeste-inspired classic and community-inspired comfort bindings with Mac-safe labels, and bumped public assets to `20260725-p127`.
 - Removed the redundant entry-switching sentence, tightened the chooser hierarchy, and bumped public assets to `20260725-p128`.
 - Gated the entry chooser behind Appwrite session restoration so authenticated refreshes skip the guest/login screen, added a quiet pending indicator, and bumped public assets to `20260725-p129`.
+- Made settings open with every section collapsed, aligned cloud-sync metadata with its disclosure control, added outside-pointer dismissal that preserves the clicked control's normal action, and bumped public assets to `20260725-p130`.
 - Rebuilt settings and practice around an opaque mist-white surface with fixed font weights, clean contrast, custom segmented controls, and compact non-obstructive training feedback.
 - Added Appwrite email OTP registration/login, password login and recovery, authenticated password changes, private per-user cloud saves, first-sync conflict protection, and debounced automatic progress sync.
 - Provisioned the `summit-spark` Appwrite project, web platforms, auth methods, and row-secured `saves` table; bumped public assets to `20260725-p123`.

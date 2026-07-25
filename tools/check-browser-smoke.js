@@ -253,6 +253,11 @@ async function clickSelector(cdp, selector) {
   await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
 }
 
+async function clickPoint(cdp, x, y) {
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+}
+
 async function tapSelector(cdp, selector) {
   const rect = await targetPoint(cdp, selector);
   const touchPoint = { x: rect.inputX, y: rect.inputY, id: 1, radiusX: 2, radiusY: 2, force: 1 };
@@ -574,6 +579,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
 
   await clickSelector(cdp, "#startSettingsButton");
   await waitUntil("quiet settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  const defaultOpenGroups = await evaluate(cdp, `[...document.querySelectorAll(".settings-group[open]")].map((group) => group.className)`);
+  if (defaultOpenGroups.length !== 0) errors.push("settings should open with every system group collapsed: " + JSON.stringify(defaultOpenGroups));
+  await openSettingsGroup(cdp, ".settings-group-controls");
   const settingsAudit = await evaluate(cdp, `(() => {
     const visible = (selector) => {
       const el = document.querySelector(selector);
@@ -587,7 +595,6 @@ async function runDesktopSmoke(cdp, baseUrl) {
       modeSettings: document.querySelector("#settingsPanel").classList.contains("mode-settings"),
       settingsVisible: visible(".settings-group-controls") && visible(".settings-group-feedback"),
       practiceHidden: !visible(".settings-group-training") && !visible(".settings-group-room"),
-      defaultOpenGroups: [...document.querySelectorAll(".settings-group[open]")].map((group) => group.className),
       audioButton: visible("#audioTestButton"),
       diagnosticsButton: visible("#diagnosticsButton"),
       feedbackTemplateButton: visible("#feedbackTemplateButton"),
@@ -614,7 +621,6 @@ async function runDesktopSmoke(cdp, baseUrl) {
     };
   })()`);
   if (!settingsAudit.modeSettings || !/设置/.test(settingsAudit.title) || !settingsAudit.settingsVisible || !settingsAudit.practiceHidden) errors.push("settings panel should hide practice surfaces: " + JSON.stringify(settingsAudit));
-  if (settingsAudit.defaultOpenGroups.length !== 1 || !settingsAudit.defaultOpenGroups[0].includes("settings-group-controls")) errors.push("settings should default to controls-first system groups: " + JSON.stringify(settingsAudit));
   if (!settingsAudit.audioButton) errors.push("settings should expose audio test button");
   if (!settingsAudit.diagnosticsButton) errors.push("settings should expose diagnostics copy button");
   if (!settingsAudit.feedbackTemplateButton) errors.push("settings should expose feedback template copy button");
@@ -736,8 +742,19 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!/R7 touch note/.test(template)) errors.push("feedback template should include the current note");
   await sleep(420);
 
+  const outsidePoint = await evaluate(cdp, `({ x: 18, y: Math.round(innerHeight / 2) })`);
+  await clickPoint(cdp, outsidePoint.x, outsidePoint.y);
+  await waitUntil("outside pointer closes quiet settings", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await clickSelector(cdp, "#startSettingsButton");
+  await waitUntil("quiet settings reopens collapsed", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group[open]").length === 0`));
+  await evaluate(cdp, `(() => {
+    const button = document.querySelector("#practiceButton");
+    button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    button.click();
+  })()`);
+  await waitUntil("outside training button switches panels", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await clickSelector(cdp, "#settingsClose");
-  await waitUntil("quiet settings closes before practice", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await waitUntil("switched practice panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("practice panel opens for feel", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await openSettingsGroup(cdp, ".settings-group-training");

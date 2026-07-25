@@ -380,9 +380,8 @@ if (!indexHtml.includes("settings-group-training") || !indexHtml.includes("setti
 if (!indexHtml.includes("settings-only") || !indexHtml.includes("practice-only")) errors.push("panel must separate settings-only and practice-only groups");
 if (indexHtml.includes("start-guide") || indexHtml.includes("start-copy")) errors.push("start overlay should not include explanatory guide blocks");
 const openSettingsGroups = indexHtml.match(/<details class="settings-group [^"]+" open>/g) || [];
-if (openSettingsGroups.length !== 1 || !openSettingsGroups[0].includes("settings-group-controls")) {
-  errors.push("settings controls group should be the only default-open group");
-}
+if (openSettingsGroups.length !== 0) errors.push("settings groups should all start collapsed");
+if (!js.includes("closeSettingsFromOutside")) errors.push("settings panel should dismiss on outside pointer input");
 if (!indexHtml.includes('id="practicePlan"')) errors.push("practice panel must include a practice plan surface");
 if (!indexHtml.includes('id="routeContracts"')) errors.push("practice panel must include route contracts");
 if (!indexHtml.includes('id="feelLab"')) errors.push("practice panel must include feel lab");

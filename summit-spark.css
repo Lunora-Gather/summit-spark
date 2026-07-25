@@ -7492,7 +7492,7 @@ textarea,
 }
 
 .settings-group summary {
-  grid-template-columns: minmax(0, 1fr) auto 18px;
+  grid-template-columns: minmax(0, 1fr) max-content 18px;
   min-height: 44px;
   padding: 11px 13px;
   font-size: 13px;
@@ -7504,10 +7504,19 @@ textarea,
 
 .settings-group summary > small {
   grid-column: 2;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  margin: 0;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .settings-group summary::after {
   grid-column: 3;
+  align-self: center;
+  justify-self: end;
 }
 
 .settings-group[open] summary,

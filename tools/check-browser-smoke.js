@@ -1022,6 +1022,9 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
       }
       class Account {
         async updateRecovery(payload) {
+          if (payload.password === "password123") {
+            throw { code: 400, type: "user_password_dictionary", message: "Password is too common" };
+          }
           window.__summitRecoveryUpdate = payload;
           return {};
         }
@@ -1059,6 +1062,19 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
     })()`), 7000);
     if (recoveryState.search !== "?keep=1" || recoveryState.title !== "设置新密码" || recoveryState.closeLabel !== "关闭改密" || !recoveryState.groupOpen || !recoveryState.authTabsHidden || !recoveryState.emailHidden || !recoveryState.codeHidden || !recoveryState.noteHidden || !recoveryState.passwordVisible || recoveryState.passwordLabel !== "新密码" || !/输入新密码/.test(recoveryState.passwordPlaceholder) || recoveryState.submit !== "确认新密码" || !recoveryState.focused || !/改密链接已验证/.test(recoveryState.status)) {
       errors.push("recovery links should immediately hide secrets and open a focused, single-purpose password form: " + JSON.stringify(recoveryState));
+    }
+    await evaluate(cdp, `document.querySelector("#accountPassword").value = "password123"`);
+    await clickSelector(cdp, "#accountSubmit");
+    const weakPassword = await waitUntil("password recovery explains dictionary rejection", () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      return /过于常见/.test(status) ? {
+        status,
+        stillRecovering: document.querySelector("#panelTitle")?.textContent === "设置新密码",
+        passwordVisible: getComputedStyle(document.querySelector("#accountPasswordField")).display !== "none"
+      } : null;
+    })()`), 5000);
+    if (!weakPassword.stillRecovering || !weakPassword.passwordVisible) {
+      errors.push("a rejected weak password should keep the recovery form active with a precise explanation: " + JSON.stringify(weakPassword));
     }
     await evaluate(cdp, `document.querySelector("#accountPassword").value = "updated-password"`);
     await clickSelector(cdp, "#accountSubmit");

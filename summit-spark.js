@@ -6107,6 +6107,9 @@
     if (code === 401) return "邮箱、密码或验证码不正确";
     if (code === 409) return "当前已有登录会话，请刷新后重试";
     if (code === 429) return "操作过于频繁，请稍后再试";
+    if (type.includes("dictionary")) return "这个密码过于常见，请换一个更安全的密码";
+    if (type.includes("personal_data")) return "密码不能包含邮箱或账号信息";
+    if (type.includes("history")) return "请勿重复使用最近设置过的密码";
     if (type.includes("password")) return "密码至少 8 位，并请检查原密码";
     if (type.includes("email")) return "请填写有效邮箱";
     if (type.includes("token")) return "验证码已失效，请重新发送";

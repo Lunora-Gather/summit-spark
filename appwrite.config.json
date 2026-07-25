@@ -1,5 +1,86 @@
 {
     "organizationId": "6a43ed7e00262539468f",
     "projectId": "summit-spark",
-    "projectName": "Summit Spark"
+    "projectName": "Summit Spark",
+    "settings": {
+        "services": {
+            "account": true,
+            "avatars": true,
+            "databases": true,
+            "locale": true,
+            "health": true,
+            "storage": true,
+            "teams": true,
+            "users": true,
+            "sites": true,
+            "functions": true,
+            "graphql": true,
+            "messaging": true
+        },
+        "protocols": {
+            "rest": true,
+            "graphql": true,
+            "websocket": true
+        },
+        "auth": {
+            "methods": {
+                "jwt": true,
+                "phone": false,
+                "invites": true,
+                "anonymous": false,
+                "email-otp": true,
+                "magic-url": false,
+                "email-password": true
+            },
+            "security": {
+                "duration": 31536000,
+                "limit": null,
+                "sessionsLimit": null,
+                "passwordHistory": null,
+                "passwordDictionary": true,
+                "personalDataCheck": true,
+                "sessionAlerts": false,
+                "mockNumbers": []
+            }
+        }
+    },
+    "tablesDB": [
+        {
+            "$id": "summit-spark",
+            "name": "Summit Spark Cloud Saves",
+            "enabled": true
+        }
+    ],
+    "tables": [
+        {
+            "$id": "saves",
+            "$permissions": [
+                "create(\"users\")"
+            ],
+            "databaseId": "summit-spark",
+            "name": "Private Saves",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "build",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "archive",
+                    "type": "longtext",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": []
+        }
+    ]
 }

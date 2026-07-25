@@ -11,6 +11,7 @@ const errors = [];
 const requiredToolFiles = [
   "tools/check-docs.js",
   "tools/check-public-surface.js",
+  "tools/check-appwrite-contract.js",
   "tools/check-data-contracts.js",
   "tools/check-maps.js",
   "tools/check-route-audit.js",

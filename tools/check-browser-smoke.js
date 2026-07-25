@@ -601,6 +601,15 @@ async function runDesktopSmoke(cdp, baseUrl) {
       saveExportButton: visible("#saveExportButton"),
       saveImportButton: visible("#saveImportButton"),
       saveRestoreButton: visible("#saveRestoreButton"),
+      contextualActionLabels: {
+        audio: document.querySelector("#audioTestButton")?.getAttribute("aria-label") || "",
+        diagnostics: document.querySelector("#diagnosticsButton")?.getAttribute("aria-label") || "",
+        template: document.querySelector("#feedbackTemplateButton")?.getAttribute("aria-label") || "",
+        export: document.querySelector("#saveExportButton")?.getAttribute("aria-label") || "",
+        download: document.querySelector("#saveDownloadButton")?.getAttribute("aria-label") || "",
+        import: document.querySelector("#saveImportButton")?.getAttribute("aria-label") || "",
+        restore: document.querySelector("#saveRestoreButton")?.getAttribute("aria-label") || ""
+      },
       restoreDisabled: document.querySelector("#saveRestoreButton")?.disabled || false,
       gamepadStatus: document.querySelector("#gamepadStatus")?.textContent || "",
       gamepadDeadzone: visible("#gamepadDeadzoneSlider"),
@@ -625,6 +634,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!settingsAudit.diagnosticsButton) errors.push("settings should expose diagnostics copy button");
   if (!settingsAudit.feedbackTemplateButton) errors.push("settings should expose feedback template copy button");
   if (!settingsAudit.saveExportButton || !settingsAudit.saveImportButton || !settingsAudit.saveRestoreButton) errors.push("settings should expose save export/import/restore buttons");
+  if (new Set(Object.values(settingsAudit.contextualActionLabels)).size !== 7 || Object.values(settingsAudit.contextualActionLabels).some((label) => !label)) {
+    errors.push("compact settings actions should expose unique contextual accessible names: " + JSON.stringify(settingsAudit.contextualActionLabels));
+  }
   if (!settingsAudit.restoreDisabled) errors.push("restore should start disabled when no import backup exists");
   if (!/未连接|standard|不支持|未检测/.test(settingsAudit.gamepadStatus)) errors.push("settings should expose non-sensitive gamepad status: " + settingsAudit.gamepadStatus);
   if (!settingsAudit.gamepadDeadzone) errors.push("settings should expose gamepad deadzone control");

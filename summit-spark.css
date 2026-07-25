@@ -6886,6 +6886,11 @@ textarea {
   text-decoration: none;
 }
 
+.start-actions > .account-entry:focus-visible {
+  outline: 3px solid rgba(141, 205, 211, 0.9);
+  outline-offset: 3px;
+}
+
 .hidden {
   display: none !important;
 }
@@ -7578,6 +7583,13 @@ textarea,
 .auth-tabs button.active {
   color: #2b6268;
   box-shadow: 0 2px 7px rgba(35, 60, 65, 0.09);
+}
+
+.settings-panel .auth-tabs button:focus-visible,
+.settings-panel .segmented-control button:focus-visible,
+.settings-panel .text-button:focus-visible {
+  outline: 2px solid rgba(61, 126, 137, 0.72);
+  outline-offset: 2px;
 }
 
 .account-field {

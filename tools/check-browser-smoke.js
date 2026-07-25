@@ -745,6 +745,12 @@ async function runDesktopSmoke(cdp, baseUrl) {
   const outsidePoint = await evaluate(cdp, `({ x: 18, y: Math.round(innerHeight / 2) })`);
   await clickPoint(cdp, outsidePoint.x, outsidePoint.y);
   await waitUntil("outside pointer closes quiet settings", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const outsideDismissFocus = await waitUntil("outside pointer restores safe focus", () => evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel");
+    const active = document.activeElement;
+    return active && active !== document.body && !panel.contains(active) ? (active.id || active.tagName) : "";
+  })()`));
+  if (outsideDismissFocus !== "startButton") errors.push("outside settings dismissal should return start-screen focus to the primary action: " + outsideDismissFocus);
   await clickSelector(cdp, "#startSettingsButton");
   await waitUntil("quiet settings reopens collapsed", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group[open]").length === 0`));
   await evaluate(cdp, `(() => {
@@ -1409,6 +1415,20 @@ async function runMobileSmoke(cdp, baseUrl) {
     return controls.length >= 6 && controls.every((control) => control.getBoundingClientRect().height >= 44);
   })()`);
   if (!mobileAccountTouchSafe) errors.push("mobile account inputs and actions should retain 44px touch targets");
+  await clickSelector(cdp, '[data-auth-mode="password"]');
+  const mobilePasswordFocus = await evaluate(cdp, `(() => {
+    const tab = document.querySelector('[data-auth-mode="password"]');
+    const recovery = document.querySelector("#accountRecovery");
+    const style = getComputedStyle(tab);
+    return {
+      outlineWidth: style.outlineWidth,
+      outlineColor: style.outlineColor,
+      recoveryHeight: recovery.getBoundingClientRect().height
+    };
+  })()`);
+  if (Number.parseFloat(mobilePasswordFocus.outlineWidth) < 2 || /rgb\(0, 0, 0\)/.test(mobilePasswordFocus.outlineColor) || mobilePasswordFocus.recoveryHeight < 44) {
+    errors.push("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target: " + JSON.stringify(mobilePasswordFocus));
+  }
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("mobile account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await clickSelector(cdp, "#openTrainingButton");
@@ -1437,6 +1457,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     const launch = document.querySelector("#focusRoomButton").getBoundingClientRect();
     const closeTarget = document.querySelector("#settingsClose").getBoundingClientRect();
     const roomSelectTarget = document.querySelector("#roomSelect").getBoundingClientRect();
+    const selectedRoomLabel = document.querySelector("#roomSelect")?.selectedOptions?.[0]?.textContent.trim() || "";
     const visibleSummaries = [...document.querySelectorAll(".settings-group > summary")].filter((summary) => summary.getBoundingClientRect().height > 0);
     return {
       modePractice: document.querySelector("#settingsPanel").classList.contains("mode-practice"),
@@ -1447,6 +1468,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       variantsExplained: variants.every((button) => /无失误|节奏|类型|高手/.test(button.text)),
       launchTouchSafe: launch.top >= panel.top && launch.bottom <= panel.bottom && launch.width >= 44 && launch.height >= 44,
       panelControlsTouchSafe: closeTarget.width >= 44 && closeTarget.height >= 44 && roomSelectTarget.height >= 44 && visibleSummaries.every((summary) => summary.getBoundingClientRect().height >= 44),
+      roomSelectConcise: /^R1 · /.test(selectedRoomLabel) && selectedRoomLabel.length <= 24,
       roomItemsFit: roomItems.every((item) => item.left >= -1 && item.right <= window.innerWidth + 1),
       roomItems,
       coarsePointer: matchMedia("(pointer: coarse)").matches
@@ -1459,6 +1481,7 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!mobile.variantsTouchSafe || !mobile.variantsExplained) errors.push("mobile Drill variants should be explained and touch-safe: " + JSON.stringify(mobile));
   if (!mobile.launchTouchSafe) errors.push("mobile selected-room launch dock should remain visible and touch-safe: " + JSON.stringify(mobile));
   if (!mobile.panelControlsTouchSafe) errors.push("mobile practice close, room select and disclosure targets should remain at least 44px: " + JSON.stringify(mobile));
+  if (!mobile.roomSelectConcise) errors.push("mobile room selector should keep a concise selection label while details stay in the room brief: " + JSON.stringify(mobile));
   if (!mobile.roomItemsFit) errors.push("mobile room settings should not overflow horizontally: " + JSON.stringify(mobile.roomItems));
   if (!mobile.coarsePointer) errors.push("mobile smoke should emulate a coarse pointer");
   await evaluate(cdp, `(() => {

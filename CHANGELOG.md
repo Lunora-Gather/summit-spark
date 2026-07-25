@@ -3,6 +3,7 @@
 ## 2026-07-26
 
 - Restored the guest-to-cloud entry as a full-width, readable 44px action on narrow screens, raised mobile authentication fields to touch-safe height, strengthened small settings typography, updated stale cloud-sync documentation, and bumped public assets to `20260726-p131`.
+- Reduced the room selector to a concise room identifier/name plus urgent focus marker while keeping full medals, timing, goals and route detail in the adjacent room brief, replaced default black focus rectangles on auth/segmented/tertiary controls with the product's teal focus ring, and prevented outside-dismissal focus from remaining inside the hidden drawer; bumped public assets to `20260726-p132`.
 
 ## 2026-07-25
 

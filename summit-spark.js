@@ -5584,7 +5584,7 @@
   }
 
   function roomSelectLabel(index) {
-    return `${index + 1}. ${ROOM_NAMES[index] || "Summit"} · ${roomMedalLabel(index)} · ${roomPaceShort(index)} · ${styleTrialLabel(index)} · ${roomCleanShort(index)} · ${roomSkillShort(index)}${roomSelectFocusLabel(index)}`;
+    return `R${index + 1} · ${ROOM_NAMES[index] || "Summit"}${roomSelectFocusLabel(index).replace(" / ", " · ")}`;
   }
 
   function refreshRoomSelectOptions() {
@@ -6670,6 +6670,18 @@
     if (!settingsVisible || !settingsPanel || settingsPanel.contains(event.target)) return;
     if (event.target instanceof Element && event.target.closest("#settingsButton")) return;
     closeSettings({ restoreFocus: false });
+    requestAnimationFrame(() => {
+      if (settingsVisible) return;
+      const active = document.activeElement;
+      const hasSafeFocus = active instanceof HTMLElement
+        && active !== document.body
+        && active !== document.documentElement
+        && active.isConnected
+        && !settingsPanel.contains(active);
+      if (hasSafeFocus) return;
+      if (!overlay.classList.contains("hidden")) startButton?.focus({ preventScroll: true });
+      else focusGame();
+    });
   }
 
   function syncSettingsVisibility() {

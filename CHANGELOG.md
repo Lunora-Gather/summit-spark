@@ -2,6 +2,7 @@
 
 ## 2026-07-26
 
+- Hardened Appwrite password recovery by removing `userId` and `secret` from the address bar immediately after capture, opening a focused single-purpose new-password drawer that hides unrelated login controls, restoring the regular login UI after success, and making Enter on the email field send an OTP; added mocked recovery and mobile visual regression coverage and bumped public assets to `20260726-p136`.
 - Made key rebinding transactional so Escape or closing Settings restores the original preset and custom bindings instead of silently switching to Custom, locked conflicting choice controls during capture, corrected the restore-layout action's stale dark-theme styling, and added desktop/mobile/short-screen regression coverage; bumped public assets to `20260726-p135`.
 - Added a bounded Appwrite session-restore check so stalled or offline refreshes return to the guest/email chooser instead of remaining in an indefinite loading state, unified busy-state locking across authentication tabs and fields, and added browser regression coverage; bumped public assets to `20260726-p134`.
 - Added unique contextual accessible names to the compact audio, diagnostics, feedback-template and save actions so repeated visible labels such as “复制” remain unambiguous to assistive technology; bumped public assets to `20260726-p133`.

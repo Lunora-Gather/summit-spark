@@ -70,14 +70,18 @@
   const accountSummary = document.getElementById("accountSummary");
   const accountGuest = document.getElementById("accountGuest");
   const accountUserPanel = document.getElementById("accountUser");
+  const accountAuthTabs = document.getElementById("accountAuthTabs");
+  const accountEmailField = document.getElementById("accountEmailField");
   const accountEmailInput = document.getElementById("accountEmail");
   const accountPasswordInput = document.getElementById("accountPassword");
   const accountPasswordField = document.getElementById("accountPasswordField");
+  const accountPasswordLabel = document.getElementById("accountPasswordLabel");
   const accountRecoveryButton = document.getElementById("accountRecovery");
   const accountCodeFields = document.getElementById("accountCodeFields");
   const accountCodeInput = document.getElementById("accountCode");
   const accountSendCodeButton = document.getElementById("accountSendCode");
   const accountSubmitButton = document.getElementById("accountSubmit");
+  const accountNote = document.getElementById("accountNote");
   const accountEmailLabel = document.getElementById("accountEmailLabel");
   const accountAvatar = document.getElementById("accountAvatar");
   const accountNewPasswordInput = document.getElementById("accountNewPassword");
@@ -1353,6 +1357,12 @@
   accountCodeInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") submitAccountLogin();
   });
+  accountEmailInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || recoverySecret) return;
+    event.preventDefault();
+    if (authMode === "password" || (accountCodeInput?.value || "").trim()) submitAccountLogin();
+    else sendAccountCode();
+  });
   accountPasswordInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") submitAccountLogin();
   });
@@ -1747,7 +1757,11 @@
         group.open = group === accountGroup;
       });
       accountGroup.scrollIntoView({ block: "start" });
-      window.setTimeout(() => accountUser ? cloudUploadButton?.focus({ preventScroll: true }) : accountEmailInput?.focus({ preventScroll: true }), 0);
+      window.setTimeout(() => {
+        if (accountUser) cloudUploadButton?.focus({ preventScroll: true });
+        else if (recoverySecret) accountPasswordInput?.focus({ preventScroll: true });
+        else accountEmailInput?.focus({ preventScroll: true });
+      }, 0);
     }
   }
 
@@ -5955,8 +5969,16 @@
   function initCloudAccount() {
     setAuthMode("code");
     const params = new URLSearchParams(window.location.search);
-    recoveryUserId = params.get("userId") || "";
-    recoverySecret = params.get("secret") || "";
+    const incomingRecoveryUserId = params.get("userId") || "";
+    const incomingRecoverySecret = params.get("secret") || "";
+    if (incomingRecoveryUserId || incomingRecoverySecret) {
+      recoveryUserId = incomingRecoveryUserId;
+      recoverySecret = incomingRecoverySecret;
+      params.delete("userId");
+      params.delete("secret");
+      const query = params.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+    }
     if (!window.Appwrite?.Client || !window.Appwrite?.Account || !window.Appwrite?.TablesDB) {
       setAccountStatus("本地进度已就绪，正在连接云存档");
       if (document.readyState === "complete") loadAppwriteSdk();
@@ -6004,6 +6026,14 @@
 
   async function restoreAccountSession() {
     if (!accountSdk) return;
+    if (recoveryUserId && recoverySecret) {
+      accountUser = null;
+      revealEntryGate();
+      syncAccountUi();
+      setAccountStatus("改密链接已验证，请设置新密码", "valid");
+      window.setTimeout(openAccountPanel, 0);
+      return;
+    }
     const configuredTimeout = Number(window.__summitAccountRestoreTimeoutMs);
     const timeoutMs = Number.isFinite(configuredTimeout)
       ? Math.max(50, configuredTimeout)
@@ -6034,14 +6064,19 @@
 
   function setAuthMode(mode) {
     authMode = mode === "password" ? "password" : "code";
+    const recovering = Boolean(recoveryUserId && recoverySecret);
     document.querySelectorAll("[data-auth-mode]").forEach((button) => {
       const active = button.dataset.authMode === authMode;
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", String(active));
     });
-    accountPasswordField?.classList.toggle("hidden", authMode !== "password");
-    accountRecoveryButton?.classList.toggle("hidden", authMode !== "password" || Boolean(recoverySecret));
-    accountCodeFields?.classList.toggle("hidden", authMode !== "code");
+    accountAuthTabs?.classList.toggle("hidden", recovering);
+    accountEmailField?.classList.toggle("hidden", recovering);
+    accountNote?.classList.toggle("hidden", recovering);
+    accountPasswordField?.classList.toggle("hidden", !recovering && authMode !== "password");
+    accountRecoveryButton?.classList.toggle("hidden", recovering || authMode !== "password");
+    accountCodeFields?.classList.toggle("hidden", recovering || authMode !== "code");
+    if (accountPasswordLabel) accountPasswordLabel.textContent = recovering ? "新密码" : "密码";
     if (accountSubmitButton && !recoverySecret) {
       accountSubmitButton.textContent = authMode === "password" ? "使用密码登录" : "使用验证码继续";
     }
@@ -6124,8 +6159,6 @@
       setAccountBusy(true);
       try {
         await accountSdk.account.updateRecovery({ userId: recoveryUserId, secret: recoverySecret, password });
-        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
-        window.history.replaceState({}, "", cleanUrl);
         recoveryUserId = "";
         recoverySecret = "";
         if (accountPasswordInput) {
@@ -6135,6 +6168,7 @@
         }
         setAccountStatus("密码已更新，现在可以密码登录", "valid");
         setAuthMode("password");
+        syncSettingsVisibility();
       } catch (error) {
         setAccountStatus(friendlyAccountError(error), "error");
       } finally {
@@ -6739,9 +6773,10 @@
     settingsPanel?.classList.toggle("account-focused", settingsVisible && panelMode === "settings" && accountFocused);
     settingsPanel?.setAttribute("aria-hidden", String(!settingsVisible));
     const practiceMode = panelMode === "practice";
-    if (panelTitle) panelTitle.textContent = practiceMode ? "练习" : accountFocused ? "账号" : "设置";
+    const recoveryMode = Boolean(accountFocused && recoveryUserId && recoverySecret);
+    if (panelTitle) panelTitle.textContent = practiceMode ? "练习" : recoveryMode ? "设置新密码" : accountFocused ? "账号" : "设置";
     if (panelSubtitle) panelSubtitle.textContent = practiceMode ? "房间 · 档案 · 路线" : "操作 · 声音 · 显示";
-    settingsCloseButton?.setAttribute("aria-label", practiceMode ? "关闭练习" : "关闭设置");
+    settingsCloseButton?.setAttribute("aria-label", practiceMode ? "关闭练习" : recoveryMode ? "关闭改密" : accountFocused ? "关闭账号" : "关闭设置");
     settingsButton?.setAttribute("aria-expanded", String(settingsVisible && panelMode === "settings"));
     practiceButton?.setAttribute("aria-expanded", String(settingsVisible && panelMode === "practice"));
     syncGameplayAccessibility();

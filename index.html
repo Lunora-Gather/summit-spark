@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="build-version" content="20260726-p135">
+  <meta name="build-version" content="20260726-p136">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260726-p135">
+  <link rel="stylesheet" href="summit-spark.css?v=20260726-p136">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -61,16 +61,16 @@
               <summary><span>账号与云存档</span><small id="accountSummary">未登录</small></summary>
               <div class="settings-group-body account-body">
                 <div class="account-guest" id="accountGuest">
-                  <div class="auth-tabs" role="tablist" aria-label="登录方式">
+                  <div class="auth-tabs" id="accountAuthTabs" role="tablist" aria-label="登录方式">
                     <button type="button" role="tab" data-auth-mode="code" aria-selected="true">邮箱验证码</button>
                     <button type="button" role="tab" data-auth-mode="password" aria-selected="false">密码</button>
                   </div>
-                  <label class="account-field">
+                  <label class="account-field" id="accountEmailField">
                     <span>邮箱</span>
                     <input id="accountEmail" type="email" autocomplete="email" inputmode="email" placeholder="name@example.com">
                   </label>
                   <label class="account-field auth-password-field hidden" id="accountPasswordField">
-                    <span>密码</span>
+                    <span id="accountPasswordLabel">密码</span>
                     <input id="accountPassword" type="password" autocomplete="current-password" minlength="8" placeholder="至少 8 位">
                   </label>
                   <button class="text-button auth-password-field hidden" id="accountRecovery" type="button">忘记密码？发送改密邮件</button>
@@ -82,7 +82,7 @@
                     <button class="focus-button ghost" id="accountSendCode" type="button">获取验证码</button>
                   </div>
                   <button class="focus-button account-submit" id="accountSubmit" type="button">使用验证码继续</button>
-                  <p class="account-note">首次使用会自动创建账号，无需单独注册。</p>
+                  <p class="account-note" id="accountNote">首次使用会自动创建账号，无需单独注册。</p>
                 </div>
                 <div class="account-user hidden" id="accountUser">
                   <div class="account-user-head">
@@ -396,6 +396,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260726-p135"></script>
+  <script src="summit-spark.js?v=20260726-p136"></script>
 </body>
 </html>

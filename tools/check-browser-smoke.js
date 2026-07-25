@@ -989,7 +989,8 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountEntryButton");
     await waitUntil("account drawer opens after restore timeout", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "pending@example.com"`);
-    await clickSelector(cdp, "#accountSendCode");
+    await clickSelector(cdp, "#accountEmail");
+    await keyTap(cdp, "Enter", "Enter");
     const busyState = await waitUntil("account form enters unified busy state", () => evaluate(cdp, `(() => {
       const group = document.querySelector(".settings-group-account");
       if (group?.getAttribute("aria-busy") !== "true") return null;
@@ -1003,6 +1004,84 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
       return { allDisabled: controls.every((control) => control?.disabled === true) };
     })()`));
     if (!busyState.allDisabled) errors.push("authentication tabs, fields and actions should lock together while a request is pending");
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+  }
+}
+
+async function runPasswordRecoverySmoke(cdp, baseUrl) {
+  await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async updateRecovery(payload) {
+          window.__summitRecoveryUpdate = payload;
+          return {};
+        }
+      }
+      class TablesDB {}
+      window.Appwrite = { Client, Account, TablesDB };
+    })();`
+  });
+  try {
+    const recoveryUrl = `${baseUrl}/?userId=recovery-user&secret=recovery-secret&keep=1`;
+    await cdp.send("Page.navigate", { url: recoveryUrl });
+    await waitUntil("password recovery navigation", () => evaluate(cdp, `location.pathname === "/" && location.search === "?keep=1"`), 7000);
+    await waitForAppReady(cdp);
+    const recoveryState = await waitUntil("password recovery opens focused account drawer", () => evaluate(cdp, `(() => {
+      const panel = document.querySelector("#settingsPanel");
+      const password = document.querySelector("#accountPassword");
+      if (!panel || panel.classList.contains("hidden") || !panel.classList.contains("account-focused")) return null;
+      const hidden = (selector) => getComputedStyle(document.querySelector(selector)).display === "none";
+      return {
+        search: location.search,
+        title: document.querySelector("#panelTitle")?.textContent || "",
+        closeLabel: document.querySelector("#settingsClose")?.getAttribute("aria-label") || "",
+        groupOpen: Boolean(document.querySelector(".settings-group-account")?.open),
+        authTabsHidden: hidden("#accountAuthTabs"),
+        emailHidden: hidden("#accountEmailField"),
+        codeHidden: hidden("#accountCodeFields"),
+        noteHidden: hidden("#accountNote"),
+        passwordVisible: !hidden("#accountPasswordField"),
+        passwordLabel: document.querySelector("#accountPasswordLabel")?.textContent || "",
+        passwordPlaceholder: password?.placeholder || "",
+        submit: document.querySelector("#accountSubmit")?.textContent.trim() || "",
+        focused: document.activeElement === password,
+        status: document.querySelector("#accountStatus")?.textContent || ""
+      };
+    })()`), 7000);
+    if (recoveryState.search !== "?keep=1" || recoveryState.title !== "设置新密码" || recoveryState.closeLabel !== "关闭改密" || !recoveryState.groupOpen || !recoveryState.authTabsHidden || !recoveryState.emailHidden || !recoveryState.codeHidden || !recoveryState.noteHidden || !recoveryState.passwordVisible || recoveryState.passwordLabel !== "新密码" || !/输入新密码/.test(recoveryState.passwordPlaceholder) || recoveryState.submit !== "确认新密码" || !recoveryState.focused || !/改密链接已验证/.test(recoveryState.status)) {
+      errors.push("recovery links should immediately hide secrets and open a focused, single-purpose password form: " + JSON.stringify(recoveryState));
+    }
+    await evaluate(cdp, `document.querySelector("#accountPassword").value = "updated-password"`);
+    await clickSelector(cdp, "#accountSubmit");
+    const updated = await waitUntil("password recovery completes", () => evaluate(cdp, `(() => {
+      const payload = window.__summitRecoveryUpdate;
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      if (!payload || !/密码已更新/.test(status)) return null;
+      const visible = (selector) => getComputedStyle(document.querySelector(selector)).display !== "none";
+      return {
+        payload,
+        search: location.search,
+        title: document.querySelector("#panelTitle")?.textContent || "",
+        closeLabel: document.querySelector("#settingsClose")?.getAttribute("aria-label") || "",
+        authTabsVisible: visible("#accountAuthTabs"),
+        emailVisible: visible("#accountEmailField"),
+        passwordLabel: document.querySelector("#accountPasswordLabel")?.textContent || "",
+        submit: document.querySelector("#accountSubmit")?.textContent.trim() || "",
+        status
+      };
+    })()`), 5000);
+    if (updated.payload.userId !== "recovery-user" || updated.payload.secret !== "recovery-secret" || updated.payload.password !== "updated-password" || updated.search !== "?keep=1" || updated.title !== "账号" || updated.closeLabel !== "关闭账号" || !updated.authTabsVisible || !updated.emailVisible || updated.passwordLabel !== "密码" || updated.submit !== "使用密码登录") {
+      errors.push("completed recovery should use the captured token once and restore the regular login form: " + JSON.stringify(updated));
+    }
   } finally {
     if (injected.identifier) {
       await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
@@ -1980,6 +2059,7 @@ async function main() {
     await runGamepadSmoke(cdp, baseUrl);
     await runAuthenticatedRefreshSmoke(cdp, baseUrl);
     await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
+    await runPasswordRecoverySmoke(cdp, baseUrl);
   } finally {
     if (cdp) cdp.close();
     await killProcess(browser);
@@ -1992,7 +2072,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, authenticated refresh and stalled-session recovery, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, authenticated refresh, stalled-session and password-recovery flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

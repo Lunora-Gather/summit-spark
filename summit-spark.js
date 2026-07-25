@@ -12,6 +12,7 @@
   const startButton = document.getElementById("startButton");
   const openTrainingButton = document.getElementById("openTrainingButton");
   const startSettingsButton = document.getElementById("startSettingsButton");
+  const startAccountButton = document.getElementById("startAccountButton");
   const resumeTrainingButton = document.getElementById("resumeTrainingButton");
   const startReadiness = document.getElementById("startReadiness");
   const loadStatus = document.getElementById("loadStatus");
@@ -52,10 +53,36 @@
   const diagnosticsButton = document.getElementById("diagnosticsButton");
   const feedbackTemplateButton = document.getElementById("feedbackTemplateButton");
   const controlPresetSelect = document.getElementById("controlPreset");
+  const keyboardLayoutSelect = document.getElementById("keyboardLayout");
+  const keyBindingEditor = document.getElementById("keyBindingEditor");
+  const keyBindingStatus = document.getElementById("keyBindingStatus");
+  const resetKeyBindingsButton = document.getElementById("resetKeyBindings");
   const grabModeSelect = document.getElementById("grabMode");
   const gamepadDeadzoneSlider = document.getElementById("gamepadDeadzoneSlider");
   const gamepadStatusOutput = document.getElementById("gamepadStatus");
   const touchSizeSlider = document.getElementById("touchSizeSlider");
+  const accountGroup = document.querySelector(".settings-group-account");
+  const accountSummary = document.getElementById("accountSummary");
+  const accountGuest = document.getElementById("accountGuest");
+  const accountUserPanel = document.getElementById("accountUser");
+  const accountEmailInput = document.getElementById("accountEmail");
+  const accountPasswordInput = document.getElementById("accountPassword");
+  const accountPasswordField = document.getElementById("accountPasswordField");
+  const accountRecoveryButton = document.getElementById("accountRecovery");
+  const accountCodeFields = document.getElementById("accountCodeFields");
+  const accountCodeInput = document.getElementById("accountCode");
+  const accountSendCodeButton = document.getElementById("accountSendCode");
+  const accountSubmitButton = document.getElementById("accountSubmit");
+  const accountEmailLabel = document.getElementById("accountEmailLabel");
+  const accountAvatar = document.getElementById("accountAvatar");
+  const accountNewPasswordInput = document.getElementById("accountNewPassword");
+  const accountOldPasswordInput = document.getElementById("accountOldPassword");
+  const accountSetPasswordButton = document.getElementById("accountSetPassword");
+  const accountLogoutButton = document.getElementById("accountLogout");
+  const accountStatus = document.getElementById("accountStatus");
+  const cloudSyncStatus = document.getElementById("cloudSyncStatus");
+  const cloudUploadButton = document.getElementById("cloudUploadButton");
+  const cloudDownloadButton = document.getElementById("cloudDownloadButton");
   const saveExportButton = document.getElementById("saveExportButton");
   const saveDownloadButton = document.getElementById("saveDownloadButton");
   const saveImportButton = document.getElementById("saveImportButton");
@@ -167,13 +194,19 @@
   const ROUTE_CUE_TIME = 3.8;
   const MASTERY_POPUP_TIME = 1.8;
   const SETTINGS_KEY = "summit-spark-settings";
-  const SETTINGS_SCHEMA_VERSION = 2;
+  const SETTINGS_SCHEMA_VERSION = 3;
   const PROFILE_SCHEMA_VERSION = 2;
   const ROOM_FOCUS_SCHEMA_VERSION = 2;
   const SAVE_ARCHIVE_SCHEMA_VERSION = 1;
   const SAVE_ARCHIVE_KIND = "summit-spark-save";
   const SAVE_BACKUP_KEY = "summit-spark-save-backup";
   const SAVE_ARCHIVE_MAX_CHARS = 240000;
+  const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
+  const APPWRITE_PROJECT_ID = "summit-spark";
+  const APPWRITE_DATABASE_ID = "summit-spark";
+  const APPWRITE_SAVES_TABLE_ID = "saves";
+  const CLOUD_SYNC_META_KEY = "summit-spark-cloud-sync";
+  const CLOUD_SYNC_DELAY_MS = 1800;
   const ACTION_PULSE_TIME = 0.22;
   const BEST_FLOW_KEY = "summit-spark-best-flow";
   const FLOW_DECAY_TIME = 1.9;
@@ -218,6 +251,52 @@
       grab: ["KeyC", "ControlLeft", "ControlRight", "KeyL", "KeyV"]
     }
   };
+  const KEYBOARD_LAYOUT_DEFAULTS = Object.freeze({
+    pc: Object.freeze({
+      left: "KeyA",
+      right: "KeyD",
+      up: "KeyW",
+      down: "KeyS",
+      jump: "Space",
+      dash: "ShiftLeft",
+      grab: "KeyZ",
+      recall: "KeyQ",
+      retry: "KeyR",
+      roomRestart: "KeyT"
+    }),
+    mac: Object.freeze({
+      left: "ArrowLeft",
+      right: "ArrowRight",
+      up: "ArrowUp",
+      down: "ArrowDown",
+      jump: "Space",
+      dash: "ShiftLeft",
+      grab: "KeyC",
+      recall: "KeyQ",
+      retry: "KeyR",
+      roomRestart: "KeyT"
+    })
+  });
+  const BINDING_ACTIONS = Object.freeze(["left", "right", "up", "down", "jump", "dash", "grab", "recall", "retry", "roomRestart"]);
+  const BINDING_LABELS = Object.freeze({
+    left: "向左",
+    right: "向右",
+    up: "向上",
+    down: "向下",
+    jump: "跳跃",
+    dash: "冲刺",
+    grab: "抓墙",
+    recall: "召回",
+    retry: "快速重开",
+    roomRestart: "重开房间"
+  });
+  const RESERVED_BINDING_CODES = new Set(["Escape", "Tab", "Enter", "KeyO", "KeyP", "F3"]);
+  const MOVEMENT_CODES = Object.freeze({
+    left: ["ArrowLeft", "KeyA"],
+    right: ["ArrowRight", "KeyD"],
+    up: ["ArrowUp", "KeyW"],
+    down: ["ArrowDown", "KeyS"]
+  });
   const RECALL_CODES = new Set(["KeyQ", "Backspace"]);
   const ALL_ACTION_CODES = new Set(Object.values(CONTROL_PRESETS).flatMap((preset) => [
     ...preset.jump,
@@ -785,6 +864,17 @@
   let lastPracticeLedgerHtml = "";
   let storageHealthMessage = "";
   let storageHealthToastShown = false;
+  let authMode = "code";
+  let recoveryUserId = "";
+  let recoverySecret = "";
+  let accountUser = null;
+  let accountTokenUserId = "";
+  let accountSdk = null;
+  let cloudRow = null;
+  let cloudSyncReady = false;
+  let cloudSyncBusy = false;
+  let cloudSyncTimer = 0;
+  let lastCloudArchiveHash = "";
   let flowScore = 0;
   let flowPeak = 0;
   let flowTimer = 0;
@@ -810,6 +900,7 @@
   let timingInputReady = false;
   let roomTech = createRoomTech();
   const settings = readSettings();
+  let pendingBindingAction = "";
   const actionPulse = {
     jump: 0,
     dash: 0,
@@ -881,6 +972,12 @@
   window.addEventListener("keydown", (event) => {
     const uiControl = isSettingsInputTarget(event.target);
     const textEntry = isSettingsTextEntryTarget(event.target);
+    if (pendingBindingAction) {
+      event.preventDefault();
+      event.stopPropagation();
+      captureKeyBinding(event.code);
+      return;
+    }
     if (settingsVisible && event.code === "Tab") {
       trapPanelFocus(event);
       return;
@@ -896,7 +993,7 @@
       return;
     }
     if (uiControl && event.code !== "KeyO" && event.code !== "KeyP" && event.code !== "F3") return;
-    if (BLOCKED_CODES.has(event.code)) {
+    if (shouldBlockKey(event.code)) {
       event.preventDefault();
     }
     const firstPress = !keys.has(event.code);
@@ -914,22 +1011,22 @@
     if (event.code === "KeyP" && firstPress) {
       togglePracticePanel();
     }
-    if (!started && START_CODES.has(event.code)) {
+    if (!started && isStartCode(event.code)) {
       begin();
     }
-    if (event.code === "KeyR" && firstPress && started) {
+    if (isActionCode(event.code, "retry") && firstPress && started) {
       if (won) {
         hardReset();
       } else {
         quickRetry();
       }
-    } else if (won && event.code === "KeyR") {
+    } else if (won && isActionCode(event.code, "retry")) {
       hardReset();
     }
-    if (event.code === "KeyT" && firstPress && started && !won) {
+    if (isActionCode(event.code, "roomRestart") && firstPress && started && !won) {
       restartCurrentRoom();
     }
-    if (RECALL_CODES.has(event.code) && firstPress && started && !won) {
+    if (isActionCode(event.code, "recall") && firstPress && started && !won) {
       recallToAnchor();
     }
     if (debugVisible && firstPress && event.code.startsWith("Digit")) {
@@ -1061,6 +1158,7 @@
   startButton.addEventListener("click", begin);
   openTrainingButton?.addEventListener("click", openStartTrainingPanel);
   startSettingsButton?.addEventListener("click", openSettingsPanel);
+  startAccountButton?.addEventListener("click", openAccountPanel);
   resumeTrainingButton?.addEventListener("click", resumeRecommendedTraining);
   if (new URLSearchParams(window.location.search).has("play")) {
     requestAnimationFrame(begin);
@@ -1155,16 +1253,56 @@
     updateSaveImportPreview();
   });
   controlPresetSelect?.addEventListener("change", () => {
-    settings.controlsPreset = CONTROL_PRESETS[controlPresetSelect.value] ? controlPresetSelect.value : "comfort";
-    keys.clear();
-    pressed.clear();
-    touchPressed.clear();
-    gamepadPressed.clear();
-    gamepadHeld.clear();
-    clearGrabToggle();
-    resetActionPulses();
+    const nextPreset = controlPresetSelect.value;
+    settings.controlsPreset = nextPreset === "custom" || CONTROL_PRESETS[nextPreset] ? nextPreset : "comfort";
+    releaseAllInputs();
+    syncKeyBindingEditor();
     writeSettings();
-    focusGame();
+    setGameStatus(settings.controlsPreset === "custom" ? "已启用自定义键位" : `键位方案：${settings.controlsPreset === "classic" ? "经典" : "舒适"}`);
+  });
+  keyboardLayoutSelect?.addEventListener("change", () => {
+    settings.keyboardLayout = keyboardLayoutSelect.value === "mac" ? "mac" : "pc";
+    settings.customBindings = defaultBindingsForLayout(settings.keyboardLayout);
+    settings.controlsPreset = "custom";
+    releaseAllInputs();
+    syncKeyBindingEditor();
+    writeSettings();
+    setGameStatus(settings.keyboardLayout === "mac" ? "已应用 Mac 基础布局" : "已应用 Windows / Linux 基础布局");
+  });
+  document.querySelectorAll("[data-layout-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!keyboardLayoutSelect) return;
+      keyboardLayoutSelect.value = button.dataset.layoutChoice === "mac" ? "mac" : "pc";
+      keyboardLayoutSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+  document.querySelectorAll("[data-preset-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!controlPresetSelect) return;
+      controlPresetSelect.value = button.dataset.presetChoice || "comfort";
+      controlPresetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+  document.querySelectorAll("[data-grab-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!grabModeSelect) return;
+      grabModeSelect.value = button.dataset.grabChoice === "toggle" ? "toggle" : "hold";
+      grabModeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+  keyBindingEditor?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-binding-action]");
+    if (!(button instanceof HTMLButtonElement)) return;
+    beginKeyBindingCapture(button.dataset.bindingAction || "");
+  });
+  resetKeyBindingsButton?.addEventListener("click", () => {
+    settings.customBindings = defaultBindingsForLayout(settings.keyboardLayout);
+    settings.controlsPreset = "custom";
+    pendingBindingAction = "";
+    releaseAllInputs();
+    syncKeyBindingEditor();
+    writeSettings();
+    setGameStatus("已恢复当前键盘布局");
   });
   grabModeSelect?.addEventListener("change", () => {
     settings.grabMode = grabModeSelect.value === "toggle" ? "toggle" : "hold";
@@ -1186,6 +1324,22 @@
     setGameStatus(`触控按钮 ${settings.touchSize}px`);
     focusGame();
   });
+  document.querySelectorAll("[data-auth-mode]").forEach((button) => {
+    button.addEventListener("click", () => setAuthMode(button.dataset.authMode === "password" ? "password" : "code"));
+  });
+  accountSendCodeButton?.addEventListener("click", sendAccountCode);
+  accountSubmitButton?.addEventListener("click", submitAccountLogin);
+  accountRecoveryButton?.addEventListener("click", sendPasswordRecovery);
+  accountCodeInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submitAccountLogin();
+  });
+  accountPasswordInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submitAccountLogin();
+  });
+  accountSetPasswordButton?.addEventListener("click", setAccountPassword);
+  accountLogoutButton?.addEventListener("click", logoutAccount);
+  cloudUploadButton?.addEventListener("click", () => uploadCloudSave({ force: true }));
+  cloudDownloadButton?.addEventListener("click", downloadCloudSave);
   roomSelect?.addEventListener("change", () => {
     const target = Number(roomSelect.value);
     if (Number.isInteger(target) && target >= 0 && target < maps.length) {
@@ -1297,6 +1451,7 @@
   });
   populateRoomSelect();
   syncSettingsPanel();
+  initCloudAccount();
 
   document.querySelectorAll("[data-touch]").forEach((button) => {
     const action = button.dataset.touch;
@@ -1558,6 +1713,17 @@
     openPanel("settings");
   }
 
+  function openAccountPanel() {
+    openPanel("settings");
+    if (accountGroup) {
+      document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
+        group.open = group === accountGroup;
+      });
+      accountGroup.scrollIntoView({ block: "start" });
+      window.setTimeout(() => accountUser ? cloudUploadButton?.focus({ preventScroll: true }) : accountEmailInput?.focus({ preventScroll: true }), 0);
+    }
+  }
+
   function openPanel(mode = "settings") {
     if (!settingsVisible
       && document.activeElement instanceof HTMLElement
@@ -1654,7 +1820,12 @@
   function currentControlHint() {
     const gamepad = lastGamepadStatus.connected;
     if (onboardingStep === 0) return gamepad ? "左摇杆移动" : "A D / ← →  移动";
-    if (onboardingStep === 1) return gamepad ? "A  跳跃" : `${settings.controlsPreset === "classic" ? "Space / Z" : "Space / C"}  跳跃`;
+    if (onboardingStep === 1) {
+      if (gamepad) return "A  跳跃";
+      return settings.controlsPreset === "custom"
+        ? `${keyCodeLabel(settings.customBindings.jump)}  跳跃`
+        : `${settings.controlsPreset === "classic" ? "Space / Z" : "Space / C"}  跳跃`;
+    }
     if (onboardingStep === 2) return gamepad ? "X  冲刺" : "X / Shift  冲刺";
     return "";
   }
@@ -2469,6 +2640,7 @@
   function writeBestTime(value) {
     try {
       localStorage.setItem(BEST_TIME_KEY, String(value));
+      scheduleCloudSave();
     } catch {
       // Best time is a bonus; gameplay should keep working without storage.
     }
@@ -2485,6 +2657,7 @@
   function writeBestFlow(value) {
     try {
       localStorage.setItem(BEST_FLOW_KEY, String(Math.floor(value)));
+      scheduleCloudSave();
     } catch {
       // Flow bests are optional practice data.
     }
@@ -2577,6 +2750,7 @@
   function writeProfile() {
     try {
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+      scheduleCloudSave();
     } catch {
       // Long-term profile data is optional and should not block play.
     }
@@ -2597,6 +2771,7 @@
   function writeRoomBests() {
     try {
       localStorage.setItem(ROOM_BESTS_KEY, JSON.stringify(bestRoomTimes));
+      scheduleCloudSave();
     } catch {
       // Split times are optional practice data.
     }
@@ -2665,6 +2840,7 @@
   function writeRoomPaths() {
     try {
       localStorage.setItem(ROOM_PATHS_KEY, JSON.stringify(bestRoomPaths));
+      scheduleCloudSave();
     } catch {
       // Best paths are optional practice data.
     }
@@ -3167,6 +3343,7 @@
         schemaVersion: ROOM_FOCUS_SCHEMA_VERSION,
         rooms: roomFocus
       }));
+      scheduleCloudSave();
     } catch {
       // Focus stats are optional practice data.
     }
@@ -4989,10 +5166,10 @@
   }
 
   function getInput() {
-    const left = keys.has("ArrowLeft") || keys.has("KeyA") || touch.left || gamepadInput.left;
-    const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.right || gamepadInput.right;
-    const up = keys.has("ArrowUp") || keys.has("KeyW") || touch.up || gamepadInput.up;
-    const down = keys.has("ArrowDown") || keys.has("KeyS") || touch.down || gamepadInput.down;
+    const left = keyHeldAny(actionCodes("left")) || touch.left || gamepadInput.left;
+    const right = keyHeldAny(actionCodes("right")) || touch.right || gamepadInput.right;
+    const up = keyHeldAny(actionCodes("up")) || touch.up || gamepadInput.up;
+    const down = keyHeldAny(actionCodes("down")) || touch.down || gamepadInput.down;
     const grab = settings.grabMode === "toggle" ? grabLatched : rawGrabHeld();
     return {
       x: Number(right) - Number(left),
@@ -5164,11 +5341,132 @@
   }
 
   function actionCodes(action) {
-    return CONTROL_PRESETS[settings.controlsPreset]?.[action] || CONTROL_PRESETS.comfort[action];
+    if (settings.controlsPreset === "custom") {
+      const customCode = settings.customBindings?.[action];
+      return customCode ? [customCode] : [];
+    }
+    const presetCodes = CONTROL_PRESETS[settings.controlsPreset]?.[action] || CONTROL_PRESETS.comfort[action];
+    if (presetCodes) return presetCodes;
+    if (MOVEMENT_CODES[action]) return MOVEMENT_CODES[action];
+    if (action === "recall") return [...RECALL_CODES];
+    if (action === "retry") return ["KeyR"];
+    if (action === "roomRestart") return ["KeyT"];
+    return [];
   }
 
   function isActionCode(code, action) {
     return actionCodes(action).includes(code);
+  }
+
+  function shouldBlockKey(code) {
+    return BLOCKED_CODES.has(code) || (settings.controlsPreset === "custom" && BINDING_ACTIONS.some((action) => settings.customBindings?.[action] === code));
+  }
+
+  function isStartCode(code) {
+    return code === "Enter" || ["jump", "dash", "grab"].some((action) => isActionCode(code, action));
+  }
+
+  function defaultBindingsForLayout(layout) {
+    return { ...KEYBOARD_LAYOUT_DEFAULTS[layout === "mac" ? "mac" : "pc"] };
+  }
+
+  function validBindingCode(code) {
+    return typeof code === "string" && code.length > 0 && code.length <= 32 && !RESERVED_BINDING_CODES.has(code);
+  }
+
+  function keyCodeLabel(code, layout = settings.keyboardLayout) {
+    const common = {
+      Space: "Space",
+      ArrowLeft: "←",
+      ArrowRight: "→",
+      ArrowUp: "↑",
+      ArrowDown: "↓",
+      ShiftLeft: "Shift",
+      ShiftRight: "Shift",
+      ControlLeft: layout === "mac" ? "⌃ Control" : "Ctrl",
+      ControlRight: layout === "mac" ? "⌃ Control" : "Ctrl",
+      AltLeft: layout === "mac" ? "⌥ Option" : "Alt",
+      AltRight: layout === "mac" ? "⌥ Option" : "Alt",
+      MetaLeft: layout === "mac" ? "⌘ Command" : "Win",
+      MetaRight: layout === "mac" ? "⌘ Command" : "Win",
+      Backspace: layout === "mac" ? "Delete" : "Backspace"
+    };
+    if (common[code]) return common[code];
+    if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+    if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+    if (/^Numpad/.test(code)) return `Num ${code.slice(6)}`;
+    return code.replace(/(Left|Right)$/, "");
+  }
+
+  function beginKeyBindingCapture(action) {
+    if (!BINDING_ACTIONS.includes(action)) return;
+    pendingBindingAction = action;
+    settings.controlsPreset = "custom";
+    syncKeyBindingEditor();
+    if (keyBindingStatus) keyBindingStatus.textContent = `请按下“${BINDING_LABELS[action]}”的新按键；Esc 取消`;
+  }
+
+  function captureKeyBinding(code) {
+    const action = pendingBindingAction;
+    if (!action) return;
+    if (code === "Escape") {
+      pendingBindingAction = "";
+      syncKeyBindingEditor();
+      if (keyBindingStatus) keyBindingStatus.textContent = "已取消改键";
+      return;
+    }
+    if (!validBindingCode(code)) {
+      if (keyBindingStatus) keyBindingStatus.textContent = "该按键保留给界面操作，请选择其他按键";
+      return;
+    }
+    const next = { ...settings.customBindings };
+    const previousCode = next[action];
+    const occupiedAction = BINDING_ACTIONS.find((candidate) => candidate !== action && next[candidate] === code);
+    if (occupiedAction && previousCode) next[occupiedAction] = previousCode;
+    next[action] = code;
+    settings.customBindings = next;
+    settings.controlsPreset = "custom";
+    pendingBindingAction = "";
+    releaseAllInputs();
+    syncKeyBindingEditor();
+    writeSettings();
+    const swapped = occupiedAction ? `，已与“${BINDING_LABELS[occupiedAction]}”交换` : "";
+    if (keyBindingStatus) keyBindingStatus.textContent = `${BINDING_LABELS[action]}：${keyCodeLabel(code)}${swapped}`;
+    setGameStatus(`键位已更新：${BINDING_LABELS[action]} ${keyCodeLabel(code)}`);
+  }
+
+  function syncKeyBindingEditor() {
+    if (keyboardLayoutSelect) keyboardLayoutSelect.value = settings.keyboardLayout;
+    if (controlPresetSelect) controlPresetSelect.value = settings.controlsPreset;
+    if (grabModeSelect) grabModeSelect.value = settings.grabMode;
+    document.querySelectorAll("[data-layout-choice]").forEach((button) => {
+      const active = button.dataset.layoutChoice === settings.keyboardLayout;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    document.querySelectorAll("[data-preset-choice]").forEach((button) => {
+      const active = button.dataset.presetChoice === settings.controlsPreset;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    document.querySelectorAll("[data-grab-choice]").forEach((button) => {
+      const active = button.dataset.grabChoice === settings.grabMode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    keyBindingEditor?.querySelectorAll("[data-binding-action]").forEach((button) => {
+      const action = button.dataset.bindingAction || "";
+      const code = settings.customBindings?.[action] || "";
+      const key = button.querySelector("kbd");
+      if (key) key.textContent = pendingBindingAction === action ? "按键…" : keyCodeLabel(code);
+      button.classList.toggle("capturing", pendingBindingAction === action);
+      button.setAttribute("aria-pressed", String(pendingBindingAction === action));
+      button.setAttribute("aria-label", `${BINDING_LABELS[action] || action}，当前 ${keyCodeLabel(code)}，点击后重新绑定`);
+    });
+    resetKeyBindingsButton?.toggleAttribute("disabled", Boolean(pendingBindingAction));
+    if (!pendingBindingAction && keyBindingStatus && !keyBindingStatus.textContent.trim()) {
+      keyBindingStatus.textContent = "点击键位后按下新按键";
+    }
   }
 
   function updateInputCues(input) {
@@ -5544,6 +5842,450 @@
     return JSON.stringify(buildSaveArchive(), null, 2);
   }
 
+  function initCloudAccount() {
+    setAuthMode("code");
+    const params = new URLSearchParams(window.location.search);
+    recoveryUserId = params.get("userId") || "";
+    recoverySecret = params.get("secret") || "";
+    if (!window.Appwrite?.Client || !window.Appwrite?.Account || !window.Appwrite?.TablesDB) {
+      setAccountStatus("本地进度已就绪，正在连接云存档");
+      if (document.readyState === "complete") loadAppwriteSdk();
+      else window.addEventListener("load", loadAppwriteSdk, { once: true });
+      return;
+    }
+    const client = new window.Appwrite.Client()
+      .setEndpoint(APPWRITE_ENDPOINT)
+      .setProject(APPWRITE_PROJECT_ID);
+    accountSdk = {
+      account: new window.Appwrite.Account(client),
+      tables: new window.Appwrite.TablesDB(client),
+      ID: window.Appwrite.ID,
+      Permission: window.Appwrite.Permission,
+      Role: window.Appwrite.Role
+    };
+    if (recoveryUserId && recoverySecret) {
+      setAuthMode("password");
+      if (accountPasswordInput) {
+        accountPasswordInput.value = "";
+        accountPasswordInput.placeholder = "输入新密码，至少 8 位";
+        accountPasswordInput.autocomplete = "new-password";
+      }
+      if (accountSubmitButton) accountSubmitButton.textContent = "确认新密码";
+      if (accountRecoveryButton) accountRecoveryButton.classList.add("hidden");
+      setAccountStatus("改密链接已验证，请设置新密码", "valid");
+    }
+    restoreAccountSession();
+  }
+
+  function loadAppwriteSdk() {
+    if (document.getElementById("appwriteSdk")) return;
+    setAccountStatus("正在连接云存档；本地游戏可正常使用");
+    const script = document.createElement("script");
+    script.id = "appwriteSdk";
+    script.src = "vendor/appwrite-26.2.0.js";
+    script.async = true;
+    script.addEventListener("load", initCloudAccount, { once: true });
+    script.addEventListener("error", () => {
+      setAccountStatus("云服务暂时未载入，本地存档不受影响", "error");
+    }, { once: true });
+    document.head.append(script);
+  }
+
+  async function restoreAccountSession() {
+    if (!accountSdk) return;
+    try {
+      accountUser = await accountSdk.account.get();
+      await finishAccountLogin();
+    } catch {
+      accountUser = null;
+      syncAccountUi();
+      setAccountStatus("进度保存在本机，登录后可同步");
+    }
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode === "password" ? "password" : "code";
+    document.querySelectorAll("[data-auth-mode]").forEach((button) => {
+      const active = button.dataset.authMode === authMode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+    accountPasswordField?.classList.toggle("hidden", authMode !== "password");
+    accountRecoveryButton?.classList.toggle("hidden", authMode !== "password" || Boolean(recoverySecret));
+    accountCodeFields?.classList.toggle("hidden", authMode !== "code");
+    if (accountSubmitButton && !recoverySecret) {
+      accountSubmitButton.textContent = authMode === "password" ? "密码登录" : "验证码登录 / 注册";
+    }
+  }
+
+  function syncAccountUi() {
+    const signedIn = Boolean(accountUser);
+    accountGuest?.classList.toggle("hidden", signedIn);
+    accountUserPanel?.classList.toggle("hidden", !signedIn);
+    if (accountSummary) accountSummary.textContent = signedIn ? "已同步" : "未登录";
+    if (startAccountButton) startAccountButton.textContent = signedIn ? "云存档 · 已登录" : "登录 · 云存档";
+    if (!signedIn) return;
+    const email = accountUser.email || "已登录账号";
+    if (accountEmailLabel) accountEmailLabel.textContent = email;
+    if (accountAvatar) accountAvatar.textContent = email.slice(0, 1).toUpperCase();
+  }
+
+  function setAccountStatus(message, state = "") {
+    if (!accountStatus) return;
+    accountStatus.textContent = message;
+    accountStatus.classList.toggle("valid", state === "valid");
+    accountStatus.classList.toggle("error", state === "error");
+  }
+
+  function friendlyAccountError(error) {
+    const code = Number(error?.code || 0);
+    const type = String(error?.type || "");
+    if (code === 401) return "邮箱、密码或验证码不正确";
+    if (code === 409) return "当前已有登录会话，请刷新后重试";
+    if (code === 429) return "操作过于频繁，请稍后再试";
+    if (type.includes("password")) return "密码至少 8 位，并请检查原密码";
+    if (type.includes("email")) return "请填写有效邮箱";
+    if (type.includes("token")) return "验证码已失效，请重新发送";
+    if (code >= 500) return "云服务暂时不可用，本地存档不受影响";
+    return error?.message ? String(error.message).slice(0, 100) : "操作失败，请稍后重试";
+  }
+
+  function validAccountEmail() {
+    const email = (accountEmailInput?.value || "").trim().toLowerCase();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+  }
+
+  async function sendAccountCode() {
+    if (!accountSdk || cloudSyncBusy) return;
+    const email = validAccountEmail();
+    if (!email) {
+      setAccountStatus("请先填写有效邮箱", "error");
+      accountEmailInput?.focus();
+      return;
+    }
+    setAccountBusy(true);
+    setAccountStatus("正在发送验证码…");
+    try {
+      const token = await accountSdk.account.createEmailToken({
+        userId: accountSdk.ID.unique(),
+        email,
+        phrase: true
+      });
+      accountTokenUserId = token.userId || "";
+      sessionStorage.setItem("summit-spark-otp-user", accountTokenUserId);
+      if (accountCodeInput) accountCodeInput.value = "";
+      const phrase = token.phrase ? `，安全短语：${token.phrase}` : "";
+      setAccountStatus(`验证码已发送${phrase}`, "valid");
+      accountCodeInput?.focus();
+    } catch (error) {
+      setAccountStatus(friendlyAccountError(error), "error");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  async function submitAccountLogin() {
+    if (!accountSdk || cloudSyncBusy) return;
+    if (recoveryUserId && recoverySecret) {
+      const password = accountPasswordInput?.value || "";
+      if (password.length < 8) {
+        setAccountStatus("新密码至少 8 位", "error");
+        return;
+      }
+      setAccountBusy(true);
+      try {
+        await accountSdk.account.updateRecovery({ userId: recoveryUserId, secret: recoverySecret, password });
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.replaceState({}, "", cleanUrl);
+        recoveryUserId = "";
+        recoverySecret = "";
+        if (accountPasswordInput) {
+          accountPasswordInput.value = "";
+          accountPasswordInput.placeholder = "至少 8 位";
+          accountPasswordInput.autocomplete = "current-password";
+        }
+        setAccountStatus("密码已更新，现在可以密码登录", "valid");
+        setAuthMode("password");
+      } catch (error) {
+        setAccountStatus(friendlyAccountError(error), "error");
+      } finally {
+        setAccountBusy(false);
+      }
+      return;
+    }
+
+    const email = validAccountEmail();
+    if (!email) {
+      setAccountStatus("请先填写有效邮箱", "error");
+      accountEmailInput?.focus();
+      return;
+    }
+    setAccountBusy(true);
+    setAccountStatus("正在登录…");
+    try {
+      if (authMode === "password") {
+        const password = accountPasswordInput?.value || "";
+        if (password.length < 8) throw new Error("密码至少 8 位");
+        await accountSdk.account.createEmailPasswordSession({ email, password });
+      } else {
+        const secret = (accountCodeInput?.value || "").trim();
+        const userId = accountTokenUserId || sessionStorage.getItem("summit-spark-otp-user") || "";
+        if (!userId || !secret) throw new Error("请先发送并填写验证码");
+        await accountSdk.account.createSession({ userId, secret });
+        sessionStorage.removeItem("summit-spark-otp-user");
+      }
+      accountUser = await accountSdk.account.get();
+      setAccountBusy(false);
+      await finishAccountLogin();
+    } catch (error) {
+      setAccountStatus(friendlyAccountError(error), "error");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  async function sendPasswordRecovery() {
+    if (!accountSdk || cloudSyncBusy) return;
+    const email = validAccountEmail();
+    if (!email) {
+      setAccountStatus("请先填写要找回的邮箱", "error");
+      return;
+    }
+    setAccountBusy(true);
+    try {
+      await accountSdk.account.createRecovery({
+        email,
+        url: `${window.location.origin}${window.location.pathname}`
+      });
+      setAccountStatus("改密邮件已发送，请从邮件链接返回设置新密码", "valid");
+    } catch (error) {
+      setAccountStatus(friendlyAccountError(error), "error");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  async function finishAccountLogin() {
+    syncAccountUi();
+    setAccountStatus("登录成功，正在比较本地与云端进度…", "valid");
+    await inspectCloudSave();
+  }
+
+  async function inspectCloudSave() {
+    if (!accountSdk || !accountUser) return;
+    cloudSyncReady = false;
+    try {
+      cloudRow = await accountSdk.tables.getRow({
+        databaseId: APPWRITE_DATABASE_ID,
+        tableId: APPWRITE_SAVES_TABLE_ID,
+        rowId: accountUser.$id
+      });
+    } catch (error) {
+      if (Number(error?.code) !== 404) {
+        setCloudStatus("云端读取失败");
+        setAccountStatus(friendlyAccountError(error), "error");
+        return;
+      }
+      cloudRow = null;
+    }
+    if (!cloudRow) {
+      cloudSyncReady = true;
+      setCloudStatus("首次同步，正在上传本地进度");
+      await uploadCloudSave({ force: true });
+      return;
+    }
+    let remote;
+    try {
+      remote = normalizeSaveArchiveText(cloudRow.archive);
+    } catch {
+      setCloudStatus("云端存档无法识别");
+      setAccountStatus("云端存档损坏，本地进度尚未覆盖它", "error");
+      return;
+    }
+    const localArchive = buildSaveArchive();
+    const remoteHash = archiveFingerprint(JSON.parse(cloudRow.archive));
+    const localHash = archiveFingerprint(localArchive);
+    if (remoteHash === localHash) {
+      lastCloudArchiveHash = localHash;
+      cloudSyncReady = true;
+      setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
+      setAccountStatus("本地与云端进度一致", "valid");
+      return;
+    }
+    if (!hasMeaningfulLocalProgress() && hasMeaningfulNormalizedProgress(remote)) {
+      await downloadCloudSave();
+      return;
+    }
+    setCloudStatus(`发现不同进度 · ${formatCloudTime(cloudRow.$updatedAt)}`);
+    setAccountStatus("请选择“使用云端”或“上传本地”，确认后将自动同步");
+  }
+
+  function hasMeaningfulLocalProgress() {
+    return profile.summitClears > 0
+      || bestRoomTimes.some((value) => value > 0)
+      || readBestTime() > 0
+      || readBestFlow() > 0
+      || roomFocus.some((entry) => (entry?.attempts || 0) > 0);
+  }
+
+  function hasMeaningfulNormalizedProgress(normalized) {
+    return normalized.profile.summitClears > 0
+      || normalized.roomBests.some((value) => value > 0)
+      || normalized.bestTime > 0
+      || normalized.bestFlow > 0
+      || normalized.roomFocus.some((entry) => (entry?.attempts || 0) > 0);
+  }
+
+  function archiveFingerprint(archive) {
+    const copy = {
+      kind: archive?.kind || "",
+      schemaVersion: archive?.schemaVersion || 0,
+      storage: archive?.storage || {}
+    };
+    const text = JSON.stringify(copy);
+    let hash = 2166136261;
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+  }
+
+  function formatCloudTime(value) {
+    if (!value) return "刚刚";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "刚刚";
+    return date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function setCloudStatus(message) {
+    if (cloudSyncStatus) cloudSyncStatus.textContent = message;
+    if (accountSummary) accountSummary.textContent = accountUser ? (cloudSyncReady ? "已同步" : "待确认") : "未登录";
+  }
+
+  function setAccountBusy(busy) {
+    cloudSyncBusy = busy;
+    [
+      accountSendCodeButton,
+      accountSubmitButton,
+      accountRecoveryButton,
+      accountSetPasswordButton,
+      accountLogoutButton,
+      cloudUploadButton,
+      cloudDownloadButton
+    ].forEach((button) => {
+      if (button) button.disabled = busy;
+    });
+  }
+
+  async function uploadCloudSave({ force = false } = {}) {
+    if (!accountSdk || !accountUser || cloudSyncBusy || (!cloudSyncReady && !force)) return;
+    const archive = buildSaveArchive();
+    const archiveText = JSON.stringify(archive);
+    if (archiveText.length > SAVE_ARCHIVE_MAX_CHARS) {
+      setAccountStatus("存档过大，暂时无法上传", "error");
+      return;
+    }
+    const fingerprint = archiveFingerprint(archive);
+    if (!force && fingerprint === lastCloudArchiveHash) return;
+    setAccountBusy(true);
+    setCloudStatus("正在同步…");
+    try {
+      const userRole = accountSdk.Role.user(accountUser.$id);
+      cloudRow = await accountSdk.tables.upsertRow({
+        databaseId: APPWRITE_DATABASE_ID,
+        tableId: APPWRITE_SAVES_TABLE_ID,
+        rowId: accountUser.$id,
+        data: { build: archive.build, archive: archiveText },
+        permissions: [
+          accountSdk.Permission.read(userRole),
+          accountSdk.Permission.update(userRole),
+          accountSdk.Permission.delete(userRole)
+        ]
+      });
+      lastCloudArchiveHash = fingerprint;
+      cloudSyncReady = true;
+      localStorage.setItem(CLOUD_SYNC_META_KEY, JSON.stringify({ userId: accountUser.$id, updatedAt: cloudRow.$updatedAt, fingerprint }));
+      setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
+      setAccountStatus("进度已安全保存到云端", "valid");
+    } catch (error) {
+      setCloudStatus("同步失败，本地进度已保留");
+      setAccountStatus(friendlyAccountError(error), "error");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  async function downloadCloudSave() {
+    if (!accountSdk || !accountUser || !cloudRow?.archive || cloudSyncBusy) return;
+    setAccountBusy(true);
+    try {
+      const normalized = normalizeSaveArchiveText(cloudRow.archive);
+      writeNormalizedSaveArchive(normalized);
+      cloudSyncReady = true;
+      localStorage.setItem(CLOUD_SYNC_META_KEY, JSON.stringify({
+        userId: accountUser.$id,
+        updatedAt: cloudRow.$updatedAt,
+        fingerprint: archiveFingerprint(JSON.parse(cloudRow.archive))
+      }));
+      setAccountStatus("云端进度已载入，正在刷新…", "valid");
+      window.setTimeout(() => window.location.reload(), 350);
+    } catch (error) {
+      setAccountStatus(friendlyAccountError(error), "error");
+      setAccountBusy(false);
+    }
+  }
+
+  async function setAccountPassword() {
+    if (!accountSdk || !accountUser || cloudSyncBusy) return;
+    const password = accountNewPasswordInput?.value || "";
+    if (password.length < 8) {
+      setAccountStatus("新密码至少 8 位", "error");
+      return;
+    }
+    setAccountBusy(true);
+    try {
+      const oldPassword = accountOldPasswordInput?.value || "";
+      await accountSdk.account.updatePassword(oldPassword ? { password, oldPassword } : { password });
+      if (accountNewPasswordInput) accountNewPasswordInput.value = "";
+      if (accountOldPasswordInput) accountOldPasswordInput.value = "";
+      setAccountStatus("密码已更新", "valid");
+    } catch (error) {
+      setAccountStatus(friendlyAccountError(error), "error");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  async function logoutAccount() {
+    if (!accountSdk || !accountUser || cloudSyncBusy) return;
+    try {
+      if (cloudSyncReady) await uploadCloudSave();
+      setAccountBusy(true);
+      await accountSdk.account.deleteSession({ sessionId: "current" });
+      accountUser = null;
+      cloudRow = null;
+      cloudSyncReady = false;
+      lastCloudArchiveHash = "";
+      syncAccountUi();
+      setCloudStatus("未登录");
+      setAccountStatus("已退出；本地进度仍保留", "valid");
+    } catch (error) {
+      setAccountStatus(friendlyAccountError(error), "error");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  function scheduleCloudSave() {
+    if (!accountUser || !cloudSyncReady) return;
+    if (cloudSyncTimer) window.clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = window.setTimeout(() => {
+      cloudSyncTimer = 0;
+      uploadCloudSave();
+    }, CLOUD_SYNC_DELAY_MS);
+  }
+
   function setSaveImportStatus(text, state = "") {
     if (!saveImportStatus) return;
     saveImportStatus.textContent = text;
@@ -5801,6 +6543,7 @@
   function closeSettings() {
     const returnTarget = panelReturnFocus;
     const closingPractice = panelMode === "practice";
+    pendingBindingAction = "";
     panelReturnFocus = null;
     settingsVisible = false;
     releaseAllInputs();
@@ -5850,10 +6593,10 @@
     if (ghostOpacitySlider) ghostOpacitySlider.value = String(settings.ghostOpacity);
     if (audioToggle) audioToggle.checked = settings.audioEnabled;
     if (audioVolumeSlider) audioVolumeSlider.value = String(settings.audioVolume);
-    if (controlPresetSelect) controlPresetSelect.value = settings.controlsPreset;
     if (grabModeSelect) grabModeSelect.value = settings.grabMode;
     if (gamepadDeadzoneSlider) gamepadDeadzoneSlider.value = String(settings.gamepadDeadzone);
     if (touchSizeSlider) touchSizeSlider.value = String(settings.touchSize);
+    syncKeyBindingEditor();
     syncComfortSettings();
     updateSaveBackupStatus();
     updateGamepadStatusOutput();
@@ -5927,6 +6670,8 @@
       calmEffects: true,
       lowPerformance: false,
       controlsPreset: "comfort",
+      keyboardLayout: "pc",
+      customBindings: defaultBindingsForLayout("pc"),
       grabMode: "hold",
       gamepadDeadzone: GAMEPAD_DEADZONE_DEFAULT,
       touchSize: TOUCH_SIZE_DEFAULT,
@@ -5952,12 +6697,21 @@
 
   function normalizeSettings(saved, defaults) {
     const source = saved && typeof saved === "object" ? saved : {};
+    const keyboardLayout = source.keyboardLayout === "mac" ? "mac" : defaults.keyboardLayout;
+    const bindingDefaults = defaultBindingsForLayout(keyboardLayout);
+    const customBindings = {};
+    for (const action of BINDING_ACTIONS) {
+      const savedCode = source.customBindings?.[action];
+      customBindings[action] = validBindingCode(savedCode) ? savedCode : bindingDefaults[action];
+    }
     return {
       schemaVersion: SETTINGS_SCHEMA_VERSION,
       shake: finiteNonNegativeNumber(source.shake, defaults.shake, 1),
       calmEffects: strictBoolean(source.calmEffects, defaults.calmEffects),
       lowPerformance: strictBoolean(source.lowPerformance, defaults.lowPerformance),
-      controlsPreset: CONTROL_PRESETS[source.controlsPreset] ? source.controlsPreset : defaults.controlsPreset,
+      controlsPreset: source.controlsPreset === "custom" || CONTROL_PRESETS[source.controlsPreset] ? source.controlsPreset : defaults.controlsPreset,
+      keyboardLayout,
+      customBindings,
       grabMode: source.grabMode === "toggle" ? "toggle" : defaults.grabMode,
       gamepadDeadzone: clampGamepadDeadzone(source.gamepadDeadzone ?? defaults.gamepadDeadzone),
       touchSize: clampTouchSize(source.touchSize ?? defaults.touchSize),
@@ -5971,6 +6725,7 @@
   function writeSettings() {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      scheduleCloudSave();
     } catch {
       // Settings are convenience only; gameplay should continue without storage.
     }
@@ -7220,46 +7975,45 @@
   function drawDrillHud(time) {
     if (!activeDrill || activeDrill.room !== roomIndex || won) return;
     const current = roomMistakes[roomIndex] || 0;
+    const limit = activeRoomTimeLimit(roomIndex);
+    const mode = drillModeLabel(activeDrill.mode);
+    const timeLabel = limit > 0 ? ` ${formatTime(limit)}` : "";
+    const text = `R${roomIndex + 1} · ${mode}${timeLabel}${current ? ` · 失误 ${current}` : ""}`;
     const hudObjective = activeDrill.mode === "clean" ? routeLineCore(roomIndex, 0) : activeDrill.objective;
-    const text = `${drillModeLabel(activeDrill.mode).toUpperCase()} R${roomIndex + 1} · ${hudObjective}${current ? ` · 失误 ${current}` : ""}`;
-    const detail = [drillHudDetailText(activeDrill, roomIndex), routeContractHudDetail(roomIndex, activeDrill.mode)].filter(Boolean).join(" · ");
-    const y = roomIntroTimer > 0 ? 188 : 84;
+    const detail = [hudObjective].filter(Boolean).join(" · ");
+    const y = 70;
     void time;
     ctx.save();
-    ctx.font = "600 15px system-ui, sans-serif";
-    const label = fitText(text, 520);
-    const detailLabel = detail ? fitText(detail, 500) : "";
-    const width = Math.min(590, Math.max(260, Math.max(ctx.measureText(label).width, detailLabel ? ctx.measureText(detailLabel).width : 0) + 32));
-    const height = detailLabel ? 70 : 54;
+    ctx.font = "700 11px system-ui, sans-serif";
+    const label = fitText(text, 210);
+    const width = Math.min(430, Math.max(250, ctx.measureText(label).width + ctx.measureText(detail).width + 46));
+    const height = 32;
     const x = W / 2 - width / 2;
-    ctx.globalAlpha = 0.8;
-    ctx.fillStyle = CANVAS_PANEL_BG;
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = "rgba(39,61,73,0.88)";
     roundRect(ctx, x, y - height / 2, width, height, 10);
     ctx.fill();
-    ctx.strokeStyle = CANVAS_PANEL_STROKE;
+    ctx.strokeStyle = "rgba(213,231,231,0.18)";
     ctx.lineWidth = 1;
     roundRect(ctx, x + 0.5, y - height / 2 + 0.5, width - 1, height - 1, 10);
     ctx.stroke();
-    const limit = activeRoomTimeLimit(roomIndex);
     if (limit > 0) {
       const progress = Math.max(0, Math.min(1, roomTime / limit));
       const over = roomTime > limit;
-      ctx.fillStyle = over ? "rgba(255,92,108,0.74)" : "rgba(143,227,155,0.78)";
-      roundRect(ctx, x + 10, y + height / 2 - 8, (width - 20) * progress, 3, 2);
+      ctx.fillStyle = over ? "rgba(220,142,132,0.82)" : "rgba(132,193,181,0.82)";
+      roundRect(ctx, x + 10, y + height / 2 - 4, (width - 20) * progress, 2, 1);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
-    ctx.textAlign = "center";
+    ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.shadowBlur = 0;
-    ctx.fillStyle = current ? "#815c2d" : "#2f6f55";
-    ctx.fillText(label, W / 2, detailLabel ? y - 18 : y - 12);
-    if (detailLabel) {
-      ctx.font = "600 11px system-ui, sans-serif";
-      ctx.fillStyle = CANVAS_PANEL_MUTED;
-      ctx.fillText(detailLabel, W / 2, y + 3);
-    }
-    drawContractStrip(x + 12, y + height / 2 - 24, width - 24, 12, roomIndex, activeDrill.mode);
+    ctx.fillStyle = current ? "#f0c4b8" : "#eef6f4";
+    ctx.fillText(label, x + 13, y - 1);
+    ctx.font = "500 10px system-ui, sans-serif";
+    ctx.fillStyle = "rgba(222,236,234,0.68)";
+    ctx.textAlign = "right";
+    ctx.fillText(fitText(detail, 250), x + width - 13, y - 1);
     ctx.restore();
   }
 
@@ -7430,20 +8184,20 @@
     const over = roomTime > limit;
     const delta = roomTime - limit;
     const active = Boolean(activeDrill && activeDrill.room === roomIndex);
-    const width = active ? 410 : 340;
-    const height = 5;
+    const width = active ? 160 : 124;
+    const height = 3;
     const x = W / 2 - width / 2;
-    const y = H - 10;
+    const y = H - 18;
     const color = over ? palette.hot : delta <= -1.5 ? palette.green : palette.gold;
     const alpha = active || over || roomIntroTimer > 0 ? 0.86 : 0.52;
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = "rgba(7,12,20,0.58)";
+    ctx.fillStyle = "rgba(32,52,64,0.5)";
     roundRect(ctx, x, y, width, height, 3);
     ctx.fill();
     ctx.shadowColor = color;
-    ctx.shadowBlur = settings.calmEffects ? 3 : 9;
+    ctx.shadowBlur = settings.calmEffects ? 0 : 4;
     ctx.fillStyle = color;
     roundRect(ctx, x, y, width * progress, height, 3);
     ctx.fill();
@@ -7456,7 +8210,7 @@
     }
     if (active || over) {
       ctx.globalAlpha = alpha;
-      ctx.font = "600 10px system-ui, sans-serif";
+      ctx.font = "600 9px system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
       ctx.shadowBlur = settings.calmEffects ? 3 : 8;

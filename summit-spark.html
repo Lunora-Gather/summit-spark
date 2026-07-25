@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="build-version" content="20260721-p118">
+  <meta name="build-version" content="20260725-p123">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260721-p118">
+  <link rel="stylesheet" href="summit-spark.css?v=20260725-p123">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -57,23 +57,116 @@
         </div>
         <div class="settings-body">
           <div class="settings-column settings-column-main">
+            <details class="settings-group settings-group-account settings-only">
+              <summary><span>账号与云存档</span><small id="accountSummary">未登录</small></summary>
+              <div class="settings-group-body account-body">
+                <div class="account-guest" id="accountGuest">
+                  <div class="account-intro">
+                    <strong>保存攀登进度</strong>
+                    <span>邮箱验证码可直接注册或登录，也可使用密码。</span>
+                  </div>
+                  <div class="auth-tabs" role="tablist" aria-label="登录方式">
+                    <button type="button" role="tab" data-auth-mode="code" aria-selected="true">验证码</button>
+                    <button type="button" role="tab" data-auth-mode="password" aria-selected="false">密码</button>
+                  </div>
+                  <label class="account-field">
+                    <span>邮箱</span>
+                    <input id="accountEmail" type="email" autocomplete="email" inputmode="email" placeholder="name@example.com">
+                  </label>
+                  <label class="account-field auth-password-field hidden" id="accountPasswordField">
+                    <span>密码</span>
+                    <input id="accountPassword" type="password" autocomplete="current-password" minlength="8" placeholder="至少 8 位">
+                  </label>
+                  <button class="text-button auth-password-field hidden" id="accountRecovery" type="button">忘记密码？发送改密邮件</button>
+                  <div class="account-code-fields" id="accountCodeFields">
+                    <label class="account-field">
+                      <span>验证码</span>
+                      <input id="accountCode" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="8" placeholder="邮件中的验证码">
+                    </label>
+                    <button class="focus-button ghost" id="accountSendCode" type="button">发送验证码</button>
+                  </div>
+                  <button class="focus-button account-submit" id="accountSubmit" type="button">验证码登录 / 注册</button>
+                  <p class="account-note">忘记密码时，先用验证码登录，再设置新密码。</p>
+                </div>
+                <div class="account-user hidden" id="accountUser">
+                  <div class="account-user-head">
+                    <span class="account-avatar" id="accountAvatar">S</span>
+                    <div>
+                      <strong id="accountEmailLabel">已登录</strong>
+                      <span id="cloudSyncStatus">正在检查云端进度</span>
+                    </div>
+                  </div>
+                  <div class="cloud-actions">
+                    <button class="focus-button" id="cloudUploadButton" type="button">上传本地</button>
+                    <button class="focus-button ghost" id="cloudDownloadButton" type="button">使用云端</button>
+                  </div>
+                  <div class="password-reset">
+                    <span>设置或更改密码</span>
+                    <div>
+                      <input id="accountNewPassword" type="password" autocomplete="new-password" minlength="8" placeholder="新密码，至少 8 位">
+                      <button class="focus-button ghost" id="accountSetPassword" type="button">保存密码</button>
+                    </div>
+                    <input id="accountOldPassword" type="password" autocomplete="current-password" placeholder="已有密码时填写原密码">
+                  </div>
+                  <button class="text-button" id="accountLogout" type="button">退出当前账号</button>
+                </div>
+                <output class="account-status" id="accountStatus" aria-live="polite">进度仍会保存在本机</output>
+              </div>
+            </details>
             <details class="settings-group settings-group-controls settings-only" open>
               <summary><span>控制</span></summary>
               <div class="settings-group-body">
-                <label class="control-row">
-                  <span>键位</span>
-                  <select id="controlPreset">
+                <div class="control-row control-choice">
+                  <span>键盘</span>
+                  <div class="segmented-control" role="group" aria-label="键盘布局">
+                    <button type="button" data-layout-choice="pc" aria-pressed="true">Windows / Linux</button>
+                    <button type="button" data-layout-choice="mac" aria-pressed="false">Mac</button>
+                  </div>
+                  <select class="native-control-mirror" id="keyboardLayout" tabindex="-1" aria-hidden="true" hidden>
+                    <option value="pc">Windows / Linux</option>
+                    <option value="mac">Mac</option>
+                  </select>
+                </div>
+                <div class="control-row control-choice">
+                  <span>方案</span>
+                  <div class="segmented-control" role="group" aria-label="键位方案">
+                    <button type="button" data-preset-choice="comfort" aria-pressed="true">舒适</button>
+                    <button type="button" data-preset-choice="classic" aria-pressed="false">经典</button>
+                    <button type="button" data-preset-choice="custom" aria-pressed="false">自定义</button>
+                  </div>
+                  <select class="native-control-mirror" id="controlPreset" tabindex="-1" aria-hidden="true" hidden>
                     <option value="comfort">舒适</option>
                     <option value="classic">经典</option>
+                    <option value="custom">自定义</option>
                   </select>
-                </label>
-                <label class="control-row">
+                </div>
+                <div class="key-binding-editor" id="keyBindingEditor" aria-label="自定义键位">
+                  <button type="button" data-binding-action="left"><span>向左</span><kbd>A</kbd></button>
+                  <button type="button" data-binding-action="right"><span>向右</span><kbd>D</kbd></button>
+                  <button type="button" data-binding-action="up"><span>向上</span><kbd>W</kbd></button>
+                  <button type="button" data-binding-action="down"><span>向下</span><kbd>S</kbd></button>
+                  <button type="button" data-binding-action="jump"><span>跳跃</span><kbd>Space</kbd></button>
+                  <button type="button" data-binding-action="dash"><span>冲刺</span><kbd>Shift</kbd></button>
+                  <button type="button" data-binding-action="grab"><span>抓墙</span><kbd>Z</kbd></button>
+                  <button type="button" data-binding-action="recall"><span>召回</span><kbd>Q</kbd></button>
+                  <button type="button" data-binding-action="retry"><span>重开</span><kbd>R</kbd></button>
+                  <button type="button" data-binding-action="roomRestart"><span>重开房间</span><kbd>T</kbd></button>
+                </div>
+                <div class="binding-tools">
+                  <output id="keyBindingStatus" aria-live="polite">点击键位后按下新按键</output>
+                  <button class="focus-button ghost" id="resetKeyBindings" type="button">恢复布局</button>
+                </div>
+                <div class="control-row control-choice control-choice-compact">
                   <span>抓墙</span>
-                  <select id="grabMode">
+                  <div class="segmented-control" role="group" aria-label="抓墙方式">
+                    <button type="button" data-grab-choice="hold" aria-pressed="true">按住</button>
+                    <button type="button" data-grab-choice="toggle" aria-pressed="false">切换</button>
+                  </div>
+                  <select class="native-control-mirror" id="grabMode" tabindex="-1" aria-hidden="true" hidden>
                     <option value="hold">按住</option>
                     <option value="toggle">切换</option>
                   </select>
-                </label>
+                </div>
                 <label class="control-row">
                   <span>手柄死区</span>
                   <input id="gamepadDeadzoneSlider" type="range" min="0.12" max="0.45" step="0.01" value="0.28">
@@ -242,6 +335,7 @@
             <button class="secondary-start resume-start hidden" id="resumeTrainingButton" type="button" aria-hidden="true">继续训练</button>
             <button class="secondary-start" id="openTrainingButton" type="button">练习</button>
             <button class="secondary-start subtle" id="startSettingsButton" type="button">设置</button>
+            <button class="account-entry" id="startAccountButton" type="button">登录 · 云存档</button>
           </div>
           <div class="load-strip" aria-hidden="true"><span id="loadStatus">正在准备训练数据</span></div>
           <p class="boot-fallback" id="bootFallback">如果长时间停留在这里，请刷新页面；线上刚更新时浏览器可能还在使用旧资源。</p>
@@ -272,6 +366,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260721-p118"></script>
+  <script src="summit-spark.js?v=20260725-p123"></script>
 </body>
 </html>

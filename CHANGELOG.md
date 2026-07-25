@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-25
+
+- Rebuilt settings and practice around an opaque mist-white surface with fixed font weights, clean contrast, custom segmented controls, and compact non-obstructive training feedback.
+- Added Appwrite email OTP registration/login, password login and recovery, authenticated password changes, private per-user cloud saves, first-sync conflict protection, and debounced automatic progress sync.
+- Provisioned the `summit-spark` Appwrite project, web platforms, auth methods, and row-secured `saves` table; bumped public assets to `20260725-p123`.
+- Added Windows/Linux and Mac keyboard bases plus click-to-rebind controls for movement, jump, dash, grab, recall, retry, and room restart; conflicting bindings swap automatically and the current layout can be restored in one action.
+- Raised the settings schema to v3 with legacy normalization, and lightened the settings surface from near-black to a clearer mist-blue grey.
+- Reworked the full training surface around a clear deep blue-grey and frost-blue palette; removed muddy green casts, mustard dividers, and the remaining pale report cards.
+- Unified chapter, plan, route, Feel, profile, and ledger components under one low-contrast hierarchy, and removed the redundant dense profile report from the visible panel.
+- Redesigned settings as a compact cool-toned utility sheet and practice as a wider, warm-accented training sheet, using material, width, and action emphasis to make their roles immediately distinct.
+- Replaced the nested pale-card look with flatter dark rows, quieter borders, clearer open-section markers, and a single stronger practice action; gameplay, storage schemas, and control behavior are unchanged.
+- Preserved 44px mobile targets and responsive panel scrolling.
+
 ## 2026-07-21 - p118
 
 - Removed the repeated pause/category subtitle, recommendation card, selected-room summary and decorative category dots from the right-side sheets.

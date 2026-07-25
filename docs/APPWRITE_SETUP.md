@@ -1,0 +1,38 @@
+# Appwrite cloud saves
+
+The public client uses the vendored Appwrite Web SDK `26.2.0` against the
+`summit-spark` project. The matching upstream license is kept in `vendor/`.
+
+## Provisioned resources
+
+- Endpoint: `https://fra.cloud.appwrite.io/v1`
+- Project: `summit-spark`
+- Database: `summit-spark`
+- Table: `saves`
+- Web platforms: `localhost`, `127.0.0.1`, `lunora-gather.github.io`
+- Enabled auth: email/password and email OTP
+
+The table has row security enabled. Authenticated users can create rows, and each
+save row uses the Appwrite user ID as its row ID with read, update, and delete
+permissions restricted to that user.
+
+## Save format
+
+Each row stores:
+
+- `build`: public build identifier
+- `archive`: the existing `summit-spark-save` JSON archive
+
+The archive contains settings, profile, room PBs, route paths, Focus/Drill data,
+best run time, and best Flow. It does not contain passwords, OTP values, or
+Appwrite session secrets.
+
+On first login, an empty cloud slot is populated from the browser. If both local
+and remote progress exist and differ, the UI requires an explicit choice before
+automatic sync begins. Later writes are debounced and uploaded automatically.
+
+## CLI
+
+`appwrite.config.json` binds this repository to the provisioned project. It only
+contains public organization/project identifiers; login sessions remain in the
+developer's Appwrite CLI profile and must never be committed.

@@ -156,7 +156,7 @@ const requiredIds = [
   "game", "startButton", "overlay", "lumenCount", "roomCount", "splitTime", "splitDelta",
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "practiceButton", "settingsPanel",
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "lowPerformanceToggle", "practiceLinesToggle",
-  "ghostOpacitySlider", "audioToggle", "audioVolumeSlider", "audioTestButton", "feedbackType", "feedbackNote", "diagnosticsButton", "feedbackTemplateButton", "controlPreset", "grabMode", "gamepadDeadzoneSlider", "gamepadStatus", "touchSizeSlider", "saveExportButton", "saveDownloadButton", "saveImportButton", "saveRestoreButton", "saveImportText", "saveImportStatus", "saveBackupStatus", "roomSelect", "focusRoomButton", "focusResetButton",
+  "ghostOpacitySlider", "audioToggle", "audioVolumeSlider", "audioTestButton", "feedbackType", "feedbackNote", "diagnosticsButton", "feedbackTemplateButton", "controlPreset", "keyboardLayout", "keyBindingEditor", "keyBindingStatus", "resetKeyBindings", "grabMode", "gamepadDeadzoneSlider", "gamepadStatus", "touchSizeSlider", "saveExportButton", "saveDownloadButton", "saveImportButton", "saveRestoreButton", "saveImportText", "saveImportStatus", "saveBackupStatus", "roomSelect", "focusRoomButton", "focusResetButton",
   "roomBrief", "practiceReport", "chapterOverview", "practicePlan", "routeContracts", "feelLab", "practiceQueue", "challengeBoard", "profileSummary", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton",
   "startReadiness", "loadStatus", "bootFallback", "openTrainingButton", "startSettingsButton", "resumeTrainingButton", "gameStatus", "gameTip", "gameTipTitle", "gameTipDetail", "panelTitle"
 ];

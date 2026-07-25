@@ -500,7 +500,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     settingsHidden: !visible(".settings-group-controls") && !visible(".settings-group-feedback"),
     groups: document.querySelectorAll(".settings-group").length,
     systemList: getComputedStyle(document.querySelector(".settings-body")).display === "block",
-    panelWidthCalm: document.querySelector("#settingsPanel").getBoundingClientRect().width <= 490,
+    panelWidthCalm: document.querySelector("#settingsPanel").getBoundingClientRect().width <= 700,
     panelSurface: getComputedStyle(document.querySelector("#settingsPanel")).backgroundImage,
     actionTray: (() => {
       const tray = getComputedStyle(document.querySelector(".hud-actions"));
@@ -532,7 +532,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (cockpit.feelCards < 4) errors.push("practice panel should expose visible feel calibration cards");
   if (!cockpit.modePractice || !/练习/.test(cockpit.title) || !cockpit.practiceVisible || !cockpit.settingsHidden || !cockpit.redundantPriorityRemoved) errors.push("practice panel should be separate from quiet settings without a duplicate recommendation card: " + JSON.stringify(cockpit));
   if (cockpit.groups < 7) errors.push("practice/settings panel should keep the full grouped surface in DOM: " + JSON.stringify(cockpit));
-  if (!cockpit.systemList || !cockpit.panelWidthCalm || !/214, 226, 220/.test(cockpit.panelSurface)) errors.push("practice panel should render as a compact cool-mist system sheet: " + JSON.stringify(cockpit));
+  if (!cockpit.systemList || !cockpit.panelWidthCalm || !/240, 245, 243/.test(cockpit.panelSurface)) errors.push("practice panel should render as a crisp mist-white training sheet: " + JSON.stringify(cockpit));
   if (cockpit.actionTray.trayBackground !== "none" || cockpit.actionTray.trayShadow !== "none" || !/103, 142, 121/.test(cockpit.actionTray.buttonBackground) || cockpit.actionTray.buttonRadius !== "11px") errors.push("upper-right actions should remain unboxed, individually surfaced tools with a restrained practice-active state: " + JSON.stringify(cockpit.actionTray));
   if (cockpit.panelBox.overflow) errors.push("practice panel overflows desktop viewport: " + JSON.stringify(cockpit.panelBox));
   await openSettingsGroup(cdp, ".settings-group-advanced");
@@ -576,7 +576,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       gamepadStatus: document.querySelector("#gamepadStatus")?.textContent || "",
       gamepadDeadzone: visible("#gamepadDeadzoneSlider"),
       systemList: getComputedStyle(document.querySelector(".settings-body")).display === "block",
-      panelWidthCalm: rect.width <= 490,
+      panelWidthCalm: rect.width <= 560,
       displayToFeedbackGap: Math.round(feedbackRect.top - displayRect.bottom),
       panelBox: {
         left: Math.round(rect.left),
@@ -609,6 +609,47 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!comfortControls.lowPerformance) errors.push("settings should expose low-performance toggle");
   if (!comfortControls.touchSize) errors.push("settings should expose touch-size slider");
   if (settingsAudit.panelBox.overflow) errors.push("settings panel overflows desktop viewport: " + JSON.stringify(settingsAudit.panelBox));
+
+  const macLayoutApplied = await evaluate(cdp, `(() => {
+    const select = document.querySelector("#keyboardLayout");
+    select.value = "mac";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    return {
+      layout: saved.keyboardLayout,
+      preset: saved.controlsPreset,
+      left: saved.customBindings?.left,
+      visibleBindings: document.querySelectorAll("[data-binding-action]").length
+    };
+  })()`);
+  if (macLayoutApplied.layout !== "mac" || macLayoutApplied.preset !== "custom" || macLayoutApplied.left !== "ArrowLeft" || macLayoutApplied.visibleBindings < 10) {
+    errors.push("keyboard layout selection should apply a complete Mac custom-binding base: " + JSON.stringify(macLayoutApplied));
+  }
+  await clickSelector(cdp, '[data-binding-action="jump"]');
+  await keyTap(cdp, "KeyF", "f");
+  const reboundJump = await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    return {
+      code: saved.customBindings?.jump,
+      label: document.querySelector('[data-binding-action="jump"] kbd')?.textContent.trim(),
+      status: document.querySelector("#keyBindingStatus")?.textContent || ""
+    };
+  })()`);
+  if (reboundJump.code !== "KeyF" || reboundJump.label !== "F" || !/跳跃/.test(reboundJump.status)) {
+    errors.push("click-to-rebind should persist and render the captured keyboard key: " + JSON.stringify(reboundJump));
+  }
+  await clickSelector(cdp, "#resetKeyBindings");
+  const resetBindings = await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    return {
+      jump: saved.customBindings?.jump,
+      left: saved.customBindings?.left,
+      layout: saved.keyboardLayout
+    };
+  })()`);
+  if (resetBindings.layout !== "mac" || resetBindings.jump !== "Space" || resetBindings.left !== "ArrowLeft") {
+    errors.push("binding reset should restore the selected keyboard layout: " + JSON.stringify(resetBindings));
+  }
 
   await openSettingsGroup(cdp, ".settings-group-audio");
   await clickSelector(cdp, "#audioTestButton");
@@ -779,7 +820,7 @@ async function runResumeSmoke(cdp, baseUrl) {
   })`);
   if (!startState.resumeVisible || !/继续训练 · R/.test(startState.resumeText)) errors.push("start overlay should distinguish direct training resume from free play");
   if (!startState.lowPerformance || startState.touchSize !== "62px") errors.push("comfort settings did not apply from stored settings: " + JSON.stringify(startState));
-  if (startState.settingsVersion !== 2 || startState.focusVersion !== 2) errors.push("stored settings/focus should migrate to current schema: " + JSON.stringify(startState));
+  if (startState.settingsVersion !== 3 || startState.focusVersion !== 2) errors.push("stored settings/focus should migrate to current schema: " + JSON.stringify(startState));
   await clickSelector(cdp, "#resumeTrainingButton");
   await waitUntil("resume training starts drill", () => evaluate(cdp, `/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#overlay").classList.contains("hidden")`), 5000);
 }
@@ -1076,7 +1117,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       stageTouchSize: getComputedStyle(document.querySelector(".stage")).getPropertyValue("--touch-size").trim()
     };
   })()`);
-  if (imported.settingsVersion !== 2 || imported.touchSize !== 62 || !imported.lowPerformance || imported.deadzone !== 0.18 || imported.profileVersion !== 2 || imported.clears !== 2 || imported.focusVersion !== 2 || imported.focusRooms !== 10 || imported.bestFlow !== 321 || imported.backupKind !== "summit-spark-save-backup" || imported.backupReason !== "before-import" || imported.backupArchiveKind !== "summit-spark-save" || imported.backupOldTouchSize !== 48 || imported.stageTouchSize !== "62px") {
+  if (imported.settingsVersion !== 3 || imported.touchSize !== 62 || !imported.lowPerformance || imported.deadzone !== 0.18 || imported.profileVersion !== 2 || imported.clears !== 2 || imported.focusVersion !== 2 || imported.focusRooms !== 10 || imported.bestFlow !== 321 || imported.backupKind !== "summit-spark-save-backup" || imported.backupReason !== "before-import" || imported.backupArchiveKind !== "summit-spark-save" || imported.backupOldTouchSize !== 48 || imported.stageTouchSize !== "62px") {
     errors.push("save archive import did not normalize and apply storage: " + JSON.stringify(imported));
   }
   await clickSelector(cdp, "#startSettingsButton");

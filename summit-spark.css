@@ -7255,18 +7255,12 @@ textarea {
 }
 
 #entryGate h1 {
-  margin: 0;
+  margin: 0 0 5px;
   color: #273f46;
   font-size: clamp(20px, 4.6vw, 24px);
   font-weight: 720;
   letter-spacing: -0.035em;
   line-height: 1.2;
-}
-
-.entry-gate > p {
-  margin: 0 0 7px;
-  color: #6f8285;
-  font-size: 11px;
 }
 
 .entry-options {
@@ -7364,10 +7358,6 @@ textarea {
 
   #entryGate h1 {
     font-size: 18px;
-  }
-
-  .entry-gate > p {
-    margin-bottom: 4px;
   }
 
   .entry-options {

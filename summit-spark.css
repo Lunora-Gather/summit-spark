@@ -6485,6 +6485,18 @@ textarea {
   font-size: 10.5px;
 }
 
+.settings-panel .binding-tools .focus-button.ghost {
+  border-color: rgba(47, 77, 88, 0.14);
+  background: rgba(255, 255, 255, 0.56);
+  color: #3f5b66;
+}
+
+.settings-panel .binding-tools .focus-button.ghost:hover {
+  border-color: rgba(48, 111, 122, 0.34);
+  background: rgba(255, 255, 255, 0.82);
+  color: #2c5f69;
+}
+
 .settings-panel .focus-button,
 .settings-panel .focus-button.ghost,
 .settings-panel .variant-button,

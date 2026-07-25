@@ -915,6 +915,7 @@
   let roomTech = createRoomTech();
   const settings = readSettings();
   let pendingBindingAction = "";
+  let bindingCaptureSnapshot = null;
   const actionPulse = {
     jump: 0,
     dash: 0,
@@ -1317,6 +1318,7 @@
     settings.customBindings = defaultBindingsForLayout(settings.keyboardLayout);
     settings.controlsPreset = "custom";
     pendingBindingAction = "";
+    bindingCaptureSnapshot = null;
     releaseAllInputs();
     syncKeyBindingEditor();
     writeSettings();
@@ -5427,6 +5429,12 @@
 
   function beginKeyBindingCapture(action) {
     if (!BINDING_ACTIONS.includes(action)) return;
+    if (!pendingBindingAction) {
+      bindingCaptureSnapshot = {
+        controlsPreset: settings.controlsPreset,
+        customBindings: { ...settings.customBindings }
+      };
+    }
     if (settings.controlsPreset !== "custom") {
       settings.customBindings = { ...effectiveBindings() };
     }
@@ -5436,13 +5444,23 @@
     if (keyBindingStatus) keyBindingStatus.textContent = `请按下“${BINDING_LABELS[action]}”的新按键；Esc 取消`;
   }
 
+  function cancelKeyBindingCapture({ announce = true } = {}) {
+    if (!pendingBindingAction && !bindingCaptureSnapshot) return;
+    if (bindingCaptureSnapshot) {
+      settings.controlsPreset = bindingCaptureSnapshot.controlsPreset;
+      settings.customBindings = { ...bindingCaptureSnapshot.customBindings };
+    }
+    pendingBindingAction = "";
+    bindingCaptureSnapshot = null;
+    syncKeyBindingEditor();
+    if (announce && keyBindingStatus) keyBindingStatus.textContent = "已取消改键，原方案保持不变";
+  }
+
   function captureKeyBinding(code) {
     const action = pendingBindingAction;
     if (!action) return;
     if (code === "Escape") {
-      pendingBindingAction = "";
-      syncKeyBindingEditor();
-      if (keyBindingStatus) keyBindingStatus.textContent = "已取消改键";
+      cancelKeyBindingCapture();
       return;
     }
     if (!validBindingCode(code)) {
@@ -5457,6 +5475,7 @@
     settings.customBindings = next;
     settings.controlsPreset = "custom";
     pendingBindingAction = "";
+    bindingCaptureSnapshot = null;
     releaseAllInputs();
     syncKeyBindingEditor();
     writeSettings();
@@ -5483,6 +5502,9 @@
       const active = button.dataset.grabChoice === settings.grabMode;
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
+    });
+    document.querySelectorAll("[data-layout-choice], [data-preset-choice], [data-grab-choice]").forEach((button) => {
+      button.toggleAttribute("disabled", Boolean(pendingBindingAction));
     });
     const visibleBindings = effectiveBindings();
     if (controlProfileNote) {
@@ -6667,7 +6689,7 @@
   function closeSettings({ restoreFocus = true } = {}) {
     const returnTarget = panelReturnFocus;
     const closingPractice = panelMode === "practice";
-    pendingBindingAction = "";
+    cancelKeyBindingCapture({ announce: false });
     panelReturnFocus = null;
     settingsVisible = false;
     releaseAllInputs();

@@ -644,10 +644,22 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (settingsAudit.displayToFeedbackGap < 14) errors.push("feedback/save section should be visually separated from display settings: " + JSON.stringify(settingsAudit));
   const comfortControls = await evaluate(cdp, `({
     lowPerformance: !!document.querySelector("#lowPerformanceToggle"),
-    touchSize: !!document.querySelector("#touchSizeSlider")
+    touchSize: !!document.querySelector("#touchSizeSlider"),
+    resetAppearance: (() => {
+      const button = document.querySelector("#resetKeyBindings");
+      const style = getComputedStyle(button);
+      return {
+        disabled: button.disabled,
+        background: style.backgroundColor,
+        color: style.color
+      };
+    })()
   })`);
   if (!comfortControls.lowPerformance) errors.push("settings should expose low-performance toggle");
   if (!comfortControls.touchSize) errors.push("settings should expose touch-size slider");
+  if (comfortControls.resetAppearance.disabled || !/255, 255, 255/.test(comfortControls.resetAppearance.background) || !/63, 91, 102/.test(comfortControls.resetAppearance.color)) {
+    errors.push("enabled restore-layout action should use the clear light secondary style instead of looking disabled: " + JSON.stringify(comfortControls.resetAppearance));
+  }
   if (settingsAudit.panelBox.overflow) errors.push("settings panel overflows desktop viewport: " + JSON.stringify(settingsAudit.panelBox));
 
   const macLayoutApplied = await evaluate(cdp, `(() => {
@@ -675,6 +687,32 @@ async function runDesktopSmoke(cdp, baseUrl) {
   ))()`);
   if (classicBindings.left !== "←" || classicBindings.up !== "↑" || classicBindings.jump !== "C" || classicBindings.dash !== "X" || classicBindings.grab !== "Z") {
     errors.push("classic preset should expose Celeste-style arrows plus C/X/Z: " + JSON.stringify(classicBindings));
+  }
+  await clickSelector(cdp, '[data-binding-action="jump"]');
+  await keyTap(cdp, "Escape", "Escape");
+  const cancelledBinding = await evaluate(cdp, `(() => ({
+    panelOpen: !document.querySelector("#settingsPanel").classList.contains("hidden"),
+    preset: document.querySelector("#controlPreset").value,
+    classicPressed: document.querySelector('[data-preset-choice="classic"]')?.getAttribute("aria-pressed"),
+    jump: document.querySelector('[data-binding-action="jump"] kbd')?.textContent.trim(),
+    capturing: document.querySelectorAll("[data-binding-action].capturing").length,
+    status: document.querySelector("#keyBindingStatus")?.textContent || ""
+  }))()`);
+  if (!cancelledBinding.panelOpen || cancelledBinding.preset !== "classic" || cancelledBinding.classicPressed !== "true" || cancelledBinding.jump !== "C" || cancelledBinding.capturing !== 0 || !/原方案保持不变/.test(cancelledBinding.status)) {
+    errors.push("Escape should cancel rebinding without silently switching the active preset: " + JSON.stringify(cancelledBinding));
+  }
+  await clickSelector(cdp, '[data-binding-action="dash"]');
+  await clickSelector(cdp, "#settingsClose");
+  await waitUntil("closing settings cancels pending rebinding", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await clickSelector(cdp, "#startSettingsButton");
+  await openSettingsGroup(cdp, ".settings-group-controls");
+  const closedBinding = await evaluate(cdp, `({
+    preset: document.querySelector("#controlPreset").value,
+    dash: document.querySelector('[data-binding-action="dash"] kbd')?.textContent.trim(),
+    capturing: document.querySelectorAll("[data-binding-action].capturing").length
+  })`);
+  if (closedBinding.preset !== "classic" || closedBinding.dash !== "X" || closedBinding.capturing !== 0) {
+    errors.push("closing settings should roll back an unfinished key capture: " + JSON.stringify(closedBinding));
   }
   await clickSelector(cdp, '[data-preset-choice="comfort"]');
   const comfortBindings = await evaluate(cdp, `(() => Object.fromEntries(

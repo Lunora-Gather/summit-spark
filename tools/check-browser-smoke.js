@@ -1106,6 +1106,82 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
   }
 }
 
+async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      window.__summitCloudMock = { upserts: 0, deletes: 0, failWrites: false };
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async get() { return { $id: "cloud-guard-user", email: "cloud-guard@example.com" }; }
+        async deleteSession() { window.__summitCloudMock.deletes += 1; return {}; }
+      }
+      class TablesDB {
+        async getRow() { throw { code: 404, type: "row_not_found" }; }
+        async upsertRow(payload) {
+          window.__summitCloudMock.upserts += 1;
+          window.__summitCloudMock.lastPayload = payload;
+          if (window.__summitCloudMock.failWrites) throw { code: 503, type: "general_server_error" };
+          return { $updatedAt: new Date().toISOString() };
+        }
+      }
+      const Permission = { read: (role) => "read(" + role + ")", update: (role) => "update(" + role + ")", delete: (role) => "delete(" + role + ")" };
+      const Role = { user: (id) => "user:" + id };
+      window.Appwrite = { Client, Account, TablesDB, Permission, Role };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "cloud sync exit guard");
+    const initialSync = await waitUntil("first cloud sync completes", () => evaluate(cdp, `(() => {
+      const mock = window.__summitCloudMock;
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      return mock?.upserts >= 1 && summary === "已同步" ? { upserts: mock.upserts, summary } : null;
+    })()`), 7000);
+    await evaluate(cdp, `(() => {
+      const toggle = document.querySelector("#audioToggle");
+      toggle.checked = !toggle.checked;
+      toggle.dispatchEvent(new Event("change", { bubbles: true }));
+      window.dispatchEvent(new Event("pagehide"));
+    })()`);
+    const flushed = await waitUntil("pagehide flushes pending cloud save", () => evaluate(cdp, `(() => {
+      const mock = window.__summitCloudMock;
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      return mock?.upserts > ${initialSync.upserts} && summary === "已同步" ? { upserts: mock.upserts, summary } : null;
+    })()`), 5000);
+    await evaluate(cdp, `(() => {
+      const toggle = document.querySelector("#audioToggle");
+      toggle.checked = !toggle.checked;
+      toggle.dispatchEvent(new Event("change", { bubbles: true }));
+      window.__summitCloudMock.failWrites = true;
+    })()`);
+    await clickSelector(cdp, "#startAccountButton");
+    await waitUntil("account drawer opens for guarded logout", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
+    await clickSelector(cdp, "#accountLogout");
+    const guarded = await waitUntil("failed final sync prevents logout", () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      if (!/账号仍保持登录/.test(status)) return null;
+      return {
+        status,
+        summary: document.querySelector("#accountSummary")?.textContent || "",
+        userVisible: !document.querySelector("#accountUser")?.classList.contains("hidden"),
+        deletes: window.__summitCloudMock?.deletes || 0,
+        upserts: window.__summitCloudMock?.upserts || 0
+      };
+    })()`), 5000);
+    if (flushed.upserts <= initialSync.upserts || guarded.summary !== "同步失败" || !guarded.userVisible || guarded.deletes !== 0 || guarded.upserts <= flushed.upserts) {
+      errors.push("pending progress should flush on pagehide and a failed final upload must keep the account signed in: " + JSON.stringify({ initialSync, flushed, guarded }));
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+  }
+}
+
 async function runResumeSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
@@ -2076,6 +2152,7 @@ async function main() {
     await runAuthenticatedRefreshSmoke(cdp, baseUrl);
     await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
     await runPasswordRecoverySmoke(cdp, baseUrl);
+    await runCloudSyncExitGuardSmoke(cdp, baseUrl);
   } finally {
     if (cdp) cdp.close();
     await killProcess(browser);
@@ -2088,7 +2165,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, authenticated refresh, stalled-session and password-recovery flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, authenticated refresh, stalled-session, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

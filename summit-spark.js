@@ -1074,8 +1074,11 @@
   document.addEventListener("visibilitychange", () => {
     focusPaused = document.hidden && started && !won;
     releaseAllInputs();
+    if (document.hidden) flushPendingCloudSave();
     if (!document.hidden) lastTime = performance.now();
   });
+
+  window.addEventListener("pagehide", flushPendingCloudSave);
 
   function isSettingsInputTarget(target) {
     return settingsVisible
@@ -6249,7 +6252,7 @@
       });
     } catch (error) {
       if (Number(error?.code) !== 404) {
-        setCloudStatus("云端读取失败");
+        setCloudStatus("云端读取失败", "读取失败");
         setAccountStatus(friendlyAccountError(error), "error");
         return;
       }
@@ -6257,7 +6260,7 @@
     }
     if (!cloudRow) {
       cloudSyncReady = true;
-      setCloudStatus("首次同步，正在上传本地进度");
+      setCloudStatus("首次同步，正在上传本地进度", "同步中");
       await uploadCloudSave({ force: true });
       return;
     }
@@ -6265,7 +6268,7 @@
     try {
       remote = normalizeSaveArchiveText(cloudRow.archive);
     } catch {
-      setCloudStatus("云端存档无法识别");
+      setCloudStatus("云端存档无法识别", "存档异常");
       setAccountStatus("云端存档损坏，本地进度尚未覆盖它", "error");
       return;
     }
@@ -6325,9 +6328,9 @@
     return date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
   }
 
-  function setCloudStatus(message) {
+  function setCloudStatus(message, summary = "") {
     if (cloudSyncStatus) cloudSyncStatus.textContent = message;
-    if (accountSummary) accountSummary.textContent = accountUser ? (cloudSyncReady ? "已同步" : "待确认") : "未登录";
+    if (accountSummary) accountSummary.textContent = accountUser ? (summary || (cloudSyncReady ? "已同步" : "待确认")) : "未登录";
   }
 
   function setAccountBusy(busy) {
@@ -6353,17 +6356,17 @@
   }
 
   async function uploadCloudSave({ force = false } = {}) {
-    if (!accountSdk || !accountUser || cloudSyncBusy || (!cloudSyncReady && !force)) return;
+    if (!accountSdk || !accountUser || cloudSyncBusy || (!cloudSyncReady && !force)) return false;
     const archive = buildSaveArchive();
     const archiveText = JSON.stringify(archive);
     if (archiveText.length > SAVE_ARCHIVE_MAX_CHARS) {
       setAccountStatus("存档过大，暂时无法上传", "error");
-      return;
+      return false;
     }
     const fingerprint = archiveFingerprint(archive);
-    if (!force && fingerprint === lastCloudArchiveHash) return;
+    if (!force && fingerprint === lastCloudArchiveHash) return true;
     setAccountBusy(true);
-    setCloudStatus("正在同步…");
+    setCloudStatus("正在同步…", "同步中");
     try {
       const userRole = accountSdk.Role.user(accountUser.$id);
       cloudRow = await accountSdk.tables.upsertRow({
@@ -6382,9 +6385,11 @@
       localStorage.setItem(CLOUD_SYNC_META_KEY, JSON.stringify({ userId: accountUser.$id, updatedAt: cloudRow.$updatedAt, fingerprint }));
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
       setAccountStatus("进度已安全保存到云端", "valid");
+      return true;
     } catch (error) {
-      setCloudStatus("同步失败，本地进度已保留");
+      setCloudStatus("同步失败，本地进度已保留", "同步失败");
       setAccountStatus(friendlyAccountError(error), "error");
+      return false;
     } finally {
       setAccountBusy(false);
     }
@@ -6434,7 +6439,17 @@
   async function logoutAccount() {
     if (!accountSdk || !accountUser || cloudSyncBusy) return;
     try {
-      if (cloudSyncReady) await uploadCloudSave();
+      if (cloudSyncReady) {
+        const synced = await uploadCloudSave();
+        if (!synced) {
+          setAccountStatus("最后一次云同步失败，账号仍保持登录；请检查网络后重试退出", "error");
+          return;
+        }
+      }
+      if (cloudSyncTimer) {
+        window.clearTimeout(cloudSyncTimer);
+        cloudSyncTimer = 0;
+      }
       setAccountBusy(true);
       await accountSdk.account.deleteSession({ sessionId: "current" });
       accountUser = null;
@@ -6467,6 +6482,13 @@
       cloudSyncTimer = 0;
       uploadCloudSave();
     }, CLOUD_SYNC_DELAY_MS);
+  }
+
+  function flushPendingCloudSave() {
+    if (!cloudSyncTimer || !accountUser || !cloudSyncReady || cloudSyncBusy) return;
+    window.clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = 0;
+    uploadCloudSave();
   }
 
   function setSaveImportStatus(text, state = "") {

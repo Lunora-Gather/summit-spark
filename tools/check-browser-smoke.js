@@ -914,6 +914,65 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
   }
 }
 
+async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        get() { return new Promise(() => {}); }
+        createEmailToken() { return new Promise(() => {}); }
+      }
+      class TablesDB {}
+      window.__summitAccountRestoreTimeoutMs = 80;
+      window.Appwrite = { Client, Account, TablesDB, ID: { unique: () => "pending-user" } };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "stalled account restore");
+    const recovered = await waitUntil("stalled account restore returns to chooser", () => evaluate(cdp, `(() => {
+      const gate = document.querySelector("#entryGate");
+      const start = document.querySelector("#startPanel");
+      const overlay = document.querySelector("#overlay");
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      if (!gate || !start || overlay?.classList.contains("entry-checking")) return null;
+      return {
+        gateVisible: !gate.classList.contains("hidden"),
+        startPending: start.classList.contains("entry-pending"),
+        status
+      };
+    })()`), 4000);
+    if (!recovered.gateVisible || !recovered.startPending || !/云端连接超时/.test(recovered.status)) {
+      errors.push("stalled account restore should recover to the guest/login chooser with a clear message: " + JSON.stringify(recovered));
+    }
+    await clickSelector(cdp, "#accountEntryButton");
+    await waitUntil("account drawer opens after restore timeout", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
+    await evaluate(cdp, `document.querySelector("#accountEmail").value = "pending@example.com"`);
+    await clickSelector(cdp, "#accountSendCode");
+    const busyState = await waitUntil("account form enters unified busy state", () => evaluate(cdp, `(() => {
+      const group = document.querySelector(".settings-group-account");
+      if (group?.getAttribute("aria-busy") !== "true") return null;
+      const controls = [
+        ...document.querySelectorAll("[data-auth-mode]"),
+        document.querySelector("#accountEmail"),
+        document.querySelector("#accountCode"),
+        document.querySelector("#accountSendCode"),
+        document.querySelector("#accountSubmit")
+      ];
+      return { allDisabled: controls.every((control) => control?.disabled === true) };
+    })()`));
+    if (!busyState.allDisabled) errors.push("authentication tabs, fields and actions should lock together while a request is pending");
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+  }
+}
+
 async function runResumeSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
@@ -1882,6 +1941,7 @@ async function main() {
     await runMobileLandscapeSmoke(cdp, baseUrl);
     await runGamepadSmoke(cdp, baseUrl);
     await runAuthenticatedRefreshSmoke(cdp, baseUrl);
+    await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
   } finally {
     if (cdp) cdp.close();
     await killProcess(browser);
@@ -1894,7 +1954,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, authenticated refresh recovery, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, authenticated refresh and stalled-session recovery, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

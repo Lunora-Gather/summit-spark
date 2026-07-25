@@ -2,6 +2,7 @@
 
 ## 2026-07-26
 
+- Added a bounded Appwrite session-restore check so stalled or offline refreshes return to the guest/email chooser instead of remaining in an indefinite loading state, unified busy-state locking across authentication tabs and fields, and added browser regression coverage; bumped public assets to `20260726-p134`.
 - Added unique contextual accessible names to the compact audio, diagnostics, feedback-template and save actions so repeated visible labels such as “复制” remain unambiguous to assistive technology; bumped public assets to `20260726-p133`.
 - Restored the guest-to-cloud entry as a full-width, readable 44px action on narrow screens, raised mobile authentication fields to touch-safe height, strengthened small settings typography, updated stale cloud-sync documentation, and bumped public assets to `20260726-p131`.
 - Reduced the room selector to a concise room identifier/name plus urgent focus marker while keeping full medals, timing, goals and route detail in the adjacent room brief, replaced default black focus rectangles on auth/segmented/tertiary controls with the product's teal focus ring, and prevented outside-dismissal focus from remaining inside the hidden drawer; bumped public assets to `20260726-p132`.

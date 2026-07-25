@@ -212,6 +212,7 @@
   const APPWRITE_SAVES_TABLE_ID = "saves";
   const CLOUD_SYNC_META_KEY = "summit-spark-cloud-sync";
   const CLOUD_SYNC_DELAY_MS = 1800;
+  const ACCOUNT_RESTORE_TIMEOUT_MS = 6500;
   const ENTRY_MODE_SESSION_KEY = "summit-spark-entry-mode";
   const ACTION_PULSE_TIME = 0.22;
   const BEST_FLOW_KEY = "summit-spark-best-flow";
@@ -5981,14 +5982,31 @@
 
   async function restoreAccountSession() {
     if (!accountSdk) return;
+    const configuredTimeout = Number(window.__summitAccountRestoreTimeoutMs);
+    const timeoutMs = Number.isFinite(configuredTimeout)
+      ? Math.max(50, configuredTimeout)
+      : ACCOUNT_RESTORE_TIMEOUT_MS;
+    let timeoutId = 0;
     try {
-      accountUser = await accountSdk.account.get();
+      accountUser = await Promise.race([
+        accountSdk.account.get(),
+        new Promise((_, reject) => {
+          timeoutId = window.setTimeout(() => reject(Object.assign(new Error("account restore timeout"), { type: "restore_timeout" })), timeoutMs);
+        })
+      ]);
       await finishAccountLogin();
-    } catch {
+    } catch (error) {
       accountUser = null;
       revealEntryGate();
       syncAccountUi();
-      setAccountStatus("进度保存在本机，登录后可同步");
+      setAccountStatus(
+        error?.type === "restore_timeout"
+          ? "云端连接超时，可先以游客身份开始"
+          : "进度保存在本机，登录后可同步",
+        error?.type === "restore_timeout" ? "error" : ""
+      );
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
     }
   }
 
@@ -6255,7 +6273,14 @@
 
   function setAccountBusy(busy) {
     cloudSyncBusy = busy;
+    accountGroup?.setAttribute("aria-busy", String(busy));
     [
+      ...document.querySelectorAll("[data-auth-mode]"),
+      accountEmailInput,
+      accountPasswordInput,
+      accountCodeInput,
+      accountNewPasswordInput,
+      accountOldPasswordInput,
       accountSendCodeButton,
       accountSubmitButton,
       accountRecoveryButton,

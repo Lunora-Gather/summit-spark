@@ -7032,6 +7032,167 @@ textarea {
   }
 }
 
+.start-panel.entry-pending {
+  display: none !important;
+}
+
+.stage.settings-open .entry-gate {
+  opacity: 0;
+  transform: translateX(-14px) scale(0.985);
+  pointer-events: none;
+}
+
+.entry-gate {
+  display: grid;
+  width: min(372px, calc(100% - 32px));
+  gap: 7px;
+  padding: 23px;
+  border: 1px solid rgba(222, 235, 229, 0.7);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(116, 167, 157, 0.18), transparent 34%),
+    linear-gradient(155deg, rgba(237, 244, 239, 0.96), rgba(211, 225, 220, 0.97));
+  color: #294249;
+  box-shadow:
+    0 22px 52px rgba(20, 39, 48, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.76) inset;
+  backdrop-filter: blur(10px) saturate(0.92);
+  text-align: left;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.entry-eyebrow {
+  color: #527a7d;
+  font-size: 8.5px;
+  font-weight: 750;
+  letter-spacing: 0.17em;
+}
+
+#entryGate h1 {
+  margin: 0;
+  color: #273f46;
+  font-size: clamp(20px, 4.6vw, 24px);
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+}
+
+.entry-gate > p {
+  margin: 0 0 7px;
+  color: #6f8285;
+  font-size: 11px;
+}
+
+.entry-options {
+  display: grid;
+  gap: 8px;
+}
+
+.entry-option {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  padding: 9px 11px;
+  border: 1px solid rgba(48, 76, 82, 0.11);
+  border-radius: 11px;
+  background: rgba(248, 251, 248, 0.48);
+  color: #2d474e;
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.entry-option:hover {
+  border-color: rgba(54, 111, 114, 0.28);
+  background: rgba(250, 252, 250, 0.76);
+  transform: translateY(-1px);
+}
+
+.entry-option.account {
+  border-color: rgba(53, 111, 113, 0.2);
+  background: rgba(91, 139, 137, 0.12);
+}
+
+.entry-option-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(47, 79, 84, 0.12);
+  border-radius: 10px;
+  background: rgba(246, 250, 247, 0.65);
+  color: #4b7679;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.entry-option.account .entry-option-icon {
+  background: linear-gradient(145deg, #628f91, #3f7076);
+  color: #f7fbf8;
+  font: 700 14px/1 Georgia, serif;
+}
+
+.entry-option > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.entry-option strong {
+  color: #2b454c;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.entry-option small {
+  overflow: hidden;
+  color: #728588;
+  font-size: 10px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 430px) {
+  .entry-gate {
+    width: calc(100% - 24px);
+    padding: 19px;
+  }
+
+  .entry-option {
+    min-height: 60px;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .entry-gate {
+    width: min(520px, calc(100% - 28px));
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 14px;
+  }
+
+  #entryGate h1 {
+    font-size: 18px;
+  }
+
+  .entry-gate > p {
+    margin-bottom: 4px;
+  }
+
+  .entry-options {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .entry-option {
+    min-height: 54px;
+  }
+}
+
 @media (max-width: 760px) and (max-height: 520px) and (orientation: landscape) {
   .settings-panel,
   .settings-panel.mode-practice {
@@ -7049,4 +7210,284 @@ textarea,
   font-synthesis: none;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
+}
+
+/* P125: adaptive entry, compact settings drawer, and focused account flow. */
+.settings-panel,
+.settings-panel.mode-practice {
+  width: min(440px, calc(100% - 32px));
+  max-height: calc(100% - 76px);
+  border-color: rgba(54, 79, 88, 0.18);
+  border-radius: 16px;
+  background:
+    linear-gradient(155deg, rgba(235, 241, 238, 0.99), rgba(213, 224, 222, 0.995)),
+    #dce7e4;
+  box-shadow:
+    0 22px 56px rgba(20, 39, 48, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+.settings-panel.mode-practice {
+  width: min(560px, calc(100% - 32px));
+}
+
+.settings-panel.account-focused {
+  width: min(400px, calc(100% - 24px));
+  max-height: calc(100% - 92px);
+  border-color: rgba(49, 80, 89, 0.2);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(104, 158, 158, 0.14), transparent 34%),
+    linear-gradient(155deg, rgba(231, 239, 235, 0.995), rgba(205, 219, 216, 0.998)),
+    #d9e5e1;
+}
+
+.settings-head {
+  min-height: 56px;
+  padding: 16px 58px 14px 18px;
+  background: rgba(247, 250, 248, 0.48);
+}
+
+.settings-head strong {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.settings-panel .settings-head .mini-button {
+  top: 9px;
+  right: 10px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: rgba(246, 249, 247, 0.56);
+  font-size: 21px;
+}
+
+.settings-body {
+  padding: 9px 10px 13px;
+}
+
+.settings-panel.account-focused .settings-body {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.settings-panel.account-focused .settings-group:not(.settings-group-account) {
+  display: none !important;
+}
+
+.settings-panel.account-focused .settings-group-account {
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.settings-panel.account-focused .settings-group-account > summary {
+  display: none;
+}
+
+.settings-panel.account-focused .settings-group-account .settings-group-body {
+  padding: 0;
+}
+
+.settings-group {
+  margin-bottom: 5px;
+  border-radius: 10px;
+}
+
+.settings-group summary {
+  min-height: 44px;
+  padding: 11px 13px;
+  font-size: 13px;
+}
+
+.settings-group[open] summary,
+.settings-panel.mode-practice .settings-group[open] summary {
+  background: rgba(248, 251, 249, 0.38);
+}
+
+.account-body {
+  gap: 12px;
+}
+
+.account-guest {
+  display: grid;
+  gap: 11px;
+}
+
+.account-intro {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 2px 1px 6px;
+}
+
+.account-intro > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.account-mark {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(49, 94, 99, 0.14);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #628f91, #3f7076);
+  color: rgba(249, 252, 249, 0.96);
+  box-shadow: 0 7px 18px rgba(47, 81, 86, 0.16);
+  font: 700 17px/1 Georgia, serif;
+}
+
+.account-intro small {
+  color: #6c8588;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.account-intro strong {
+  color: #28434a;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.account-intro span:not(.account-mark) {
+  color: #718487;
+  font-size: 11px;
+}
+
+.auth-tabs {
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(49, 76, 83, 0.07);
+  border-radius: 9px;
+  background: rgba(63, 90, 96, 0.075);
+}
+
+.auth-tabs button {
+  min-height: 34px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.auth-tabs button.active {
+  color: #2b6268;
+  box-shadow: 0 2px 7px rgba(35, 60, 65, 0.09);
+}
+
+.account-field {
+  gap: 4px;
+}
+
+.account-field > span,
+.password-reset > span {
+  color: #60777c;
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.account-field input,
+.password-reset input {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 8px !important;
+  background: rgba(247, 250, 248, 0.68) !important;
+  font-size: 12px;
+}
+
+.account-field input::placeholder,
+.password-reset input::placeholder {
+  color: #91a09f;
+}
+
+.account-code-fields {
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 7px;
+}
+
+.account-code-fields .focus-button {
+  min-height: 40px;
+  padding-inline: 8px;
+  border-radius: 8px;
+  font-size: 10.5px;
+}
+
+.account-submit {
+  min-height: 42px;
+  border-radius: 9px !important;
+  background: linear-gradient(135deg, #557f83, #3d6e74) !important;
+  color: #f7fbf9 !important;
+  box-shadow: 0 8px 18px rgba(46, 81, 85, 0.14) !important;
+  font-size: 12px;
+}
+
+.account-submit:hover {
+  background: linear-gradient(135deg, #4c7478, #35656b) !important;
+}
+
+.account-note {
+  color: #708386;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.account-status {
+  padding-top: 9px !important;
+  border-top: 1px solid rgba(48, 76, 83, 0.09) !important;
+  color: #718487 !important;
+  font-size: 10px;
+}
+
+.settings-panel.account-focused .account-status {
+  margin-top: 1px;
+}
+
+.settings-panel.account-focused .account-user {
+  padding: 2px 0;
+}
+
+@media (max-width: 760px) {
+  .settings-panel,
+  .settings-panel.mode-practice {
+    right: 12px;
+    left: auto;
+    width: min(430px, calc(100% - 24px));
+    max-height: calc(100dvh - 70px);
+  }
+
+  .settings-panel.mode-practice {
+    width: min(520px, calc(100% - 24px));
+  }
+
+  .settings-panel.account-focused {
+    width: min(390px, calc(100% - 24px));
+    max-height: calc(100dvh - 82px);
+  }
+
+  .settings-panel.account-focused .settings-head {
+    min-height: 54px;
+  }
+
+  .settings-panel.account-focused .settings-body {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 430px) {
+  .settings-panel,
+  .settings-panel.mode-practice,
+  .settings-panel.account-focused {
+    right: 8px;
+    width: calc(100% - 16px);
+  }
+
+  .account-code-fields {
+    grid-template-columns: minmax(0, 1fr) 92px;
+  }
 }

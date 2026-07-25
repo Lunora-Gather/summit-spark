@@ -10,6 +10,10 @@
   const gameHud = document.getElementById("gameHud");
   const touchControls = document.getElementById("touchControls");
   const startButton = document.getElementById("startButton");
+  const startPanel = document.getElementById("startPanel");
+  const entryGate = document.getElementById("entryGate");
+  const guestEntryButton = document.getElementById("guestEntryButton");
+  const accountEntryButton = document.getElementById("accountEntryButton");
   const openTrainingButton = document.getElementById("openTrainingButton");
   const startSettingsButton = document.getElementById("startSettingsButton");
   const startAccountButton = document.getElementById("startAccountButton");
@@ -207,6 +211,7 @@
   const APPWRITE_SAVES_TABLE_ID = "saves";
   const CLOUD_SYNC_META_KEY = "summit-spark-cloud-sync";
   const CLOUD_SYNC_DELAY_MS = 1800;
+  const ENTRY_MODE_SESSION_KEY = "summit-spark-entry-mode";
   const ACTION_PULSE_TIME = 0.22;
   const BEST_FLOW_KEY = "summit-spark-best-flow";
   const FLOW_DECAY_TIME = 1.9;
@@ -865,6 +870,8 @@
   let storageHealthMessage = "";
   let storageHealthToastShown = false;
   let authMode = "code";
+  let accountFocused = false;
+  let entryMode = "";
   let recoveryUserId = "";
   let recoverySecret = "";
   let accountUser = null;
@@ -1156,6 +1163,8 @@
   configureCanvasBuffer();
   window.addEventListener("resize", configureCanvasBuffer);
   startButton.addEventListener("click", begin);
+  guestEntryButton?.addEventListener("click", () => resolveEntryMode("guest"));
+  accountEntryButton?.addEventListener("click", openAccountPanel);
   openTrainingButton?.addEventListener("click", openStartTrainingPanel);
   startSettingsButton?.addEventListener("click", openSettingsPanel);
   startAccountButton?.addEventListener("click", openAccountPanel);
@@ -1450,6 +1459,7 @@
     }
   });
   populateRoomSelect();
+  initEntryMode();
   syncSettingsPanel();
   initCloudAccount();
 
@@ -1706,14 +1716,17 @@
   }
 
   function openStartTrainingPanel() {
+    accountFocused = false;
     openPanel("practice");
   }
 
   function openSettingsPanel() {
+    accountFocused = false;
     openPanel("settings");
   }
 
   function openAccountPanel() {
+    accountFocused = true;
     openPanel("settings");
     if (accountGroup) {
       document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
@@ -5842,6 +5855,34 @@
     return JSON.stringify(buildSaveArchive(), null, 2);
   }
 
+  function initEntryMode() {
+    let saved = "";
+    try {
+      saved = sessionStorage.getItem(ENTRY_MODE_SESSION_KEY) || "";
+    } catch {
+      saved = "";
+    }
+    if (saved === "guest") {
+      resolveEntryMode("guest", false);
+      return;
+    }
+    entryMode = "";
+    entryGate?.classList.remove("hidden");
+    startPanel?.classList.add("entry-pending");
+  }
+
+  function resolveEntryMode(mode, focus = true) {
+    entryMode = mode === "account" ? "account" : "guest";
+    try {
+      sessionStorage.setItem(ENTRY_MODE_SESSION_KEY, entryMode);
+    } catch {
+      // Session preference is optional.
+    }
+    entryGate?.classList.add("hidden");
+    startPanel?.classList.remove("entry-pending");
+    if (focus) startButton?.focus({ preventScroll: true });
+  }
+
   function initCloudAccount() {
     setAuthMode("code");
     const params = new URLSearchParams(window.location.search);
@@ -5914,7 +5955,7 @@
     accountRecoveryButton?.classList.toggle("hidden", authMode !== "password" || Boolean(recoverySecret));
     accountCodeFields?.classList.toggle("hidden", authMode !== "code");
     if (accountSubmitButton && !recoverySecret) {
-      accountSubmitButton.textContent = authMode === "password" ? "密码登录" : "验证码登录 / 注册";
+      accountSubmitButton.textContent = authMode === "password" ? "使用密码登录" : "使用验证码继续";
     }
   }
 
@@ -6066,6 +6107,7 @@
   }
 
   async function finishAccountLogin() {
+    resolveEntryMode("account", false);
     syncAccountUi();
     setAccountStatus("登录成功，正在比较本地与云端进度…", "valid");
     await inspectCloudSave();
@@ -6270,6 +6312,17 @@
       syncAccountUi();
       setCloudStatus("未登录");
       setAccountStatus("已退出；本地进度仍保留", "valid");
+      try {
+        sessionStorage.removeItem(ENTRY_MODE_SESSION_KEY);
+      } catch {
+        // Session preference is optional.
+      }
+      if (!started) {
+        entryMode = "";
+        entryGate?.classList.remove("hidden");
+        startPanel?.classList.add("entry-pending");
+        closeSettings();
+      }
     } catch (error) {
       setAccountStatus(friendlyAccountError(error), "error");
     } finally {
@@ -6571,9 +6624,10 @@
     settingsPanel?.classList.toggle("hidden", !settingsVisible);
     settingsPanel?.classList.toggle("mode-settings", settingsVisible && panelMode === "settings");
     settingsPanel?.classList.toggle("mode-practice", settingsVisible && panelMode === "practice");
+    settingsPanel?.classList.toggle("account-focused", settingsVisible && panelMode === "settings" && accountFocused);
     settingsPanel?.setAttribute("aria-hidden", String(!settingsVisible));
     const practiceMode = panelMode === "practice";
-    if (panelTitle) panelTitle.textContent = practiceMode ? "练习" : "设置";
+    if (panelTitle) panelTitle.textContent = practiceMode ? "练习" : accountFocused ? "账号" : "设置";
     if (panelSubtitle) panelSubtitle.textContent = practiceMode ? "房间 · 档案 · 路线" : "操作 · 声音 · 显示";
     settingsCloseButton?.setAttribute("aria-label", practiceMode ? "关闭练习" : "关闭设置");
     settingsButton?.setAttribute("aria-expanded", String(settingsVisible && panelMode === "settings"));

@@ -364,6 +364,24 @@ async function runDesktopSmoke(cdp, baseUrl) {
     mobile: false
   });
   await navigateApp(cdp, baseUrl, "desktop smoke");
+  const entryChoice = await evaluate(cdp, `(() => {
+    const gate = document.querySelector("#entryGate");
+    const guest = document.querySelector("#guestEntryButton");
+    const account = document.querySelector("#accountEntryButton");
+    const gateRect = gate?.getBoundingClientRect();
+    return {
+      visible: !!gate && gateRect.width > 0 && gateRect.height > 0,
+      guest: guest?.textContent || "",
+      account: account?.textContent || "",
+      startPending: document.querySelector("#startPanel")?.classList.contains("entry-pending") || false,
+      fits: !!gateRect && gateRect.left >= 0 && gateRect.right <= innerWidth && gateRect.bottom <= innerHeight
+    };
+  })()`);
+  if (!entryChoice.visible || !entryChoice.startPending || !entryChoice.fits || !/仅保存在此设备/.test(entryChoice.guest) || !/云端保存/.test(entryChoice.account)) {
+    errors.push("entry should clearly offer adaptive guest and cloud-save choices: " + JSON.stringify(entryChoice));
+  }
+  await clickSelector(cdp, "#guestEntryButton");
+  await waitUntil("guest entry resolves", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden") && !document.querySelector("#startPanel").classList.contains("entry-pending")`));
   await cdp.send("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: "reduce" }]
   });
@@ -532,7 +550,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (cockpit.feelCards < 4) errors.push("practice panel should expose visible feel calibration cards");
   if (!cockpit.modePractice || !/练习/.test(cockpit.title) || !cockpit.practiceVisible || !cockpit.settingsHidden || !cockpit.redundantPriorityRemoved) errors.push("practice panel should be separate from quiet settings without a duplicate recommendation card: " + JSON.stringify(cockpit));
   if (cockpit.groups < 7) errors.push("practice/settings panel should keep the full grouped surface in DOM: " + JSON.stringify(cockpit));
-  if (!cockpit.systemList || !cockpit.panelWidthCalm || !/240, 245, 243/.test(cockpit.panelSurface)) errors.push("practice panel should render as a crisp mist-white training sheet: " + JSON.stringify(cockpit));
+  if (!cockpit.systemList || !cockpit.panelWidthCalm || !/235, 241, 238/.test(cockpit.panelSurface)) errors.push("practice panel should render as a restrained adaptive training sheet: " + JSON.stringify(cockpit));
   if (cockpit.actionTray.trayBackground !== "none" || cockpit.actionTray.trayShadow !== "none" || !/103, 142, 121/.test(cockpit.actionTray.buttonBackground) || cockpit.actionTray.buttonRadius !== "11px") errors.push("upper-right actions should remain unboxed, individually surfaced tools with a restrained practice-active state: " + JSON.stringify(cockpit.actionTray));
   if (cockpit.panelBox.overflow) errors.push("practice panel overflows desktop viewport: " + JSON.stringify(cockpit.panelBox));
   await openSettingsGroup(cdp, ".settings-group-advanced");

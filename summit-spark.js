@@ -247,6 +247,8 @@
   const TOUCH_SIZE_DEFAULT = 48;
   const TOUCH_SIZE_MIN = 44;
   const TOUCH_SIZE_MAX = 64;
+  const CANVAS_BUFFER_SCALE_MAX = 2.6;
+  const CANVAS_BUFFER_SCALE_STEP = 0.05;
 
   const SOLID = new Set(["#", "C"]);
   const HAZARDS = new Set(["^", "v", "<", ">"]);
@@ -1126,7 +1128,11 @@
 
   function canvasBufferScale() {
     if (settings.lowPerformance) return 1;
-    return Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    const cssScale = Math.max(rect.width / W, rect.height / H);
+    const desired = cssScale * Math.max(1, window.devicePixelRatio || 1);
+    const roundedUp = Math.ceil(desired / CANVAS_BUFFER_SCALE_STEP) * CANVAS_BUFFER_SCALE_STEP;
+    return Math.max(1, Math.min(CANVAS_BUFFER_SCALE_MAX, roundedUp));
   }
 
   function configureCanvasBuffer() {
@@ -1134,6 +1140,8 @@
     const width = Math.round(W * scale);
     const height = Math.round(H * scale);
     if (canvas.width !== width || canvas.height !== height) {
+      cachedRockTiles.clear();
+      cachedCrumbleTiles.clear();
       canvas.width = width;
       canvas.height = height;
     }

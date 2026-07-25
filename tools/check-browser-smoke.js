@@ -424,8 +424,16 @@ async function runDesktopSmoke(cdp, baseUrl) {
       && document.querySelector("#game")?.tabIndex === -1
       && document.querySelector("#game")?.getAttribute("aria-hidden") === "true",
     canvasSize: (() => {
-      const rect = document.querySelector("#game").getBoundingClientRect();
-      return { width: rect.width, height: rect.height };
+      const canvas = document.querySelector("#game");
+      const rect = canvas.getBoundingClientRect();
+      return {
+        width: rect.width,
+        height: rect.height,
+        bufferWidth: canvas.width,
+        bufferHeight: canvas.height,
+        requiredWidth: Math.ceil(rect.width * window.devicePixelRatio),
+        requiredHeight: Math.ceil(rect.height * window.devicePixelRatio)
+      };
     })(),
     startActionLayout: (() => {
       const primary = document.querySelector("#startButton").getBoundingClientRect();
@@ -435,6 +443,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })`);
   if (!/^\d{8}-p\d+$/.test(initial.build)) errors.push("browser smoke found invalid build version " + initial.build);
   if (!initial.ready || !initial.overlayAvailable || !initial.gameSurfaceHidden || initial.canvasSize.width < 300 || initial.canvasSize.height < 160) errors.push("browser smoke initial canvas/start state is invalid or exposed behind overlay: " + JSON.stringify(initial));
+  if (initial.canvasSize.bufferWidth < initial.canvasSize.requiredWidth || initial.canvasSize.bufferHeight < initial.canvasSize.requiredHeight) errors.push("desktop canvas buffer should cover its physical display size: " + JSON.stringify(initial.canvasSize));
   if (initial.startActionLayout.primaryWidth < initial.startActionLayout.practiceWidth * 1.8) errors.push("primary start action should span the full two-column menu row: " + JSON.stringify(initial.startActionLayout));
 
   await clickSelector(cdp, "#startButton");
@@ -1611,10 +1620,19 @@ async function runCanvasDensitySmoke(cdp, baseUrl) {
 
   const normal = await evaluate(cdp, `(() => {
     const canvas = document.querySelector("#game");
-    return { width: canvas.width, height: canvas.height, dpr: window.devicePixelRatio };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      width: canvas.width,
+      height: canvas.height,
+      cssWidth: rect.width,
+      cssHeight: rect.height,
+      requiredWidth: Math.ceil(rect.width * window.devicePixelRatio),
+      requiredHeight: Math.ceil(rect.height * window.devicePixelRatio),
+      dpr: window.devicePixelRatio
+    };
   })()`);
-  if (normal.dpr !== 2 || normal.width !== 1440 || normal.height !== 816) {
-    errors.push("normal high-DPI canvas should use the capped 1.5x buffer: " + JSON.stringify(normal));
+  if (normal.dpr !== 2 || normal.width < normal.requiredWidth || normal.height < normal.requiredHeight || normal.width > 2496 || normal.height > 1414) {
+    errors.push("normal high-DPI canvas should cover its physical display size without exceeding the 2.6x buffer cap: " + JSON.stringify(normal));
   }
 
   await clickSelector(cdp, "#startSettingsButton");
@@ -1632,7 +1650,7 @@ async function runCanvasDensitySmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#lowPerformanceToggle");
   const restored = await waitUntil("restored high-DPI canvas buffer", () => evaluate(cdp, `(() => {
     const canvas = document.querySelector("#game");
-    return canvas.width === 1440 && canvas.height === 816
+    return canvas.width === ${normal.width} && canvas.height === ${normal.height}
       ? { width: canvas.width, height: canvas.height, enabled: document.querySelector("#lowPerformanceToggle").checked }
       : null;
   })()`));

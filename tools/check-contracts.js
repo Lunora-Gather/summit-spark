@@ -342,7 +342,7 @@ if (!js.includes("beginnerFlowActive")) errors.push("beginner flow activation gu
 if (!js.includes("updateOnboardingCues")) errors.push("beginner onboarding progression is missing");
 if (!js.includes("showBeginnerDeathTip")) errors.push("beginner death tip helper is missing");
 if (!js.includes("configureCanvasBuffer")) errors.push("canvas clarity buffer helper is missing");
-if (!js.includes("function canvasBufferScale()") || !js.includes("Math.min(1.5, window.devicePixelRatio || 1)")) errors.push("normal canvas density should remain crisp on high-DPI displays without unbounded buffers");
+if (!js.includes("function canvasBufferScale()") || !js.includes("const cssScale = Math.max(rect.width / W, rect.height / H);") || !js.includes("Math.min(CANVAS_BUFFER_SCALE_MAX, roundedUp)")) errors.push("normal canvas density should follow the responsive physical display size without unbounded buffers");
 if (!js.includes("if (settings.lowPerformance) return 1;") || !js.includes('syncComfortSettings();\n    configureCanvasBuffer();')) errors.push("low-performance changes must immediately rebuild the canvas at 1x density");
 if (!js.includes("refreshStartOverlay")) errors.push("start overlay should expose ready/continue state");
 if (!js.includes("syncGameplayAccessibility") || !js.includes("surface.hidden = overlayOwnsInteraction") || !indexHtml.includes('id="gameHud" aria-hidden="true" inert hidden') || !indexHtml.includes('id="touchControls" aria-label="触控" aria-hidden="true" inert hidden')) errors.push("start/finish overlays must hide the HUD and all overlays must make the obscured game surface inert");

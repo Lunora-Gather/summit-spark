@@ -1111,8 +1111,92 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!afterInputsTipHidden) errors.push("ordinary movement inputs should not raise a coaching card");
 }
 
+async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `(() => {
+    sessionStorage.removeItem("summit-spark-entry-mode");
+    localStorage.removeItem("summit-spark-account-hint");
+  })()`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        get() { return new Promise(() => {}); }
+      }
+      class TablesDB {}
+      window.__summitAccountRestoreTimeoutMs = 2000;
+      window.Appwrite = { Client, Account, TablesDB };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "fresh entry immediate chooser");
+    const entry = await evaluate(cdp, `(() => {
+      const gate = document.querySelector("#entryGate");
+      const overlay = document.querySelector("#overlay");
+      return {
+        gateVisible: !!gate && !gate.classList.contains("hidden"),
+        checking: overlay?.classList.contains("entry-checking"),
+        pending: document.querySelector("#startPanel")?.classList.contains("entry-pending"),
+        focused: document.activeElement?.id || ""
+      };
+    })()`);
+    if (!entry.gateVisible || entry.checking || !entry.pending || entry.focused !== "guestEntryButton") {
+      errors.push("fresh visitors should see the focused guest/email chooser immediately without waiting for account restore: " + JSON.stringify(entry));
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+  }
+}
+
+async function runExpiredAccountHintSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `(() => {
+    sessionStorage.removeItem("summit-spark-entry-mode");
+    localStorage.setItem("summit-spark-account-hint", "1");
+  })()`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async get() { throw { code: 401, type: "user_unauthorized" }; }
+      }
+      class TablesDB {}
+      window.Appwrite = { Client, Account, TablesDB };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "expired account hint");
+    const expired = await waitUntil("expired account hint returns to chooser", () => evaluate(cdp, `(() => {
+      const gate = document.querySelector("#entryGate");
+      const overlay = document.querySelector("#overlay");
+      if (!gate || gate.classList.contains("hidden") || overlay?.classList.contains("entry-checking")) return null;
+      return {
+        hint: localStorage.getItem("summit-spark-account-hint"),
+        focused: document.activeElement?.id || ""
+      };
+    })()`), 4000);
+    if (expired.hint !== null || expired.focused !== "guestEntryButton") {
+      errors.push("an expired account hint should be cleared and return focus to the chooser: " + JSON.stringify(expired));
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `localStorage.removeItem("summit-spark-account-hint")`);
+  }
+}
+
 async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  await evaluate(cdp, `(() => {
+    sessionStorage.removeItem("summit-spark-entry-mode");
+    localStorage.setItem("summit-spark-account-hint", "1");
+  })()`);
   const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `(() => {
       class Client {
@@ -1177,11 +1261,15 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
       await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
     }
     await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+    await evaluate(cdp, `localStorage.removeItem("summit-spark-account-hint")`);
   }
 }
 
 async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  await evaluate(cdp, `(() => {
+    sessionStorage.removeItem("summit-spark-entry-mode");
+    localStorage.setItem("summit-spark-account-hint", "1");
+  })()`);
   const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `(() => {
       class Client {
@@ -1208,10 +1296,11 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
       return {
         gateVisible: !gate.classList.contains("hidden"),
         startPending: start.classList.contains("entry-pending"),
-        status
+        status,
+        hint: localStorage.getItem("summit-spark-account-hint")
       };
     })()`), 4000);
-    if (!recovered.gateVisible || !recovered.startPending || !/云端连接超时/.test(recovered.status)) {
+    if (!recovered.gateVisible || !recovered.startPending || !/云端连接超时/.test(recovered.status) || recovered.hint !== "1") {
       errors.push("stalled account restore should recover to the guest/login chooser with a clear message: " + JSON.stringify(recovered));
     }
     await clickSelector(cdp, "#accountEntryButton");
@@ -1237,6 +1326,7 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
       await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
     }
     await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+    await evaluate(cdp, `localStorage.removeItem("summit-spark-account-hint")`);
   }
 }
 
@@ -3274,6 +3364,8 @@ async function main() {
     await runMobileSafeAreaSmoke(cdp, baseUrl);
     await runMobileLandscapeSmoke(cdp, baseUrl);
     await runGamepadSmoke(cdp, baseUrl);
+    await runFreshEntryImmediateSmoke(cdp, baseUrl);
+    await runExpiredAccountHintSmoke(cdp, baseUrl);
     await runAuthenticatedRefreshSmoke(cdp, baseUrl);
     await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
     await runRestrictedSessionStorageAuthSmoke(cdp, baseUrl);
@@ -3295,7 +3387,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, immediate fresh entry, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

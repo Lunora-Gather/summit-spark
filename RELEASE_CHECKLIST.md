@@ -40,7 +40,8 @@ Use this before publishing a public demo update.
 36. Toggle low-performance mode and confirm the canvas switches to a 1x buffer, the canvas filter and gameplay overlay backdrop filters become `none`, canvas shadow blur is budgeted to zero, and HUD, tips, touch controls, hazards, and route guidance remain readable.
 37. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
 38. Verify `appwrite project get`, `project list-platforms`, and the live `summit-spark/saves` table still match `appwrite.config.json`; run the browser smoke's 4,200-point archive case and confirm it uploads once and remains locally importable.
-39. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
-40. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
-41. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
-42. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.
+39. Clear both the current tab entry mode and the non-sensitive account hint, then load with a deliberately stalled Appwrite account request or rely on `npm run browser-smoke`; Guest/Email must appear immediately. Repeat with the hint present: a valid account must restore without chooser flash, 401 must clear the hint and reveal Guest, while a timeout must reveal Guest but retain the hint for a later retry.
+40. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
+41. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
+42. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
+43. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.

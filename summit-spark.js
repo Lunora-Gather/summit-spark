@@ -218,6 +218,7 @@
   const CLOUD_SYNC_DELAY_MS = 1800;
   const ACCOUNT_RESTORE_TIMEOUT_MS = 6500;
   const ENTRY_MODE_SESSION_KEY = "summit-spark-entry-mode";
+  const ACCOUNT_HINT_STORAGE_KEY = "summit-spark-account-hint";
   const ACCOUNT_OTP_SESSION_KEY = "summit-spark-otp-user";
   const ACCOUNT_OTP_EMAIL_SESSION_KEY = "summit-spark-otp-email";
   const ACTION_PULSE_TIME = 0.22;
@@ -6056,26 +6057,51 @@
     }
   }
 
+  function readAccountHint() {
+    try {
+      return localStorage.getItem(ACCOUNT_HINT_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function writeAccountHint(active) {
+    try {
+      if (active) localStorage.setItem(ACCOUNT_HINT_STORAGE_KEY, "1");
+      else localStorage.removeItem(ACCOUNT_HINT_STORAGE_KEY);
+    } catch {
+      // The hint is optional and contains no account or session data.
+    }
+  }
+
   function initEntryMode() {
     const saved = readSessionValue(ENTRY_MODE_SESSION_KEY);
     if (saved === "guest") {
       resolveEntryMode("guest", false);
       return;
     }
-    entryMode = saved === "account" ? "account" : "";
-    overlay?.classList.add("entry-checking");
-    entryGate?.classList.add("hidden");
-    startPanel?.classList.add("entry-pending");
+    if (saved === "account" || readAccountHint()) {
+      entryMode = "account";
+      overlay?.classList.add("entry-checking");
+      entryGate?.classList.add("hidden");
+      startPanel?.classList.add("entry-pending");
+      return;
+    }
+    entryMode = "";
+    revealEntryGate();
   }
 
   function revealEntryGate() {
     if (entryMode === "guest") return;
+    const shouldFocus = entryGate?.classList.contains("hidden")
+      || document.activeElement === document.body
+      || document.activeElement === document.documentElement;
     entryMode = "";
     overlay?.classList.remove("entry-checking");
     entryGate?.classList.remove("hidden");
     startPanel?.classList.add("entry-pending");
     requestAnimationFrame(() => {
-      if (settingsVisible || entryGate?.classList.contains("hidden")) return;
+      if (!shouldFocus || settingsVisible || entryGate?.classList.contains("hidden")) return;
       guestEntryButton?.focus({ preventScroll: true });
     });
   }
@@ -6083,6 +6109,7 @@
   function resolveEntryMode(mode, focus = true) {
     entryMode = mode === "account" ? "account" : "guest";
     writeSessionValue(ENTRY_MODE_SESSION_KEY, entryMode);
+    if (entryMode === "guest") writeAccountHint(false);
     overlay?.classList.remove("entry-checking");
     entryGate?.classList.add("hidden");
     startPanel?.classList.remove("entry-pending");
@@ -6175,6 +6202,7 @@
     } catch (error) {
       accountUser = null;
       accountSessionGeneration += 1;
+      if (Number(error?.code) === 401) writeAccountHint(false);
       revealEntryGate();
       syncAccountUi();
       setAccountStatus(
@@ -6404,6 +6432,7 @@
     cloudSyncFlushRequested = false;
     cloudSyncRetryBlocked = false;
     lastCloudArchiveHash = "";
+    writeAccountHint(true);
     resolveEntryMode("account", false);
     syncAccountUi();
     setAccountStatus("登录成功，正在比较本地与云端进度…", "valid");
@@ -6727,6 +6756,7 @@
       setCloudStatus("未登录");
       setAccountStatus("已退出；本地进度仍保留", "valid");
       removeSessionValue(ENTRY_MODE_SESSION_KEY);
+      writeAccountHint(false);
       clearAccountOtpState();
       if (!started) {
         revealEntryGate();

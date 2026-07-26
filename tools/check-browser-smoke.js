@@ -260,7 +260,11 @@ async function clickPoint(cdp, x, y) {
 
 async function tapSelector(cdp, selector) {
   const rect = await targetPoint(cdp, selector);
-  const touchPoint = { x: rect.inputX, y: rect.inputY, id: 1, radiusX: 2, radiusY: 2, force: 1 };
+  await tapPoint(cdp, rect.inputX, rect.inputY);
+}
+
+async function tapPoint(cdp, x, y) {
+  const touchPoint = { x, y, id: 1, radiusX: 2, radiusY: 2, force: 1 };
   await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [touchPoint] });
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await sleep(80);
@@ -685,17 +689,41 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
     const displayRect = document.querySelector(".settings-group-display").getBoundingClientRect();
     const feedbackRect = document.querySelector(".settings-group-feedback").getBoundingClientRect();
-    const rgb = (value) => (String(value).match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
-    const luminance = (value) => {
-      const channels = rgb(value).map((channel) => {
+    const rgba = (value) => {
+      const channels = (String(value).match(/[\\d.]+/g) || []).map(Number);
+      return {
+        r: channels[0] || 0,
+        g: channels[1] || 0,
+        b: channels[2] || 0,
+        a: channels.length > 3 ? channels[3] : 1
+      };
+    };
+    const composite = (foreground, background) => ({
+      r: foreground.r * foreground.a + background.r * (1 - foreground.a),
+      g: foreground.g * foreground.a + background.g * (1 - foreground.a),
+      b: foreground.b * foreground.a + background.b * (1 - foreground.a),
+      a: 1
+    });
+    const effectiveBackground = (element) => {
+      const ancestors = [];
+      for (let current = element; current instanceof Element; current = current.parentElement) ancestors.unshift(current);
+      return ancestors.reduce((background, current) => {
+        const layer = rgba(getComputedStyle(current).backgroundColor);
+        return layer.a > 0 ? composite(layer, background) : background;
+      }, { r: 255, g: 255, b: 255, a: 1 });
+    };
+    const luminance = (color) => {
+      const channels = [color.r, color.g, color.b].map((channel) => {
         const normalized = channel / 255;
         return normalized <= 0.04045 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4);
       });
       return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
     };
     const contrast = (element, pseudo = "") => {
-      const foregroundLum = luminance(getComputedStyle(element, pseudo).color);
-      const backgroundLum = luminance(getComputedStyle(document.querySelector("#settingsPanel")).backgroundColor);
+      const background = effectiveBackground(element);
+      const foreground = composite(rgba(getComputedStyle(element, pseudo).color), background);
+      const foregroundLum = luminance(foreground);
+      const backgroundLum = luminance(background);
       return (Math.max(foregroundLum, backgroundLum) + 0.05) / (Math.min(foregroundLum, backgroundLum) + 0.05);
     };
     const contrastSamples = [
@@ -705,6 +733,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
       ["profile detail", document.querySelector("#controlProfileNote span"), ""],
       ["binding status", document.querySelector("#keyBindingStatus"), ""],
       ["binding label", document.querySelector("[data-binding-action] span"), ""],
+      ["binding section title", document.querySelector(".binding-section-title"), ""],
+      ["disclosure chevron", document.querySelector(".settings-group-chevron"), ""],
       ["account note", document.querySelector("#accountNote"), ""],
       ["account status", document.querySelector("#accountStatus"), ""],
       ["email placeholder", document.querySelector("#accountEmail"), "::placeholder"]
@@ -2464,6 +2494,16 @@ async function runMobileSmoke(cdp, baseUrl) {
   }
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("mobile account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await tapSelector(cdp, "#startSettingsButton");
+  const mobileBackdropPoint = await evaluate(cdp, `(() => {
+    const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
+    return {
+      x: Math.max(1, Math.floor(rect.left / 2)),
+      y: Math.max(1, Math.min(innerHeight - 1, Math.round(rect.top + rect.height / 2)))
+    };
+  })()`);
+  await tapPoint(cdp, mobileBackdropPoint.x, mobileBackdropPoint.y);
+  await waitUntil("mobile exposed backdrop tap dismisses without click-through", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#startSettingsButton") && !document.querySelector("#overlay").classList.contains("hidden")`));
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("mobile practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   const roomGroupOpen = await evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`);

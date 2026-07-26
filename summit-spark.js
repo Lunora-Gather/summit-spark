@@ -1830,6 +1830,7 @@
       });
       accountGroup.scrollIntoView({ block: "start" });
       window.setTimeout(() => {
+        if (!settingsVisible || panelMode !== "settings" || !accountFocused || !accountGroup.open) return;
         if (accountUser) cloudUploadButton?.focus({ preventScroll: true });
         else if (recoverySecret) accountPasswordInput?.focus({ preventScroll: true });
         else accountEmailInput?.focus({ preventScroll: true });
@@ -6908,6 +6909,21 @@
     }
   }
 
+  function focusVisibleOverlaySurface() {
+    if (settingsVisible || overlay.classList.contains("hidden") || overlay.hidden) return false;
+    const finishTitle = overlay.classList.contains("finish-overlay")
+      ? document.getElementById("finishTitle")
+      : null;
+    const preferred = finishTitle instanceof HTMLElement && finishTitle.getClientRects().length > 0
+      ? finishTitle
+      : startButton instanceof HTMLElement && startButton.isConnected && startButton.getClientRects().length > 0
+        ? startButton
+        : focusableElementsWithin(overlay)[0];
+    if (!(preferred instanceof HTMLElement)) return false;
+    preferred.focus({ preventScroll: true });
+    return document.activeElement === preferred;
+  }
+
 
   function setDebugVisible(value) {
     debugVisible = value;
@@ -6947,7 +6963,7 @@
     if (returnTarget instanceof HTMLElement && returnTarget.isConnected && !returnTarget.hasAttribute("disabled")) {
       returnTarget.focus({ preventScroll: true });
     } else if (!overlay.classList.contains("hidden")) {
-      startButton?.focus({ preventScroll: true });
+      focusVisibleOverlaySurface();
     } else {
       focusGame();
     }
@@ -6963,6 +6979,7 @@
   function closeSettingsFromOutside(event) {
     if (!settingsVisible || !settingsPanel || settingsPanel.contains(event.target)) return;
     if (event.target instanceof Element && event.target.closest("#settingsButton")) return;
+    const returnTarget = panelReturnFocus;
     closeSettings({ restoreFocus: false });
     requestAnimationFrame(() => {
       if (settingsVisible) return;
@@ -6973,7 +6990,14 @@
         && active.isConnected
         && !settingsPanel.contains(active);
       if (hasSafeFocus) return;
-      if (!overlay.classList.contains("hidden")) startButton?.focus({ preventScroll: true });
+      if (returnTarget instanceof HTMLElement
+        && returnTarget.isConnected
+        && !returnTarget.hasAttribute("disabled")
+        && returnTarget.getClientRects().length > 0) {
+        returnTarget.focus({ preventScroll: true });
+        if (document.activeElement === returnTarget) return;
+      }
+      if (!overlay.classList.contains("hidden")) focusVisibleOverlaySurface();
       else focusGame();
     });
   }
@@ -6985,6 +7009,8 @@
     settingsPanel?.classList.toggle("mode-practice", settingsVisible && panelMode === "practice");
     settingsPanel?.classList.toggle("account-focused", settingsVisible && panelMode === "settings" && accountFocused);
     settingsPanel?.setAttribute("aria-hidden", String(!settingsVisible));
+    if (settingsVisible) settingsPanel?.removeAttribute("inert");
+    else settingsPanel?.setAttribute("inert", "");
     const practiceMode = panelMode === "practice";
     const recoveryMode = Boolean(accountFocused && recoveryUserId && recoverySecret);
     if (panelTitle) panelTitle.textContent = practiceMode ? "练习" : recoveryMode ? "设置新密码" : accountFocused ? "账号" : "设置";

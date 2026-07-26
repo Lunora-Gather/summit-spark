@@ -412,6 +412,28 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (entryChoice.contrastSamples.some((sample) => sample.ratio < 4.5)) {
     errors.push("small entry text should retain at least 4.5:1 contrast: " + JSON.stringify(entryChoice.contrastSamples));
   }
+  const immediateAccountOpen = await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel");
+    const account = document.querySelector("#accountEntryButton");
+    account.focus({ preventScroll: true });
+    account.click();
+    const opened = !panel.classList.contains("hidden") && !panel.hasAttribute("inert");
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }));
+    return opened;
+  })()`);
+  if (!immediateAccountOpen) errors.push("entry account drawer should become interactive before an immediate outside dismissal");
+  const entryAccountOutsideReturn = await waitUntil("immediate outside account dismissal restores entry trigger", () => evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel");
+    const account = document.querySelector("#accountEntryButton");
+    return panel.classList.contains("hidden") && panel.hasAttribute("inert") && document.activeElement === account
+      ? { active: document.activeElement.id, visible: account.getClientRects().length > 0, inert: panel.hasAttribute("inert") }
+      : null;
+  })()`), 2500);
+  await sleep(80);
+  const delayedAccountFocus = await evaluate(cdp, `document.activeElement?.id || ""`);
+  if (entryAccountOutsideReturn.active !== "accountEntryButton" || !entryAccountOutsideReturn.visible || !entryAccountOutsideReturn.inert || delayedAccountFocus !== "accountEntryButton") {
+    errors.push("immediate outside account dismissal should stay on its visible entry trigger after delayed focus work: " + JSON.stringify({ entryAccountOutsideReturn, delayedAccountFocus }));
+  }
   await clickSelector(cdp, "#guestEntryButton");
   await waitUntil("guest entry resolves", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden") && !document.querySelector("#startPanel").classList.contains("entry-pending")`));
   await cdp.send("Emulation.setEmulatedMedia", {
@@ -923,7 +945,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const active = document.activeElement;
     return active && active !== document.body && !panel.contains(active) ? (active.id || active.tagName) : "";
   })()`));
-  if (outsideDismissFocus !== "startButton") errors.push("outside settings dismissal should return start-screen focus to the primary action: " + outsideDismissFocus);
+  if (outsideDismissFocus !== "startSettingsButton") errors.push("outside settings dismissal should return start-screen focus to its visible trigger: " + outsideDismissFocus);
   await clickSelector(cdp, "#startSettingsButton");
   await waitUntil("quiet settings reopens collapsed", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group[open]").length === 0`));
   await evaluate(cdp, `(() => {
@@ -2596,6 +2618,20 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (review.primaryCount < 4) errors.push("finish review should preserve primary card priority markers");
   if (!review.disclosure.open || review.disclosure.expanded !== "true" || review.disclosure.generatedContent !== "none" || review.disclosure.chevronHidden !== "true" || review.disclosure.transform === "none") {
     errors.push("finish review disclosures should synchronize expanded state while keeping their rotating chevron decorative: " + JSON.stringify(review.disclosure));
+  }
+  await keyTap(cdp, "KeyO", "o");
+  await waitUntil("settings opens above finish review", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#overlay").hasAttribute("inert")`));
+  await evaluate(cdp, `document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }))`);
+  const finishOutsideReturn = await waitUntil("outside settings dismissal restores finish focus", () => evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel");
+    const title = document.querySelector("#finishTitle");
+    return panel.classList.contains("hidden") && document.activeElement === title ? {
+      active: document.activeElement.id,
+      overlayInert: document.querySelector("#overlay").hasAttribute("inert")
+    } : null;
+  })()`));
+  if (finishOutsideReturn.active !== "finishTitle" || finishOutsideReturn.overlayInert) {
+    errors.push("outside settings dismissal above the finish review should restore focus to the visible modal title: " + JSON.stringify(finishOutsideReturn));
   }
   await tapSelector(cdp, "#restartButton");
   const restartedLifecycle = await waitUntil("finish restart lifecycle cleanup", () => evaluate(cdp, `(() => {

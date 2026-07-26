@@ -1449,6 +1449,73 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
   }
 }
 
+async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      window.__summitCloudRace = { deletes: 0, resolveRow: null };
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async get() { return { $id: "race-user", email: "race@example.com" }; }
+        async deleteSession() { window.__summitCloudRace.deletes += 1; return {}; }
+      }
+      class TablesDB {
+        getRow() {
+          return new Promise((resolve) => {
+            window.__summitCloudRace.resolveRow = resolve;
+          });
+        }
+      }
+      window.Appwrite = { Client, Account, TablesDB };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "cloud logout inspection race");
+    await waitUntil("cloud inspection remains pending after session restore", () => evaluate(cdp, `(() => {
+      const race = window.__summitCloudRace;
+      const email = document.querySelector("#accountEmailLabel")?.textContent || "";
+      return typeof race?.resolveRow === "function" && email === "race@example.com";
+    })()`), 7000);
+    await clickSelector(cdp, "#startAccountButton");
+    await waitUntil("account drawer opens during pending cloud inspection", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#accountUser")?.classList.contains("hidden")`));
+    await clickSelector(cdp, "#accountLogout");
+    const loggedOut = await waitUntil("logout completes before cloud inspection", () => evaluate(cdp, `(() => {
+      const race = window.__summitCloudRace;
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      const cloud = document.querySelector("#cloudSyncStatus")?.textContent || "";
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      return race?.deletes === 1 && summary === "未登录" && cloud === "未登录" && /已退出/.test(status)
+        ? { summary, cloud, status, userHidden: document.querySelector("#accountUser")?.classList.contains("hidden") }
+        : null;
+    })()`), 5000);
+    await evaluate(cdp, `window.__summitCloudRace.resolveRow({ archive: "{}", $updatedAt: new Date().toISOString() })`);
+    await sleep(180);
+    const afterLateInspection = await evaluate(cdp, `({
+      summary: document.querySelector("#accountSummary")?.textContent || "",
+      cloud: document.querySelector("#cloudSyncStatus")?.textContent || "",
+      status: document.querySelector("#accountStatus")?.textContent || "",
+      userHidden: document.querySelector("#accountUser")?.classList.contains("hidden"),
+      deletes: window.__summitCloudRace?.deletes || 0
+    })`);
+    if (!loggedOut.userHidden
+      || afterLateInspection.summary !== "未登录"
+      || afterLateInspection.cloud !== "未登录"
+      || !/已退出/.test(afterLateInspection.status)
+      || !afterLateInspection.userHidden
+      || afterLateInspection.deletes !== 1) {
+      errors.push("late cloud inspection after logout must not revive stale account state: " + JSON.stringify({ loggedOut, afterLateInspection }));
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+  }
+}
+
 async function runCloudConflictGuardSmoke(cdp, baseUrl) {
   await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
   const remoteArchive = {
@@ -2782,6 +2849,7 @@ async function main() {
     await runRestrictedSessionStorageAuthSmoke(cdp, baseUrl);
     await runPasswordRecoverySmoke(cdp, baseUrl);
     await runCloudSyncExitGuardSmoke(cdp, baseUrl);
+    await runCloudLogoutInspectionRaceSmoke(cdp, baseUrl);
     await runCloudConflictGuardSmoke(cdp, baseUrl);
   } finally {
     if (cdp) cdp.close();
@@ -2795,7 +2863,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

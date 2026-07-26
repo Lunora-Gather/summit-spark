@@ -896,6 +896,7 @@
   let cloudSyncReady = false;
   let cloudSyncBusy = false;
   let cloudSyncTimer = 0;
+  let accountSessionGeneration = 0;
   let lastCloudArchiveHash = "";
   let flowScore = 0;
   let flowPeak = 0;
@@ -6147,15 +6148,18 @@
       : ACCOUNT_RESTORE_TIMEOUT_MS;
     let timeoutId = 0;
     try {
-      accountUser = await Promise.race([
+      const restoredUser = await Promise.race([
         accountSdk.account.get(),
         new Promise((_, reject) => {
           timeoutId = window.setTimeout(() => reject(Object.assign(new Error("account restore timeout"), { type: "restore_timeout" })), timeoutMs);
         })
       ]);
-      await finishAccountLogin();
+      accountUser = restoredUser;
+      accountSessionGeneration += 1;
+      await finishAccountLogin(accountSessionGeneration);
     } catch (error) {
       accountUser = null;
+      accountSessionGeneration += 1;
       revealEntryGate();
       syncAccountUi();
       setAccountStatus(
@@ -6333,8 +6337,10 @@
         clearAccountOtpState();
       }
       accountUser = await accountSdk.account.get();
+      accountSessionGeneration += 1;
+      const loginGeneration = accountSessionGeneration;
       setAccountBusy(false);
-      await finishAccountLogin();
+      await finishAccountLogin(loginGeneration);
     } catch (error) {
       setAccountStatus(friendlyAccountError(error), "error");
     } finally {
@@ -6363,30 +6369,37 @@
     }
   }
 
-  async function finishAccountLogin() {
+  async function finishAccountLogin(expectedGeneration = accountSessionGeneration) {
+    if (!accountUser || expectedGeneration !== accountSessionGeneration) return;
     resolveEntryMode("account", false);
     syncAccountUi();
     setAccountStatus("登录成功，正在比较本地与云端进度…", "valid");
-    await inspectCloudSave();
+    await inspectCloudSave(expectedGeneration);
   }
 
-  async function inspectCloudSave() {
+  async function inspectCloudSave(expectedGeneration = accountSessionGeneration) {
     if (!accountSdk || !accountUser) return;
+    const expectedUserId = accountUser.$id;
+    const sessionIsCurrent = () => expectedGeneration === accountSessionGeneration
+      && accountUser?.$id === expectedUserId;
     cloudSyncReady = false;
+    let inspectedRow = null;
     try {
-      cloudRow = await accountSdk.tables.getRow({
+      inspectedRow = await accountSdk.tables.getRow({
         databaseId: APPWRITE_DATABASE_ID,
         tableId: APPWRITE_SAVES_TABLE_ID,
-        rowId: accountUser.$id
+        rowId: expectedUserId
       });
     } catch (error) {
+      if (!sessionIsCurrent()) return;
       if (Number(error?.code) !== 404) {
         setCloudStatus("云端读取失败", "读取失败");
         setAccountStatus(friendlyAccountError(error), "error");
         return;
       }
-      cloudRow = null;
     }
+    if (!sessionIsCurrent()) return;
+    cloudRow = inspectedRow;
     if (!cloudRow) {
       cloudSyncReady = true;
       setCloudStatus("首次同步，正在上传本地进度", "同步中");
@@ -6601,6 +6614,7 @@
 
   async function logoutAccount() {
     if (!accountSdk || !accountUser || cloudSyncBusy) return;
+    let refreshCloudAfterFailure = false;
     try {
       if (cloudSyncReady) {
         const synced = await uploadCloudSave();
@@ -6613,6 +6627,7 @@
         window.clearTimeout(cloudSyncTimer);
         cloudSyncTimer = 0;
       }
+      accountSessionGeneration += 1;
       setAccountBusy(true);
       await accountSdk.account.deleteSession({ sessionId: "current" });
       accountUser = null;
@@ -6629,9 +6644,12 @@
         closeSettings();
       }
     } catch (error) {
+      accountSessionGeneration += 1;
+      refreshCloudAfterFailure = Boolean(accountUser);
       setAccountStatus(friendlyAccountError(error), "error");
     } finally {
       setAccountBusy(false);
+      if (refreshCloudAfterFailure) inspectCloudSave(accountSessionGeneration);
     }
   }
 

@@ -2388,11 +2388,17 @@ async function runMobileSmoke(cdp, baseUrl) {
     const fields = ["accountEmail", "accountPassword", "accountCode", "accountNewPassword", "accountOldPassword"]
       .map((id) => {
         const field = document.getElementById(id);
+        const labelledBy = field?.getAttribute("aria-labelledby") || "";
+        const labelledText = labelledBy
+          ? labelledBy.split(/\s+/).map((labelId) => document.getElementById(labelId)?.textContent?.trim() || "").filter(Boolean).join(" ")
+          : "";
+        const labelText = [...(field?.labels || [])].map((label) => label.textContent?.trim() || "").filter(Boolean).join(" ");
         return {
           id,
           name: field?.name || "",
           autocomplete: field?.autocomplete || "",
-          describedBy: field?.getAttribute("aria-describedby") || ""
+          describedBy: field?.getAttribute("aria-describedby") || "",
+          accessibleName: field?.getAttribute("aria-label") || labelledText || labelText
         };
       });
     return {
@@ -2410,7 +2416,10 @@ async function runMobileSmoke(cdp, baseUrl) {
     || accountSemantics.passwordRole
     || accountSemantics.codePressed !== "true"
     || accountSemantics.passwordPressed !== "false"
-    || accountSemantics.fields.some((field) => !field.name || !field.autocomplete || !field.describedBy.includes("accountStatus"))
+    || accountSemantics.fields.some((field) => !field.name || !field.autocomplete || !field.describedBy.includes("accountStatus") || !field.accessibleName)
+    || new Set(accountSemantics.fields.map((field) => field.accessibleName)).size !== accountSemantics.fields.length
+    || accountSemantics.fields.find((field) => field.id === "accountNewPassword")?.accessibleName !== "新密码"
+    || accountSemantics.fields.find((field) => field.id === "accountOldPassword")?.accessibleName !== "原密码（已有密码时填写）"
   ) {
     errors.push("account login mode should expose segmented-button semantics and autofill-ready described fields: " + JSON.stringify(accountSemantics));
   }

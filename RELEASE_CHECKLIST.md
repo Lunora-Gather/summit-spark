@@ -18,7 +18,7 @@ Use this before publishing a public demo update.
 14. Verify mobile viewport around 390x700 and 700x390 has no horizontal scroll or clipped controls in both the settings and practice panels, including the expanded Room group.
 15. Verify touch controls use separate direction/action clusters, stay at least 44px, and sit below the portrait playfield on mobile; at the 64px setting, every button must remain inside 390px width with Jump/Dash paired.
 16. Verify a clean keyboard profile shows only the compact bottom Move → Jump → Dash strip, that it exits after real input, and that labelled touch controls suppress it.
-17. Toggle the operating system's reduced-motion preference manually or through `npm run browser-smoke`; confirm UI/ambient motion quiets without hiding gameplay movement, hazards, or action confirmation.
+17. Toggle the operating system's reduced-motion preference manually or through `npm run browser-smoke`; confirm UI/ambient motion quiets without hiding gameplay movement, hazards, or action confirmation. Confirm the entry and settings small-text contrast samples remain at or above 4.5:1.
 18. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
 19. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
 20. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.

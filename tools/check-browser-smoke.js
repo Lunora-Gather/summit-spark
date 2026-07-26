@@ -378,16 +378,39 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const guest = document.querySelector("#guestEntryButton");
     const account = document.querySelector("#accountEntryButton");
     const gateRect = gate?.getBoundingClientRect();
+    const rgb = (value) => (String(value).match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+    const luminance = (value) => {
+      const channels = rgb(value).map((channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.04045 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const contrast = (element, background) => {
+      const foregroundLum = luminance(getComputedStyle(element).color);
+      const backgroundLum = luminance(background);
+      return (Math.max(foregroundLum, backgroundLum) + 0.05) / (Math.min(foregroundLum, backgroundLum) + 0.05);
+    };
+    const gateBackground = getComputedStyle(gate).backgroundColor;
+    const contrastSamples = [
+      ["eyebrow", document.querySelector(".entry-eyebrow")],
+      ["guest detail", guest?.querySelector("small")],
+      ["account detail", account?.querySelector("small")]
+    ].map(([label, element]) => ({ label, ratio: Number(contrast(element, gateBackground).toFixed(2)) }));
     return {
       visible: !!gate && gateRect.width > 0 && gateRect.height > 0,
       guest: guest?.textContent || "",
       account: account?.textContent || "",
       startPending: document.querySelector("#startPanel")?.classList.contains("entry-pending") || false,
-      fits: !!gateRect && gateRect.left >= 0 && gateRect.right <= innerWidth && gateRect.bottom <= innerHeight
+      fits: !!gateRect && gateRect.left >= 0 && gateRect.right <= innerWidth && gateRect.bottom <= innerHeight,
+      contrastSamples
     };
   })()`);
   if (!entryChoice.visible || !entryChoice.startPending || !entryChoice.fits || !/仅保存在此设备/.test(entryChoice.guest) || !/云端保存/.test(entryChoice.account)) {
     errors.push("entry should clearly offer adaptive guest and cloud-save choices: " + JSON.stringify(entryChoice));
+  }
+  if (entryChoice.contrastSamples.some((sample) => sample.ratio < 4.5)) {
+    errors.push("small entry text should retain at least 4.5:1 contrast: " + JSON.stringify(entryChoice.contrastSamples));
   }
   await clickSelector(cdp, "#guestEntryButton");
   await waitUntil("guest entry resolves", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden") && !document.querySelector("#startPanel").classList.contains("entry-pending")`));
@@ -599,6 +622,30 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
     const displayRect = document.querySelector(".settings-group-display").getBoundingClientRect();
     const feedbackRect = document.querySelector(".settings-group-feedback").getBoundingClientRect();
+    const rgb = (value) => (String(value).match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+    const luminance = (value) => {
+      const channels = rgb(value).map((channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.04045 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const contrast = (element, pseudo = "") => {
+      const foregroundLum = luminance(getComputedStyle(element, pseudo).color);
+      const backgroundLum = luminance(getComputedStyle(document.querySelector("#settingsPanel")).backgroundColor);
+      return (Math.max(foregroundLum, backgroundLum) + 0.05) / (Math.min(foregroundLum, backgroundLum) + 0.05);
+    };
+    const contrastSamples = [
+      ["group label", document.querySelector(".settings-group summary > span"), ""],
+      ["account summary", document.querySelector(".settings-group-account summary > small"), ""],
+      ["control label", document.querySelector(".settings-group-controls .control-row > span"), ""],
+      ["profile detail", document.querySelector("#controlProfileNote span"), ""],
+      ["binding status", document.querySelector("#keyBindingStatus"), ""],
+      ["binding label", document.querySelector("[data-binding-action] span"), ""],
+      ["account note", document.querySelector("#accountNote"), ""],
+      ["account status", document.querySelector("#accountStatus"), ""],
+      ["email placeholder", document.querySelector("#accountEmail"), "::placeholder"]
+    ].map(([label, element, pseudo]) => ({ label, ratio: Number(contrast(element, pseudo).toFixed(2)) }));
     return {
       title: document.querySelector("#panelTitle")?.textContent || "",
       modeSettings: document.querySelector("#settingsPanel").classList.contains("mode-settings"),
@@ -625,6 +672,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       systemList: getComputedStyle(document.querySelector(".settings-body")).display === "block",
       panelWidthCalm: rect.width <= 560,
       displayToFeedbackGap: Math.round(feedbackRect.top - displayRect.bottom),
+      contrastSamples,
       panelBox: {
         left: Math.round(rect.left),
         right: Math.round(rect.right),
@@ -651,6 +699,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!settingsAudit.gamepadDeadzone) errors.push("settings should expose gamepad deadzone control");
   if (!settingsAudit.systemList || !settingsAudit.panelWidthCalm) errors.push("settings should render as a calm one-column system list: " + JSON.stringify(settingsAudit));
   if (settingsAudit.displayToFeedbackGap < 14) errors.push("feedback/save section should be visually separated from display settings: " + JSON.stringify(settingsAudit));
+  if (settingsAudit.contrastSamples.some((sample) => sample.ratio < 4.5)) {
+    errors.push("small settings text should retain at least 4.5:1 contrast: " + JSON.stringify(settingsAudit.contrastSamples));
+  }
   const comfortControls = await evaluate(cdp, `({
     lowPerformance: !!document.querySelector("#lowPerformanceToggle"),
     touchSize: !!document.querySelector("#touchSizeSlider"),
@@ -2277,7 +2328,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

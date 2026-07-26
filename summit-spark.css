@@ -7721,3 +7721,95 @@ textarea,
     min-height: 44px;
   }
 }
+
+/* P141: small interface text must stay crisp on the pale mist surfaces.
+   Keep hierarchy through weight and spacing instead of low-contrast grey. */
+.settings-panel,
+.settings-panel.mode-practice {
+  --panel-muted: #4a626a;
+}
+
+.settings-group summary {
+  color: #4f666e;
+}
+
+.settings-group summary > span {
+  color: #405861;
+}
+
+.settings-group summary > small,
+.settings-panel .control-row > span,
+.settings-panel .coach-row > span,
+.settings-panel .feedback-box > span,
+.settings-panel .binding-tools output,
+.settings-panel output,
+.settings-panel em,
+.settings-panel .practice-report,
+.control-profile-note span,
+.account-field > span,
+.password-reset > span,
+.account-note,
+.account-user-head span:not(.account-avatar),
+.settings-panel .room-brief-head em,
+.settings-panel .room-brief-stats,
+.settings-panel .room-brief-stats em,
+.settings-panel .room-brief-focus small,
+.settings-panel .profile-grid em,
+.settings-panel .ledger-head em,
+.settings-panel .ledger-main em,
+.settings-panel .ledger-stats em,
+.settings-panel .ledger-stats small,
+.settings-panel .chapter-stats em,
+.settings-panel .plan-head em,
+.settings-panel .plan-main em,
+.settings-panel .plan-main small,
+.settings-panel .route-contract-head em,
+.settings-panel .route-contract-card small,
+.settings-panel .feel-lab-head em,
+.settings-panel .feel-card small,
+.settings-panel .queue-card em,
+.settings-panel .queue-card small,
+.settings-panel .challenge-head em,
+.settings-panel .challenge-card em,
+.settings-panel .challenge-card small,
+.settings-panel .room-route em {
+  color: #4a626a;
+}
+
+.account-status {
+  color: #4a626a !important;
+}
+
+.segmented-control button,
+.auth-tabs button,
+.key-binding-editor button span {
+  color: #4f666e;
+}
+
+.account-status.valid {
+  color: #286456 !important;
+}
+
+.account-status.error {
+  color: #8c4343 !important;
+}
+
+.account-field input::placeholder,
+.password-reset input::placeholder,
+.settings-panel textarea::placeholder {
+  color: #52676c;
+  opacity: 1;
+}
+
+.entry-gate {
+  background-color: #d8e5e1;
+}
+
+.entry-eyebrow {
+  color: #365f63;
+}
+
+.entry-option small,
+.portrait-brief small {
+  color: #4a626a;
+}

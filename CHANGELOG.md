@@ -2,6 +2,7 @@
 
 ## 2026-07-26
 
+- Bound every issued email OTP token to its normalized email, invalidated the old user/token/code state immediately when the email changes or a replacement send begins, cleared it after login/logout, and added browser regressions for both normal input edits and autofill-like value changes that bypass input events; bumped public assets to `20260726-p146`.
 - Preserved the complete custom binding profile when switching between Windows/Linux and Mac keyboard labels, leaving the explicit Restore Layout action as the only platform-default reset path; added a browser regression that binds Jump to F, round-trips both platforms and verifies the custom preset and code remain intact, and bumped public assets to `20260726-p145`.
 - Enabled edge-to-edge safe-area values and keyboard-driven content resizing in the viewport contract, bounded the mobile entry chooser and settings/account drawer against all four device insets, and added a real-browser regression with a 47px notch, 34px home indicator and a 390x420 keyboard-reduced viewport; bumped public assets to `20260726-p144`.
 - Made local and cloud save replacement transactional across all seven storage keys so a quota or browser-storage failure rolls every partial write back to the exact pre-import values before reporting the error; added a real-browser regression that rejects the second write and verifies full rollback, and bumped public assets to `20260726-p143`.

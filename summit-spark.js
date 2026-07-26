@@ -218,6 +218,7 @@
   const ACCOUNT_RESTORE_TIMEOUT_MS = 6500;
   const ENTRY_MODE_SESSION_KEY = "summit-spark-entry-mode";
   const ACCOUNT_OTP_SESSION_KEY = "summit-spark-otp-user";
+  const ACCOUNT_OTP_EMAIL_SESSION_KEY = "summit-spark-otp-email";
   const ACTION_PULSE_TIME = 0.22;
   const BEST_FLOW_KEY = "summit-spark-best-flow";
   const FLOW_DECAY_TIME = 1.9;
@@ -889,6 +890,7 @@
   let recoverySecret = "";
   let accountUser = null;
   let accountTokenUserId = "";
+  let accountTokenEmail = "";
   let accountSdk = null;
   let cloudRow = null;
   let cloudSyncReady = false;
@@ -1371,6 +1373,14 @@
     event.preventDefault();
     if (authMode === "password" || (accountCodeInput?.value || "").trim()) submitAccountLogin();
     else sendAccountCode();
+  });
+  accountEmailInput?.addEventListener("input", () => {
+    const tokenEmail = accountTokenEmail || readSessionValue(ACCOUNT_OTP_EMAIL_SESSION_KEY);
+    if (!tokenEmail) return;
+    const currentEmail = (accountEmailInput.value || "").trim().toLowerCase();
+    if (currentEmail === tokenEmail) return;
+    clearAccountOtpState();
+    setAccountStatus("邮箱已更改，请重新获取验证码", "error");
   });
   accountPasswordInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") submitAccountLogin();
@@ -6150,6 +6160,14 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
   }
 
+  function clearAccountOtpState({ clearCode = true } = {}) {
+    accountTokenUserId = "";
+    accountTokenEmail = "";
+    removeSessionValue(ACCOUNT_OTP_SESSION_KEY);
+    removeSessionValue(ACCOUNT_OTP_EMAIL_SESSION_KEY);
+    if (clearCode && accountCodeInput) accountCodeInput.value = "";
+  }
+
   async function sendAccountCode() {
     if (!accountSdk || cloudSyncBusy) return;
     const email = validAccountEmail();
@@ -6158,6 +6176,7 @@
       accountEmailInput?.focus();
       return;
     }
+    clearAccountOtpState();
     setAccountBusy(true);
     setAccountStatus("正在发送验证码…");
     try {
@@ -6167,7 +6186,9 @@
         phrase: true
       });
       accountTokenUserId = token.userId || "";
+      accountTokenEmail = email;
       writeSessionValue(ACCOUNT_OTP_SESSION_KEY, accountTokenUserId);
+      writeSessionValue(ACCOUNT_OTP_EMAIL_SESSION_KEY, accountTokenEmail);
       if (accountCodeInput) accountCodeInput.value = "";
       const phrase = token.phrase ? `，安全短语：${token.phrase}` : "";
       setAccountStatus(`验证码已发送${phrase}`, "valid");
@@ -6214,6 +6235,23 @@
       accountEmailInput?.focus();
       return;
     }
+    let otpUserId = "";
+    let otpSecret = "";
+    if (authMode === "code") {
+      otpUserId = accountTokenUserId || readSessionValue(ACCOUNT_OTP_SESSION_KEY);
+      const otpEmail = accountTokenEmail || readSessionValue(ACCOUNT_OTP_EMAIL_SESSION_KEY);
+      otpSecret = (accountCodeInput?.value || "").trim();
+      if (!otpUserId || !otpEmail || !otpSecret) {
+        setAccountStatus("请先发送并填写验证码", "error");
+        return;
+      }
+      if (otpEmail !== email) {
+        clearAccountOtpState();
+        setAccountStatus("邮箱已更改，请重新获取验证码", "error");
+        accountEmailInput?.focus();
+        return;
+      }
+    }
     setAccountBusy(true);
     setAccountStatus("正在登录…");
     try {
@@ -6222,11 +6260,8 @@
         if (password.length < 8) throw new Error("密码至少 8 位");
         await accountSdk.account.createEmailPasswordSession({ email, password });
       } else {
-        const secret = (accountCodeInput?.value || "").trim();
-        const userId = accountTokenUserId || readSessionValue(ACCOUNT_OTP_SESSION_KEY);
-        if (!userId || !secret) throw new Error("请先发送并填写验证码");
-        await accountSdk.account.createSession({ userId, secret });
-        removeSessionValue(ACCOUNT_OTP_SESSION_KEY);
+        await accountSdk.account.createSession({ userId: otpUserId, secret: otpSecret });
+        clearAccountOtpState();
       }
       accountUser = await accountSdk.account.get();
       setAccountBusy(false);
@@ -6479,6 +6514,7 @@
       setCloudStatus("未登录");
       setAccountStatus("已退出；本地进度仍保留", "valid");
       removeSessionValue(ENTRY_MODE_SESSION_KEY);
+      clearAccountOtpState();
       if (!started) {
         revealEntryGate();
         closeSettings();

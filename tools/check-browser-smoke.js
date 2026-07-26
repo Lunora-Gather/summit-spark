@@ -1171,6 +1171,35 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
         ? { status, sent: window.__summitRestrictedAuth.sent }
         : null;
     })()`), 5000);
+    await evaluate(cdp, `(() => {
+      const email = document.querySelector("#accountEmail");
+      email.value = "changed@example.com";
+      email.dispatchEvent(new Event("input", { bubbles: true }));
+    })()`);
+    const invalidated = await waitUntil("changing OTP email invalidates the issued token", () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      const code = document.querySelector("#accountCode")?.value || "";
+      return /邮箱已更改/.test(status) && !code
+        ? { status, code, sessions: window.__summitRestrictedAuth?.sessions || 0 }
+        : null;
+    })()`));
+    await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
+    await clickSelector(cdp, "#accountSendCode");
+    await waitUntil("fresh OTP issued after email change", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 2`));
+    await evaluate(cdp, `(() => {
+      document.querySelector("#accountEmail").value = "autofill-change@example.com";
+      document.querySelector("#accountCode").value = "123456";
+    })()`);
+    await clickSelector(cdp, "#accountSubmit");
+    const guardedMismatch = await waitUntil("OTP submit rejects an email changed without an input event", () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      return /邮箱已更改/.test(status)
+        ? { status, sessions: window.__summitRestrictedAuth?.sessions || 0 }
+        : null;
+    })()`));
+    await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
+    await clickSelector(cdp, "#accountSendCode");
+    await waitUntil("third OTP issued after guarded mismatch", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 3`));
     await evaluate(cdp, `document.querySelector("#accountCode").value = "123456"`);
     await clickSelector(cdp, "#accountSubmit");
     const signedIn = await waitUntil("OTP login remains successful when session cleanup is blocked", () => evaluate(cdp, `(() => {
@@ -1180,8 +1209,8 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
         ? { email, sessions: mock.sessions, payload: mock.sessionPayload, upserts: mock.upserts }
         : null;
     })()`), 7000);
-    if (!/安全短语/.test(sent.status) || signedIn.payload?.userId !== "restricted-user" || signedIn.payload?.secret !== "123456") {
-      errors.push("session storage restrictions must not override successful OTP send/login results: " + JSON.stringify({ sent, signedIn }));
+    if (!/安全短语/.test(sent.status) || invalidated.sessions !== 0 || guardedMismatch.sessions !== 0 || signedIn.payload?.userId !== "restricted-user" || signedIn.payload?.secret !== "123456") {
+      errors.push("session storage restrictions and email edits must not reuse or override OTP identity state: " + JSON.stringify({ sent, invalidated, guardedMismatch, signedIn }));
     }
   } finally {
     if (injected.identifier) {
@@ -2483,7 +2512,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, custom-binding platform preservation, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

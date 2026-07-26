@@ -11,19 +11,20 @@ Use this before publishing a public demo update.
 7. Start `npm start` and open the local page once.
 8. Verify the start button, direct resume button when progress exists, settings panel, practice panel, one Route contract, one Feel Lab card, audio test, keyboard `O/P/Escape`, and both panel close paths.
 9. Create one custom keyboard binding, switch Windows/Linux → Mac → Windows/Linux, and confirm the custom preset and every binding remain unchanged; only Restore Layout may load platform defaults.
-10. Confirm settings opens with only system groups visible: Controls, Audio, Display, and Feedback/Save. Confirm the practice panel owns Room, Route, Feel, Profile, Training, and Advanced.
-11. Verify one Route interruption/resume and one Feel Lab interruption manually or through `npm run browser-smoke`.
-12. Add a short feedback note, click the diagnostics copy button once, and confirm it produces a local feedback snapshot without uploading data.
-13. Click feedback template copy once and confirm the template includes build, viewport, current training state, and blank reproduction fields.
-14. Export a `summit-spark-save` archive, paste invalid JSON once to confirm the preview catches it without refreshing, then import a valid archive into a clean profile or rely on `npm run browser-smoke`; confirm settings/progress survive normalization, `summit-spark-save-backup` is written before overwrite, the Restore action can recover that backup, and a simulated mid-write storage rejection rolls every save key back without reloading.
-15. Verify mobile viewport around 390x700 and 700x390 has no horizontal scroll or clipped controls in both the settings and practice panels, including the expanded Room group.
-16. Verify touch controls use separate direction/action clusters, stay at least 44px, and sit below the portrait playfield on mobile; at the 64px setting, every button must remain inside 390px width with Jump/Dash paired.
-17. On a notched-device emulator or through `npm run browser-smoke`, verify the entry chooser and settings/account drawer remain inside top, right, bottom, and left safe areas; shrink the portrait viewport to about 390x420 and confirm the focused email field remains reachable while the drawer body scrolls.
-18. Verify a clean keyboard profile shows only the compact bottom Move → Jump → Dash strip, that it exits after real input, and that labelled touch controls suppress it.
-19. Toggle the operating system's reduced-motion preference manually or through `npm run browser-smoke`; confirm UI/ambient motion quiets without hiding gameplay movement, hazards, or action confirmation. Confirm the entry and settings small-text contrast samples remain at or above 4.5:1.
-20. Toggle low-performance mode and confirm the canvas switches to a 1x buffer, the canvas filter and gameplay overlay backdrop filters become `none`, canvas shadow blur is budgeted to zero, and HUD, tips, touch controls, hazards, and route guidance remain readable.
-21. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
-22. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
-23. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
-24. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
-25. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.
+10. Send an email OTP, edit the email before submitting, and confirm the old code/token is cleared and no session request is made; repeat with an autofill-style value change or rely on `npm run browser-smoke` to verify the submit-time identity guard.
+11. Confirm settings opens with only system groups visible: Controls, Audio, Display, and Feedback/Save. Confirm the practice panel owns Room, Route, Feel, Profile, Training, and Advanced.
+12. Verify one Route interruption/resume and one Feel Lab interruption manually or through `npm run browser-smoke`.
+13. Add a short feedback note, click the diagnostics copy button once, and confirm it produces a local feedback snapshot without uploading data.
+14. Click feedback template copy once and confirm the template includes build, viewport, current training state, and blank reproduction fields.
+15. Export a `summit-spark-save` archive, paste invalid JSON once to confirm the preview catches it without refreshing, then import a valid archive into a clean profile or rely on `npm run browser-smoke`; confirm settings/progress survive normalization, `summit-spark-save-backup` is written before overwrite, the Restore action can recover that backup, and a simulated mid-write storage rejection rolls every save key back without reloading.
+16. Verify mobile viewport around 390x700 and 700x390 has no horizontal scroll or clipped controls in both the settings and practice panels, including the expanded Room group.
+17. Verify touch controls use separate direction/action clusters, stay at least 44px, and sit below the portrait playfield on mobile; at the 64px setting, every button must remain inside 390px width with Jump/Dash paired.
+18. On a notched-device emulator or through `npm run browser-smoke`, verify the entry chooser and settings/account drawer remain inside top, right, bottom, and left safe areas; shrink the portrait viewport to about 390x420 and confirm the focused email field remains reachable while the drawer body scrolls.
+19. Verify a clean keyboard profile shows only the compact bottom Move → Jump → Dash strip, that it exits after real input, and that labelled touch controls suppress it.
+20. Toggle the operating system's reduced-motion preference manually or through `npm run browser-smoke`; confirm UI/ambient motion quiets without hiding gameplay movement, hazards, or action confirmation. Confirm the entry and settings small-text contrast samples remain at or above 4.5:1.
+21. Toggle low-performance mode and confirm the canvas switches to a 1x buffer, the canvas filter and gameplay overlay backdrop filters become `none`, canvas shadow blur is budgeted to zero, and HUD, tips, touch controls, hazards, and route guidance remain readable.
+22. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
+23. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
+24. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
+25. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
+26. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.

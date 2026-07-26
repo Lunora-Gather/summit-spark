@@ -2,6 +2,7 @@
 
 ## 2026-07-26
 
+- Isolated optional session-storage caching from Appwrite OTP results so privacy-restricted browsers cannot turn a successfully sent code or completed login into a false failure, removed unused cloud-sync metadata writes that could similarly mask a successful remote upload, and added a browser regression with all session-storage operations blocked; bumped public assets to `20260726-p140`.
 - Made the game canvas buffer follow its actual responsive CSS size and physical pixel density instead of a fixed DPR-only multiplier, retained the explicit 1x low-performance path, cleared scale-dependent tile caches on resize, and added standard-density and Retina browser regressions; bumped public assets to `20260726-p139`.
 - Added best-effort cloud-save flushing when the page moves to the background or unloads, made cloud uploads report success/failure to callers, prevented logout when the final upload fails, and replaced premature/stale “已同步” summaries with explicit syncing, conflict, read-error, corruption and sync-failure states; added browser coverage for pagehide flushing and guarded logout and bumped public assets to `20260726-p138`.
 - Pulled the live Appwrite authentication and TablesDB resources into versioned configuration, enabled common-password dictionary and personal-data password protection, added precise client errors for password policy rejections, and added an Appwrite contract gate covering the regional endpoint, auth methods, password policies, row security, permissions and saves schema; bumped public assets to `20260726-p137`.

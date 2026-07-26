@@ -214,10 +214,10 @@
   const APPWRITE_PROJECT_ID = "summit-spark";
   const APPWRITE_DATABASE_ID = "summit-spark";
   const APPWRITE_SAVES_TABLE_ID = "saves";
-  const CLOUD_SYNC_META_KEY = "summit-spark-cloud-sync";
   const CLOUD_SYNC_DELAY_MS = 1800;
   const ACCOUNT_RESTORE_TIMEOUT_MS = 6500;
   const ENTRY_MODE_SESSION_KEY = "summit-spark-entry-mode";
+  const ACCOUNT_OTP_SESSION_KEY = "summit-spark-otp-user";
   const ACTION_PULSE_TIME = 0.22;
   const BEST_FLOW_KEY = "summit-spark-best-flow";
   const FLOW_DECAY_TIME = 1.9;
@@ -5939,13 +5939,32 @@
     return JSON.stringify(buildSaveArchive(), null, 2);
   }
 
-  function initEntryMode() {
-    let saved = "";
+  function readSessionValue(key) {
     try {
-      saved = sessionStorage.getItem(ENTRY_MODE_SESSION_KEY) || "";
+      return sessionStorage.getItem(key) || "";
     } catch {
-      saved = "";
+      return "";
     }
+  }
+
+  function writeSessionValue(key, value) {
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {
+      // Session storage is an optional refresh aid, never an auth result.
+    }
+  }
+
+  function removeSessionValue(key) {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // Session storage is an optional refresh aid, never an auth result.
+    }
+  }
+
+  function initEntryMode() {
+    const saved = readSessionValue(ENTRY_MODE_SESSION_KEY);
     if (saved === "guest") {
       resolveEntryMode("guest", false);
       return;
@@ -5966,11 +5985,7 @@
 
   function resolveEntryMode(mode, focus = true) {
     entryMode = mode === "account" ? "account" : "guest";
-    try {
-      sessionStorage.setItem(ENTRY_MODE_SESSION_KEY, entryMode);
-    } catch {
-      // Session preference is optional.
-    }
+    writeSessionValue(ENTRY_MODE_SESSION_KEY, entryMode);
     overlay?.classList.remove("entry-checking");
     entryGate?.classList.add("hidden");
     startPanel?.classList.remove("entry-pending");
@@ -6150,7 +6165,7 @@
         phrase: true
       });
       accountTokenUserId = token.userId || "";
-      sessionStorage.setItem("summit-spark-otp-user", accountTokenUserId);
+      writeSessionValue(ACCOUNT_OTP_SESSION_KEY, accountTokenUserId);
       if (accountCodeInput) accountCodeInput.value = "";
       const phrase = token.phrase ? `，安全短语：${token.phrase}` : "";
       setAccountStatus(`验证码已发送${phrase}`, "valid");
@@ -6206,10 +6221,10 @@
         await accountSdk.account.createEmailPasswordSession({ email, password });
       } else {
         const secret = (accountCodeInput?.value || "").trim();
-        const userId = accountTokenUserId || sessionStorage.getItem("summit-spark-otp-user") || "";
+        const userId = accountTokenUserId || readSessionValue(ACCOUNT_OTP_SESSION_KEY);
         if (!userId || !secret) throw new Error("请先发送并填写验证码");
         await accountSdk.account.createSession({ userId, secret });
-        sessionStorage.removeItem("summit-spark-otp-user");
+        removeSessionValue(ACCOUNT_OTP_SESSION_KEY);
       }
       accountUser = await accountSdk.account.get();
       setAccountBusy(false);
@@ -6390,7 +6405,6 @@
       });
       lastCloudArchiveHash = fingerprint;
       cloudSyncReady = true;
-      localStorage.setItem(CLOUD_SYNC_META_KEY, JSON.stringify({ userId: accountUser.$id, updatedAt: cloudRow.$updatedAt, fingerprint }));
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
       setAccountStatus("进度已安全保存到云端", "valid");
       return true;
@@ -6410,11 +6424,6 @@
       const normalized = normalizeSaveArchiveText(cloudRow.archive);
       writeNormalizedSaveArchive(normalized);
       cloudSyncReady = true;
-      localStorage.setItem(CLOUD_SYNC_META_KEY, JSON.stringify({
-        userId: accountUser.$id,
-        updatedAt: cloudRow.$updatedAt,
-        fingerprint: archiveFingerprint(JSON.parse(cloudRow.archive))
-      }));
       setAccountStatus("云端进度已载入，正在刷新…", "valid");
       window.setTimeout(() => window.location.reload(), 350);
     } catch (error) {
@@ -6467,11 +6476,7 @@
       syncAccountUi();
       setCloudStatus("未登录");
       setAccountStatus("已退出；本地进度仍保留", "valid");
-      try {
-        sessionStorage.removeItem(ENTRY_MODE_SESSION_KEY);
-      } catch {
-        // Session preference is optional.
-      }
+      removeSessionValue(ENTRY_MODE_SESSION_KEY);
       if (!started) {
         revealEntryGate();
         closeSettings();

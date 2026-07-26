@@ -1021,6 +1021,99 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
   }
 }
 
+async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      const storageError = () => { throw new DOMException("Session storage blocked", "SecurityError"); };
+      const originalGetItem = Storage.prototype.getItem;
+      const originalSetItem = Storage.prototype.setItem;
+      const originalRemoveItem = Storage.prototype.removeItem;
+      Storage.prototype.getItem = function(key) {
+        if (this === window.sessionStorage) return storageError();
+        return originalGetItem.call(this, key);
+      };
+      Storage.prototype.setItem = function(key, value) {
+        if (this === window.sessionStorage) return storageError();
+        return originalSetItem.call(this, key, value);
+      };
+      Storage.prototype.removeItem = function(key) {
+        if (this === window.sessionStorage) return storageError();
+        return originalRemoveItem.call(this, key);
+      };
+
+      window.__summitRestrictedAuth = { sent: 0, sessions: 0, upserts: 0 };
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async get() {
+          if (!window.__summitRestrictedAuth.sessions) throw { code: 401, type: "user_unauthorized" };
+          return { $id: "restricted-user", email: "restricted@example.com" };
+        }
+        async createEmailToken(payload) {
+          window.__summitRestrictedAuth.sent += 1;
+          window.__summitRestrictedAuth.email = payload.email;
+          return { userId: "restricted-user", phrase: "MIST-PEAK" };
+        }
+        async createSession(payload) {
+          window.__summitRestrictedAuth.sessions += 1;
+          window.__summitRestrictedAuth.sessionPayload = payload;
+          return {};
+        }
+      }
+      class TablesDB {
+        async getRow() { throw { code: 404, type: "row_not_found" }; }
+        async upsertRow() {
+          window.__summitRestrictedAuth.upserts += 1;
+          return { $updatedAt: new Date().toISOString() };
+        }
+      }
+      const Permission = { read: (role) => "read(" + role + ")", update: (role) => "update(" + role + ")", delete: (role) => "delete(" + role + ")" };
+      const Role = { user: (id) => "user:" + id };
+      window.Appwrite = {
+        Client,
+        Account,
+        TablesDB,
+        Permission,
+        Role,
+        ID: { unique: () => "restricted-user" }
+      };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "restricted session storage auth");
+    await waitUntil("blocked session storage falls back to entry chooser", () => evaluate(cdp, `!document.querySelector("#entryGate")?.classList.contains("hidden")`), 5000);
+    await clickSelector(cdp, "#accountEntryButton");
+    await waitUntil("restricted storage account drawer opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
+    await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
+    await clickSelector(cdp, "#accountSendCode");
+    const sent = await waitUntil("OTP send remains successful when session storage is blocked", () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      return window.__summitRestrictedAuth?.sent === 1 && /验证码已发送/.test(status)
+        ? { status, sent: window.__summitRestrictedAuth.sent }
+        : null;
+    })()`), 5000);
+    await evaluate(cdp, `document.querySelector("#accountCode").value = "123456"`);
+    await clickSelector(cdp, "#accountSubmit");
+    const signedIn = await waitUntil("OTP login remains successful when session cleanup is blocked", () => evaluate(cdp, `(() => {
+      const mock = window.__summitRestrictedAuth;
+      const email = document.querySelector("#accountEmailLabel")?.textContent || "";
+      return mock?.sessions === 1 && email === "restricted@example.com"
+        ? { email, sessions: mock.sessions, payload: mock.sessionPayload, upserts: mock.upserts }
+        : null;
+    })()`), 7000);
+    if (!/安全短语/.test(sent.status) || signedIn.payload?.userId !== "restricted-user" || signedIn.payload?.secret !== "123456") {
+      errors.push("session storage restrictions must not override successful OTP send/login results: " + JSON.stringify({ sent, signedIn }));
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await navigateApp(cdp, baseUrl, "restricted session storage cleanup");
+  }
+}
+
 async function runPasswordRecoverySmoke(cdp, baseUrl) {
   await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
   const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
@@ -2169,6 +2262,7 @@ async function main() {
     await runGamepadSmoke(cdp, baseUrl);
     await runAuthenticatedRefreshSmoke(cdp, baseUrl);
     await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
+    await runRestrictedSessionStorageAuthSmoke(cdp, baseUrl);
     await runPasswordRecoverySmoke(cdp, baseUrl);
     await runCloudSyncExitGuardSmoke(cdp, baseUrl);
   } finally {
@@ -2183,7 +2277,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, authenticated refresh, stalled-session, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

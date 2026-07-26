@@ -895,6 +895,8 @@
   let cloudRow = null;
   let cloudSyncReady = false;
   let cloudSyncBusy = false;
+  let cloudInspectionPending = false;
+  let cloudRemoteUsable = false;
   let cloudSyncTimer = 0;
   let accountSessionGeneration = 0;
   let lastCloudArchiveHash = "";
@@ -1832,8 +1834,11 @@
       accountGroup.scrollIntoView({ block: "start" });
       window.setTimeout(() => {
         if (!settingsVisible || panelMode !== "settings" || !accountFocused || !accountGroup.open) return;
-        if (accountUser) cloudUploadButton?.focus({ preventScroll: true });
-        else if (recoverySecret) accountPasswordInput?.focus({ preventScroll: true });
+        if (accountUser) {
+          const cloudAction = [cloudUploadButton, cloudDownloadButton]
+            .find((button) => button && !button.disabled && button.getClientRects().length > 0);
+          cloudAction?.focus({ preventScroll: true });
+        } else if (recoverySecret) accountPasswordInput?.focus({ preventScroll: true });
         else accountEmailInput?.focus({ preventScroll: true });
       }, 0);
     }
@@ -6197,8 +6202,17 @@
     const signedIn = Boolean(accountUser);
     accountGuest?.classList.toggle("hidden", signedIn);
     accountUserPanel?.classList.toggle("hidden", !signedIn);
-    if (accountSummary) accountSummary.textContent = signedIn ? "已同步" : "未登录";
+    if (accountSummary) {
+      accountSummary.textContent = signedIn
+        ? cloudInspectionPending
+          ? "检查中"
+          : cloudSyncReady
+            ? "已同步"
+            : "待确认"
+        : "未登录";
+    }
     if (startAccountButton) startAccountButton.textContent = signedIn ? "云存档 · 已登录" : "登录 · 云存档";
+    syncCloudActionAvailability();
     if (!signedIn) return;
     const email = accountUser.email || "已登录账号";
     if (accountEmailLabel) accountEmailLabel.textContent = email;
@@ -6371,6 +6385,11 @@
 
   async function finishAccountLogin(expectedGeneration = accountSessionGeneration) {
     if (!accountUser || expectedGeneration !== accountSessionGeneration) return;
+    cloudRow = null;
+    cloudSyncReady = false;
+    cloudInspectionPending = false;
+    cloudRemoteUsable = false;
+    lastCloudArchiveHash = "";
     resolveEntryMode("account", false);
     syncAccountUi();
     setAccountStatus("登录成功，正在比较本地与云端进度…", "valid");
@@ -6383,6 +6402,10 @@
     const sessionIsCurrent = () => expectedGeneration === accountSessionGeneration
       && accountUser?.$id === expectedUserId;
     cloudSyncReady = false;
+    cloudInspectionPending = true;
+    cloudRemoteUsable = false;
+    setCloudStatus("正在检查云端进度", "检查中");
+    syncCloudActionAvailability();
     let inspectedRow = null;
     try {
       inspectedRow = await accountSdk.tables.getRow({
@@ -6393,6 +6416,8 @@
     } catch (error) {
       if (!sessionIsCurrent()) return;
       if (Number(error?.code) !== 404) {
+        cloudInspectionPending = false;
+        syncCloudActionAvailability();
         setCloudStatus("云端读取失败", "读取失败");
         setAccountStatus(friendlyAccountError(error), "error");
         return;
@@ -6400,8 +6425,10 @@
     }
     if (!sessionIsCurrent()) return;
     cloudRow = inspectedRow;
+    cloudInspectionPending = false;
     if (!cloudRow) {
       cloudSyncReady = true;
+      syncCloudActionAvailability();
       setCloudStatus("首次同步，正在上传本地进度", "同步中");
       await uploadCloudSave({ force: true });
       return;
@@ -6410,10 +6437,13 @@
     try {
       remote = normalizeSaveArchiveText(cloudRow.archive);
     } catch {
+      syncCloudActionAvailability();
       setCloudStatus("云端存档无法识别", "存档异常");
       setAccountStatus("云端存档损坏，本地进度尚未覆盖它", "error");
       return;
     }
+    cloudRemoteUsable = true;
+    syncCloudActionAvailability();
     const localArchive = buildSaveArchive();
     const remoteHash = archiveFingerprint(JSON.parse(cloudRow.archive));
     const localHash = archiveFingerprint(localArchive);
@@ -6515,6 +6545,12 @@
     if (accountSummary) accountSummary.textContent = accountUser ? (summary || (cloudSyncReady ? "已同步" : "待确认")) : "未登录";
   }
 
+  function syncCloudActionAvailability() {
+    const signedIn = Boolean(accountUser);
+    if (cloudUploadButton) cloudUploadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending;
+    if (cloudDownloadButton) cloudDownloadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudRemoteUsable;
+  }
+
   function setAccountBusy(busy) {
     cloudSyncBusy = busy;
     accountGroup?.setAttribute("aria-busy", String(busy));
@@ -6529,16 +6565,15 @@
       accountSubmitButton,
       accountRecoveryButton,
       accountSetPasswordButton,
-      accountLogoutButton,
-      cloudUploadButton,
-      cloudDownloadButton
+      accountLogoutButton
     ].forEach((button) => {
       if (button) button.disabled = busy;
     });
+    syncCloudActionAvailability();
   }
 
   async function uploadCloudSave({ force = false } = {}) {
-    if (!accountSdk || !accountUser || cloudSyncBusy || (!cloudSyncReady && !force)) return false;
+    if (!accountSdk || !accountUser || cloudSyncBusy || cloudInspectionPending || (!cloudSyncReady && !force)) return false;
     const archive = buildSaveArchive();
     const archiveText = JSON.stringify(archive);
     if (archiveText.length > SAVE_ARCHIVE_MAX_CHARS) {
@@ -6551,7 +6586,7 @@
     setCloudStatus("正在同步…", "同步中");
     try {
       const userRole = accountSdk.Role.user(accountUser.$id);
-      cloudRow = await accountSdk.tables.upsertRow({
+      const uploadedRow = await accountSdk.tables.upsertRow({
         databaseId: APPWRITE_DATABASE_ID,
         tableId: APPWRITE_SAVES_TABLE_ID,
         rowId: accountUser.$id,
@@ -6562,6 +6597,8 @@
           accountSdk.Permission.delete(userRole)
         ]
       });
+      cloudRow = { ...uploadedRow, archive: uploadedRow.archive || archiveText };
+      cloudRemoteUsable = true;
       lastCloudArchiveHash = fingerprint;
       cloudSyncReady = true;
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
@@ -6577,7 +6614,7 @@
   }
 
   async function downloadCloudSave() {
-    if (!accountSdk || !accountUser || !cloudRow?.archive || cloudSyncBusy) return;
+    if (!accountSdk || !accountUser || !cloudRow?.archive || !cloudRemoteUsable || cloudSyncBusy || cloudInspectionPending) return;
     setAccountBusy(true);
     try {
       const normalized = normalizeSaveArchiveText(cloudRow.archive);
@@ -6633,6 +6670,8 @@
       accountUser = null;
       cloudRow = null;
       cloudSyncReady = false;
+      cloudInspectionPending = false;
+      cloudRemoteUsable = false;
       lastCloudArchiveHash = "";
       syncAccountUi();
       setCloudStatus("未登录");

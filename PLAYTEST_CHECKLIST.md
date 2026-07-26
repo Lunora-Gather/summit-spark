@@ -20,6 +20,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 - Press `P`, open the practice panel, press `Escape`, and return to play without stuck movement.
 - From the entry chooser, open Email Login and immediately click outside; the drawer must stay closed/inert and focus must remain on the Email Login trigger after its delayed autofocus window.
 - On a throttled connection, log out while the first cloud-save inspection is still pending; once the old request finishes, the account and cloud summaries must remain logged out instead of showing stale sync, conflict or corruption state.
+- During that pending inspection, confirm the account summary says “检查中”, both cloud replacement actions are disabled, Logout remains available, and a valid conflict later enables both explicit choices.
 - After one summit clear, activate “再来”; confirm the review disappears, keyboard focus returns to the game, movement starts immediately, and opening/closing settings in the second run does not revive or focus hidden review content.
 - Confirm settings opens as a quiet system list with Controls, Audio, Display, and Feedback/Save only; Room, Route, Feel, Profile, Training, and Advanced should not crowd the settings view.
 - Confirm the entry descriptions, collapsed setting labels, account status, key labels, placeholders, and training details remain crisp at normal viewing distance instead of fading into the pale panel.

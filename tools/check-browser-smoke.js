@@ -628,6 +628,10 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })()`));
   if (!/统计已清空/.test(resetComplete.status) || resetComplete.label !== "清空") errors.push("advanced reset should finish and return to its concise label: " + JSON.stringify(resetComplete));
   await evaluate(cdp, `document.querySelector(".settings-group-advanced").open = false`);
+  await waitUntil("advanced disclosure closes with synchronized semantics", () => evaluate(cdp, `(() => {
+    const group = document.querySelector(".settings-group-advanced");
+    return !group.open && group.querySelector(":scope > summary")?.getAttribute("aria-expanded") === "false";
+  })()`));
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("practice panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
 
@@ -1474,13 +1478,29 @@ async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
   });
   try {
     await navigateApp(cdp, baseUrl, "cloud logout inspection race");
-    await waitUntil("cloud inspection remains pending after session restore", () => evaluate(cdp, `(() => {
+    const pendingInspection = await waitUntil("cloud inspection remains pending after session restore", () => evaluate(cdp, `(() => {
       const race = window.__summitCloudRace;
       const email = document.querySelector("#accountEmailLabel")?.textContent || "";
-      return typeof race?.resolveRow === "function" && email === "race@example.com";
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      const cloud = document.querySelector("#cloudSyncStatus")?.textContent || "";
+      const upload = document.querySelector("#cloudUploadButton");
+      const download = document.querySelector("#cloudDownloadButton");
+      const logout = document.querySelector("#accountLogout");
+      return typeof race?.resolveRow === "function"
+        && email === "race@example.com"
+        && summary === "检查中"
+        && /正在检查/.test(cloud)
+        && upload?.disabled
+        && download?.disabled
+        && !logout?.disabled
+        ? { summary, cloud, uploadDisabled: upload.disabled, downloadDisabled: download.disabled, logoutDisabled: logout.disabled }
+        : null;
     })()`), 7000);
+    if (pendingInspection.summary !== "检查中" || !pendingInspection.uploadDisabled || !pendingInspection.downloadDisabled || pendingInspection.logoutDisabled) {
+      errors.push("pending cloud inspection must report checking and lock destructive cloud actions while preserving logout: " + JSON.stringify(pendingInspection));
+    }
     await clickSelector(cdp, "#startAccountButton");
-    await waitUntil("account drawer opens during pending cloud inspection", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#accountUser")?.classList.contains("hidden")`));
+    await waitUntil("account drawer opens during pending cloud inspection", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#accountUser")?.classList.contains("hidden") && document.activeElement === document.querySelector("#settingsClose")`));
     await clickSelector(cdp, "#accountLogout");
     const loggedOut = await waitUntil("logout completes before cloud inspection", () => evaluate(cdp, `(() => {
       const race = window.__summitCloudRace;
@@ -1580,10 +1600,12 @@ async function runCloudConflictGuardSmoke(cdp, baseUrl) {
           status,
           summary: document.querySelector("#accountSummary")?.textContent || "",
           localPreserved: Boolean(${conflictCase.probe}),
-          remoteNotApplied: (JSON.parse(localStorage.getItem("summit-spark-profile") || "{}").summitClears || 0) === 0
+          remoteNotApplied: (JSON.parse(localStorage.getItem("summit-spark-profile") || "{}").summitClears || 0) === 0,
+          uploadEnabled: !document.querySelector("#cloudUploadButton")?.disabled,
+          downloadEnabled: !document.querySelector("#cloudDownloadButton")?.disabled
         };
       })()`), 7000);
-      if (!guarded.localPreserved || !guarded.remoteNotApplied || guarded.summary !== "待确认") {
+      if (!guarded.localPreserved || !guarded.remoteNotApplied || guarded.summary !== "待确认" || !guarded.uploadEnabled || !guarded.downloadEnabled) {
         errors.push(`cloud conflict must preserve ${conflictCase.name} local data instead of treating it as empty: ` + JSON.stringify(guarded));
       }
     }

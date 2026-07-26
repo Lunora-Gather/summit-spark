@@ -2053,18 +2053,60 @@ async function runMobileSmoke(cdp, baseUrl) {
     return controls.length >= 6 && controls.every((control) => control.getBoundingClientRect().height >= 44);
   })()`);
   if (!mobileAccountTouchSafe) errors.push("mobile account inputs and actions should retain 44px touch targets");
+  const accountSemantics = await evaluate(cdp, `(() => {
+    const group = document.querySelector("#accountAuthTabs");
+    const code = document.querySelector('[data-auth-mode="code"]');
+    const password = document.querySelector('[data-auth-mode="password"]');
+    const fields = ["accountEmail", "accountPassword", "accountCode", "accountNewPassword", "accountOldPassword"]
+      .map((id) => {
+        const field = document.getElementById(id);
+        return {
+          id,
+          name: field?.name || "",
+          autocomplete: field?.autocomplete || "",
+          describedBy: field?.getAttribute("aria-describedby") || ""
+        };
+      });
+    return {
+      role: group?.getAttribute("role") || "",
+      codeRole: code?.getAttribute("role") || "",
+      passwordRole: password?.getAttribute("role") || "",
+      codePressed: code?.getAttribute("aria-pressed") || "",
+      passwordPressed: password?.getAttribute("aria-pressed") || "",
+      fields
+    };
+  })()`);
+  if (
+    accountSemantics.role !== "group"
+    || accountSemantics.codeRole
+    || accountSemantics.passwordRole
+    || accountSemantics.codePressed !== "true"
+    || accountSemantics.passwordPressed !== "false"
+    || accountSemantics.fields.some((field) => !field.name || !field.autocomplete || !field.describedBy.includes("accountStatus"))
+  ) {
+    errors.push("account login mode should expose segmented-button semantics and autofill-ready described fields: " + JSON.stringify(accountSemantics));
+  }
   await clickSelector(cdp, '[data-auth-mode="password"]');
   const mobilePasswordFocus = await evaluate(cdp, `(() => {
     const tab = document.querySelector('[data-auth-mode="password"]');
+    const code = document.querySelector('[data-auth-mode="code"]');
     const recovery = document.querySelector("#accountRecovery");
     const style = getComputedStyle(tab);
     return {
       outlineWidth: style.outlineWidth,
       outlineColor: style.outlineColor,
-      recoveryHeight: recovery.getBoundingClientRect().height
+      recoveryHeight: recovery.getBoundingClientRect().height,
+      codePressed: code?.getAttribute("aria-pressed") || "",
+      passwordPressed: tab?.getAttribute("aria-pressed") || ""
     };
   })()`);
-  if (Number.parseFloat(mobilePasswordFocus.outlineWidth) < 2 || /rgb\(0, 0, 0\)/.test(mobilePasswordFocus.outlineColor) || mobilePasswordFocus.recoveryHeight < 44) {
+  if (
+    Number.parseFloat(mobilePasswordFocus.outlineWidth) < 2
+    || /rgb\(0, 0, 0\)/.test(mobilePasswordFocus.outlineColor)
+    || mobilePasswordFocus.recoveryHeight < 44
+    || mobilePasswordFocus.codePressed !== "false"
+    || mobilePasswordFocus.passwordPressed !== "true"
+  ) {
     errors.push("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target: " + JSON.stringify(mobilePasswordFocus));
   }
   await clickSelector(cdp, "#settingsClose");
@@ -2592,7 +2634,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

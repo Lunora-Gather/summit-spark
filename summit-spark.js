@@ -6106,7 +6106,7 @@
     document.querySelectorAll("[data-auth-mode]").forEach((button) => {
       const active = button.dataset.authMode === authMode;
       button.classList.toggle("active", active);
-      button.setAttribute("aria-selected", String(active));
+      button.setAttribute("aria-pressed", String(active));
     });
     accountAuthTabs?.classList.toggle("hidden", recovering);
     accountEmailField?.classList.toggle("hidden", recovering);

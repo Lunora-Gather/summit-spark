@@ -63,6 +63,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 - Confirm settings opens with every group collapsed, the group labels remain easy to scan, and the separate practice entry keeps the primary Drill path obvious.
 - Set one custom key, switch between Mac and Windows/Linux labels twice, and confirm the custom scheme and key remain unchanged until Restore Layout is explicitly pressed.
 - Send a code to one email, edit the email before entering the code, and confirm the old code is cleared with a prompt to resend instead of attempting a mismatched login.
+- With a screen reader or accessibility inspector, confirm “邮箱验证码 / 密码” is announced as one labelled button group with exactly one pressed option, the state changes after switching, and account inputs announce the live status/error text.
 - Before signing into an account with existing cloud progress, create only a local custom setting, path, or failed Drill; confirm the account drawer asks which version to use rather than silently replacing the local data.
 - Confirm the hand-held/mobile view has no horizontal scroll after opening feedback, save import, backup restore status, Route cards, and Feel Lab sections.
 - Increase touch size to 64 and confirm both clusters stay fully inside the viewport, remain separated, and keep Jump/Dash paired without covering critical HUD text or the playfield.

@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <meta name="build-version" content="20260726-p147">
+  <meta name="build-version" content="20260726-p148">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260726-p147">
+  <link rel="stylesheet" href="summit-spark.css?v=20260726-p148">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -61,23 +61,23 @@
               <summary><span>账号与云存档</span><small id="accountSummary">未登录</small></summary>
               <div class="settings-group-body account-body">
                 <div class="account-guest" id="accountGuest">
-                  <div class="auth-tabs" id="accountAuthTabs" role="tablist" aria-label="登录方式">
-                    <button type="button" role="tab" data-auth-mode="code" aria-selected="true">邮箱验证码</button>
-                    <button type="button" role="tab" data-auth-mode="password" aria-selected="false">密码</button>
+                  <div class="auth-tabs" id="accountAuthTabs" role="group" aria-label="登录方式">
+                    <button type="button" data-auth-mode="code" aria-pressed="true">邮箱验证码</button>
+                    <button type="button" data-auth-mode="password" aria-pressed="false">密码</button>
                   </div>
                   <label class="account-field" id="accountEmailField">
                     <span>邮箱</span>
-                    <input id="accountEmail" type="email" autocomplete="email" inputmode="email" placeholder="name@example.com">
+                    <input id="accountEmail" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" aria-describedby="accountNote accountStatus" placeholder="name@example.com">
                   </label>
                   <label class="account-field auth-password-field hidden" id="accountPasswordField">
                     <span id="accountPasswordLabel">密码</span>
-                    <input id="accountPassword" type="password" autocomplete="current-password" minlength="8" placeholder="至少 8 位">
+                    <input id="accountPassword" name="login-password" type="password" autocomplete="current-password" minlength="8" aria-describedby="accountStatus" placeholder="至少 8 位">
                   </label>
                   <button class="text-button auth-password-field hidden" id="accountRecovery" type="button">忘记密码？发送改密邮件</button>
                   <div class="account-code-fields" id="accountCodeFields">
                     <label class="account-field">
                       <span>验证码</span>
-                      <input id="accountCode" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="8" placeholder="输入验证码">
+                      <input id="accountCode" name="one-time-code" type="text" autocomplete="one-time-code" inputmode="numeric" autocapitalize="none" spellcheck="false" maxlength="8" aria-describedby="accountStatus" placeholder="输入验证码">
                     </label>
                     <button class="focus-button ghost" id="accountSendCode" type="button">获取验证码</button>
                   </div>
@@ -99,10 +99,10 @@
                   <div class="password-reset">
                     <span>设置或更改密码</span>
                     <div>
-                      <input id="accountNewPassword" type="password" autocomplete="new-password" minlength="8" placeholder="新密码，至少 8 位">
+                      <input id="accountNewPassword" name="new-password" type="password" autocomplete="new-password" minlength="8" aria-describedby="accountStatus" placeholder="新密码，至少 8 位">
                       <button class="focus-button ghost" id="accountSetPassword" type="button">保存密码</button>
                     </div>
-                    <input id="accountOldPassword" type="password" autocomplete="current-password" placeholder="已有密码时填写原密码">
+                    <input id="accountOldPassword" name="old-password" type="password" autocomplete="current-password" aria-describedby="accountStatus" placeholder="已有密码时填写原密码">
                   </div>
                   <button class="text-button" id="accountLogout" type="button">退出当前账号</button>
                 </div>
@@ -396,6 +396,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260726-p147"></script>
+  <script src="summit-spark.js?v=20260726-p148"></script>
 </body>
 </html>

@@ -1240,6 +1240,10 @@
       : null;
     if (details) syncReviewDisclosure(details);
   }, true);
+  overlay.addEventListener("click", (event) => {
+    const restart = event.target instanceof Element ? event.target.closest("#restartButton") : null;
+    if (restart && overlay.contains(restart)) hardReset();
+  });
   document.addEventListener("pointerdown", closeSettingsFromOutside, true);
   settingsCloseButton?.addEventListener("click", closeSettings);
   settingsCloseButton?.addEventListener("pointerup", closeSettingsFromTouch);
@@ -2020,12 +2024,18 @@
       keepFeel: Boolean(options.keepFeel)
     });
     resetActionPulses();
+    overlay.classList.remove("finish-overlay");
     overlay.classList.add("hidden");
+    overlay.removeAttribute("role");
+    overlay.removeAttribute("aria-modal");
+    overlay.removeAttribute("aria-labelledby");
+    overlay.scrollTop = 0;
     syncGameplayAccessibility();
     resetToStart(0);
     refreshRoomSelectOptions();
     updateHud();
     maybeStartBeginnerFlow();
+    focusGame();
   }
 
   function jumpToRoom(index, options = {}) {
@@ -2671,7 +2681,6 @@
     overlay.classList.add("finish-overlay");
     overlay.classList.remove("hidden");
     syncGameplayAccessibility();
-    document.getElementById("restartButton")?.addEventListener("click", hardReset);
     bindFinishReviewActions();
     document.getElementById("finishTitle")?.focus({ preventScroll: true });
   }

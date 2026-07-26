@@ -2511,7 +2511,8 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
       Array.from({ length: 9 }, (_, index) => '<article class="review-card ' + (index < 4 ? 'primary' : 'secondary') + '"><span>复盘项 ' + index + '</span><strong>长文本安全检查 R' + index + '</strong><p>这是一段用于横屏移动端滚动和断行的复盘内容，不能横向溢出。</p></article>').join('') +
       '</div><div class="review-actions"><button class="review-button primary-review" type="button">下一 Drill</button></div>' +
       '<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra"></div></details>' +
-      '<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>掌握路线图</span><span class="review-more-chevron" aria-hidden="true">›</span></summary></details>';
+      '<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>掌握路线图</span><span class="review-more-chevron" aria-hidden="true">›</span></summary></details>' +
+      '<button class="primary" id="restartButton" type="button">再来</button>';
     document.querySelector("#finishTitle").focus({ preventScroll: true });
     overlay.scrollTop = 0;
   })()`);
@@ -2595,6 +2596,30 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (review.primaryCount < 4) errors.push("finish review should preserve primary card priority markers");
   if (!review.disclosure.open || review.disclosure.expanded !== "true" || review.disclosure.generatedContent !== "none" || review.disclosure.chevronHidden !== "true" || review.disclosure.transform === "none") {
     errors.push("finish review disclosures should synchronize expanded state while keeping their rotating chevron decorative: " + JSON.stringify(review.disclosure));
+  }
+  await tapSelector(cdp, "#restartButton");
+  const restartedLifecycle = await waitUntil("finish restart lifecycle cleanup", () => evaluate(cdp, `(() => {
+    const overlay = document.querySelector("#overlay");
+    const canvas = document.querySelector("#game");
+    const clean = overlay.classList.contains("hidden")
+      && !overlay.classList.contains("finish-overlay")
+      && overlay.hidden
+      && overlay.hasAttribute("inert")
+      && overlay.getAttribute("aria-hidden") === "true"
+      && !overlay.hasAttribute("role")
+      && !overlay.hasAttribute("aria-modal")
+      && !overlay.hasAttribute("aria-labelledby")
+      && document.activeElement === canvas
+      && !canvas.hasAttribute("inert")
+      && canvas.getAttribute("aria-hidden") === "false";
+    return clean ? {
+      overlayHidden: overlay.hidden,
+      overlayInert: overlay.hasAttribute("inert"),
+      active: document.activeElement?.id || ""
+    } : null;
+  })()`));
+  if (restartedLifecycle.active !== "game" || !restartedLifecycle.overlayHidden || !restartedLifecycle.overlayInert) {
+    errors.push("finish restart should clear modal semantics and return focus to the second run: " + JSON.stringify(restartedLifecycle));
   }
 }
 
@@ -2734,7 +2759,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

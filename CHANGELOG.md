@@ -2,6 +2,7 @@
 
 ## 2026-07-26
 
+- Retired the summit review's complete modal lifecycle when “再来” starts the next run: the hidden overlay now drops its finish layout class, dialog role, modal/label relationships and scroll position before gameplay accessibility is restored, focus returns to the canvas, and restart uses overlay delegation so a real mobile-browser second-run regression can exercise the production path; bumped public assets to `20260726-p152`.
 - Added a dedicated keyboard-focus trap to the modal summit review so forward Tab wraps from the final control to the first and Shift+Tab wraps back, reusing the same rendered-focus filtering as settings; added a mobile-landscape browser regression for both directions and bumped public assets to `20260726-p151`.
 - Removed the remaining CSS-generated `+ / -` symbols from the dynamically rendered summit-review disclosures, replaced them with visually equivalent decorative chevrons, synchronized their expanded state through a delegated overlay listener, and added mobile-landscape browser coverage for initial and opened states; bumped public assets to `20260726-p150`.
 - Replaced CSS-generated settings/practice disclosure arrows with real visually equivalent chevrons hidden from assistive technology, synchronized `aria-expanded` through both user and programmatic open/close paths, and added browser regressions that reject generated accessible text or stale disclosure state; bumped public assets to `20260726-p149`.

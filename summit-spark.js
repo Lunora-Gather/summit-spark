@@ -1253,7 +1253,7 @@
     if (restart && overlay.contains(restart)) hardReset();
   });
   document.addEventListener("pointerdown", closeSettingsFromOutside, true);
-  settingsBackdrop?.addEventListener("pointerdown", closeSettingsFromBackdrop);
+  settingsBackdrop?.addEventListener("click", closeSettingsFromBackdrop);
   settingsCloseButton?.addEventListener("click", closeSettings);
   settingsCloseButton?.addEventListener("pointerup", closeSettingsFromTouch);
   settingsCloseButton?.addEventListener("touchend", closeSettingsFromTouch);

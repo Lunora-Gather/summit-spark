@@ -952,6 +952,13 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (outsideDismissFocus !== "startSettingsButton") errors.push("outside settings dismissal should return start-screen focus to its visible trigger: " + outsideDismissFocus);
   await clickSelector(cdp, "#startSettingsButton");
   await waitUntil("quiet settings reopens collapsed", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group[open]").length === 0`));
+  const outsideStartPoint = await evaluate(cdp, `(() => {
+    const rect = document.querySelector("#startButton").getBoundingClientRect();
+    return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+  })()`);
+  await clickPoint(cdp, outsideStartPoint.x, outsideStartPoint.y);
+  await waitUntil("outside start-button region closes without click-through", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#overlay").classList.contains("hidden") && document.querySelector("#gameHud").hidden`));
+  await clickSelector(cdp, "#startSettingsButton");
   const outsideTrainingPoint = await evaluate(cdp, `(() => {
     const rect = document.querySelector("#openTrainingButton").getBoundingClientRect();
     return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };

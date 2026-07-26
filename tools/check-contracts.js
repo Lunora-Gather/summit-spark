@@ -413,6 +413,10 @@ const browserSmoke = fs.readFileSync(path.join(root, "tools", "check-browser-smo
 if (!css.includes(".stage.low-performance #game") || !css.includes("-webkit-backdrop-filter: none;") || !browserSmoke.includes("low-performance mode should remove per-frame canvas filters and backdrop blurs")) errors.push("low-performance mode must remove canvas filter passes and live backdrop compositing");
 if (!js.includes("function writeStorageTransaction(entries)") || !js.includes("for (const [key] of entries) previous.set(key, localStorage.getItem(key));") || !js.includes("localStorage.removeItem(key);") || !browserSmoke.includes("a partial save write must roll every imported key and the previous backup back before reporting failure")) errors.push("multi-key save imports must restore every previous value after a partial storage failure");
 if (!indexHtml.includes("viewport-fit=cover, interactive-widget=resizes-content") || !css.includes("env(safe-area-inset-left, 0px)") || !css.includes("env(safe-area-inset-right, 0px)") || !browserSmoke.includes("account drawer must remain bounded and its focused field reachable after a mobile keyboard resize")) errors.push("mobile entry and settings must honor all safe-area edges and keyboard-resized viewports");
+if (!css.includes(".settings-panel.mode-settings {\n    bottom: auto;")
+  || !css.includes("100dvh\n      - max(58px")
+  || !css.includes(".settings-backdrop {\n  position: fixed;\n  inset: 0;")
+  || !browserSmoke.includes("collapsed mobile Settings should fit its five-item list instead of leaving a large empty lower sheet")) errors.push("collapsed phone Settings must content-fit while expanded drawers remain capped by dynamic viewport and safe-area bounds");
 if (!js.includes('const ACCOUNT_HINT_STORAGE_KEY = "summit-spark-account-hint"')
   || !js.includes('if (saved === "account" || readAccountHint())')
   || !js.includes("if (Number(error?.code) === 401) writeAccountHint(false);")

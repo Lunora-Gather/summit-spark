@@ -1223,10 +1223,9 @@ async function runExpiredAccountHintSmoke(cdp, baseUrl) {
       const gate = document.querySelector("#entryGate");
       const overlay = document.querySelector("#overlay");
       if (!gate || gate.classList.contains("hidden") || overlay?.classList.contains("entry-checking")) return null;
-      return {
-        hint: localStorage.getItem("summit-spark-account-hint"),
-        focused: document.activeElement?.id || ""
-      };
+      const hint = localStorage.getItem("summit-spark-account-hint");
+      const focused = document.activeElement?.id || "";
+      return hint === null && focused === "guestEntryButton" ? { hint, focused } : null;
     })()`), 4000);
     if (expired.hint !== null || expired.focused !== "guestEntryButton") {
       errors.push("an expired account hint should be cleared and return focus to the chooser: " + JSON.stringify(expired));
@@ -2786,6 +2785,22 @@ async function runMobileSmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("mobile account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await tapSelector(cdp, "#startSettingsButton");
+  await waitUntil("mobile collapsed settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  const collapsedSettingsFit = await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
+    const groups = [...document.querySelectorAll(".settings-group.settings-only")].filter((group) => group.getBoundingClientRect().height > 0);
+    const last = groups[groups.length - 1]?.getBoundingClientRect();
+    return {
+      panelHeight: Math.round(panel.height),
+      viewportHeight: innerHeight,
+      emptyTail: last ? Math.round(panel.bottom - last.bottom) : 999,
+      allCollapsed: groups.length === 5 && groups.every((group) => !group.open),
+      bounded: panel.top >= 0 && panel.bottom <= innerHeight
+    };
+  })()`);
+  if (!collapsedSettingsFit.allCollapsed || !collapsedSettingsFit.bounded || collapsedSettingsFit.emptyTail > 28 || collapsedSettingsFit.panelHeight > collapsedSettingsFit.viewportHeight * 0.68) {
+    errors.push("collapsed mobile Settings should fit its five-item list instead of leaving a large empty lower sheet: " + JSON.stringify(collapsedSettingsFit));
+  }
   const mobileBackdropPoint = await evaluate(cdp, `(() => {
     const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
     return {

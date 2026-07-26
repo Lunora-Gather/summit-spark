@@ -7923,3 +7923,32 @@ textarea,
     bottom: max(10px, env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* P171: the quiet settings drawer should fit its actual content on phones.
+   Practice keeps the full-height training workspace; Settings grows only until
+   the safe-area/keyboard ceiling, then its body becomes the scroll surface. */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+}
+
+@media (max-width: 760px) {
+  .settings-panel.mode-settings {
+    bottom: auto;
+    max-height: calc(
+      100dvh
+      - max(58px, calc(env(safe-area-inset-top, 0px) + 8px))
+      - max(12px, env(safe-area-inset-bottom, 0px))
+    );
+  }
+}
+
+@media (max-width: 760px) and (max-height: 520px) and (orientation: landscape) {
+  .settings-panel.mode-settings {
+    max-height: calc(
+      100dvh
+      - max(48px, calc(env(safe-area-inset-top, 0px) + 8px))
+      - max(10px, env(safe-area-inset-bottom, 0px))
+    );
+  }
+}

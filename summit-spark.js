@@ -1249,11 +1249,17 @@
     setGameStatus("声音试听：输入、Spark、清房");
     focusGame();
   });
+  document.querySelectorAll(".settings-group").forEach((group) => {
+    syncSettingsGroupDisclosure(group);
+    group.addEventListener("toggle", () => syncSettingsGroupDisclosure(group));
+  });
   document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
     group.addEventListener("toggle", () => {
       if (!group.open || panelMode !== "settings") return;
       document.querySelectorAll(".settings-group.settings-only").forEach((other) => {
-        if (other !== group) other.open = false;
+        if (other === group) return;
+        other.open = false;
+        syncSettingsGroupDisclosure(other);
       });
     });
   });
@@ -1764,6 +1770,7 @@
     accountFocused = false;
     document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
       group.open = false;
+      syncSettingsGroupDisclosure(group);
     });
     openPanel("settings");
   }
@@ -1774,6 +1781,7 @@
     if (accountGroup) {
       document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
         group.open = group === accountGroup;
+        syncSettingsGroupDisclosure(group);
       });
       accountGroup.scrollIntoView({ block: "start" });
       window.setTimeout(() => {
@@ -1804,6 +1812,11 @@
     syncSettingsPanel();
     setGameStatus(panelMode === "practice" ? "练习面板已打开" : "设置已打开，游戏暂停");
     settingsCloseButton?.focus({ preventScroll: true });
+  }
+
+  function syncSettingsGroupDisclosure(group) {
+    if (!(group instanceof HTMLDetailsElement)) return;
+    group.querySelector(":scope > summary")?.setAttribute("aria-expanded", String(group.open));
   }
 
   function showGameTip(title, detail = "", kind = "coach", duration = GAME_TIP_TIME, priority = 1) {

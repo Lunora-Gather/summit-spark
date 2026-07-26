@@ -61,6 +61,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 - At around 700x390, practice must scroll vertically and keep Route, Feel, Room, and Profile reachable.
 - On a notched phone, confirm the entry chooser, close button, account fields, and practice launch action stay clear of the notch and Home indicator; open the keyboard on the email field and confirm it remains reachable by scrolling.
 - Confirm settings opens with every group collapsed, the group labels remain easy to scan, and the separate practice entry keeps the primary Drill path obvious.
+- With a screen reader or accessibility inspector, confirm disclosure names are just “账号与云存档 / 控制 / 声音 / 显示 / 反馈与存档” or the corresponding practice labels, without an announced arrow; verify collapsed/expanded state changes immediately and hidden settings/practice groups do not produce stray arrow text.
 - Set one custom key, switch between Mac and Windows/Linux labels twice, and confirm the custom scheme and key remain unchanged until Restore Layout is explicitly pressed.
 - Send a code to one email, edit the email before entering the code, and confirm the old code is cleared with a prompt to resend instead of attempting a mismatched login.
 - With a screen reader or accessibility inspector, confirm “邮箱验证码 / 密码” is announced as one labelled button group with exactly one pressed option, the state changes after switching, and account inputs announce the live status/error text.

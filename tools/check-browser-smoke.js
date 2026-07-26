@@ -613,7 +613,44 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await waitUntil("quiet settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
   const defaultOpenGroups = await evaluate(cdp, `[...document.querySelectorAll(".settings-group[open]")].map((group) => group.className)`);
   if (defaultOpenGroups.length !== 0) errors.push("settings should open with every system group collapsed: " + JSON.stringify(defaultOpenGroups));
+  const collapsedDisclosureSemantics = await evaluate(cdp, `(() => {
+    const groups = [...document.querySelectorAll(".settings-group")];
+    return {
+      groupCount: groups.length,
+      generatedContent: groups.map((group) => getComputedStyle(group.querySelector("summary"), "::after").content),
+      expandedStates: groups.map((group) => group.querySelector("summary")?.getAttribute("aria-expanded") || ""),
+      chevrons: groups.map((group) => {
+        const chevrons = group.querySelectorAll(":scope > summary > .settings-group-chevron");
+        return {
+          count: chevrons.length,
+          hidden: chevrons[0]?.getAttribute("aria-hidden") || ""
+        };
+      })
+    };
+  })()`);
+  if (
+    collapsedDisclosureSemantics.groupCount < 9
+    || collapsedDisclosureSemantics.generatedContent.some((content) => content !== "none")
+    || collapsedDisclosureSemantics.expandedStates.some((state) => state !== "false")
+    || collapsedDisclosureSemantics.chevrons.some((chevron) => chevron.count !== 1 || chevron.hidden !== "true")
+  ) {
+    errors.push("settings disclosures should keep decorative chevrons out of accessible names and expose collapsed state: " + JSON.stringify(collapsedDisclosureSemantics));
+  }
   await openSettingsGroup(cdp, ".settings-group-controls");
+  const openedControlsDisclosure = await evaluate(cdp, `(() => {
+    const group = document.querySelector(".settings-group-controls");
+    const summary = group?.querySelector(":scope > summary");
+    const chevron = summary?.querySelector(".settings-group-chevron");
+    return {
+      open: Boolean(group?.open),
+      expanded: summary?.getAttribute("aria-expanded") || "",
+      chevronHidden: chevron?.getAttribute("aria-hidden") || "",
+      generatedContent: summary ? getComputedStyle(summary, "::after").content : ""
+    };
+  })()`);
+  if (!openedControlsDisclosure.open || openedControlsDisclosure.expanded !== "true" || openedControlsDisclosure.chevronHidden !== "true" || openedControlsDisclosure.generatedContent !== "none") {
+    errors.push("opening a settings disclosure should synchronize its accessible expanded state without exposing the decorative chevron: " + JSON.stringify(openedControlsDisclosure));
+  }
   const settingsAudit = await evaluate(cdp, `(() => {
     const visible = (selector) => {
       const el = document.querySelector(selector);
@@ -2634,7 +2671,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, disclosure semantics, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

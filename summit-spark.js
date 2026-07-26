@@ -897,6 +897,7 @@
   let cloudSyncBusy = false;
   let cloudInspectionPending = false;
   let cloudRemoteUsable = false;
+  let cloudUploadPermitted = false;
   let cloudSyncTimer = 0;
   let accountSessionGeneration = 0;
   let lastCloudArchiveHash = "";
@@ -6389,6 +6390,7 @@
     cloudSyncReady = false;
     cloudInspectionPending = false;
     cloudRemoteUsable = false;
+    cloudUploadPermitted = false;
     lastCloudArchiveHash = "";
     resolveEntryMode("account", false);
     syncAccountUi();
@@ -6404,6 +6406,7 @@
     cloudSyncReady = false;
     cloudInspectionPending = true;
     cloudRemoteUsable = false;
+    cloudUploadPermitted = false;
     setCloudStatus("正在检查云端进度", "检查中");
     syncCloudActionAvailability();
     let inspectedRow = null;
@@ -6428,6 +6431,7 @@
     cloudInspectionPending = false;
     if (!cloudRow) {
       cloudSyncReady = true;
+      cloudUploadPermitted = true;
       syncCloudActionAvailability();
       setCloudStatus("首次同步，正在上传本地进度", "同步中");
       await uploadCloudSave({ force: true });
@@ -6437,12 +6441,14 @@
     try {
       remote = normalizeSaveArchiveText(cloudRow.archive);
     } catch {
+      cloudUploadPermitted = true;
       syncCloudActionAvailability();
       setCloudStatus("云端存档无法识别", "存档异常");
       setAccountStatus("云端存档损坏，本地进度尚未覆盖它", "error");
       return;
     }
     cloudRemoteUsable = true;
+    cloudUploadPermitted = true;
     syncCloudActionAvailability();
     const localArchive = buildSaveArchive();
     const remoteHash = archiveFingerprint(JSON.parse(cloudRow.archive));
@@ -6547,7 +6553,7 @@
 
   function syncCloudActionAvailability() {
     const signedIn = Boolean(accountUser);
-    if (cloudUploadButton) cloudUploadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending;
+    if (cloudUploadButton) cloudUploadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudUploadPermitted;
     if (cloudDownloadButton) cloudDownloadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudRemoteUsable;
   }
 
@@ -6573,7 +6579,7 @@
   }
 
   async function uploadCloudSave({ force = false } = {}) {
-    if (!accountSdk || !accountUser || cloudSyncBusy || cloudInspectionPending || (!cloudSyncReady && !force)) return false;
+    if (!accountSdk || !accountUser || cloudSyncBusy || cloudInspectionPending || !cloudUploadPermitted || (!cloudSyncReady && !force)) return false;
     const archive = buildSaveArchive();
     const archiveText = JSON.stringify(archive);
     if (archiveText.length > SAVE_ARCHIVE_MAX_CHARS) {
@@ -6599,6 +6605,7 @@
       });
       cloudRow = { ...uploadedRow, archive: uploadedRow.archive || archiveText };
       cloudRemoteUsable = true;
+      cloudUploadPermitted = true;
       lastCloudArchiveHash = fingerprint;
       cloudSyncReady = true;
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
@@ -6672,6 +6679,7 @@
       cloudSyncReady = false;
       cloudInspectionPending = false;
       cloudRemoteUsable = false;
+      cloudUploadPermitted = false;
       lastCloudArchiveHash = "";
       syncAccountUi();
       setCloudStatus("未登录");

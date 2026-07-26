@@ -1093,6 +1093,26 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
     if (!refreshed.gateHidden || !refreshed.startReady || refreshed.email !== "signed-in@example.com") {
       errors.push("authenticated refresh should bypass the guest/login chooser: " + JSON.stringify(refreshed));
     }
+    const failedInspectionPermissions = await waitUntil("failed cloud inspection locks replacement actions", () => evaluate(cdp, `(() => {
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      const cloud = document.querySelector("#cloudSyncStatus")?.textContent || "";
+      const upload = document.querySelector("#cloudUploadButton");
+      const download = document.querySelector("#cloudDownloadButton");
+      const logout = document.querySelector("#accountLogout");
+      return summary === "读取失败"
+        && /读取失败/.test(cloud)
+        && upload?.disabled
+        && download?.disabled
+        && !logout?.disabled
+        ? { summary, cloud, uploadDisabled: upload.disabled, downloadDisabled: download.disabled, logoutDisabled: logout.disabled }
+        : null;
+    })()`), 5000);
+    if (failedInspectionPermissions.summary !== "读取失败"
+      || !failedInspectionPermissions.uploadDisabled
+      || !failedInspectionPermissions.downloadDisabled
+      || failedInspectionPermissions.logoutDisabled) {
+      errors.push("failed cloud inspection must keep both replacement actions locked while preserving logout: " + JSON.stringify(failedInspectionPermissions));
+    }
   } finally {
     if (injected.identifier) {
       await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
@@ -1527,6 +1547,54 @@ async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
       || !afterLateInspection.userHidden
       || afterLateInspection.deletes !== 1) {
       errors.push("late cloud inspection after logout must not revive stale account state: " + JSON.stringify({ loggedOut, afterLateInspection }));
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+  }
+}
+
+async function runCorruptCloudPermissionsSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async get() { return { $id: "corrupt-user", email: "corrupt@example.com" }; }
+      }
+      class TablesDB {
+        async getRow() {
+          return { archive: "{}", $updatedAt: new Date().toISOString() };
+        }
+      }
+      window.Appwrite = { Client, Account, TablesDB };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "corrupt cloud permissions");
+    const corruptPermissions = await waitUntil("corrupt cloud archive exposes only repair upload", () => evaluate(cdp, `(() => {
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      const cloud = document.querySelector("#cloudSyncStatus")?.textContent || "";
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      const upload = document.querySelector("#cloudUploadButton");
+      const download = document.querySelector("#cloudDownloadButton");
+      const logout = document.querySelector("#accountLogout");
+      return summary === "存档异常"
+        && /无法识别/.test(cloud)
+        && /损坏/.test(status)
+        && !upload?.disabled
+        && download?.disabled
+        && !logout?.disabled
+        ? { summary, cloud, status, uploadDisabled: upload.disabled, downloadDisabled: download.disabled, logoutDisabled: logout.disabled }
+        : null;
+    })()`), 7000);
+    if (corruptPermissions.uploadDisabled || !corruptPermissions.downloadDisabled || corruptPermissions.logoutDisabled) {
+      errors.push("corrupt cloud archive should allow explicit repair upload but block download: " + JSON.stringify(corruptPermissions));
     }
   } finally {
     if (injected.identifier) {
@@ -2872,6 +2940,7 @@ async function main() {
     await runPasswordRecoverySmoke(cdp, baseUrl);
     await runCloudSyncExitGuardSmoke(cdp, baseUrl);
     await runCloudLogoutInspectionRaceSmoke(cdp, baseUrl);
+    await runCorruptCloudPermissionsSmoke(cdp, baseUrl);
     await runCloudConflictGuardSmoke(cdp, baseUrl);
   } finally {
     if (cdp) cdp.close();

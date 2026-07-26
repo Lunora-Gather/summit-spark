@@ -7834,3 +7834,43 @@ textarea,
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+
+/* P144: let notched phones expose their real safe-area insets and keep modal
+   interaction inside the visual viewport when browser chrome or a keyboard
+   reduces its height. */
+@media (max-width: 760px) {
+  .overlay:not(.hidden) {
+    padding:
+      max(12px, env(safe-area-inset-top, 0px))
+      max(12px, env(safe-area-inset-right, 0px))
+      max(12px, env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
+  }
+
+  .entry-gate {
+    width: min(372px, 100%);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .settings-panel,
+  .settings-panel.mode-practice,
+  .settings-panel.account-focused {
+    top: max(58px, calc(env(safe-area-inset-top, 0px) + 8px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
+    width: auto;
+    max-height: none;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 520px) and (orientation: landscape) {
+  .settings-panel,
+  .settings-panel.mode-practice,
+  .settings-panel.account-focused {
+    top: max(48px, calc(env(safe-area-inset-top, 0px) + 8px));
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  }
+}

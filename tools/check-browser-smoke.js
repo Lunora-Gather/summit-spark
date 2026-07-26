@@ -2137,6 +2137,72 @@ async function runMobileSmoke(cdp, baseUrl) {
   }
 }
 
+async function runMobileSafeAreaSmoke(cdp, baseUrl) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 700,
+    deviceScaleFactor: 3,
+    mobile: true
+  });
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+  await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+    insets: { top: 47, right: 0, bottom: 34, left: 0 }
+  });
+  try {
+    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+    await navigateApp(cdp, baseUrl, "mobile safe-area entry");
+    await waitUntil("safe-area entry chooser", () => evaluate(cdp, `!document.querySelector("#entryGate")?.classList.contains("hidden")`), 7000);
+    const entry = await evaluate(cdp, `(() => {
+      const gate = document.querySelector("#entryGate").getBoundingClientRect();
+      const viewport = document.querySelector('meta[name="viewport"]')?.content || "";
+      return {
+        viewport,
+        top: Math.round(gate.top),
+        bottom: Math.round(gate.bottom),
+        left: Math.round(gate.left),
+        right: Math.round(gate.right),
+        fitsSafeArea: gate.top >= 47 && gate.bottom <= innerHeight - 34 && gate.left >= 0 && gate.right <= innerWidth
+      };
+    })()`);
+    if (!/viewport-fit=cover/.test(entry.viewport) || !/interactive-widget=resizes-content/.test(entry.viewport) || !entry.fitsSafeArea) {
+      errors.push("mobile entry must negotiate keyboard resizing and remain inside notched-device safe areas: " + JSON.stringify(entry));
+    }
+
+    await clickSelector(cdp, "#accountEntryButton");
+    await waitUntil("safe-area account drawer opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel")?.classList.contains("hidden") && document.querySelector("#settingsPanel")?.classList.contains("account-focused")`));
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height: 420,
+      deviceScaleFactor: 3,
+      mobile: true
+    });
+    await sleep(180);
+    await evaluate(cdp, `document.querySelector("#accountEmail")?.focus({ preventScroll: false })`);
+    await sleep(180);
+    const keyboard = await evaluate(cdp, `(() => {
+      const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
+      const body = document.querySelector("#settingsPanel .settings-body");
+      const field = document.querySelector("#accountEmail").getBoundingClientRect();
+      return {
+        panel: { top: Math.round(panel.top), right: Math.round(panel.right), bottom: Math.round(panel.bottom), left: Math.round(panel.left) },
+        field: { top: Math.round(field.top), bottom: Math.round(field.bottom) },
+        bodyScrolls: ["auto", "scroll"].includes(getComputedStyle(body).overflowY),
+        focused: document.activeElement?.id,
+        fitsSafeArea: panel.top >= 47 && panel.bottom <= innerHeight - 34 && panel.left >= 0 && panel.right <= innerWidth,
+        fieldReachable: field.bottom > panel.top && field.top < panel.bottom
+      };
+    })()`);
+    if (!keyboard.fitsSafeArea || !keyboard.bodyScrolls || keyboard.focused !== "accountEmail" || !keyboard.fieldReachable) {
+      errors.push("account drawer must remain bounded and its focused field reachable after a mobile keyboard resize: " + JSON.stringify(keyboard));
+    }
+  } finally {
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+      insets: { top: 0, right: 0, bottom: 0, left: 0 }
+    });
+    await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "guest")`);
+  }
+}
+
 async function runMobileLandscapeSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 700,
@@ -2371,6 +2437,7 @@ async function main() {
     await runCanvasDensitySmoke(cdp, baseUrl);
     await runVisualRegressionSmoke(cdp, baseUrl);
     await runMobileSmoke(cdp, baseUrl);
+    await runMobileSafeAreaSmoke(cdp, baseUrl);
     await runMobileLandscapeSmoke(cdp, baseUrl);
     await runGamepadSmoke(cdp, baseUrl);
     await runAuthenticatedRefreshSmoke(cdp, baseUrl);
@@ -2390,7 +2457,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

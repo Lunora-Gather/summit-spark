@@ -2,6 +2,7 @@
 
 ## 2026-07-26
 
+- Enabled edge-to-edge safe-area values and keyboard-driven content resizing in the viewport contract, bounded the mobile entry chooser and settings/account drawer against all four device insets, and added a real-browser regression with a 47px notch, 34px home indicator and a 390x420 keyboard-reduced viewport; bumped public assets to `20260726-p144`.
 - Made local and cloud save replacement transactional across all seven storage keys so a quota or browser-storage failure rolls every partial write back to the exact pre-import values before reporting the error; added a real-browser regression that rejects the second write and verifies full rollback, and bumped public assets to `20260726-p143`.
 - Made low-performance mode remove the whole-canvas filter, live backdrop blur on gameplay overlays and every nonzero canvas shadow blur while retaining solid readable surfaces and unchanged gameplay; added static and browser-enforced compositor-budget regressions and bumped public assets to `20260726-p142`.
 - Raised the contrast of small entry, settings, account, keyboard-profile and training-detail text while preserving the pale adaptive sheet, strengthened success/error and placeholder colors, and added browser-enforced 4.5:1 contrast samples for the entry chooser and nine representative settings text roles; bumped public assets to `20260726-p141`.

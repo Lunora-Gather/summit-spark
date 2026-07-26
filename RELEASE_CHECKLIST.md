@@ -35,9 +35,10 @@ Use this before publishing a public demo update.
 31. On a notched-device emulator or through `npm run browser-smoke`, verify the entry chooser and settings/account drawer remain inside top, right, bottom, and left safe areas; shrink the portrait viewport to about 390x420 and confirm the focused email field remains reachable while the drawer body scrolls.
 32. Verify a clean keyboard profile shows only the compact bottom Move → Jump → Dash strip, that it exits after real input, and that labelled touch controls suppress it.
 33. Toggle the operating system's reduced-motion preference manually or through `npm run browser-smoke`; confirm UI/ambient motion quiets without hiding gameplay movement, hazards, or action confirmation. Confirm the entry and settings small-text contrast samples—including Move/Action binding headings and disclosure chevrons—remain at or above 4.5:1 using composited local backgrounds.
-34. Toggle low-performance mode and confirm the canvas switches to a 1x buffer, the canvas filter and gameplay overlay backdrop filters become `none`, canvas shadow blur is budgeted to zero, and HUD, tips, touch controls, hazards, and route guidance remain readable.
-35. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
-36. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
+34. Clear the current tab's entry mode and load at 320×568 portrait with safe-area insets; confirm the chooser focuses “Guest”, both choices remain at least 44px, and no room-coaching card appears behind the guest/email decision.
+35. Toggle low-performance mode and confirm the canvas switches to a 1x buffer, the canvas filter and gameplay overlay backdrop filters become `none`, canvas shadow blur is budgeted to zero, and HUD, tips, touch controls, hazards, and route guidance remain readable.
+36. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
+37. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
 37. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
 38. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
 39. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.

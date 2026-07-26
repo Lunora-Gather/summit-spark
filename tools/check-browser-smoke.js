@@ -407,10 +407,11 @@ async function runDesktopSmoke(cdp, baseUrl) {
       account: account?.textContent || "",
       startPending: document.querySelector("#startPanel")?.classList.contains("entry-pending") || false,
       fits: !!gateRect && gateRect.left >= 0 && gateRect.right <= innerWidth && gateRect.bottom <= innerHeight,
+      guestFocused: document.activeElement === guest,
       contrastSamples
     };
   })()`);
-  if (!entryChoice.visible || !entryChoice.startPending || !entryChoice.fits || !/仅保存在此设备/.test(entryChoice.guest) || !/云端保存/.test(entryChoice.account)) {
+  if (!entryChoice.visible || !entryChoice.startPending || !entryChoice.fits || !entryChoice.guestFocused || !/仅保存在此设备/.test(entryChoice.guest) || !/云端保存/.test(entryChoice.account)) {
     errors.push("entry should clearly offer adaptive guest and cloud-save choices: " + JSON.stringify(entryChoice));
   }
   if (entryChoice.contrastSamples.some((sample) => sample.ratio < 4.5)) {
@@ -2730,13 +2731,45 @@ async function runMobileSafeAreaSmoke(cdp, baseUrl) {
         bottom: Math.round(gate.bottom),
         left: Math.round(gate.left),
         right: Math.round(gate.right),
-        fitsSafeArea: gate.top >= 47 && gate.bottom <= innerHeight - 34 && gate.left >= 0 && gate.right <= innerWidth
+        fitsSafeArea: gate.top >= 47 && gate.bottom <= innerHeight - 34 && gate.left >= 0 && gate.right <= innerWidth,
+        roomBriefHidden: getComputedStyle(document.querySelector("#portraitBrief")).visibility === "hidden",
+        guestFocused: document.activeElement === document.querySelector("#guestEntryButton")
       };
     })()`);
-    if (!/viewport-fit=cover/.test(entry.viewport) || !/interactive-widget=resizes-content/.test(entry.viewport) || !entry.fitsSafeArea) {
+    if (!/viewport-fit=cover/.test(entry.viewport) || !/interactive-widget=resizes-content/.test(entry.viewport) || !entry.fitsSafeArea || !entry.roomBriefHidden || !entry.guestFocused) {
       errors.push("mobile entry must negotiate keyboard resizing and remain inside notched-device safe areas: " + JSON.stringify(entry));
     }
 
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 320,
+      height: 568,
+      deviceScaleFactor: 2,
+      mobile: true
+    });
+    await sleep(120);
+    const narrowEntry = await evaluate(cdp, `(() => {
+      const gate = document.querySelector("#entryGate").getBoundingClientRect();
+      const buttons = [...document.querySelectorAll("#entryGate button")].map((button) => button.getBoundingClientRect());
+      const brief = getComputedStyle(document.querySelector("#portraitBrief"));
+      return {
+        fitsSafeArea: gate.top >= 47 && gate.bottom <= innerHeight - 34 && gate.left >= 0 && gate.right <= innerWidth,
+        actionsTouchSafe: buttons.length === 2 && buttons.every((button) => button.width >= 44 && button.height >= 44),
+        roomBriefHidden: brief.visibility === "hidden" && Number(brief.opacity) === 0,
+        guestFocused: document.activeElement === document.querySelector("#guestEntryButton"),
+        viewport: { width: innerWidth, height: innerHeight }
+      };
+    })()`);
+    if (!narrowEntry.fitsSafeArea || !narrowEntry.actionsTouchSafe || !narrowEntry.roomBriefHidden || !narrowEntry.guestFocused) {
+      errors.push("320px first-run entry should stay focused, touch-safe and free of background room coaching: " + JSON.stringify(narrowEntry));
+    }
+
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height: 700,
+      deviceScaleFactor: 3,
+      mobile: true
+    });
+    await sleep(120);
     await clickSelector(cdp, "#accountEntryButton");
     await waitUntil("safe-area account drawer opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel")?.classList.contains("hidden") && document.querySelector("#settingsPanel")?.classList.contains("account-focused")`));
     await cdp.send("Emulation.setDeviceMetricsOverride", {

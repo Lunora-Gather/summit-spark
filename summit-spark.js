@@ -6074,6 +6074,10 @@
     overlay?.classList.remove("entry-checking");
     entryGate?.classList.remove("hidden");
     startPanel?.classList.add("entry-pending");
+    requestAnimationFrame(() => {
+      if (settingsVisible || entryGate?.classList.contains("hidden")) return;
+      guestEntryButton?.focus({ preventScroll: true });
+    });
   }
 
   function resolveEntryMode(mode, focus = true) {

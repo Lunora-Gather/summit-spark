@@ -4811,6 +4811,13 @@ body {
   .stage.settings-open + .portrait-brief {
     opacity: 0;
   }
+
+  /* The first-run account choice is the only decision that matters here.
+     Keep room coaching out of its visual layer until the choice resolves. */
+  .stage:has(.start-panel.entry-pending) + .portrait-brief {
+    visibility: hidden;
+    opacity: 0;
+  }
 }
 
 /* P87: the portrait page continues each chapter's atmosphere outside the

@@ -1401,7 +1401,7 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
   await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
   const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `(() => {
-      window.__summitCloudMock = { upserts: 0, deletes: 0, failWrites: false, holdWrites: false, pendingWrite: null };
+      window.__summitCloudMock = { upserts: 0, deletes: 0, failWrites: false, holdWrites: false, pendingWrite: null, pendingPassword: null };
       class Client {
         setEndpoint() { return this; }
         setProject() { return this; }
@@ -1409,6 +1409,11 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       class Account {
         async get() { return { $id: "cloud-guard-user", email: "cloud-guard@example.com" }; }
         async deleteSession() { window.__summitCloudMock.deletes += 1; return {}; }
+        updatePassword() {
+          return new Promise((resolve) => {
+            window.__summitCloudMock.pendingPassword = { resolve };
+          });
+        }
       }
       class TablesDB {
         async getRow() { throw { code: 404, type: "row_not_found" }; }
@@ -1504,6 +1509,50 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       || followupUpload.calmEffects !== slowUploadTarget.calmEffects
       || followupUpload.practiceLines !== queuedDuringUpload.practiceLines) {
       errors.push("a local change queued during a slow upload must receive a second upload with the latest archive: " + JSON.stringify({ heldUpload, slowUploadTarget, queuedDuringUpload, followupUpload }));
+    }
+    await clickSelector(cdp, "#startAccountButton");
+    await waitUntil("account drawer opens for password busy queue", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
+    await evaluate(cdp, `document.querySelector("#accountNewPassword").value = "queue-password-157"`);
+    await clickSelector(cdp, "#accountSetPassword");
+    await waitUntil("password update remains in flight", () => evaluate(cdp, `window.__summitCloudMock?.pendingPassword && document.querySelector(".settings-group-account")?.getAttribute("aria-busy") === "true"`));
+    await clickSelector(cdp, "#settingsClose");
+    const passwordBusyTarget = await evaluate(cdp, `(() => {
+      const audio = document.querySelector("#audioToggle");
+      const before = window.__summitCloudMock.upserts;
+      audio.checked = !audio.checked;
+      audio.dispatchEvent(new Event("change", { bubbles: true }));
+      return {
+        audioEnabled: audio.checked,
+        before,
+        summary: document.querySelector("#accountSummary")?.textContent || ""
+      };
+    })()`);
+    if (passwordBusyTarget.summary !== "待同步") {
+      errors.push("local progress during password update should remain visibly queued: " + JSON.stringify(passwordBusyTarget));
+    }
+    await sleep(120);
+    const passwordBusyWrites = await evaluate(cdp, `window.__summitCloudMock?.upserts || 0`);
+    if (passwordBusyWrites !== passwordBusyTarget.before) {
+      errors.push("password update and cloud save must not write concurrently: " + JSON.stringify({ passwordBusyTarget, passwordBusyWrites }));
+    }
+    await evaluate(cdp, `(() => {
+      const mock = window.__summitCloudMock;
+      const pending = mock.pendingPassword;
+      mock.pendingPassword = null;
+      pending.resolve({});
+    })()`);
+    const resumedAfterPassword = await waitUntil("cloud sync resumes after password update", () => evaluate(cdp, `(() => {
+      const mock = window.__summitCloudMock;
+      if (!mock || mock.upserts <= ${passwordBusyTarget.before}) return null;
+      const archive = JSON.parse(mock.lastPayload?.data?.archive || "{}");
+      const audioEnabled = archive.storage?.settings?.audioEnabled;
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      return audioEnabled === ${JSON.stringify(passwordBusyTarget.audioEnabled)} && summary === "已同步"
+        ? { upserts: mock.upserts, audioEnabled, summary }
+        : null;
+    })()`), 5000);
+    if (resumedAfterPassword.upserts <= passwordBusyTarget.before || resumedAfterPassword.audioEnabled !== passwordBusyTarget.audioEnabled) {
+      errors.push("a local change made during password update must resume cloud sync after account busy clears: " + JSON.stringify({ passwordBusyTarget, resumedAfterPassword }));
     }
     await evaluate(cdp, `(() => {
       const toggle = document.querySelector("#audioToggle");

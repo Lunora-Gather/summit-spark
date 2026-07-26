@@ -901,6 +901,7 @@
   let cloudSyncTimer = 0;
   let cloudSaveDirty = false;
   let cloudSyncFlushRequested = false;
+  let cloudSyncRetryBlocked = false;
   let accountSessionGeneration = 0;
   let lastCloudArchiveHash = "";
   let flowScore = 0;
@@ -6395,6 +6396,7 @@
     cloudUploadPermitted = false;
     cloudSaveDirty = false;
     cloudSyncFlushRequested = false;
+    cloudSyncRetryBlocked = false;
     lastCloudArchiveHash = "";
     resolveEntryMode("account", false);
     syncAccountUi();
@@ -6581,6 +6583,7 @@
       if (button) button.disabled = busy;
     });
     syncCloudActionAvailability();
+    if (!busy) queueMicrotask(resumeQueuedCloudSave);
   }
 
   async function uploadCloudSave({ force = false } = {}) {
@@ -6602,6 +6605,7 @@
       cloudSyncTimer = 0;
     }
     cloudSaveDirty = false;
+    cloudSyncRetryBlocked = false;
     let uploadSucceeded = false;
     setAccountBusy(true);
     setCloudStatus("正在同步…", "同步中");
@@ -6629,6 +6633,7 @@
       return true;
     } catch (error) {
       cloudSaveDirty = true;
+      cloudSyncRetryBlocked = true;
       setCloudStatus("同步失败，本地进度已保留", "同步失败");
       setAccountStatus(friendlyAccountError(error), "error");
       return false;
@@ -6710,6 +6715,7 @@
       cloudUploadPermitted = false;
       cloudSaveDirty = false;
       cloudSyncFlushRequested = false;
+      cloudSyncRetryBlocked = false;
       lastCloudArchiveHash = "";
       syncAccountUi();
       setCloudStatus("未登录");
@@ -6733,6 +6739,7 @@
   function scheduleCloudSave() {
     if (!accountUser || !cloudSyncReady) return;
     cloudSaveDirty = true;
+    cloudSyncRetryBlocked = false;
     setCloudStatus("有新进度等待同步", "待同步");
     if (cloudSyncBusy) return;
     armCloudSyncTimer();
@@ -6746,8 +6753,26 @@
     }, CLOUD_SYNC_DELAY_MS);
   }
 
+  function resumeQueuedCloudSave() {
+    if (!cloudSaveDirty
+      || !accountUser
+      || !cloudSyncReady
+      || cloudSyncBusy
+      || cloudInspectionPending
+      || cloudSyncRetryBlocked
+      || cloudSyncTimer) return;
+    setCloudStatus("有新进度等待同步", "待同步");
+    if (cloudSyncFlushRequested) {
+      cloudSyncFlushRequested = false;
+      uploadCloudSave();
+    } else {
+      armCloudSyncTimer();
+    }
+  }
+
   function flushPendingCloudSave() {
     if (!cloudSaveDirty || !accountUser || !cloudSyncReady) return;
+    cloudSyncRetryBlocked = false;
     if (cloudSyncBusy) {
       cloudSyncFlushRequested = true;
       return;

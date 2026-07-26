@@ -19,8 +19,9 @@ Use this before publishing a public demo update.
 15. Verify touch controls use separate direction/action clusters, stay at least 44px, and sit below the portrait playfield on mobile; at the 64px setting, every button must remain inside 390px width with Jump/Dash paired.
 16. Verify a clean keyboard profile shows only the compact bottom Move → Jump → Dash strip, that it exits after real input, and that labelled touch controls suppress it.
 17. Toggle the operating system's reduced-motion preference manually or through `npm run browser-smoke`; confirm UI/ambient motion quiets without hiding gameplay movement, hazards, or action confirmation. Confirm the entry and settings small-text contrast samples remain at or above 4.5:1.
-18. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
-19. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
-20. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
-21. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
-22. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.
+18. Toggle low-performance mode and confirm the canvas switches to a 1x buffer, the canvas filter and gameplay overlay backdrop filters become `none`, canvas shadow blur is budgeted to zero, and HUD, tips, touch controls, hazards, and route guidance remain readable.
+19. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
+20. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
+21. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
+22. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
+23. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.

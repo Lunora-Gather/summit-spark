@@ -62,7 +62,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 - Confirm settings opens with every group collapsed, the group labels remain easy to scan, and the separate practice entry keeps the primary Drill path obvious.
 - Confirm the hand-held/mobile view has no horizontal scroll after opening feedback, save import, backup restore status, Route cards, and Feel Lab sections.
 - Increase touch size to 64 and confirm both clusters stay fully inside the viewport, remain separated, and keep Jump/Dash paired without covering critical HUD text or the playfield.
-- Enable low-performance mode and confirm hazards, route compass, and Drill HUD remain readable.
+- Enable low-performance mode and confirm the solid, non-blurred HUD, tips and touch controls remain crisp while hazards, route compass, and Drill guidance stay readable.
 - Enable the operating system's reduced-motion preference and confirm UI transitions, ambient ribbons, snowfall, velocity wakes, and idle entity drift stop while player movement, hazards, and action confirmation remain visible.
 - If a physical gamepad is available, verify the settings panel reports connected standard mapping, axis strength, and near-deadzone risk without exposing the controller name.
 

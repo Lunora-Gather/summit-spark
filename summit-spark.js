@@ -5615,6 +5615,10 @@
     return Math.max(0, Math.min(1, actionVisual[name] / duration));
   }
 
+  function performanceShadowBlur(value) {
+    return settings.lowPerformance ? 0 : value;
+  }
+
   function showFeelCue(text, detail = "", color = palette.cyan, duration = FEEL_CUE_TIME) {
     feelCueText = text;
     feelCueDetail = detail;
@@ -7088,7 +7092,7 @@
       ctx.rotate(trail.angle || 0);
       ctx.globalAlpha = Math.min(0.34, age * 0.32);
       ctx.shadowColor = color;
-      ctx.shadowBlur = settings.calmEffects ? 2 : 5;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 2 : 5);
       ctx.strokeStyle = color;
       ctx.lineCap = "round";
       ctx.lineWidth = Math.max(1, trail.h * age);
@@ -7487,7 +7491,7 @@
     ctx.strokeStyle = "#f8fbff";
     ctx.lineWidth = 2;
     ctx.shadowColor = palette.cyan;
-    ctx.shadowBlur = settings.calmEffects ? 8 : 16;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 8 : 16);
     ctx.beginPath();
     ctx.arc(cx, cy, 18 + Math.sin(time * 28) * 1.6, 0, Math.PI * 2);
     ctx.stroke();
@@ -7529,7 +7533,7 @@
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.shadowColor = player.overdrive > 0 ? palette.green : palette.cyan;
-    ctx.shadowBlur = settings.calmEffects ? 5 : 11;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 5 : 11);
     ctx.setLineDash([8, 7]);
     ctx.beginPath();
     ctx.moveTo(cx + dx * 18, cy + dy * 18);
@@ -7559,7 +7563,7 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = palette.cyan;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = performanceShadowBlur(10);
     ctx.fillStyle = relayChain >= 3 ? palette.gold : "#f8fbff";
     ctx.fillText(`x${relayChain}`, cx, cy);
     ctx.strokeStyle = relayChain >= 3 ? palette.gold : palette.cyan;
@@ -7581,7 +7585,7 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = palette.gold;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = performanceShadowBlur(10);
     ctx.fillStyle = palette.gold;
     ctx.fillText("PB", cx, cy);
     ctx.strokeStyle = palette.gold;
@@ -7607,7 +7611,7 @@
       ctx.strokeStyle = palette.cyan;
       ctx.lineWidth = 2;
       ctx.shadowColor = palette.cyan;
-      ctx.shadowBlur = settings.calmEffects ? 6 : 12;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 6 : 12);
       ctx.translate(cx, cy);
       ctx.rotate(Math.PI / 4 + time * 2.6);
       ctx.strokeRect(-14 - dash * 5, -14 - dash * 5, 28 + dash * 10, 28 + dash * 10);
@@ -7623,7 +7627,7 @@
       ctx.lineWidth = 3;
       ctx.lineCap = "round";
       ctx.shadowColor = grab > wall ? palette.green : palette.cyan;
-      ctx.shadowBlur = settings.calmEffects ? 5 : 11;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 5 : 11);
       const x = cx + side * (player.w * 0.85 + 6);
       ctx.beginPath();
       ctx.moveTo(x, cy - 16);
@@ -7899,7 +7903,7 @@
     ctx.translate(ghost.x, ghost.y);
     ctx.scale(pulse, pulse);
     ctx.shadowColor = palette.gold;
-    ctx.shadowBlur = settings.calmEffects ? 6 : 12;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 6 : 12);
     ctx.fillStyle = "rgba(247,198,93,0.64)";
     roundRect(ctx, -7, -11, 14, 18, 3);
     ctx.fill();
@@ -8178,7 +8182,7 @@
     ctx.textBaseline = "middle";
     ctx.font = "600 15px system-ui, sans-serif";
     ctx.shadowColor = splitPopupAhead ? palette.gold : palette.hot;
-    ctx.shadowBlur = settings.calmEffects ? 6 : 13;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 6 : 13);
     ctx.fillStyle = splitPopupAhead ? palette.gold : "#ff99aa";
     ctx.fillText(splitPopupText, 0, 0);
     ctx.restore();
@@ -8195,13 +8199,13 @@
     ctx.textBaseline = "middle";
     ctx.font = "600 12px system-ui, sans-serif";
     ctx.shadowColor = palette.hot;
-    ctx.shadowBlur = settings.calmEffects ? 5 : 11;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 5 : 11);
     ctx.fillStyle = "#ff99aa";
     ctx.fillText(fitText(focusPopupText, isCompactCanvas() ? 680 : 560), W / 2, y + Math.sin(time * 16) * 1.2);
     if (focusPopupDetail) {
       ctx.font = "600 10px system-ui, sans-serif";
       ctx.fillStyle = "rgba(248,251,255,0.72)";
-      ctx.shadowBlur = settings.calmEffects ? 3 : 7;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 3 : 7);
       ctx.fillText(fitText(focusPopupDetail, isCompactCanvas() ? 690 : 600), W / 2, y + 18);
     }
     ctx.restore();
@@ -8349,7 +8353,7 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = color;
-    ctx.shadowBlur = 9;
+    ctx.shadowBlur = performanceShadowBlur(9);
     ctx.fillStyle = color;
     ctx.fillText(text, cx, cy);
     ctx.strokeStyle = color;
@@ -8402,7 +8406,7 @@
     ctx.strokeStyle = color;
     ctx.lineWidth = 2 + intensity * 2;
     ctx.shadowColor = color;
-    ctx.shadowBlur = settings.calmEffects ? 4 : 14;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 4 : 14);
     ctx.strokeRect(5.5, 5.5, W - 11, H - 11);
     ctx.globalAlpha = (0.08 + intensity * 0.16) * (0.72 + pulse * 0.28);
     ctx.lineWidth = 4 + intensity * 4;
@@ -8436,7 +8440,7 @@
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.shadowColor = "rgba(18,36,47,0.24)";
-    ctx.shadowBlur = settings.calmEffects ? 0 : 8;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 0 : 8);
     ctx.shadowOffsetY = 3;
     ctx.fillStyle = "rgba(38,60,73,0.88)";
     roundRect(ctx, x, y, width, height, 7);
@@ -8506,7 +8510,7 @@
     ctx.save();
     ctx.lineCap = "round";
     ctx.shadowColor = color;
-    ctx.shadowBlur = settings.calmEffects ? 5 : 12;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 5 : 12);
     for (let i = 0; i < count; i += 1) {
       const phase = time * 12 + i * 1.7;
       const lane = (i - (count - 1) / 2) * 6 + Math.sin(phase) * 2;
@@ -8601,7 +8605,7 @@
       ctx.strokeStyle = i === 1 ? atmosphere.rim : atmosphere.haze;
       ctx.lineWidth = 7 - i * 2;
       ctx.shadowColor = ctx.strokeStyle;
-      ctx.shadowBlur = settings.calmEffects ? 2 : 9;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 2 : 9);
       ctx.beginPath();
       ctx.moveTo(drift - 260, y + 14);
       ctx.bezierCurveTo(drift - 90, y - 28, drift + 160, y + 28, drift + 360, y - 4);
@@ -8620,7 +8624,7 @@
     ctx.save();
     ctx.lineCap = "round";
     ctx.shadowColor = color;
-    ctx.shadowBlur = settings.calmEffects ? 5 : 12;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 5 : 12);
     const lineCount = settings.lowPerformance ? 2 : 4;
     for (let i = 0; i < lineCount; i += 1) {
       const y = 34 + i * 22 + Math.sin(time * 0.7 + roomIndex + i) * 5;
@@ -9037,7 +9041,7 @@
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.shadowColor = palette.cyan;
-    ctx.shadowBlur = settings.calmEffects ? 5 : 11;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 5 : 11);
     ctx.strokeStyle = `rgba(118, 215, 255, ${settings.calmEffects ? 0.24 : 0.34})`;
 
     for (let i = 0; i < points.length - 1; i++) {
@@ -9163,7 +9167,7 @@
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     ctx.shadowColor = color;
-    ctx.shadowBlur = settings.calmEffects ? 6 : 12;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 6 : 12);
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -9199,7 +9203,7 @@
     ctx.setLineDash([3, 7]);
     ctx.strokeStyle = `rgba(247, 198, 93, ${0.38 * alpha})`;
     ctx.shadowColor = palette.gold;
-    ctx.shadowBlur = settings.calmEffects ? 4 : 9;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 4 : 9);
     ctx.beginPath();
     path.forEach((point, index) => {
       if (index === 0) ctx.moveTo(point.x, point.y);
@@ -9351,7 +9355,7 @@
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.shadowColor = "rgba(246, 212, 119, 0.72)";
-    ctx.shadowBlur = settings.calmEffects ? 5 : 9;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 5 : 9);
     ctx.beginPath();
     ctx.arc(0, 0, 20, -Math.PI * 0.88, Math.PI * 0.88);
     ctx.stroke();
@@ -9478,7 +9482,7 @@
     ctx.translate(relay.x, y);
     ctx.globalAlpha = 0.34 + active * 0.38 + pulse * 0.12;
     ctx.shadowColor = palette.cyan;
-    ctx.shadowBlur = relay.ready ? (settings.calmEffects ? 2 : 8) : (settings.calmEffects ? 0 : 3);
+    ctx.shadowBlur = performanceShadowBlur(relay.ready ? (settings.calmEffects ? 2 : 8) : (settings.calmEffects ? 0 : 3));
     ctx.strokeStyle = relay.ready ? palette.cyan : "rgba(118, 215, 255, 0.42)";
     ctx.lineWidth = 2.2;
     ctx.rotate(relaySpin);
@@ -9521,7 +9525,7 @@
     ctx.translate(prism.x, y);
     ctx.globalAlpha = 0.28 + active * 0.48 + pulse * 0.12;
     ctx.shadowColor = palette.gold;
-    ctx.shadowBlur = prism.ready ? (settings.calmEffects ? 2 : 8) : (settings.calmEffects ? 0 : 3);
+    ctx.shadowBlur = performanceShadowBlur(prism.ready ? (settings.calmEffects ? 2 : 8) : (settings.calmEffects ? 0 : 3));
     ctx.rotate(-prismSpin);
     ctx.strokeStyle = prism.ready ? palette.gold : "rgba(247, 198, 93, 0.34)";
     ctx.lineWidth = 2.4;
@@ -9564,7 +9568,7 @@
     ctx.translate(anchor.x, anchor.y);
     ctx.globalAlpha = active ? 0.78 + pulse * 0.12 : 0.64 + pulse * 0.1;
     ctx.shadowColor = palette.green;
-    ctx.shadowBlur = settings.calmEffects ? (active ? 3 : 0) : (active ? 10 : 4);
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? (active ? 3 : 0) : (active ? 10 : 4));
     ctx.strokeStyle = active ? palette.green : "rgba(143,227,155,0.78)";
     ctx.lineWidth = active ? 2.4 : 2.6;
     ctx.beginPath();
@@ -9652,7 +9656,7 @@
     ctx.translate(x, y);
     ctx.rotate(prefersReducedMotion ? Math.PI / 4 : time * 1.4);
     ctx.shadowColor = color;
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = performanceShadowBlur(18);
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(0, -radius);
@@ -9771,7 +9775,7 @@
       ctx.lineWidth = 5;
       ctx.lineCap = "round";
       ctx.shadowColor = accent;
-      ctx.shadowBlur = settings.calmEffects ? 5 : 12;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 5 : 12);
       ctx.beginPath();
       ctx.moveTo(cx - dx * (28 + dash * 12), cy - dy * (28 + dash * 12));
       ctx.lineTo(cx - dx * 7, cy - dy * 7);
@@ -9794,7 +9798,7 @@
       ctx.globalAlpha = Math.min(0.72, 0.22 + grip * 0.5);
       ctx.fillStyle = palette.green;
       ctx.shadowColor = palette.green;
-      ctx.shadowBlur = settings.calmEffects ? 3 : 8;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 3 : 8);
       const gx = cx + wallSide * 15;
       ctx.fillRect(gx, y + 10, wallSide * 5, 3);
       ctx.fillRect(gx - wallSide * 1, y + 17, wallSide * 4, 3);
@@ -9867,7 +9871,7 @@
       ctx.strokeStyle = prismPulse > 0 ? palette.gold : recallPulse > 0 ? palette.green : palette.gold;
       ctx.lineWidth = 2;
       ctx.shadowColor = ctx.strokeStyle;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = performanceShadowBlur(10);
       ctx.beginPath();
       ctx.arc(cx, cy, 19 + glow * 8, 0, Math.PI * 2);
       ctx.stroke();

@@ -7813,3 +7813,24 @@ textarea,
 .portrait-brief small {
   color: #4a626a;
 }
+
+/* P142: low-performance mode must remove per-frame compositor work as well as
+   reducing canvas particles and buffer density. Keep solid surfaces readable. */
+.stage.low-performance #game {
+  filter: none;
+}
+
+.stage.low-performance .brand,
+.stage.low-performance .meters,
+.stage.low-performance .hud-actions,
+.stage.low-performance .counter,
+.stage.low-performance .icon-button,
+.stage.low-performance .mini-button,
+.stage.low-performance .game-tip,
+.stage.low-performance .touch button,
+.stage.low-performance .start-panel,
+.stage.low-performance .entry-gate,
+.stage.low-performance .start-actions > .account-entry {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

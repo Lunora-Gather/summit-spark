@@ -344,6 +344,10 @@ if (!js.includes("showBeginnerDeathTip")) errors.push("beginner death tip helper
 if (!js.includes("configureCanvasBuffer")) errors.push("canvas clarity buffer helper is missing");
 if (!js.includes("function canvasBufferScale()") || !js.includes("const cssScale = Math.max(rect.width / W, rect.height / H);") || !js.includes("Math.min(CANVAS_BUFFER_SCALE_MAX, roundedUp)")) errors.push("normal canvas density should follow the responsive physical display size without unbounded buffers");
 if (!js.includes("if (settings.lowPerformance) return 1;") || !js.includes('syncComfortSettings();\n    configureCanvasBuffer();')) errors.push("low-performance changes must immediately rebuild the canvas at 1x density");
+const unbudgetedShadowBlurs = [...js.matchAll(/ctx\.shadowBlur\s*=\s*([^;\n]+);/g)]
+  .map((match) => match[1].trim())
+  .filter((value) => value !== "0" && !value.startsWith("performanceShadowBlur("));
+if (!js.includes("function performanceShadowBlur(value)") || !js.includes("return settings.lowPerformance ? 0 : value;") || unbudgetedShadowBlurs.length) errors.push("every nonzero canvas shadow blur must collapse to zero in low-performance mode");
 if (!js.includes("refreshStartOverlay")) errors.push("start overlay should expose ready/continue state");
 if (!js.includes("syncGameplayAccessibility") || !js.includes("surface.hidden = overlayOwnsInteraction") || !indexHtml.includes('id="gameHud" aria-hidden="true" inert hidden') || !indexHtml.includes('id="touchControls" aria-label="触控" aria-hidden="true" inert hidden')) errors.push("start/finish overlays must hide the HUD and all overlays must make the obscured game surface inert");
 if (!js.includes('progress ? "自由攀登" : "开始攀登"') || !js.includes("继续训练 · R")) errors.push("start overlay must distinguish free climbing from recommended training");
@@ -406,6 +410,7 @@ if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is 
 if (!standaloneHtml.includes("settings-panel")) errors.push("standalone settings panel shell is missing");
 const css = fs.readFileSync(path.join(root, "summit-spark.css"), "utf8");
 const browserSmoke = fs.readFileSync(path.join(root, "tools", "check-browser-smoke.js"), "utf8");
+if (!css.includes(".stage.low-performance #game") || !css.includes("-webkit-backdrop-filter: none;") || !browserSmoke.includes("low-performance mode should remove per-frame canvas filters and backdrop blurs")) errors.push("low-performance mode must remove canvas filter passes and live backdrop compositing");
 if (!js.includes('dashMeter?.setAttribute("aria-valuenow", String(dashCharges))') || !js.includes('dashCharges > 0 ? `${dashCharges} 次冲刺可用` : "冲刺已耗尽"') || !js.includes('staminaMeter?.setAttribute("aria-valuenow", String(staminaPercent))') || !js.includes('staminaMeter?.setAttribute("aria-valuetext", `体力 ${staminaPercent}%`)')) errors.push("dash and stamina progressbar values should track live gameplay state");
 if (!css.includes("font-size: 8px;") || css.includes("font-size: 7px;")) errors.push("compact HUD meter labels should remain readable without expanding the HUD");
 if (!css.includes("content: attr(data-meter-label)")) errors.push("HUD status bars should render their compact semantic labels");

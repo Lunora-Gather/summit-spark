@@ -1785,11 +1785,30 @@ async function runCanvasDensitySmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#lowPerformanceToggle");
   const reduced = await waitUntil("low-performance canvas buffer", () => evaluate(cdp, `(() => {
     const canvas = document.querySelector("#game");
-    return canvas.width === 960 && canvas.height === 544
-      ? { width: canvas.width, height: canvas.height, enabled: document.querySelector("#lowPerformanceToggle").checked }
+    const state = {
+      width: canvas.width,
+      height: canvas.height,
+      enabled: document.querySelector("#lowPerformanceToggle").checked,
+      canvasFilter: getComputedStyle(canvas).filter,
+      hudBackdrop: getComputedStyle(document.querySelector(".meters")).backdropFilter,
+      tipBackdrop: getComputedStyle(document.querySelector("#gameTip")).backdropFilter,
+      touchBackdrop: getComputedStyle(document.querySelector(".touch button")).backdropFilter,
+      entryBackdrop: getComputedStyle(document.querySelector("#entryGate")).backdropFilter
+    };
+    return state.width === 960
+      && state.height === 544
+      && state.canvasFilter === "none"
+      && state.hudBackdrop === "none"
+      && state.tipBackdrop === "none"
+      && state.touchBackdrop === "none"
+      && state.entryBackdrop === "none"
+      ? state
       : null;
   })()`));
   if (!reduced.enabled) errors.push("low-performance toggle should remain enabled after rebuilding the canvas");
+  if (reduced.canvasFilter !== "none" || reduced.hudBackdrop !== "none" || reduced.tipBackdrop !== "none" || reduced.touchBackdrop !== "none" || reduced.entryBackdrop !== "none") {
+    errors.push("low-performance mode should remove per-frame canvas filters and backdrop blurs: " + JSON.stringify(reduced));
+  }
 
   await clickSelector(cdp, "#lowPerformanceToggle");
   const restored = await waitUntil("restored high-DPI canvas buffer", () => evaluate(cdp, `(() => {
@@ -2328,7 +2347,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

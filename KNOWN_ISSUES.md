@@ -16,7 +16,7 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 - The demo is a 10-room vertical slice, not a complete chapter campaign.
 - Route contracts and Feel Lab are local training tools; they do not yet produce exportable replay data.
 - Progress remains local-first and intentionally lightweight; signed-in players also receive private Appwrite cloud sync with conflict protection, while local JSON import still writes a browser-side backup before overwrite and can restore it from settings.
-- Low-performance mode reduces visual budget only. If a low-end device still struggles, the next fix should target render cost, not gameplay simplification.
+- Low-performance mode uses a 1x canvas buffer, fewer particles and no live compositor, filter, or canvas-shadow blur. If a low-end device still struggles, the next investigation should profile draw-call and update cost rather than simplify gameplay.
 
 ## Not Worth Fixing Right Now
 

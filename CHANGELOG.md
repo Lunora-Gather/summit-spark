@@ -2,6 +2,7 @@
 
 ## 2026-07-26
 
+- Made low-performance mode remove the whole-canvas filter, live backdrop blur on gameplay overlays and every nonzero canvas shadow blur while retaining solid readable surfaces and unchanged gameplay; added static and browser-enforced compositor-budget regressions and bumped public assets to `20260726-p142`.
 - Raised the contrast of small entry, settings, account, keyboard-profile and training-detail text while preserving the pale adaptive sheet, strengthened success/error and placeholder colors, and added browser-enforced 4.5:1 contrast samples for the entry chooser and nine representative settings text roles; bumped public assets to `20260726-p141`.
 - Isolated optional session-storage caching from Appwrite OTP results so privacy-restricted browsers cannot turn a successfully sent code or completed login into a false failure, removed unused cloud-sync metadata writes that could similarly mask a successful remote upload, and added a browser regression with all session-storage operations blocked; bumped public assets to `20260726-p140`.
 - Made the game canvas buffer follow its actual responsive CSS size and physical pixel density instead of a fixed DPR-only multiplier, retained the explicit 1x low-performance path, cleared scale-dependent tile caches on resize, and added standard-density and Retina browser regressions; bumped public assets to `20260726-p139`.

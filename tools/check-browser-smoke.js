@@ -1629,6 +1629,49 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     }
   };
   await evaluate(cdp, `(() => {
+    const keys = [
+      "summit-spark-settings",
+      "summit-spark-profile",
+      "summit-spark-room-bests",
+      "summit-spark-room-paths",
+      "summit-spark-room-focus",
+      "summit-spark-best-time",
+      "summit-spark-best-flow"
+    ];
+    window.__summitAtomicBefore = Object.fromEntries(keys.map((key) => [key, localStorage.getItem(key)]));
+    window.__summitAtomicOriginalSetItem = Storage.prototype.setItem;
+    let rejected = false;
+    Storage.prototype.setItem = function(key, value) {
+      if (this === window.localStorage && key === "summit-spark-profile" && !rejected) {
+        rejected = true;
+        throw new DOMException("Simulated quota failure", "QuotaExceededError");
+      }
+      return window.__summitAtomicOriginalSetItem.call(this, key, value);
+    };
+    const input = document.querySelector("#saveImportText");
+    input.value = ${JSON.stringify(JSON.stringify(importArchive))};
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  })()`);
+  await clickSelector(cdp, "#saveImportButton");
+  await sleep(360);
+  const atomicFailure = await evaluate(cdp, `(() => {
+    Storage.prototype.setItem = window.__summitAtomicOriginalSetItem;
+    const before = window.__summitAtomicBefore || {};
+    const after = Object.fromEntries(Object.keys(before).map((key) => [key, localStorage.getItem(key)]));
+    delete window.__summitAtomicBefore;
+    delete window.__summitAtomicOriginalSetItem;
+    return {
+      rolledBack: Object.keys(before).every((key) => before[key] === after[key]),
+      status: document.querySelector("#gameStatus")?.textContent || "",
+      importStatus: document.querySelector("#saveImportStatus")?.textContent || "",
+      importError: document.querySelector("#saveImportStatus")?.classList.contains("error") || false,
+      stillOpen: !document.querySelector("#settingsPanel")?.classList.contains("hidden")
+    };
+  })()`);
+  if (!atomicFailure.rolledBack || !atomicFailure.importError || !atomicFailure.stillOpen || !/导入失败/.test(atomicFailure.status) || !/不可写/.test(atomicFailure.importStatus)) {
+    errors.push("a partial save write must roll every imported key back before reporting failure: " + JSON.stringify(atomicFailure));
+  }
+  await evaluate(cdp, `(() => {
     const input = document.querySelector("#saveImportText");
     input.value = ${JSON.stringify(JSON.stringify(importArchive))};
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -2347,7 +2390,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

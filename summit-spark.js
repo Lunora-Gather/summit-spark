@@ -6693,19 +6693,48 @@
     };
   }
 
+  function writeStorageTransaction(entries) {
+    const previous = new Map();
+    for (const [key] of entries) previous.set(key, localStorage.getItem(key));
+    try {
+      for (const [key, value] of entries) localStorage.setItem(key, value);
+    } catch (error) {
+      // Free any partial writes first so quota failures have room to restore the
+      // exact pre-import values. Rollback is best-effort when storage is blocked.
+      for (const [key] of entries) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          // Continue attempting to restore the remaining keys.
+        }
+      }
+      for (const [key, value] of previous) {
+        if (value === null) continue;
+        try {
+          localStorage.setItem(key, value);
+        } catch {
+          // The original error remains the actionable import failure.
+        }
+      }
+      throw error;
+    }
+  }
+
   function writeNormalizedSaveArchive(normalized) {
     try {
       backupCurrentSaveArchive(normalized.sourceBuild);
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalized.settings));
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(normalized.profile));
-      localStorage.setItem(ROOM_BESTS_KEY, JSON.stringify(normalized.roomBests));
-      localStorage.setItem(ROOM_PATHS_KEY, JSON.stringify(normalized.roomPaths));
-      localStorage.setItem(ROOM_FOCUS_KEY, JSON.stringify({
-        schemaVersion: ROOM_FOCUS_SCHEMA_VERSION,
-        rooms: normalized.roomFocus
-      }));
-      localStorage.setItem(BEST_TIME_KEY, String(normalized.bestTime));
-      localStorage.setItem(BEST_FLOW_KEY, String(Math.floor(normalized.bestFlow)));
+      writeStorageTransaction([
+        [SETTINGS_KEY, JSON.stringify(normalized.settings)],
+        [PROFILE_KEY, JSON.stringify(normalized.profile)],
+        [ROOM_BESTS_KEY, JSON.stringify(normalized.roomBests)],
+        [ROOM_PATHS_KEY, JSON.stringify(normalized.roomPaths)],
+        [ROOM_FOCUS_KEY, JSON.stringify({
+          schemaVersion: ROOM_FOCUS_SCHEMA_VERSION,
+          rooms: normalized.roomFocus
+        })],
+        [BEST_TIME_KEY, String(normalized.bestTime)],
+        [BEST_FLOW_KEY, String(Math.floor(normalized.bestFlow))]
+      ]);
     } catch {
       throw new Error("浏览器存档不可写");
     }

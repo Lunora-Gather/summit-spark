@@ -45,6 +45,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 - Start one Route contract, interrupt it with a different Drill, reopen the practice panel, and resume from the visible interrupted card.
 - Start one Feel Lab card, interrupt it with a different Drill, reopen the practice panel, and confirm the card says it was interrupted.
 - Finish or fail at least one Clean/Pace/Style/Expert Drill and confirm retry/review text names the missing condition.
+- Complete a full run, open “更多复盘” and “掌握路线图”, and confirm a screen reader announces only those names plus their collapsed/expanded state—not `+`, `-`, or arrow characters—while the visible chevron still rotates.
 - Use the direct resume button from the start screen after creating progress; it should enter a useful recommended Drill.
 - Choose a feedback type, write a short note, then click `诊断 / 复制`; keep the local snapshot with the note. It should not upload anything by itself.
 - Click `反馈模板 / 复制` and confirm the pasted text has enough context for a tester to file a useful issue without copying raw input history.

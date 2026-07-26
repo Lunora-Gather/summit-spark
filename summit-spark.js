@@ -1199,6 +1199,12 @@
   }
   settingsButton?.addEventListener("click", toggleSettings);
   practiceButton?.addEventListener("click", togglePracticePanel);
+  overlay.addEventListener("toggle", (event) => {
+    const details = event.target instanceof HTMLDetailsElement && event.target.matches(".review-more")
+      ? event.target
+      : null;
+    if (details) syncReviewDisclosure(details);
+  }, true);
   document.addEventListener("pointerdown", closeSettingsFromOutside, true);
   settingsCloseButton?.addEventListener("click", closeSettings);
   settingsCloseButton?.addEventListener("pointerup", closeSettingsFromTouch);
@@ -1817,6 +1823,11 @@
   function syncSettingsGroupDisclosure(group) {
     if (!(group instanceof HTMLDetailsElement)) return;
     group.querySelector(":scope > summary")?.setAttribute("aria-expanded", String(group.open));
+  }
+
+  function syncReviewDisclosure(details) {
+    if (!(details instanceof HTMLDetailsElement)) return;
+    details.querySelector(":scope > summary")?.setAttribute("aria-expanded", String(details.open));
   }
 
   function showGameTip(title, detail = "", kind = "coach", duration = GAME_TIP_TIME, priority = 1) {
@@ -8269,8 +8280,8 @@
     return `<div class="review-grid review-grid-primary">${primaryCards}</div>`
       + `<p class="review-advice">${escapeHtml(roomTrainingAdvice(next))}</p>`
       + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">下一 ${drillModeLabel(nextMode)}</button>${styleButton}${lossButton}</div>`
-      + `<details class="review-more"><summary>更多复盘</summary><div class="review-grid review-grid-extra">${extraCards}</div></details>`
-      + `<details class="review-more review-roadmap-panel"><summary>掌握路线图</summary>${reviewRoadmapHtml()}</details>`;
+      + `<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra">${extraCards}</div></details>`
+      + `<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>掌握路线图</span><span class="review-more-chevron" aria-hidden="true">›</span></summary>${reviewRoadmapHtml()}</details>`;
   }
 
   function bindFinishReviewActions() {

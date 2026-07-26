@@ -2509,10 +2509,28 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
     overlay.setAttribute("aria-labelledby", "finishTitle");
     overlay.innerHTML = '<h1 id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">0:30.00 · 失误 1 · 光继连锁 3 · Flow 120</p><div class="review-grid">' +
       Array.from({ length: 9 }, (_, index) => '<article class="review-card ' + (index < 4 ? 'primary' : 'secondary') + '"><span>复盘项 ' + index + '</span><strong>长文本安全检查 R' + index + '</strong><p>这是一段用于横屏移动端滚动和断行的复盘内容，不能横向溢出。</p></article>').join('') +
-      '</div><div class="review-actions"><button class="review-button primary-review" type="button">下一 Drill</button></div>';
+      '</div><div class="review-actions"><button class="review-button primary-review" type="button">下一 Drill</button></div>' +
+      '<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra"></div></details>' +
+      '<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>掌握路线图</span><span class="review-more-chevron" aria-hidden="true">›</span></summary></details>';
     document.querySelector("#finishTitle").focus({ preventScroll: true });
     overlay.scrollTop = 0;
   })()`);
+  const initialReviewDisclosure = await evaluate(cdp, `(() => {
+    const details = document.querySelector(".review-more");
+    const summary = details?.querySelector(":scope > summary");
+    const chevron = summary?.querySelector(".review-more-chevron");
+    return {
+      count: document.querySelectorAll(".review-more").length,
+      expanded: summary?.getAttribute("aria-expanded") || "",
+      chevronHidden: chevron?.getAttribute("aria-hidden") || "",
+      generatedContent: summary ? getComputedStyle(summary, "::after").content : ""
+    };
+  })()`);
+  if (initialReviewDisclosure.count !== 2 || initialReviewDisclosure.expanded !== "false" || initialReviewDisclosure.chevronHidden !== "true" || initialReviewDisclosure.generatedContent !== "none") {
+    errors.push("finish review disclosures should start collapsed without generated accessible symbols: " + JSON.stringify(initialReviewDisclosure));
+  }
+  await evaluate(cdp, `document.querySelector(".review-more").open = true`);
+  await sleep(120);
   const review = await evaluate(cdp, `(() => {
     const overlay = document.querySelector("#overlay");
     const articles = [...document.querySelectorAll(".review-grid article")].map((el) => {
@@ -2526,13 +2544,28 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
       topReachable: titleRect.top >= overlayRect.top - 1 && titleRect.bottom <= overlayRect.bottom + 1,
       focusInside: document.activeElement === document.querySelector("#finishTitle"),
       noHorizontalOverflow: articles.every((item) => item.scrollWidth <= item.width + 2),
-      primaryCount: document.querySelectorAll(".review-card.primary").length
+      primaryCount: document.querySelectorAll(".review-card.primary").length,
+      disclosure: (() => {
+        const details = document.querySelector(".review-more");
+        const summary = details?.querySelector(":scope > summary");
+        const chevron = summary?.querySelector(".review-more-chevron");
+        return {
+          open: Boolean(details?.open),
+          expanded: summary?.getAttribute("aria-expanded") || "",
+          generatedContent: summary ? getComputedStyle(summary, "::after").content : "",
+          chevronHidden: chevron?.getAttribute("aria-hidden") || "",
+          transform: chevron ? getComputedStyle(chevron).transform : "none"
+        };
+      })()
     };
   })()`);
   if (!review.scrollSafe) errors.push("finish review overlay should remain vertically scroll-safe on mobile landscape");
   if (!review.topReachable || !review.focusInside) errors.push("finish review should keep its labelled top reachable and focused on mobile landscape: " + JSON.stringify(review));
   if (!review.noHorizontalOverflow) errors.push("finish review cards overflow horizontally on mobile landscape");
   if (review.primaryCount < 4) errors.push("finish review should preserve primary card priority markers");
+  if (!review.disclosure.open || review.disclosure.expanded !== "true" || review.disclosure.generatedContent !== "none" || review.disclosure.chevronHidden !== "true" || review.disclosure.transform === "none") {
+    errors.push("finish review disclosures should synchronize expanded state while keeping their rotating chevron decorative: " + JSON.stringify(review.disclosure));
+  }
 }
 
 async function runGamepadSmoke(cdp, baseUrl) {
@@ -2671,7 +2704,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, disclosure semantics, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

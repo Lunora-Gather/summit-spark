@@ -3606,8 +3606,17 @@ output {
   display: none;
 }
 
-.review-more summary::after {
-  content: "+";
+.review-more summary::after,
+.review-more[open] summary::after {
+  display: none;
+  content: none;
+}
+
+.review-more[open] {
+  padding-bottom: 10px;
+}
+
+.review-more summary > .review-more-chevron {
   width: 20px;
   height: 20px;
   display: grid;
@@ -3615,14 +3624,13 @@ output {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.075);
   color: rgba(247, 245, 240, 0.68);
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 150ms ease;
 }
 
-.review-more[open] {
-  padding-bottom: 10px;
-}
-
-.review-more[open] summary::after {
-  content: "-";
+.review-more[open] summary > .review-more-chevron {
+  transform: rotate(90deg);
 }
 
 .review-roadmap-panel .review-roadmap {

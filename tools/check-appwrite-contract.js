@@ -30,6 +30,7 @@ const database = (config.tablesDB || []).find((entry) => entry.$id === "summit-s
 const table = (config.tables || []).find((entry) => entry.$id === "saves" && entry.databaseId === "summit-spark");
 
 if (config.projectId !== "summit-spark") fail("Appwrite projectId must remain summit-spark");
+if (config.endpoint !== "https://fra.cloud.appwrite.io/v1") fail("Appwrite project config must pin the fra regional endpoint");
 if (!methods["email-password"] || !methods["email-otp"]) fail("email-password and email-otp authentication must both stay enabled");
 if (methods.anonymous !== false || methods.phone !== false || methods["magic-url"] !== false) fail("unused anonymous, phone and magic-url authentication must stay disabled");
 if (security.passwordDictionary !== true) fail("common-password dictionary protection must stay enabled");
@@ -53,6 +54,7 @@ if (!archiveColumn || archiveColumn.type !== "longtext" || archiveColumn.require
 if (columns.size !== 2) fail("saves table should contain only build and archive columns");
 
 for (const fragment of [
+  "const SAVE_ARCHIVE_MAX_CHARS = 1000000",
   'const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1"',
   'const APPWRITE_PROJECT_ID = "summit-spark"',
   'const APPWRITE_DATABASE_ID = "summit-spark"',

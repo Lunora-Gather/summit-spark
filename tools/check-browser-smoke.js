@@ -1644,6 +1644,88 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
   }
 }
 
+async function runLargeCloudArchiveSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `(() => {
+    sessionStorage.setItem("summit-spark-entry-mode", "account");
+    const paths = Array.from({ length: 10 }, (_, room) =>
+      Array.from({ length: 420 }, (_, index) => ({
+        x: Math.round((((index * 3.17) + room * 7) % 960) * 10) / 10,
+        y: Math.round((((index * 2.39) + room * 11) % 544) * 10) / 10,
+        dash: index % 3 === 0,
+        spark: index % 7 === 0,
+        over: index % 11 === 0,
+        t: Math.round(index * 45) / 1000
+      }))
+    );
+    localStorage.setItem("summit-spark-room-paths", JSON.stringify(paths));
+  })()`);
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      window.__summitLargeCloudMock = { upserts: 0, lastPayload: null };
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async get() { return { $id: "large-cloud-user", email: "large-cloud@example.com" }; }
+      }
+      class TablesDB {
+        async getRow() { throw { code: 404, type: "row_not_found" }; }
+        async upsertRow(payload) {
+          window.__summitLargeCloudMock.upserts += 1;
+          window.__summitLargeCloudMock.lastPayload = payload;
+          return { $updatedAt: new Date().toISOString() };
+        }
+      }
+      const Permission = { read: (role) => "read(" + role + ")", update: (role) => "update(" + role + ")", delete: (role) => "delete(" + role + ")" };
+      const Role = { user: (id) => "user:" + id };
+      window.Appwrite = { Client, Account, TablesDB, Permission, Role };
+    })();`
+  });
+  try {
+    await navigateApp(cdp, baseUrl, "large cloud archive");
+    const largeArchive = await waitUntil("large cloud archive uploads intact", () => evaluate(cdp, `(() => {
+      const mock = window.__summitLargeCloudMock;
+      const archiveText = mock?.lastPayload?.data?.archive || "";
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      if (!archiveText || summary !== "已同步") return null;
+      const archive = JSON.parse(archiveText);
+      const paths = archive.storage?.roomPaths || [];
+      const input = document.querySelector("#saveImportText");
+      input.value = archiveText;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      return {
+        chars: archiveText.length,
+        upserts: mock.upserts,
+        pathCount: paths.length,
+        pointCount: paths.reduce((total, path) => total + path.length, 0),
+        previewValid: document.querySelector("#saveImportStatus")?.classList.contains("valid") || false,
+        previewText: document.querySelector("#saveImportStatus")?.textContent || "",
+        summary
+      };
+    })()`), 7000);
+    if (
+      largeArchive.chars <= 240000
+      || largeArchive.chars >= 1000000
+      || largeArchive.upserts !== 1
+      || largeArchive.pathCount !== 10
+      || largeArchive.pointCount !== 4200
+      || !largeArchive.previewValid
+      || !/可导入/.test(largeArchive.previewText)
+    ) {
+      errors.push("a full ten-room route archive above the legacy 240k cap must upload and remain self-importable: " + JSON.stringify(largeArchive));
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `(() => {
+      sessionStorage.removeItem("summit-spark-entry-mode");
+      localStorage.removeItem("summit-spark-room-paths");
+    })()`);
+  }
+}
+
 async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
   await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
   const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
@@ -3197,6 +3279,7 @@ async function main() {
     await runRestrictedSessionStorageAuthSmoke(cdp, baseUrl);
     await runPasswordRecoverySmoke(cdp, baseUrl);
     await runCloudSyncExitGuardSmoke(cdp, baseUrl);
+    await runLargeCloudArchiveSmoke(cdp, baseUrl);
     await runCloudLogoutInspectionRaceSmoke(cdp, baseUrl);
     await runCorruptCloudPermissionsSmoke(cdp, baseUrl);
     await runCloudConflictGuardSmoke(cdp, baseUrl);
@@ -3212,7 +3295,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

@@ -210,7 +210,7 @@
   const SAVE_ARCHIVE_SCHEMA_VERSION = 1;
   const SAVE_ARCHIVE_KIND = "summit-spark-save";
   const SAVE_BACKUP_KEY = "summit-spark-save-backup";
-  const SAVE_ARCHIVE_MAX_CHARS = 240000;
+  const SAVE_ARCHIVE_MAX_CHARS = 1000000;
   const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
   const APPWRITE_PROJECT_ID = "summit-spark";
   const APPWRITE_DATABASE_ID = "summit-spark";

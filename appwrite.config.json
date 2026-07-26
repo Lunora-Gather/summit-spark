@@ -2,6 +2,7 @@
     "organizationId": "6a43ed7e00262539468f",
     "projectId": "summit-spark",
     "projectName": "Summit Spark",
+    "endpoint": "https://fra.cloud.appwrite.io/v1",
     "settings": {
         "services": {
             "account": true,

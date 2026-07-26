@@ -34,5 +34,10 @@ automatic sync begins. Later writes are debounced and uploaded automatically.
 ## CLI
 
 `appwrite.config.json` binds this repository to the provisioned project. It only
-contains public organization/project identifiers; login sessions remain in the
-developer's Appwrite CLI profile and must never be committed.
+contains public organization/project identifiers and the `fra` endpoint; login
+sessions remain in the developer's Appwrite CLI profile and must never be
+committed.
+
+The browser accepts save archives up to 1 MB. The live `archive` column is
+`longtext` (off-page storage), so a complete ten-room route history can be
+uploaded without colliding with the table's 64 KB inline-row budget.

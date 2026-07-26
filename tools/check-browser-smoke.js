@@ -1390,6 +1390,85 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
   }
 }
 
+async function runCloudConflictGuardSmoke(cdp, baseUrl) {
+  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const remoteArchive = {
+    kind: "summit-spark-save",
+    schemaVersion: 1,
+    build: "remote-conflict",
+    storage: {
+      settings: {},
+      profile: { summitClears: 1, bestRelayChain: 2 },
+      roomBests: [8.5],
+      roomPaths: [],
+      roomFocus: { schemaVersion: 2, rooms: [] },
+      bestTime: 70,
+      bestFlow: 100
+    }
+  };
+  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `(() => {
+      class Client {
+        setEndpoint() { return this; }
+        setProject() { return this; }
+      }
+      class Account {
+        async get() { return { $id: "conflict-user", email: "conflict@example.com" }; }
+      }
+      class TablesDB {
+        async getRow() {
+          return {
+            archive: ${JSON.stringify(JSON.stringify(remoteArchive))},
+            $updatedAt: new Date().toISOString()
+          };
+        }
+      }
+      window.Appwrite = { Client, Account, TablesDB };
+    })();`
+  });
+  const cases = [
+    {
+      name: "focus-only",
+      seed: `localStorage.setItem("summit-spark-room-focus", JSON.stringify({ schemaVersion: 2, rooms: [{ faults: 3, drills: 2, fall: 3, last: "fall" }] }))`,
+      probe: `JSON.parse(localStorage.getItem("summit-spark-room-focus") || "{}").rooms?.[0]?.faults === 3`
+    },
+    {
+      name: "path-only",
+      seed: `localStorage.setItem("summit-spark-room-paths", JSON.stringify([[{ x: 20, y: 30, t: 0.1, dash: false }]]))`,
+      probe: `JSON.parse(localStorage.getItem("summit-spark-room-paths") || "[]")[0]?.length === 1`
+    },
+    {
+      name: "settings-only",
+      seed: `localStorage.setItem("summit-spark-settings", JSON.stringify({ schemaVersion: 3, audioEnabled: false, touchSize: 62 }))`,
+      probe: `JSON.parse(localStorage.getItem("summit-spark-settings") || "{}").touchSize === 62`
+    }
+  ];
+  try {
+    for (const conflictCase of cases) {
+      await evaluate(cdp, `(() => { localStorage.clear(); ${conflictCase.seed}; })()`);
+      await navigateApp(cdp, baseUrl, `cloud conflict ${conflictCase.name}`);
+      const guarded = await waitUntil(`cloud conflict preserves ${conflictCase.name}`, () => evaluate(cdp, `(() => {
+        const status = document.querySelector("#accountStatus")?.textContent || "";
+        if (!/请选择/.test(status)) return null;
+        return {
+          status,
+          summary: document.querySelector("#accountSummary")?.textContent || "",
+          localPreserved: Boolean(${conflictCase.probe}),
+          remoteNotApplied: (JSON.parse(localStorage.getItem("summit-spark-profile") || "{}").summitClears || 0) === 0
+        };
+      })()`), 7000);
+      if (!guarded.localPreserved || !guarded.remoteNotApplied || guarded.summary !== "待确认") {
+        errors.push(`cloud conflict must preserve ${conflictCase.name} local data instead of treating it as empty: ` + JSON.stringify(guarded));
+      }
+    }
+  } finally {
+    if (injected.identifier) {
+      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+  }
+}
+
 async function runResumeSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
@@ -2500,6 +2579,7 @@ async function main() {
     await runRestrictedSessionStorageAuthSmoke(cdp, baseUrl);
     await runPasswordRecoverySmoke(cdp, baseUrl);
     await runCloudSyncExitGuardSmoke(cdp, baseUrl);
+    await runCloudConflictGuardSmoke(cdp, baseUrl);
   } finally {
     if (cdp) cdp.close();
     await killProcess(browser);
@@ -2512,7 +2592,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

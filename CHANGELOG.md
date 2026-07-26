@@ -2,6 +2,7 @@
 
 ## 2026-07-26
 
+- Replaced the cloud-conflict check for a nonexistent `roomFocus.attempts` field with complete meaningful-save detection across customized settings, all profile/challenge records, room PBs, recorded paths, every focus/Drill/death counter, best time and Flow; added authenticated browser conflicts for focus-only, path-only and settings-only local saves and bumped public assets to `20260726-p147`.
 - Bound every issued email OTP token to its normalized email, invalidated the old user/token/code state immediately when the email changes or a replacement send begins, cleared it after login/logout, and added browser regressions for both normal input edits and autofill-like value changes that bypass input events; bumped public assets to `20260726-p146`.
 - Preserved the complete custom binding profile when switching between Windows/Linux and Mac keyboard labels, leaving the explicit Restore Layout action as the only platform-default reset path; added a browser regression that binds Jump to F, round-trips both platforms and verifies the custom preset and code remain intact, and bumped public assets to `20260726-p145`.
 - Enabled edge-to-edge safe-area values and keyboard-driven content resizing in the viewport contract, bounded the mobile entry chooser and settings/account drawer against all four device insets, and added a real-browser regression with a 47px notch, 34px home indicator and a 390x420 keyboard-reduced viewport; bumped public assets to `20260726-p144`.

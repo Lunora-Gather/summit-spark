@@ -15,7 +15,7 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 
 - The demo is a 10-room vertical slice, not a complete chapter campaign.
 - Route contracts and Feel Lab are local training tools; they do not yet produce exportable replay data.
-- Progress remains local-first and intentionally lightweight; signed-in players also receive private Appwrite cloud sync with conflict protection, while local JSON/cloud replacement writes a browser-side backup and atomically rolls all save keys back if any replacement write fails.
+- Progress remains local-first and intentionally lightweight; signed-in players also receive private Appwrite cloud sync whose conflict guard covers customized settings, profile/challenges, PBs, paths, every Focus/Drill/death counter, best time and Flow, while local JSON/cloud replacement writes a browser-side backup and atomically rolls all save keys back if any replacement write fails.
 - Low-performance mode uses a 1x canvas buffer, fewer particles and no live compositor, filter, or canvas-shadow blur. If a low-end device still struggles, the next investigation should profile draw-call and update cost rather than simplify gameplay.
 
 ## Not Worth Fixing Right Now

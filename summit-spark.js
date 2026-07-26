@@ -6350,20 +6350,60 @@
     setAccountStatus("请选择“使用云端”或“上传本地”，确认后将自动同步");
   }
 
+  function hasMeaningfulSettings(value) {
+    const defaults = defaultSettings();
+    const normalized = normalizeSettings(value, defaults);
+    const baseline = normalizeSettings({}, defaults);
+    return JSON.stringify(normalized) !== JSON.stringify(baseline);
+  }
+
+  function hasMeaningfulProfile(value) {
+    const candidate = normalizeProfile(value);
+    return candidate.summitClears > 0
+      || candidate.bestDeathCount !== null
+      || candidate.bestRelayChain > 0
+      || candidate.bestFlowPeak > 0
+      || candidate.lastClearTime > 0
+      || Boolean(candidate.lastClearAt)
+      || Object.keys(candidate.challengeWins).length > 0;
+  }
+
+  function hasMeaningfulRoomFocus(entries) {
+    return entries.some((entry) => {
+      if (!entry || typeof entry !== "object") return false;
+      if (entry.last && entry.last !== "none") return true;
+      return Object.entries(entry).some(([key, value]) => key !== "schemaVersion" && key !== "last" && Number(value) > 0);
+    });
+  }
+
+  function hasMeaningfulRoomPaths(paths) {
+    return paths.some((path) => Array.isArray(path) && path.length > 0);
+  }
+
+  function hasMeaningfulSaveData({ settings: savedSettings, profile: savedProfile, roomBests, roomPaths, roomFocus: savedFocus, bestTime: savedBestTime, bestFlow: savedBestFlow }) {
+    return hasMeaningfulSettings(savedSettings)
+      || hasMeaningfulProfile(savedProfile)
+      || roomBests.some((value) => value > 0)
+      || hasMeaningfulRoomPaths(roomPaths)
+      || hasMeaningfulRoomFocus(savedFocus)
+      || savedBestTime > 0
+      || savedBestFlow > 0;
+  }
+
   function hasMeaningfulLocalProgress() {
-    return profile.summitClears > 0
-      || bestRoomTimes.some((value) => value > 0)
-      || readBestTime() > 0
-      || readBestFlow() > 0
-      || roomFocus.some((entry) => (entry?.attempts || 0) > 0);
+    return hasMeaningfulSaveData({
+      settings,
+      profile,
+      roomBests: bestRoomTimes,
+      roomPaths: bestRoomPaths,
+      roomFocus,
+      bestTime: readBestTime(),
+      bestFlow: readBestFlow()
+    });
   }
 
   function hasMeaningfulNormalizedProgress(normalized) {
-    return normalized.profile.summitClears > 0
-      || normalized.roomBests.some((value) => value > 0)
-      || normalized.bestTime > 0
-      || normalized.bestFlow > 0
-      || normalized.roomFocus.some((entry) => (entry?.attempts || 0) > 0);
+    return hasMeaningfulSaveData(normalized);
   }
 
   function archiveFingerprint(archive) {

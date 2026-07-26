@@ -1295,13 +1295,11 @@
   });
   keyboardLayoutSelect?.addEventListener("change", () => {
     settings.keyboardLayout = keyboardLayoutSelect.value === "mac" ? "mac" : "pc";
-    if (settings.controlsPreset === "custom") {
-      settings.customBindings = defaultBindingsForLayout(settings.keyboardLayout);
-    }
     releaseAllInputs();
     syncKeyBindingEditor();
     writeSettings();
-    setGameStatus(settings.keyboardLayout === "mac" ? "已切换 Mac 键盘标识" : "已切换 Windows / Linux 键盘标识");
+    const preserved = settings.controlsPreset === "custom" ? "，自定义键位保持不变" : "";
+    setGameStatus(`${settings.keyboardLayout === "mac" ? "已切换 Mac 键盘标识" : "已切换 Windows / Linux 键盘标识"}${preserved}`);
   });
   document.querySelectorAll("[data-layout-choice]").forEach((button) => {
     button.addEventListener("click", () => {

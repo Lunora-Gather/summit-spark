@@ -797,6 +797,32 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (reboundJump.code !== "KeyF" || reboundJump.label !== "F" || !/跳跃/.test(reboundJump.status)) {
     errors.push("click-to-rebind should persist and render the captured keyboard key: " + JSON.stringify(reboundJump));
   }
+  await clickSelector(cdp, '[data-layout-choice="pc"]');
+  const customAfterPcSwitch = await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    return {
+      layout: saved.keyboardLayout,
+      preset: saved.controlsPreset,
+      jump: saved.customBindings?.jump,
+      label: document.querySelector('[data-binding-action="jump"] kbd')?.textContent.trim(),
+      status: document.querySelector("#gameStatus")?.textContent || ""
+    };
+  })()`);
+  await clickSelector(cdp, '[data-layout-choice="mac"]');
+  const customAfterMacSwitch = await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    return {
+      layout: saved.keyboardLayout,
+      preset: saved.controlsPreset,
+      jump: saved.customBindings?.jump,
+      label: document.querySelector('[data-binding-action="jump"] kbd')?.textContent.trim(),
+      status: document.querySelector("#gameStatus")?.textContent || ""
+    };
+  })()`);
+  if (customAfterPcSwitch.layout !== "pc" || customAfterPcSwitch.preset !== "custom" || customAfterPcSwitch.jump !== "KeyF" || customAfterPcSwitch.label !== "F" || !/自定义键位保持不变/.test(customAfterPcSwitch.status)
+    || customAfterMacSwitch.layout !== "mac" || customAfterMacSwitch.preset !== "custom" || customAfterMacSwitch.jump !== "KeyF" || customAfterMacSwitch.label !== "F" || !/自定义键位保持不变/.test(customAfterMacSwitch.status)) {
+    errors.push("switching Mac and PC labels must preserve every custom binding until the explicit restore action: " + JSON.stringify({ customAfterPcSwitch, customAfterMacSwitch }));
+  }
   await clickSelector(cdp, "#resetKeyBindings");
   const resetBindings = await evaluate(cdp, `(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
@@ -2457,7 +2483,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, 4.5:1 small-text contrast, custom-binding platform preservation, authenticated refresh, stalled-session, restricted-storage OTP, password-recovery and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

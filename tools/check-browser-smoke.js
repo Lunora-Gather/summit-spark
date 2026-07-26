@@ -1782,28 +1782,49 @@ async function runLargeCloudArchiveSmoke(cdp, baseUrl) {
       const archive = JSON.parse(archiveText);
       const paths = archive.storage?.roomPaths || [];
       const input = document.querySelector("#saveImportText");
-      input.value = archiveText;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
+      window.__summitLargeArchiveText = archiveText;
       return {
         chars: archiveText.length,
+        inputMaxLength: input.maxLength,
         upserts: mock.upserts,
         pathCount: paths.length,
         pointCount: paths.reduce((total, path) => total + path.length, 0),
-        previewValid: document.querySelector("#saveImportStatus")?.classList.contains("valid") || false,
-        previewText: document.querySelector("#saveImportStatus")?.textContent || "",
         summary
       };
+    })()`), 7000);
+    await clickSelector(cdp, "#startSettingsButton");
+    await openSettingsGroup(cdp, ".settings-group-feedback");
+    await evaluate(cdp, `(() => {
+      const input = document.querySelector("#saveImportText");
+      input.value = "";
+      input.focus();
+    })()`);
+    const largeArchiveText = await evaluate(cdp, `window.__summitLargeArchiveText || ""`);
+    await cdp.send("Input.insertText", { text: largeArchiveText });
+    const realisticImport = await waitUntil("large archive accepts real text input", () => evaluate(cdp, `(() => {
+      const input = document.querySelector("#saveImportText");
+      const preview = document.querySelector("#saveImportStatus");
+      return input?.value.length === window.__summitLargeArchiveText?.length
+        && preview?.classList.contains("valid")
+        ? {
+            chars: input.value.length,
+            previewValid: true,
+            previewText: preview.textContent || ""
+          }
+        : null;
     })()`), 7000);
     if (
       largeArchive.chars <= 240000
       || largeArchive.chars >= 1000000
+      || largeArchive.inputMaxLength < largeArchive.chars
       || largeArchive.upserts !== 1
       || largeArchive.pathCount !== 10
       || largeArchive.pointCount !== 4200
-      || !largeArchive.previewValid
-      || !/可导入/.test(largeArchive.previewText)
+      || realisticImport.chars !== largeArchive.chars
+      || !realisticImport.previewValid
+      || !/可导入/.test(realisticImport.previewText)
     ) {
-      errors.push("a full ten-room route archive above the legacy 240k cap must upload and remain self-importable: " + JSON.stringify(largeArchive));
+      errors.push("a full ten-room route archive above the legacy 240k cap must upload and remain paste-importable: " + JSON.stringify({ largeArchive, realisticImport }));
     }
   } finally {
     if (injected.identifier) {

@@ -899,6 +899,8 @@
   let cloudRemoteUsable = false;
   let cloudUploadPermitted = false;
   let cloudSyncTimer = 0;
+  let cloudSaveDirty = false;
+  let cloudSyncFlushRequested = false;
   let accountSessionGeneration = 0;
   let lastCloudArchiveHash = "";
   let flowScore = 0;
@@ -6391,6 +6393,8 @@
     cloudInspectionPending = false;
     cloudRemoteUsable = false;
     cloudUploadPermitted = false;
+    cloudSaveDirty = false;
+    cloudSyncFlushRequested = false;
     lastCloudArchiveHash = "";
     resolveEntryMode("account", false);
     syncAccountUi();
@@ -6456,6 +6460,7 @@
     if (remoteHash === localHash) {
       lastCloudArchiveHash = localHash;
       cloudSyncReady = true;
+      cloudSaveDirty = false;
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
       setAccountStatus("本地与云端进度一致", "valid");
       return;
@@ -6587,7 +6592,17 @@
       return false;
     }
     const fingerprint = archiveFingerprint(archive);
-    if (!force && fingerprint === lastCloudArchiveHash) return true;
+    if (!force && fingerprint === lastCloudArchiveHash) {
+      cloudSaveDirty = false;
+      setCloudStatus(`已同步 · ${formatCloudTime(cloudRow?.$updatedAt)}`);
+      return true;
+    }
+    if (cloudSyncTimer) {
+      window.clearTimeout(cloudSyncTimer);
+      cloudSyncTimer = 0;
+    }
+    cloudSaveDirty = false;
+    let uploadSucceeded = false;
     setAccountBusy(true);
     setCloudStatus("正在同步…", "同步中");
     try {
@@ -6610,13 +6625,26 @@
       cloudSyncReady = true;
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
       setAccountStatus("进度已安全保存到云端", "valid");
+      uploadSucceeded = true;
       return true;
     } catch (error) {
+      cloudSaveDirty = true;
       setCloudStatus("同步失败，本地进度已保留", "同步失败");
       setAccountStatus(friendlyAccountError(error), "error");
       return false;
     } finally {
       setAccountBusy(false);
+      if (uploadSucceeded && cloudSaveDirty && accountUser && cloudSyncReady) {
+        setCloudStatus("有新进度等待同步", "待同步");
+        if (cloudSyncFlushRequested) {
+          cloudSyncFlushRequested = false;
+          uploadCloudSave();
+        } else {
+          armCloudSyncTimer();
+        }
+      } else if (!cloudSaveDirty) {
+        cloudSyncFlushRequested = false;
+      }
     }
   }
 
@@ -6680,6 +6708,8 @@
       cloudInspectionPending = false;
       cloudRemoteUsable = false;
       cloudUploadPermitted = false;
+      cloudSaveDirty = false;
+      cloudSyncFlushRequested = false;
       lastCloudArchiveHash = "";
       syncAccountUi();
       setCloudStatus("未登录");
@@ -6702,6 +6732,13 @@
 
   function scheduleCloudSave() {
     if (!accountUser || !cloudSyncReady) return;
+    cloudSaveDirty = true;
+    setCloudStatus("有新进度等待同步", "待同步");
+    if (cloudSyncBusy) return;
+    armCloudSyncTimer();
+  }
+
+  function armCloudSyncTimer() {
     if (cloudSyncTimer) window.clearTimeout(cloudSyncTimer);
     cloudSyncTimer = window.setTimeout(() => {
       cloudSyncTimer = 0;
@@ -6710,9 +6747,15 @@
   }
 
   function flushPendingCloudSave() {
-    if (!cloudSyncTimer || !accountUser || !cloudSyncReady || cloudSyncBusy) return;
-    window.clearTimeout(cloudSyncTimer);
-    cloudSyncTimer = 0;
+    if (!cloudSaveDirty || !accountUser || !cloudSyncReady) return;
+    if (cloudSyncBusy) {
+      cloudSyncFlushRequested = true;
+      return;
+    }
+    if (cloudSyncTimer) {
+      window.clearTimeout(cloudSyncTimer);
+      cloudSyncTimer = 0;
+    }
     uploadCloudSave();
   }
 

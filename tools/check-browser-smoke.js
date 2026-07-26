@@ -1401,7 +1401,7 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
   await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
   const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `(() => {
-      window.__summitCloudMock = { upserts: 0, deletes: 0, failWrites: false };
+      window.__summitCloudMock = { upserts: 0, deletes: 0, failWrites: false, holdWrites: false, pendingWrite: null };
       class Client {
         setEndpoint() { return this; }
         setProject() { return this; }
@@ -1416,6 +1416,11 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
           window.__summitCloudMock.upserts += 1;
           window.__summitCloudMock.lastPayload = payload;
           if (window.__summitCloudMock.failWrites) throw { code: 503, type: "general_server_error" };
+          if (window.__summitCloudMock.holdWrites) {
+            return new Promise((resolve) => {
+              window.__summitCloudMock.pendingWrite = { resolve, payload };
+            });
+          }
           return { $updatedAt: new Date().toISOString() };
         }
       }
@@ -1442,6 +1447,64 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       const summary = document.querySelector("#accountSummary")?.textContent || "";
       return mock?.upserts > ${initialSync.upserts} && summary === "已同步" ? { upserts: mock.upserts, summary } : null;
     })()`), 5000);
+    const slowUploadTarget = await evaluate(cdp, `(() => {
+      const mock = window.__summitCloudMock;
+      mock.holdWrites = true;
+      const calm = document.querySelector("#calmEffectsToggle");
+      calm.checked = !calm.checked;
+      calm.dispatchEvent(new Event("change", { bubbles: true }));
+      const queuedSummary = document.querySelector("#accountSummary")?.textContent || "";
+      window.dispatchEvent(new Event("pagehide"));
+      return { calmEffects: calm.checked, queuedSummary };
+    })()`);
+    if (slowUploadTarget.queuedSummary !== "待同步") {
+      errors.push("a locally queued save should stop claiming it is already synced: " + JSON.stringify(slowUploadTarget));
+    }
+    const heldUpload = await waitUntil("first slow cloud upload remains in flight", () => evaluate(cdp, `(() => {
+      const mock = window.__summitCloudMock;
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      return mock?.pendingWrite && summary === "同步中"
+        ? { upserts: mock.upserts, summary }
+        : null;
+    })()`), 5000);
+    const queuedDuringUpload = await evaluate(cdp, `(() => {
+      const lines = document.querySelector("#practiceLinesToggle");
+      lines.checked = !lines.checked;
+      lines.dispatchEvent(new Event("change", { bubbles: true }));
+      window.dispatchEvent(new Event("pagehide"));
+      return {
+        practiceLines: lines.checked,
+        summary: document.querySelector("#accountSummary")?.textContent || "",
+        upserts: window.__summitCloudMock?.upserts || 0
+      };
+    })()`);
+    if (queuedDuringUpload.summary !== "待同步" || queuedDuringUpload.upserts !== heldUpload.upserts) {
+      errors.push("new progress during an in-flight upload should stay visibly queued without a concurrent write: " + JSON.stringify({ heldUpload, queuedDuringUpload }));
+    }
+    await evaluate(cdp, `(() => {
+      const mock = window.__summitCloudMock;
+      const pending = mock.pendingWrite;
+      mock.pendingWrite = null;
+      mock.holdWrites = false;
+      pending.resolve({ $updatedAt: new Date().toISOString() });
+    })()`);
+    const followupUpload = await waitUntil("queued change receives a follow-up cloud upload", () => evaluate(cdp, `(() => {
+      const mock = window.__summitCloudMock;
+      if (!mock || mock.upserts <= ${heldUpload.upserts}) return null;
+      const archive = JSON.parse(mock.lastPayload?.data?.archive || "{}");
+      const settings = archive.storage?.settings || {};
+      const summary = document.querySelector("#accountSummary")?.textContent || "";
+      return settings.calmEffects === ${JSON.stringify(slowUploadTarget.calmEffects)}
+        && settings.practiceLines === ${JSON.stringify(queuedDuringUpload.practiceLines)}
+        && summary === "已同步"
+        ? { upserts: mock.upserts, summary, calmEffects: settings.calmEffects, practiceLines: settings.practiceLines }
+        : null;
+    })()`), 5000);
+    if (followupUpload.upserts <= heldUpload.upserts
+      || followupUpload.calmEffects !== slowUploadTarget.calmEffects
+      || followupUpload.practiceLines !== queuedDuringUpload.practiceLines) {
+      errors.push("a local change queued during a slow upload must receive a second upload with the latest archive: " + JSON.stringify({ heldUpload, slowUploadTarget, queuedDuringUpload, followupUpload }));
+    }
     await evaluate(cdp, `(() => {
       const toggle = document.querySelector("#audioToggle");
       toggle.checked = !toggle.checked;

@@ -1152,6 +1152,53 @@ async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
   }
 }
 
+async function runCloudSdkRetrySmoke(cdp, baseUrl) {
+  await evaluate(cdp, `(() => {
+    sessionStorage.removeItem("summit-spark-entry-mode");
+    localStorage.removeItem("summit-spark-account-hint");
+  })()`);
+  await cdp.send("Network.enable");
+  await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
+  await cdp.send("Network.setBlockedURLs", { urls: ["*vendor/appwrite-26.2.0.js*"] });
+  try {
+    await navigateApp(cdp, baseUrl, "blocked cloud SDK");
+    const failed = await waitUntil("blocked cloud SDK exposes retry state", () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      return /账号页重试/.test(status) && !document.querySelector("#appwriteSdk")
+        ? {
+            status,
+            entryVisible: !document.querySelector("#entryGate")?.classList.contains("hidden")
+          }
+        : null;
+    })()`), 5000);
+    await cdp.send("Network.setBlockedURLs", { urls: [] });
+    await clickSelector(cdp, "#accountEntryButton");
+    const recovered = await waitUntil("account drawer retries cloud SDK without refresh", () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      const panelOpen = !document.querySelector("#settingsPanel")?.classList.contains("hidden");
+      const accountOpen = document.querySelector(".settings-group-account")?.open || false;
+      const sdkReady = typeof window.Appwrite?.Client === "function";
+      if (!panelOpen || !accountOpen || !sdkReady) return null;
+      return {
+        status,
+        sdkReady,
+        scriptCount: document.querySelectorAll("#appwriteSdk").length,
+        sendEnabled: !document.querySelector("#accountSendCode")?.disabled
+      };
+    })()`), 7000);
+    if (!failed.entryVisible || !recovered.sdkReady || recovered.scriptCount !== 1 || !recovered.sendEnabled || /暂时未载入/.test(recovered.status)) {
+      errors.push("a transient cloud SDK load failure should retry from Account without a page refresh: " + JSON.stringify({ failed, recovered }));
+    }
+  } finally {
+    await cdp.send("Network.setBlockedURLs", { urls: [] });
+    await cdp.send("Network.setCacheDisabled", { cacheDisabled: false });
+    await evaluate(cdp, `(() => {
+      sessionStorage.removeItem("summit-spark-entry-mode");
+      localStorage.removeItem("summit-spark-account-hint");
+    })()`);
+  }
+}
+
 async function runExpiredAccountHintSmoke(cdp, baseUrl) {
   await evaluate(cdp, `(() => {
     sessionStorage.removeItem("summit-spark-entry-mode");
@@ -3386,6 +3433,7 @@ async function main() {
     await runMobileLandscapeSmoke(cdp, baseUrl);
     await runGamepadSmoke(cdp, baseUrl);
     await runFreshEntryImmediateSmoke(cdp, baseUrl);
+    await runCloudSdkRetrySmoke(cdp, baseUrl);
     await runExpiredAccountHintSmoke(cdp, baseUrl);
     await runAuthenticatedRefreshSmoke(cdp, baseUrl);
     await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
@@ -3408,7 +3456,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, immediate fresh entry, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

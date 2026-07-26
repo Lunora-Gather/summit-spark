@@ -421,6 +421,11 @@ if (!js.includes('const ACCOUNT_HINT_STORAGE_KEY = "summit-spark-account-hint"')
   || !browserSmoke.includes("fresh visitors should see the focused guest/email chooser immediately")
   || !browserSmoke.includes("an expired account hint should be cleared")
   || !browserSmoke.includes("320px first-run entry should stay focused, touch-safe and free of background room coaching")) errors.push("first-run entry must appear immediately, while account hints restore silently and expired hints recover cleanly");
+if (!js.includes("let accountSdkLoadPromise = null;")
+  || !js.includes("document.getElementById(\"appwriteSdk\")?.remove();")
+  || !js.includes("async function ensureAccountSdk()")
+  || !browserSmoke.includes("runCloudSdkRetrySmoke")
+  || !browserSmoke.includes("a transient cloud SDK load failure should retry from Account without a page refresh")) errors.push("a transient Appwrite SDK failure must remove the failed loader and retry through the account surface without a full refresh");
 if (!css.includes(".entry-option:focus-visible") || !css.includes("outline: 2px solid #477b80;") || !css.includes("color: #3a636c;") || !browserSmoke.includes("recoveryContrast") || !browserSmoke.includes("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target")) errors.push("first-run focus and password recovery must use refined non-default focus styling and composited 4.5:1 text contrast");
 if (!js.includes("const SAVE_ARCHIVE_MAX_CHARS = 1000000;")
   || !indexHtml.includes('id="saveImportText" maxlength="1000000"')

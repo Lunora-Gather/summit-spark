@@ -894,6 +894,7 @@
   let accountTokenUserId = "";
   let accountTokenEmail = "";
   let accountSdk = null;
+  let accountSdkLoadPromise = null;
   let cloudRow = null;
   let cloudSyncReady = false;
   let cloudSyncBusy = false;
@@ -1833,6 +1834,7 @@
   function openAccountPanel() {
     accountFocused = true;
     openPanel("settings");
+    if (!accountSdk) loadAppwriteSdk();
     if (accountGroup) {
       document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
         group.open = group === accountGroup;
@@ -6116,7 +6118,7 @@
     if (focus) startButton?.focus({ preventScroll: true });
   }
 
-  function initCloudAccount() {
+  async function initCloudAccount() {
     setAuthMode("code");
     const params = new URLSearchParams(window.location.search);
     const incomingRecoveryUserId = params.get("userId") || "";
@@ -6132,7 +6134,7 @@
     if (!window.Appwrite?.Client || !window.Appwrite?.Account || !window.Appwrite?.TablesDB) {
       setAccountStatus("本地进度已就绪，正在连接云存档");
       if (document.readyState === "complete") loadAppwriteSdk();
-      else window.addEventListener("load", loadAppwriteSdk, { once: true });
+      else window.addEventListener("load", () => loadAppwriteSdk(), { once: true });
       return;
     }
     const client = new window.Appwrite.Client()
@@ -6156,22 +6158,48 @@
       if (accountRecoveryButton) accountRecoveryButton.classList.add("hidden");
       setAccountStatus("改密链接已验证，请设置新密码", "valid");
     }
-    restoreAccountSession();
+    await restoreAccountSession();
   }
 
   function loadAppwriteSdk() {
-    if (document.getElementById("appwriteSdk")) return;
+    if (accountSdk) return Promise.resolve(true);
+    if (accountSdkLoadPromise) return accountSdkLoadPromise;
     setAccountStatus("正在连接云存档；本地游戏可正常使用");
+    document.getElementById("appwriteSdk")?.remove();
     const script = document.createElement("script");
     script.id = "appwriteSdk";
     script.src = "vendor/appwrite-26.2.0.js";
     script.async = true;
-    script.addEventListener("load", initCloudAccount, { once: true });
-    script.addEventListener("error", () => {
-      revealEntryGate();
-      setAccountStatus("云服务暂时未载入，本地存档不受影响", "error");
-    }, { once: true });
-    document.head.append(script);
+    const pending = new Promise((resolve) => {
+      script.addEventListener("load", async () => {
+        try {
+          await initCloudAccount();
+          resolve(Boolean(accountSdk));
+        } catch {
+          accountSdk = null;
+          script.remove();
+          revealEntryGate();
+          setAccountStatus("云服务连接失败，可在账号页重试；本地存档不受影响", "error");
+          resolve(false);
+        }
+      }, { once: true });
+      script.addEventListener("error", () => {
+        script.remove();
+        revealEntryGate();
+        setAccountStatus("云服务暂时未载入，可在账号页重试；本地存档不受影响", "error");
+        resolve(false);
+      }, { once: true });
+      document.head.append(script);
+    });
+    accountSdkLoadPromise = pending.finally(() => {
+      accountSdkLoadPromise = null;
+    });
+    return accountSdkLoadPromise;
+  }
+
+  async function ensureAccountSdk() {
+    if (accountSdk) return true;
+    return loadAppwriteSdk();
   }
 
   async function restoreAccountSession() {
@@ -6294,7 +6322,7 @@
   }
 
   async function sendAccountCode() {
-    if (!accountSdk || cloudSyncBusy) return;
+    if (cloudSyncBusy || !await ensureAccountSdk() || accountUser) return;
     const email = validAccountEmail();
     if (!email) {
       setAccountStatus("请先填写有效邮箱", "error");
@@ -6326,7 +6354,7 @@
   }
 
   async function submitAccountLogin() {
-    if (!accountSdk || cloudSyncBusy) return;
+    if (cloudSyncBusy || !await ensureAccountSdk() || accountUser) return;
     if (recoveryUserId && recoverySecret) {
       const password = accountPasswordInput?.value || "";
       if (password.length < 8) {
@@ -6401,7 +6429,7 @@
   }
 
   async function sendPasswordRecovery() {
-    if (!accountSdk || cloudSyncBusy) return;
+    if (cloudSyncBusy || !await ensureAccountSdk() || accountUser) return;
     const email = validAccountEmail();
     if (!email) {
       setAccountStatus("请先填写要找回的邮箱", "error");

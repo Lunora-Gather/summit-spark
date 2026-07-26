@@ -450,6 +450,19 @@ canvas:focus {
   scrollbar-color: rgba(232, 196, 106, 0.32) rgba(255, 255, 255, 0.05);
 }
 
+.settings-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: transparent;
+  cursor: default;
+  touch-action: manipulation;
+}
+
+.settings-backdrop.hidden {
+  display: none;
+}
+
 .settings-panel.hidden {
   display: none;
 }

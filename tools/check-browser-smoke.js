@@ -952,14 +952,23 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (outsideDismissFocus !== "startSettingsButton") errors.push("outside settings dismissal should return start-screen focus to its visible trigger: " + outsideDismissFocus);
   await clickSelector(cdp, "#startSettingsButton");
   await waitUntil("quiet settings reopens collapsed", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group[open]").length === 0`));
-  await evaluate(cdp, `(() => {
-    const button = document.querySelector("#practiceButton");
-    button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-    button.click();
+  const outsideTrainingPoint = await evaluate(cdp, `(() => {
+    const rect = document.querySelector("#openTrainingButton").getBoundingClientRect();
+    return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
   })()`);
-  await waitUntil("outside training button switches panels", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await clickPoint(cdp, outsideTrainingPoint.x, outsideTrainingPoint.y);
+  await waitUntil("real outside training-button pointer switches panels", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("switched practice panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await clickSelector(cdp, "#startSettingsButton");
+  const outsideAccountPoint = await evaluate(cdp, `(() => {
+    const rect = document.querySelector("#startAccountButton").getBoundingClientRect();
+    return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+  })()`);
+  await clickPoint(cdp, outsideAccountPoint.x, outsideAccountPoint.y);
+  await waitUntil("real outside account-button pointer switches panels", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("account-focused") && document.querySelector(".settings-group-account").open`));
+  await clickSelector(cdp, "#settingsClose");
+  await waitUntil("switched account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("practice panel opens for feel", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await openSettingsGroup(cdp, ".settings-group-training");

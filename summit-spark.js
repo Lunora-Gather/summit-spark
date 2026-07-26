@@ -39,6 +39,7 @@
   const controlHint = document.getElementById("controlHint");
   const settingsButton = document.getElementById("settingsButton");
   const practiceButton = document.getElementById("practiceButton");
+  const settingsBackdrop = document.getElementById("settingsBackdrop");
   const settingsPanel = document.getElementById("settingsPanel");
   const settingsCloseButton = document.getElementById("settingsClose");
   const panelTitle = document.getElementById("panelTitle");
@@ -1252,6 +1253,7 @@
     if (restart && overlay.contains(restart)) hardReset();
   });
   document.addEventListener("pointerdown", closeSettingsFromOutside, true);
+  settingsBackdrop?.addEventListener("pointerdown", closeSettingsFromBackdrop);
   settingsCloseButton?.addEventListener("click", closeSettings);
   settingsCloseButton?.addEventListener("pointerup", closeSettingsFromTouch);
   settingsCloseButton?.addEventListener("touchend", closeSettingsFromTouch);
@@ -7109,8 +7111,32 @@
     closeSettings();
   }
 
+  function pointHitsVisibleElement(element, x, y) {
+    if (!(element instanceof HTMLElement) || element.getClientRects().length === 0) return false;
+    const rect = element.getBoundingClientRect();
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+  }
+
+  function closeSettingsFromBackdrop(event) {
+    if (!settingsVisible) return;
+    const x = Number(event.clientX);
+    const y = Number(event.clientY);
+    if (pointHitsVisibleElement(practiceButton, x, y)
+      || pointHitsVisibleElement(openTrainingButton, x, y)) {
+      accountFocused = false;
+      openStartTrainingPanel();
+      return;
+    }
+    if (pointHitsVisibleElement(startAccountButton, x, y)) {
+      openAccountPanel();
+      return;
+    }
+    closeSettings();
+  }
+
   function closeSettingsFromOutside(event) {
     if (!settingsVisible || !settingsPanel || settingsPanel.contains(event.target)) return;
+    if (event.target === settingsBackdrop) return;
     if (event.target instanceof Element && event.target.closest("#settingsButton")) return;
     const returnTarget = panelReturnFocus;
     closeSettings({ restoreFocus: false });
@@ -7137,6 +7163,7 @@
 
   function syncSettingsVisibility() {
     stage?.classList.toggle("settings-open", settingsVisible);
+    settingsBackdrop?.classList.toggle("hidden", !settingsVisible);
     settingsPanel?.classList.toggle("hidden", !settingsVisible);
     settingsPanel?.classList.toggle("mode-settings", settingsVisible && panelMode === "settings");
     settingsPanel?.classList.toggle("mode-practice", settingsVisible && panelMode === "practice");

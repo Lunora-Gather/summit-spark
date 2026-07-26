@@ -396,6 +396,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       return (Math.max(foregroundLum, backgroundLum) + 0.05) / (Math.min(foregroundLum, backgroundLum) + 0.05);
     };
     const gateBackground = getComputedStyle(gate).backgroundColor;
+    const guestFocusStyle = getComputedStyle(guest);
     const contrastSamples = [
       ["eyebrow", document.querySelector(".entry-eyebrow")],
       ["guest detail", guest?.querySelector("small")],
@@ -408,10 +409,21 @@ async function runDesktopSmoke(cdp, baseUrl) {
       startPending: document.querySelector("#startPanel")?.classList.contains("entry-pending") || false,
       fits: !!gateRect && gateRect.left >= 0 && gateRect.right <= innerWidth && gateRect.bottom <= innerHeight,
       guestFocused: document.activeElement === guest,
+      focusOutlineWidth: guestFocusStyle.outlineWidth,
+      focusOutlineColor: guestFocusStyle.outlineColor,
       contrastSamples
     };
   })()`);
-  if (!entryChoice.visible || !entryChoice.startPending || !entryChoice.fits || !entryChoice.guestFocused || !/仅保存在此设备/.test(entryChoice.guest) || !/云端保存/.test(entryChoice.account)) {
+  if (
+    !entryChoice.visible
+    || !entryChoice.startPending
+    || !entryChoice.fits
+    || !entryChoice.guestFocused
+    || Number.parseFloat(entryChoice.focusOutlineWidth) < 2
+    || /rgb\(0, 0, 0\)/.test(entryChoice.focusOutlineColor)
+    || !/仅保存在此设备/.test(entryChoice.guest)
+    || !/云端保存/.test(entryChoice.account)
+  ) {
     errors.push("entry should clearly offer adaptive guest and cloud-save choices: " + JSON.stringify(entryChoice));
   }
   if (entryChoice.contrastSamples.some((sample) => sample.ratio < 4.5)) {
@@ -2476,10 +2488,45 @@ async function runMobileSmoke(cdp, baseUrl) {
     const code = document.querySelector('[data-auth-mode="code"]');
     const recovery = document.querySelector("#accountRecovery");
     const style = getComputedStyle(tab);
+    const parseRgba = (value) => {
+      const match = String(value).match(/rgba?\\(([^)]+)\\)/);
+      if (!match) return [0, 0, 0, 0];
+      const parts = match[1].split(/[, ]+/).filter(Boolean).map(Number);
+      return [parts[0], parts[1], parts[2], parts[3] ?? 1];
+    };
+    const composite = (foreground, background) => {
+      const alpha = foreground[3] + background[3] * (1 - foreground[3]);
+      if (!alpha) return [0, 0, 0, 0];
+      return [
+        (foreground[0] * foreground[3] + background[0] * background[3] * (1 - foreground[3])) / alpha,
+        (foreground[1] * foreground[3] + background[1] * background[3] * (1 - foreground[3])) / alpha,
+        (foreground[2] * foreground[3] + background[2] * background[3] * (1 - foreground[3])) / alpha,
+        alpha
+      ];
+    };
+    const layers = [];
+    for (let parent = recovery.parentElement; parent; parent = parent.parentElement) {
+      layers.push(parseRgba(getComputedStyle(parent).backgroundColor));
+    }
+    const recoveryBackground = layers.reverse().reduce(
+      (background, layer) => composite(layer, background),
+      [255, 255, 255, 1]
+    );
+    const recoveryForeground = composite(parseRgba(getComputedStyle(recovery).color), recoveryBackground);
+    const luminance = (color) => {
+      const channels = color.slice(0, 3).map((channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.04045 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const foregroundLum = luminance(recoveryForeground);
+    const backgroundLum = luminance(recoveryBackground);
     return {
       outlineWidth: style.outlineWidth,
       outlineColor: style.outlineColor,
       recoveryHeight: recovery.getBoundingClientRect().height,
+      recoveryContrast: Number(((Math.max(foregroundLum, backgroundLum) + 0.05) / (Math.min(foregroundLum, backgroundLum) + 0.05)).toFixed(2)),
       codePressed: code?.getAttribute("aria-pressed") || "",
       passwordPressed: tab?.getAttribute("aria-pressed") || ""
     };
@@ -2488,6 +2535,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     Number.parseFloat(mobilePasswordFocus.outlineWidth) < 2
     || /rgb\(0, 0, 0\)/.test(mobilePasswordFocus.outlineColor)
     || mobilePasswordFocus.recoveryHeight < 44
+    || mobilePasswordFocus.recoveryContrast < 4.5
     || mobilePasswordFocus.codePressed !== "false"
     || mobilePasswordFocus.passwordPressed !== "true"
   ) {

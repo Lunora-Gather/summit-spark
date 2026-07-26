@@ -966,7 +966,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await clickPoint(cdp, outsideTrainingPoint.x, outsideTrainingPoint.y);
   await waitUntil("real outside training-button pointer switches panels", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await clickSelector(cdp, "#settingsClose");
-  await waitUntil("switched practice panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await waitUntil("switched practice panel closes to its actual trigger", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#openTrainingButton")`));
   await clickSelector(cdp, "#startSettingsButton");
   const outsideAccountPoint = await evaluate(cdp, `(() => {
     const rect = document.querySelector("#startAccountButton").getBoundingClientRect();
@@ -975,7 +975,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await clickPoint(cdp, outsideAccountPoint.x, outsideAccountPoint.y);
   await waitUntil("real outside account-button pointer switches panels", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("account-focused") && document.querySelector(".settings-group-account").open`));
   await clickSelector(cdp, "#settingsClose");
-  await waitUntil("switched account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await waitUntil("switched account panel closes to its actual trigger", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#startAccountButton")`));
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("practice panel opens for feel", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await openSettingsGroup(cdp, ".settings-group-training");

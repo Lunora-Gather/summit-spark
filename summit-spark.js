@@ -7121,13 +7121,16 @@
     if (!settingsVisible) return;
     const x = Number(event.clientX);
     const y = Number(event.clientY);
-    if (pointHitsVisibleElement(practiceButton, x, y)
-      || pointHitsVisibleElement(openTrainingButton, x, y)) {
+    const practiceTrigger = [practiceButton, openTrainingButton]
+      .find((element) => pointHitsVisibleElement(element, x, y));
+    if (practiceTrigger) {
+      panelReturnFocus = practiceTrigger;
       accountFocused = false;
       openStartTrainingPanel();
       return;
     }
     if (pointHitsVisibleElement(startAccountButton, x, y)) {
+      panelReturnFocus = startAccountButton;
       openAccountPanel();
       return;
     }

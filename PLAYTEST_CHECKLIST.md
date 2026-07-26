@@ -18,7 +18,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 - Die once to spikes and once by falling; the game should not interrupt with explanatory coaching copy.
 - Press `O`, open settings, press `Escape`, and return to play without stuck movement.
 - Press `P`, open the practice panel, press `Escape`, and return to play without stuck movement.
-- From the start menu, open Settings and click the visible Start region: the drawer must close without starting play. Reopen Settings, click a blank region to close it, then reopen it and click the visible Practice region once; the drawer must switch directly to Practice instead of swallowing or passing through the pointer.
+- From the start menu, open Settings and click the visible Start region: the drawer must close without starting play. Reopen Settings, click a blank region to close it, then reopen it and click the visible Practice and Account regions in separate passes; each must switch directly instead of swallowing or passing through the pointer, and closing must return focus to the action just selected.
 - From the entry chooser, open Email Login and immediately click outside; the drawer must stay closed/inert and focus must remain on the Email Login trigger after its delayed autofocus window.
 - On a throttled connection, log out while the first cloud-save inspection is still pending; once the old request finishes, the account and cloud summaries must remain logged out instead of showing stale sync, conflict or corruption state.
 - During that pending inspection, confirm the account summary says “检查中”, both cloud replacement actions are disabled, Logout remains available, and a valid conflict later enables both explicit choices.

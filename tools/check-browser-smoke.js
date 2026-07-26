@@ -2531,6 +2531,36 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   }
   await evaluate(cdp, `document.querySelector(".review-more").open = true`);
   await sleep(120);
+  await evaluate(cdp, `(() => {
+    const overlay = document.querySelector("#overlay");
+    const focusable = [...overlay.querySelectorAll("button, select, input, textarea, summary, [tabindex]")]
+      .filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
+    focusable[focusable.length - 1]?.focus();
+  })()`);
+  await keyTap(cdp, "Tab", "Tab");
+  await sleep(80);
+  const finishForwardWrap = await evaluate(cdp, `(() => {
+    const overlay = document.querySelector("#overlay");
+    const focusable = [...overlay.querySelectorAll("button, select, input, textarea, summary, [tabindex]")]
+      .filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
+    return document.activeElement === focusable[0] && overlay.contains(document.activeElement);
+  })()`);
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", code: "Tab", key: "Tab", windowsVirtualKeyCode: 9, modifiers: 8 });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "Tab", key: "Tab", windowsVirtualKeyCode: 9, modifiers: 8 });
+  await sleep(80);
+  const finishBackwardWrap = await evaluate(cdp, `(() => {
+    const overlay = document.querySelector("#overlay");
+    const focusable = [...overlay.querySelectorAll("button, select, input, textarea, summary, [tabindex]")]
+      .filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
+    return document.activeElement === focusable[focusable.length - 1] && overlay.contains(document.activeElement);
+  })()`);
+  if (!finishForwardWrap || !finishBackwardWrap) {
+    errors.push("finish dialog should trap forward and backward Tab focus inside its modal surface");
+  }
+  await evaluate(cdp, `(() => {
+    document.querySelector("#finishTitle")?.focus({ preventScroll: true });
+    document.querySelector("#overlay").scrollTop = 0;
+  })()`);
   const review = await evaluate(cdp, `(() => {
     const overlay = document.querySelector("#overlay");
     const articles = [...document.querySelectorAll(".review-grid article")].map((el) => {
@@ -2704,7 +2734,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-field cloud conflict and guarded cloud-exit flows, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

@@ -1001,6 +1001,10 @@
       captureKeyBinding(event.code);
       return;
     }
+    if (finishDialogVisible() && event.code === "Tab") {
+      trapFinishFocus(event);
+      return;
+    }
     if (settingsVisible && event.code === "Tab") {
       trapPanelFocus(event);
       return;
@@ -1102,7 +1106,12 @@
 
   function panelFocusableElements() {
     if (!settingsPanel) return [];
-    return Array.from(settingsPanel.querySelectorAll("button, select, input, textarea, summary, [tabindex]"))
+    return focusableElementsWithin(settingsPanel);
+  }
+
+  function focusableElementsWithin(root) {
+    if (!(root instanceof Element)) return [];
+    return Array.from(root.querySelectorAll("button, select, input, textarea, summary, [tabindex]"))
       .filter((element) => !element.hasAttribute("disabled")
         && element.getAttribute("tabindex") !== "-1"
         && element.getAttribute("aria-hidden") !== "true"
@@ -1123,6 +1132,32 @@
       event.preventDefault();
       last.focus({ preventScroll: true });
     } else if (!event.shiftKey && (current === last || !settingsPanel.contains(current))) {
+      event.preventDefault();
+      first.focus({ preventScroll: true });
+    }
+  }
+
+  function finishDialogVisible() {
+    return !settingsVisible
+      && overlay.classList.contains("finish-overlay")
+      && !overlay.classList.contains("hidden")
+      && !overlay.hidden;
+  }
+
+  function trapFinishFocus(event) {
+    const focusable = focusableElementsWithin(overlay);
+    if (!focusable.length) {
+      event.preventDefault();
+      document.getElementById("finishTitle")?.focus({ preventScroll: true });
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const current = document.activeElement;
+    if (event.shiftKey && (current === first || !overlay.contains(current))) {
+      event.preventDefault();
+      last.focus({ preventScroll: true });
+    } else if (!event.shiftKey && (current === last || !overlay.contains(current))) {
       event.preventDefault();
       first.focus({ preventScroll: true });
     }

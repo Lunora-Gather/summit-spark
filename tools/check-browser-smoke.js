@@ -2391,6 +2391,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
   };
   await evaluate(cdp, `(() => {
     const keys = [
+      "summit-spark-save-backup",
       "summit-spark-settings",
       "summit-spark-profile",
       "summit-spark-room-bests",
@@ -2399,6 +2400,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       "summit-spark-best-time",
       "summit-spark-best-flow"
     ];
+    localStorage.setItem("summit-spark-save-backup", JSON.stringify({ sentinel: "preserve-prior-backup" }));
     window.__summitAtomicBefore = Object.fromEntries(keys.map((key) => [key, localStorage.getItem(key)]));
     window.__summitAtomicOriginalSetItem = Storage.prototype.setItem;
     let rejected = false;
@@ -2430,7 +2432,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     };
   })()`);
   if (!atomicFailure.rolledBack || !atomicFailure.importError || !atomicFailure.stillOpen || !/导入失败/.test(atomicFailure.status) || !/不可写/.test(atomicFailure.importStatus)) {
-    errors.push("a partial save write must roll every imported key back before reporting failure: " + JSON.stringify(atomicFailure));
+    errors.push("a partial save write must roll every imported key and the previous backup back before reporting failure: " + JSON.stringify(atomicFailure));
   }
   await evaluate(cdp, `(() => {
     const input = document.querySelector("#saveImportText");

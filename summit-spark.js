@@ -7062,8 +7062,9 @@
 
   function writeNormalizedSaveArchive(normalized) {
     try {
-      backupCurrentSaveArchive(normalized.sourceBuild);
+      const backup = createCurrentSaveBackup(normalized.sourceBuild);
       writeStorageTransaction([
+        [SAVE_BACKUP_KEY, JSON.stringify(backup)],
         [SETTINGS_KEY, JSON.stringify(normalized.settings)],
         [PROFILE_KEY, JSON.stringify(normalized.profile)],
         [ROOM_BESTS_KEY, JSON.stringify(normalized.roomBests)],
@@ -7075,13 +7076,14 @@
         [BEST_TIME_KEY, String(normalized.bestTime)],
         [BEST_FLOW_KEY, String(Math.floor(normalized.bestFlow))]
       ]);
+      window.__summitLastSaveBackup = backup;
     } catch {
       throw new Error("浏览器存档不可写");
     }
   }
 
-  function backupCurrentSaveArchive(sourceBuild = "") {
-    const backup = {
+  function createCurrentSaveBackup(sourceBuild = "") {
+    return {
       kind: "summit-spark-save-backup",
       schemaVersion: 1,
       savedAt: new Date().toISOString(),
@@ -7089,9 +7091,6 @@
       sourceBuild: sourceBuild || "",
       archive: buildSaveArchive()
     };
-    localStorage.setItem(SAVE_BACKUP_KEY, JSON.stringify(backup));
-    window.__summitLastSaveBackup = backup;
-    return backup;
   }
 
   function focusGame() {

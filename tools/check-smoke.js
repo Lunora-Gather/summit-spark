@@ -138,7 +138,7 @@ async function main() {
       "feedbackDiagnostics",
       "buildFeedbackTemplate",
       "buildSaveArchive",
-      "backupCurrentSaveArchive",
+      "createCurrentSaveBackup",
       "restoreSaveBackup",
       "panelMode",
       "importSaveArchive",

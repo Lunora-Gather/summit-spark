@@ -411,7 +411,7 @@ if (!standaloneHtml.includes("settings-panel")) errors.push("standalone settings
 const css = fs.readFileSync(path.join(root, "summit-spark.css"), "utf8");
 const browserSmoke = fs.readFileSync(path.join(root, "tools", "check-browser-smoke.js"), "utf8");
 if (!css.includes(".stage.low-performance #game") || !css.includes("-webkit-backdrop-filter: none;") || !browserSmoke.includes("low-performance mode should remove per-frame canvas filters and backdrop blurs")) errors.push("low-performance mode must remove canvas filter passes and live backdrop compositing");
-if (!js.includes("function writeStorageTransaction(entries)") || !js.includes("for (const [key] of entries) previous.set(key, localStorage.getItem(key));") || !js.includes("localStorage.removeItem(key);") || !browserSmoke.includes("a partial save write must roll every imported key back before reporting failure")) errors.push("multi-key save imports must restore every previous value after a partial storage failure");
+if (!js.includes("function writeStorageTransaction(entries)") || !js.includes("for (const [key] of entries) previous.set(key, localStorage.getItem(key));") || !js.includes("localStorage.removeItem(key);") || !browserSmoke.includes("a partial save write must roll every imported key and the previous backup back before reporting failure")) errors.push("multi-key save imports must restore every previous value after a partial storage failure");
 if (!indexHtml.includes("viewport-fit=cover, interactive-widget=resizes-content") || !css.includes("env(safe-area-inset-left, 0px)") || !css.includes("env(safe-area-inset-right, 0px)") || !browserSmoke.includes("account drawer must remain bounded and its focused field reachable after a mobile keyboard resize")) errors.push("mobile entry and settings must honor all safe-area edges and keyboard-resized viewports");
 if (!js.includes('const ACCOUNT_HINT_STORAGE_KEY = "summit-spark-account-hint"')
   || !js.includes('if (saved === "account" || readAccountHint())')
@@ -522,7 +522,10 @@ if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("room focus schema ve
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay direct resume helper is missing");
 if (!js.includes("TRAINING_TRANSITIONS")) errors.push("training state transition table is missing");
 if (!js.includes("syncPlayModeClass")) errors.push("stage play-mode class sync helper is missing");
-if (!js.includes("SAVE_BACKUP_KEY") || !js.includes("backupCurrentSaveArchive")) errors.push("save import should preserve a local backup before overwrite");
+if (!js.includes("function createCurrentSaveBackup")
+  || !js.includes("[SAVE_BACKUP_KEY, JSON.stringify(backup)]")
+  || !browserSmoke.includes('"summit-spark-save-backup",')
+  || !browserSmoke.includes("roll every imported key and the previous backup back")) errors.push("save import must create its backup inside the same rollback transaction as every replaced save key");
 if (!js.includes("restoreSaveBackup") || !js.includes("updateSaveBackupStatus") || !js.includes("panelMode")) errors.push("p23 practice/settings split and backup restore helpers are missing");
 if (!js.includes("drawPlayerStateFrame")) errors.push("player state silhouette helper is missing");
 if (js.includes("const hairRgb") || js.includes("for (let i = player.hair.length - 1; i > 0; i--)")) errors.push("player hair must remain part of the head silhouette instead of becoming a detached line after jumping");

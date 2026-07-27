@@ -29,25 +29,67 @@ function findFreePort() {
   });
 }
 
-function requestText(url) {
+function request(url, options = {}) {
   return new Promise((resolve, reject) => {
-    const request = http.get(url, (response) => {
+    const pending = http.request(url, options, (response) => {
       let body = "";
       response.setEncoding("utf8");
       response.on("data", (chunk) => { body += chunk; });
       response.on("end", () => {
-        if (response.statusCode !== 200) {
-          reject(new Error(url + " returned " + response.statusCode + ": " + body.slice(0, 80)));
-          return;
-        }
-        resolve(body);
+        resolve({ status: response.statusCode, headers: response.headers, body });
       });
     });
-    request.setTimeout(5000, () => {
-      request.destroy(new Error(url + " timed out"));
+    pending.setTimeout(5000, () => {
+      pending.destroy(new Error(url + " timed out"));
     });
-    request.on("error", reject);
+    pending.on("error", reject);
+    pending.end();
   });
+}
+
+async function requestText(url) {
+  const response = await request(url);
+  if (response.status !== 200) {
+    throw new Error(url + " returned " + response.status + ": " + response.body.slice(0, 80));
+  }
+  return response.body;
+}
+
+function expectHeader(response, name, marker) {
+  const value = String(response.headers[name] || "");
+  if (!value.includes(marker)) {
+    errors.push(`server ${name} header missing ${marker}`);
+  }
+}
+
+async function verifyServerBoundary(baseUrl) {
+  const rootResponse = await request(baseUrl + "/");
+  expectHeader(rootResponse, "content-security-policy", "frame-ancestors 'none'");
+  expectHeader(rootResponse, "content-security-policy", "https://fra.cloud.appwrite.io");
+  expectHeader(rootResponse, "referrer-policy", "no-referrer");
+  expectHeader(rootResponse, "x-content-type-options", "nosniff");
+  expectHeader(rootResponse, "x-frame-options", "DENY");
+  expectHeader(rootResponse, "permissions-policy", "camera=()");
+
+  const headResponse = await request(baseUrl + "/summit-spark.js", { method: "HEAD" });
+  if (headResponse.status !== 200 || headResponse.body !== "") {
+    errors.push("server HEAD must return the public asset without a response body");
+  }
+  const postResponse = await request(baseUrl + "/index.html", { method: "POST" });
+  if (postResponse.status !== 405 || postResponse.headers.allow !== "GET, HEAD") {
+    errors.push("server must reject non-read methods with 405 and an Allow header");
+  }
+  for (const privatePath of ["/appwrite.config.json", "/package.json", "/.git/config", "/docs/APPWRITE_SETUP.md"]) {
+    const response = await request(baseUrl + privatePath);
+    if (response.status !== 404) errors.push("server exposed non-runtime path " + privatePath);
+  }
+}
+
+function expectNoInlineScript(html) {
+  const scriptTags = html.match(/<script\b[^>]*>/g) || [];
+  for (const tag of scriptTags) {
+    if (!/\bsrc=/.test(tag)) errors.push("html must not contain inline script tags under CSP");
+  }
 }
 
 async function waitForServer(baseUrl, child) {
@@ -66,9 +108,7 @@ async function waitForServer(baseUrl, child) {
 }
 
 async function main() {
-  const indexHtml = read("index.html");
-  const standaloneHtml = read("summit-spark.html");
-  if (indexHtml !== standaloneHtml) errors.push("index.html and summit-spark.html are not identical");
+  const indexHtml = read("public/index.html");
 
   const buildVersion = (indexHtml.match(/name="build-version" content="([^"]+)"/) || [])[1] || "";
   if (!/^\d{8}-p\d+$/.test(buildVersion)) errors.push("build version should use YYYYMMDD-pN, found " + (buildVersion || "missing"));
@@ -85,8 +125,10 @@ async function main() {
   try {
     const baseUrl = "http://127.0.0.1:" + port;
     const html = await waitForServer(baseUrl, child);
+    await verifyServerBoundary(baseUrl);
     const js = await requestText(baseUrl + "/summit-spark.js?v=" + encodeURIComponent(buildVersion));
     const css = await requestText(baseUrl + "/summit-spark.css?v=" + encodeURIComponent(buildVersion));
+    expectNoInlineScript(html);
 
     [
       `name="build-version" content="${buildVersion}"`,

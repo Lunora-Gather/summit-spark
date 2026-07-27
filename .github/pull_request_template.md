@@ -1,67 +1,42 @@
 ## Summary
 
-- 
+-
 
-## Change Type
+## Change type
 
 - [ ] Docs / process
-- [ ] Content / room / training text
-- [ ] Data / metadata
-- [ ] Room-data migration / source boundary
-- [ ] UI / settings / practice panel
+- [ ] Content / room / training data
+- [ ] UI / settings / practice
 - [ ] Input / keyboard / touch / gamepad
-- [ ] Storage / save import-export / schema
+- [ ] Storage / account / cloud sync
 - [ ] Physics / collision / movement
-- [ ] Rendering / canvas / visual feedback
+- [ ] Rendering / Canvas / performance
 - [ ] Release / workflow / quality gate
 
-## Risk
-
-- [ ] Low: documentation or templates only
-- [ ] Medium: content or data, no gameplay rule changes
-- [ ] High: input, storage, UI state, mobile layout, Route/Feel/Drill
-- [ ] Critical: physics, collision, map layout, render loop, runtime data source
-
-## Gameplay Impact
+## Impact
 
 - [ ] No gameplay judgment changes
-- [ ] Changes gameplay judgment; explain below
+- [ ] Gameplay judgment changes are explained below
+- [ ] No save schema changes
+- [ ] Save migration/compatibility is explained below
+- [ ] No room-data source changes
+- [ ] Room-data source/call-site changes include rollback and playtest notes
 
 Explanation:
 
-## Room Data / Source Impact
-
-- [ ] No room-data source boundary changes
-- [ ] Runtime still reads embedded `summit-spark.js` constants
-- [ ] Changes room-data checks, docs, or staging helpers only
-- [ ] Adds or changes a runtime-facing compatibility seam; explain below
-- [ ] Changes the gameplay runtime data source; attach `docs/ROOM_DATA_SOURCE_SWITCH_PLAYTEST.md` notes below
-
-Room-data notes:
-
-## Save / Schema Impact
-
-- [ ] No localStorage schema changes
-- [ ] Changes schema or import/export behavior; explain migration below
-
-Migration notes:
-
-## Checks Run
+## Checks
 
 - [ ] `npm run check`
 - [ ] `npm run browser-smoke`
 - [ ] `npm run route-audit`
 - [ ] `npm run state-check`
-- [ ] `node tools/check-room-data-p2-status.js`
-- [ ] `node tools/check-room-data-source-switch-readiness.js`
-- [ ] `node tools/check-room-data-source-switch-playtest-template.js`
+- [ ] `node tools/export-room-data.js --check`
 - [ ] `git diff --check`
-- [ ] Manual local launch with `npm start`
-- [ ] Manual R1-R10 playtest or relevant room coverage
-- [ ] Mobile viewport check: 390x700 and 700x390
-- [ ] Real gamepad or touch-device pass
+- [ ] Manual `npm start`
+- [ ] Relevant room or R1–R10 playtest
+- [ ] Real touch/gamepad/audio verification if applicable
 
-## Documentation Updated
+## Documentation
 
 - [ ] `README.md`
 - [ ] `CHANGELOG.md`
@@ -69,16 +44,13 @@ Migration notes:
 - [ ] `PLAYTEST_CHECKLIST.md`
 - [ ] `KNOWN_ISSUES.md`
 - [ ] `docs/ARCHITECTURE.md`
-- [ ] `docs/CONTENT_BIBLE.md`
-- [ ] `docs/OPTIMIZATION_ROADMAP.md`
-- [ ] `docs/ROOM_DATA_P2_STATUS.md`
-- [ ] `docs/ROOM_DATA_SOURCE_SWITCH_PLAYTEST.md`
+- [ ] `docs/DATA_CONTRACTS.md`
 - [ ] Not needed
 
-## Playtest Notes
+## Playtest notes
 
-Room(s):
+Rooms/devices:
 
-Observed friction:
+Observed:
 
 Decision:

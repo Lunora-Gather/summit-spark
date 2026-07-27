@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..", "..");
-const defaultSourcePath = path.join(root, "summit-spark.js");
+const defaultSourcePath = path.join(root, "public", "summit-spark.js");
 const defaultSnapshotPath = path.join(root, "data", "rooms.generated.json");
 
 function readSource(sourcePath = defaultSourcePath) {
@@ -64,9 +64,9 @@ function extractConst(source, name, expectedStart) {
 function buildRoomDataSnapshotFromSource(source = readSource()) {
   const maps = extractConst(source, "maps", "[");
   return {
-    generatedFrom: "summit-spark.js",
+    generatedFrom: "public/summit-spark.js",
     generatedBy: "tools/export-room-data.js",
-    note: "Do not edit by hand until the runtime source of truth moves out of summit-spark.js.",
+    note: "Generated validation snapshot; runtime source remains public/summit-spark.js.",
     roomCount: maps.length,
     roomTargets: extractConst(source, "ROOM_TARGETS", "["),
     roomNames: extractConst(source, "ROOM_NAMES", "["),

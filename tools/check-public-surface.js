@@ -24,13 +24,10 @@ function extractOne(label, source, pattern) {
   return match[1];
 }
 
-const indexHtml = read("index.html");
-const gameHtml = read("summit-spark.html");
+const gameHtml = read("public/index.html");
 const playtestChecklist = read("PLAYTEST_CHECKLIST.md");
-
-if (indexHtml !== gameHtml) {
-  fail("index.html and summit-spark.html must stay identical until the dual-entry policy changes");
-}
+const pagesWorkflow = read(".github/workflows/pages.yml");
+const runtimeSource = read("public/summit-spark.js");
 
 const buildVersion = extractOne(
   "meta build-version",
@@ -66,6 +63,11 @@ if (/20\d{6}-p\d+/.test(playtestChecklist)) {
 
 const requiredFragments = [
   '<html lang="zh-CN">',
+  'http-equiv="Content-Security-Policy"',
+  'script-src-attr \'none\'',
+  'connect-src \'self\' https://fra.cloud.appwrite.io',
+  'worker-src \'none\'',
+  '<meta name="referrer" content="no-referrer">',
   '<canvas id="game"',
   'id="startButton"',
   'id="settingsPanel"',
@@ -79,7 +81,17 @@ const requiredFragments = [
 ];
 
 for (const fragment of requiredFragments) {
-  if (!gameHtml.includes(fragment)) fail(`summit-spark.html should include ${fragment}`);
+  if (!gameHtml.includes(fragment)) fail(`public/index.html should include ${fragment}`);
+}
+
+if (!pagesWorkflow.includes("Stage public runtime only") || !pagesWorkflow.includes("path: _site")) {
+  fail("Pages deployment must publish the staged runtime instead of the full repository");
+}
+if (pagesWorkflow.includes("path: .\n")) {
+  fail("Pages deployment must not publish the full repository root");
+}
+if (!runtimeSource.includes("window.self !== window.top") || !runtimeSource.includes("document.body.replaceChildren(notice)")) {
+  fail("public runtime must stop before initialization when embedded by another page");
 }
 
 if (errors.length > 0) {

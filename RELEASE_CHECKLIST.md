@@ -6,7 +6,7 @@ Use this before publishing a public demo update.
 2. Run `npm run state-check` if training state, resume, or storage schema changed.
 3. Run `npm run browser-smoke` on a machine with Chrome or Edge.
 4. Run `git diff --check`.
-5. Confirm `index.html` and `summit-spark.html` are identical.
+5. Confirm `public/index.html` is the only HTML entry and no obsolete root/standalone entry has returned.
 6. Confirm the build version in HTML and asset query strings matches the intended release.
 7. Start `npm start` and open the local page once.
 8. Verify the start button, direct resume button when progress exists, settings panel, practice panel, one Route contract, one Feel Lab card, audio test, keyboard `O/P/Escape`, and both panel close paths.
@@ -40,9 +40,11 @@ Use this before publishing a public demo update.
 36. Toggle low-performance mode and confirm the canvas switches to a 1x buffer, the canvas filter and gameplay overlay backdrop filters become `none`, canvas shadow blur is budgeted to zero, and HUD, tips, touch controls, hazards, and route guidance remain readable.
 37. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
 38. Verify `appwrite project get`, `project list-platforms`, and the live `summit-spark/saves` table still match `appwrite.config.json`; run the browser smoke's 4,200-point archive case and confirm it uploads once, then opens the real Settings/Feedback & Save textarea, accepts the entire archive through browser text input without the legacy 240KB truncation, and reports it as importable.
-39. Clear both the current tab entry mode and the non-sensitive account hint, then load with a deliberately stalled Appwrite account request or rely on `npm run browser-smoke`; Guest/Email must appear immediately. Repeat with the hint present: a valid account must restore without chooser flash, 401 must clear the hint and reveal Guest, while a timeout must reveal Guest but retain the hint for a later retry.
-40. Block the first `vendor/appwrite-26.2.0.js` request or rely on `npm run browser-smoke`; the account status must explain that Account can retry and the failed script must be removed. Restore networking and open Email Login once: the account drawer and SDK must recover without a page refresh or duplicate script.
-41. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
-42. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
-43. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
-44. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.
+39. With Appwrite CLI 23.1.0 or newer, verify the live project exposes only the required Account/Database REST surface, then read `session-duration`, `session-limit`, `password-history`, and `session-alert` individually. They must be 2,592,000 seconds, 5, 3, and enabled; do not trust only the aggregate push success message.
+40. Confirm the local server returns CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, no-referrer and Permissions-Policy headers; it must reject POST and return 404 for `appwrite.config.json`, `package.json`, `.git/config`, and `docs/`. Embed the production page once and confirm it replaces every game/account control with the direct-open safety notice. Confirm Pages uploads `_site`, not the repository root, and every external GitHub Action is pinned to a reviewed 40-character commit SHA.
+41. Clear both the current tab entry mode and the non-sensitive account hint, then load with a deliberately stalled Appwrite account request or rely on `npm run browser-smoke`; Guest/Email must appear immediately. Repeat with the hint present: a valid account must restore without chooser flash, 401 must clear the hint and reveal Guest, while a timeout must reveal Guest but retain the hint for a later retry.
+42. Block the first `vendor/appwrite-26.2.0.js` request or rely on `npm run browser-smoke`; the account status must explain that Account can retry and the failed script must be removed. Restore networking and open Email Login once: the account drawer and SDK must recover without a page refresh or duplicate script.
+43. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
+44. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
+45. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
+46. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.

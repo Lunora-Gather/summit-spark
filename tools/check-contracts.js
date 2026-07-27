@@ -5,9 +5,8 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
-const js = fs.readFileSync(path.join(root, "summit-spark.js"), "utf8");
-const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf8");
-const standaloneHtml = fs.readFileSync(path.join(root, "summit-spark.html"), "utf8");
+const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8");
+const indexHtml = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const workflowPath = path.join(root, ".github", "workflows", "pages.yml");
 const workflow = fs.existsSync(workflowPath) ? fs.readFileSync(workflowPath, "utf8") : "";
 const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
@@ -151,7 +150,6 @@ for (const key of Object.keys(deathLabels)) {
   if (!deathKeys.includes(key)) errors.push("DEATH_REASON_LABELS has extra key " + key);
 }
 
-if (indexHtml !== standaloneHtml) errors.push("index.html and summit-spark.html must stay identical");
 const requiredIds = [
   "game", "startButton", "overlay", "lumenCount", "roomCount", "splitTime", "splitDelta",
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "practiceButton", "settingsPanel",
@@ -407,8 +405,7 @@ if (buildVersion && !indexHtml.includes("summit-spark.css?v=" + buildVersion)) e
 if (buildVersion && !indexHtml.includes("summit-spark.js?v=" + buildVersion)) errors.push("HTML should version the JS asset with the build version");
 if (!indexHtml.includes("boot-noscript")) errors.push("start overlay should explain when JavaScript is disabled");
 if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is missing");
-if (!standaloneHtml.includes("settings-panel")) errors.push("standalone settings panel shell is missing");
-const css = fs.readFileSync(path.join(root, "summit-spark.css"), "utf8");
+const css = fs.readFileSync(path.join(root, "public", "summit-spark.css"), "utf8");
 const browserSmoke = fs.readFileSync(path.join(root, "tools", "check-browser-smoke.js"), "utf8");
 if (!css.includes(".stage.low-performance #game") || !css.includes("-webkit-backdrop-filter: none;") || !browserSmoke.includes("low-performance mode should remove per-frame canvas filters and backdrop blurs")) errors.push("low-performance mode must remove canvas filter passes and live backdrop compositing");
 if (!js.includes("function writeStorageTransaction(entries)") || !js.includes("for (const [key] of entries) previous.set(key, localStorage.getItem(key));") || !js.includes("localStorage.removeItem(key);") || !browserSmoke.includes("a partial save write must roll every imported key and the previous backup back before reporting failure")) errors.push("multi-key save imports must restore every previous value after a partial storage failure");
@@ -701,4 +698,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Contract check passed: html twins, DOM ids, focus coaching, " + maps.length + " room guides, pressure " + pressures.join("/") + ".");
+console.log("Contract check passed: single HTML entry, DOM ids, focus coaching, " + maps.length + " room guides, pressure " + pressures.join("/") + ".");

@@ -6,127 +6,59 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const errors = [];
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, relativePath));
-}
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function requireFile(relativePath) {
-  if (!exists(relativePath)) errors.push(`missing required file: ${relativePath}`);
-}
-
-function requireIncludes(relativePath, expected) {
-  if (!exists(relativePath)) return;
-  const content = read(relativePath);
-  for (const item of expected) {
-    if (!content.includes(item)) errors.push(`${relativePath} should include: ${item}`);
-  }
-}
-
 const requiredFiles = [
   "README.md",
   "CHANGELOG.md",
-  "RELEASE_CHECKLIST.md",
-  "PLAYTEST_CHECKLIST.md",
-  "KNOWN_ISSUES.md",
   "CONTRIBUTING.md",
+  "KNOWN_ISSUES.md",
+  "PLAYTEST_CHECKLIST.md",
+  "RELEASE_CHECKLIST.md",
+  "public/index.html",
+  "public/summit-spark.css",
+  "public/summit-spark.js",
+  "public/vendor/appwrite-26.2.0.js",
+  "public/vendor/APPWRITE-LICENSE",
   "data/README.md",
   "data/rooms.generated.json",
+  "docs/APPWRITE_SETUP.md",
   "docs/ARCHITECTURE.md",
   "docs/CONTENT_BIBLE.md",
   "docs/DATA_CONTRACTS.md",
   "docs/OPTIMIZATION_ROADMAP.md",
   "docs/PLAYTEST_PROTOCOL.md",
-  "docs/REFACTORING_GUIDE.md",
   "docs/QUALITY_GATES.md",
-  "docs/AI_HANDOFF.md",
   "tools/README.md",
-  "tools/check-maintenance-tools.js",
-  "tools/check-maps.js",
-  "tools/report-room-data.js",
-  "tools/lib/read-summit-data.js",
-  "tools/lib/validate-room-data.js",
-  ".github/workflows/maintenance-tools.yml",
+  ".github/workflows/docs-quality.yml",
+  ".github/workflows/pages.yml",
   ".github/pull_request_template.md",
   ".github/ISSUE_TEMPLATE/bug_report.yml",
-  ".github/ISSUE_TEMPLATE/playtest_feedback.yml",
-  ".github/ISSUE_TEMPLATE/config.yml"
+  ".github/ISSUE_TEMPLATE/playtest_feedback.yml"
 ];
 
-for (const file of requiredFiles) requireFile(file);
+function read(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), "utf8");
+}
 
-requireIncludes("README.md", [
-  "## 运行",
-  "## 操作",
-  "## 开发方向",
-  "## 最新推进"
+for (const relativePath of requiredFiles) {
+  if (!fs.existsSync(path.join(root, relativePath))) errors.push(`missing required file: ${relativePath}`);
+}
+
+const requiredMarkers = new Map([
+  ["README.md", ["## 快速开始", "## 仓库结构", "## 质量检查", "## 发布"]],
+  ["docs/ARCHITECTURE.md", ["当前目录", "依赖方向", "下一阶段拆分顺序", "删除策略"]],
+  ["docs/DATA_CONTRACTS.md", ["当前数据源", "自动检查", "rooms.generated.json"]],
+  ["docs/QUALITY_GATES.md", ["npm run check", "npm run browser-smoke", "发布门"]],
+  ["tools/README.md", ["核心门禁", "房间数据", "添加新检查"]],
+  ["RELEASE_CHECKLIST.md", ["npm run check", "npm run browser-smoke", "KNOWN_ISSUES.md"]]
 ]);
 
-requireIncludes("docs/ARCHITECTURE.md", [
-  "目标架构",
-  "拆分顺序",
-  "每次架构改动的验收"
-]);
-
-requireIncludes("docs/CONTENT_BIBLE.md", [
-  "一句话定位",
-  "核心体验",
-  "内容扩展规则"
-]);
-
-requireIncludes("docs/DATA_CONTRACTS.md", [
-  "当前数据源",
-  "必须保持的关系",
-  "tools/check-data-contracts.js",
-  "tools/export-room-data.js"
-]);
-
-requireIncludes("docs/OPTIMIZATION_ROADMAP.md", [
-  "P0：稳定公开面",
-  "P2：低风险模块化",
-  "P6：发布节奏"
-]);
-
-requireIncludes("docs/QUALITY_GATES.md", [
-  "npm run check",
-  "npm run browser-smoke",
-  "改动风险分级"
-]);
-
-requireIncludes("tools/README.md", [
-  "tools/lib/read-summit-data.js",
-  "tools/lib/validate-room-data.js",
-  "check-maintenance-tools.js",
-  "check-maps.js",
-  "export-room-data.js",
-  "report-room-data.js",
-  "check-data-contracts.js"
-]);
-
-requireIncludes("data/README.md", [
-  "rooms.generated.json",
-  "summit-spark.js"
-]);
-
-requireIncludes(".github/workflows/maintenance-tools.yml", [
-  "Maintenance Tools",
-  "node tools/check-maintenance-tools.js"
-]);
-
-requireIncludes("RELEASE_CHECKLIST.md", [
-  "npm run check",
-  "npm run browser-smoke",
-  "KNOWN_ISSUES.md"
-]);
-
-requireIncludes("KNOWN_ISSUES.md", [
-  "Needs Human Or Device Verification",
-  "Current Product Boundaries"
-]);
+for (const [relativePath, markers] of requiredMarkers) {
+  if (!fs.existsSync(path.join(root, relativePath))) continue;
+  const content = read(relativePath);
+  for (const marker of markers) {
+    if (!content.includes(marker)) errors.push(`${relativePath} missing required marker: ${marker}`);
+  }
+}
 
 if (errors.length > 0) {
   console.error("Documentation check failed:");
@@ -134,4 +66,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log(`Documentation check passed: ${requiredFiles.length} required files verified.`);
+console.log(`Documentation check passed: ${requiredFiles.length} focused files verified.`);

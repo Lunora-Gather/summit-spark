@@ -1,7 +1,7 @@
 # Appwrite cloud saves
 
 The public client uses the vendored Appwrite Web SDK `26.2.0` against the
-`summit-spark` project. The matching upstream license is kept in `vendor/`.
+`summit-spark` project. The matching upstream license is kept in `public/vendor/`.
 
 ## Provisioned resources
 
@@ -11,6 +11,22 @@ The public client uses the vendored Appwrite Web SDK `26.2.0` against the
 - Table: `saves`
 - Web platforms: `localhost`, `127.0.0.1`, `lunora-gather.github.io`
 - Enabled auth: email/password and email OTP
+
+Only Account, Databases/TablesDB, and REST are needed by the public client.
+Unused project services, GraphQL, WebSocket, JWT, anonymous, phone, magic-link,
+and invite authentication are disabled. The live project also enforces:
+
+- 30-day maximum session duration
+- 5 concurrent sessions per account
+- the last 3 passwords cannot be reused
+- common-password and personal-data password checks
+- email alerts for new sessions
+
+`node tools/check-appwrite-contract.js` locks these settings in the repository.
+After changing them, use Appwrite CLI 23.1.0 or newer and verify the live
+`session-duration`, `session-limit`, `password-history`, and `session-alert`
+policies individually. Older CLI releases can report a successful settings push
+while leaving some project policies unchanged.
 
 The table has row security enabled. Authenticated users can create rows, and each
 save row uses the Appwrite user ID as its row ID with read, update, and delete

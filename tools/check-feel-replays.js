@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
-const source = fs.readFileSync(path.join(root, "summit-spark.js"), "utf8");
+const source = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8");
 const errors = [];
 
 function extractArray(name) {

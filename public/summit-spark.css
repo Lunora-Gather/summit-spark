@@ -7952,3 +7952,20 @@ textarea,
     );
   }
 }
+
+.embedding-blocked {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  padding: 32px;
+  color: #172b35;
+  background: #edf4f3;
+  text-align: center;
+}
+
+.embedding-blocked h1,
+.embedding-blocked p {
+  margin: 0;
+}

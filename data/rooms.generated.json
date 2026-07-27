@@ -1,7 +1,7 @@
 {
-  "generatedFrom": "summit-spark.js",
+  "generatedFrom": "public/summit-spark.js",
   "generatedBy": "tools/export-room-data.js",
-  "note": "Do not edit by hand until the runtime source of truth moves out of summit-spark.js.",
+  "note": "Generated validation snapshot; runtime source remains public/summit-spark.js.",
   "roomCount": 10,
   "roomTargets": [
     8.8,

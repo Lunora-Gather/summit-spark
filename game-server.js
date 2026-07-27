@@ -4,31 +4,85 @@ const path = require("path");
 
 const root = __dirname;
 const port = Number(process.env.PORT || 4173);
+const csp = [
+  "default-src 'self'",
+  "base-uri 'none'",
+  "connect-src 'self' https://fra.cloud.appwrite.io",
+  "font-src 'self' data:",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "frame-src 'none'",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "object-src 'none'",
+  "script-src 'self'",
+  "script-src-attr 'none'",
+  "style-src-elem 'self'",
+  "style-src-attr 'unsafe-inline'",
+  "worker-src 'none'"
+].join("; ");
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8"
 };
+const publicFiles = new Map([
+  ["/index.html", path.join("public", "index.html")],
+  ["/summit-spark.css", path.join("public", "summit-spark.css")],
+  ["/summit-spark.js", path.join("public", "summit-spark.js")],
+  ["/vendor/appwrite-26.2.0.js", path.join("public", "vendor", "appwrite-26.2.0.js")],
+  ["/vendor/APPWRITE-LICENSE", path.join("public", "vendor", "APPWRITE-LICENSE")]
+]);
+const securityHeaders = {
+  "cache-control": "no-store",
+  "content-security-policy": csp,
+  "cross-origin-opener-policy": "same-origin",
+  "cross-origin-resource-policy": "same-origin",
+  "permissions-policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY"
+};
+
+function respond(res, status, body, extraHeaders = {}) {
+  res.writeHead(status, { ...securityHeaders, ...extraHeaders });
+  if (body !== null) res.end(body);
+  else res.end();
+}
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://127.0.0.1:${port}`);
-  const requested = url.pathname === "/" ? "/summit-spark.html" : url.pathname;
-  const file = path.resolve(root, `.${requested}`);
-
-  if (file !== root && !file.startsWith(root + path.sep)) {
-    res.writeHead(403);
-    res.end("Forbidden");
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    respond(res, 405, "Method not allowed", { allow: "GET, HEAD" });
     return;
   }
 
+  let requested;
+  try {
+    const url = new URL(req.url, `http://127.0.0.1:${port}`);
+    requested = decodeURIComponent(url.pathname);
+  } catch {
+    respond(res, 400, "Bad request");
+    return;
+  }
+  if (requested === "/") requested = "/index.html";
+  const relative = publicFiles.get(requested);
+  if (!relative) {
+    respond(res, 404, "Not found");
+    return;
+  }
+  const file = path.join(root, relative);
+
   fs.readFile(file, (error, data) => {
     if (error) {
-      res.writeHead(404);
-      res.end("Not found");
+      respond(res, 404, "Not found");
       return;
     }
-    res.writeHead(200, { "content-type": types[path.extname(file)] || "application/octet-stream" });
-    res.end(data);
+    respond(
+      res,
+      200,
+      req.method === "HEAD" ? null : data,
+      { "content-type": types[path.extname(file)] || "text/plain; charset=utf-8" }
+    );
   });
 });
 

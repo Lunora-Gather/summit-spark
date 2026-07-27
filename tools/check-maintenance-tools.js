@@ -7,50 +7,29 @@ const { spawnSync } = require("child_process");
 
 const root = path.resolve(__dirname, "..");
 const errors = [];
-
-const requiredToolFiles = [
-  "tools/check-docs.js",
-  "tools/check-public-surface.js",
+const requiredTools = [
   "tools/check-appwrite-contract.js",
+  "tools/check-browser-smoke.js",
+  "tools/check-contracts.js",
   "tools/check-data-contracts.js",
+  "tools/check-docs.js",
+  "tools/check-feel-replays.js",
+  "tools/check-maintenance-tools.js",
   "tools/check-maps.js",
+  "tools/check-public-surface.js",
   "tools/check-route-audit.js",
-  "tools/check-room-data-migration.js",
-  "tools/check-room-data-adapter-plan.js",
-  "tools/check-room-data-runtime-view.js",
-  "tools/check-room-data-legacy-constants.js",
-  "tools/check-room-data-source-switch-readiness.js",
-  "tools/check-room-data-tool-registry.js",
+  "tools/check-smoke.js",
+  "tools/check-training-state.js",
   "tools/export-room-data.js",
   "tools/report-room-data.js",
   "tools/lib/read-summit-data.js",
-  "tools/lib/validate-room-data.js",
-  "tools/lib/room-data-runtime-view.js",
-  "tools/lib/room-data-legacy-constants.js"
+  "tools/lib/validate-room-data.js"
 ];
 
-function push(message) {
-  errors.push(message);
-}
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function runTool(relativePath) {
-  const result = spawnSync(process.execPath, [path.join(root, relativePath)], {
-    cwd: root,
-    encoding: "utf8"
-  });
-  if (result.status !== 0) {
-    push(`${relativePath} failed:\n${result.stderr || result.stdout}`);
-  }
-}
-
-for (const file of requiredToolFiles) {
-  const absolutePath = path.join(root, file);
+for (const relativePath of requiredTools) {
+  const absolutePath = path.join(root, relativePath);
   if (!fs.existsSync(absolutePath)) {
-    push(`missing required tool file: ${file}`);
+    errors.push(`missing required tool: ${relativePath}`);
     continue;
   }
   const result = spawnSync(process.execPath, ["--check", absolutePath], {
@@ -58,105 +37,30 @@ for (const file of requiredToolFiles) {
     encoding: "utf8"
   });
   if (result.status !== 0) {
-    push(`${file} failed syntax check:\n${result.stderr || result.stdout}`);
+    errors.push(`${relativePath} failed syntax check:\n${result.stderr || result.stdout}`);
   }
 }
 
-const sourceReader = "tools/lib/read-summit-data.js";
-const sharedValidator = "tools/lib/validate-room-data.js";
-const runtimeViewHelper = "tools/lib/room-data-runtime-view.js";
-const legacyConstantsHelper = "tools/lib/room-data-legacy-constants.js";
-
-for (const file of requiredToolFiles) {
-  if (!fs.existsSync(path.join(root, file))) continue;
-  const content = read(file);
-
-  if (file !== sourceReader && /function\s+extractConst\s*\(/.test(content)) {
-    push(`${file} should not define extractConst; use ${sourceReader}`);
-  }
-
-  if (file !== sourceReader && /function\s+extractArray\s*\(/.test(content)) {
-    push(`${file} should not define extractArray; use ${sourceReader}`);
-  }
-
-  if (file !== sourceReader && content.includes('Function("\\"use strict\\"; return ("')) {
-    push(`${file} should not eval summit-spark.js constants directly; use ${sourceReader}`);
-  }
-
-  if (file !== sharedValidator && file.includes("check-data-contracts") && content.includes("ROOM_STYLE_TRIALS")) {
-    push(`${file} should delegate detailed validation to ${sharedValidator}`);
-  }
-
-  if (file !== runtimeViewHelper && file !== legacyConstantsHelper && /const\s+runtimeRoomDataFields\s*=/.test(content)) {
-    push(`${file} should not duplicate runtimeRoomDataFields; use ${runtimeViewHelper}`);
-  }
-
-  if (file !== legacyConstantsHelper && /const\s+legacyRoomDataConstantMap\s*=/.test(content)) {
-    push(`${file} should not duplicate legacyRoomDataConstantMap; use ${legacyConstantsHelper}`);
+for (const removedPath of ["src", "patches", "summit-spark.html"]) {
+  if (fs.existsSync(path.join(root, removedPath))) {
+    errors.push(`obsolete scaffold must not return: ${removedPath}`);
   }
 }
 
-const reader = read("tools/lib/read-summit-data.js");
-for (const required of [
-  "hasGeneratedSnapshot",
-  "readGeneratedSnapshot",
-  "buildRoomDataSnapshotFromSource",
-  "loadRoomDataSnapshot"
-]) {
-  if (!reader.includes(required)) {
-    push(`tools/lib/read-summit-data.js should export ${required}`);
+const workflowsDir = path.join(root, ".github", "workflows");
+for (const entry of fs.readdirSync(workflowsDir, { withFileTypes: true })) {
+  if (!entry.isFile() || !/\.ya?ml$/i.test(entry.name)) continue;
+  const relativePath = path.join(".github", "workflows", entry.name);
+  const workflow = fs.readFileSync(path.join(root, relativePath), "utf8");
+  const actionUses = workflow.match(/^\s*uses:\s*[^#\s]+/gm) || [];
+  for (const actionUse of actionUses) {
+    const reference = actionUse.replace(/^\s*uses:\s*/, "");
+    if (/^\.\//.test(reference) || /^docker:\/\//.test(reference)) continue;
+    if (!/@[0-9a-f]{40}$/i.test(reference)) {
+      errors.push(`${relativePath} must pin ${reference} to a full commit SHA`);
+    }
   }
 }
-
-const report = read("tools/report-room-data.js");
-if (!report.includes("loadRoomDataSnapshot")) {
-  push("tools/report-room-data.js should use loadRoomDataSnapshot so it can read generated snapshots");
-}
-if (!report.includes("validateRoomDataSnapshot") || !report.includes("getRoomDataSummary")) {
-  push("tools/report-room-data.js should use the shared validator and summary helper");
-}
-
-const dataCheck = read("tools/check-data-contracts.js");
-if (!dataCheck.includes("loadRoomDataSnapshot")) {
-  push("tools/check-data-contracts.js should use loadRoomDataSnapshot so it can validate generated snapshots");
-}
-if (!dataCheck.includes("validateRoomDataSnapshot") || !dataCheck.includes("getRoomDataSummary")) {
-  push("tools/check-data-contracts.js should use the shared validator and summary helper");
-}
-
-const mapCheck = read("tools/check-maps.js");
-if (!mapCheck.includes("loadRoomDataSnapshot")) {
-  push("tools/check-maps.js should use loadRoomDataSnapshot so it can validate generated snapshots");
-}
-if (mapCheck.includes("summit-spark.js")) {
-  push("tools/check-maps.js should not read summit-spark.js directly; use the preferred loader");
-}
-
-const routeAudit = read("tools/check-route-audit.js");
-if (!routeAudit.includes("loadRoomDataSnapshot")) {
-  push("tools/check-route-audit.js should use loadRoomDataSnapshot for route data");
-}
-if (!routeAudit.includes("TRAINING_TRANSITIONS") || !routeAudit.includes("gamepadDeadzone")) {
-  push("tools/check-route-audit.js should keep runtime hook guards while route data moves to the preferred loader");
-}
-
-const exporter = read("tools/export-room-data.js");
-if (!exporter.includes("buildRoomDataSnapshot") || !exporter.includes("normalizeSnapshot")) {
-  push("tools/export-room-data.js should use the shared reader and snapshot normalizer");
-}
-if (exporter.includes("loadRoomDataSnapshot")) {
-  push("tools/export-room-data.js should generate from source, not from the preferred snapshot loader");
-}
-
-const registry = read("tools/check-room-data-tool-registry.js");
-if (!registry.includes("roomDataTools") || !registry.includes("roomDataHelperFiles")) {
-  push("tools/check-room-data-tool-registry.js should own room-data tool and helper registration lists");
-}
-if (!registry.includes("tools/check-room-data-source-switch-readiness.js")) {
-  push("tools/check-room-data-tool-registry.js should include the source-switch readiness check");
-}
-
-runTool("tools/check-room-data-tool-registry.js");
 
 if (errors.length > 0) {
   console.error("Maintenance tool check failed:");
@@ -164,4 +68,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log(`Maintenance tool check passed: ${requiredToolFiles.length} tool files verified.`);
+console.log(`Maintenance tool check passed: ${requiredTools.length} focused tools and immutable workflows verified.`);

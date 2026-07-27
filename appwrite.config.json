@@ -6,41 +6,41 @@
     "settings": {
         "services": {
             "account": true,
-            "avatars": true,
+            "avatars": false,
             "databases": true,
-            "locale": true,
-            "health": true,
-            "storage": true,
-            "teams": true,
-            "users": true,
-            "sites": true,
-            "functions": true,
-            "graphql": true,
-            "messaging": true
+            "locale": false,
+            "health": false,
+            "storage": false,
+            "teams": false,
+            "users": false,
+            "sites": false,
+            "functions": false,
+            "graphql": false,
+            "messaging": false
         },
         "protocols": {
             "rest": true,
-            "graphql": true,
-            "websocket": true
+            "graphql": false,
+            "websocket": false
         },
         "auth": {
             "methods": {
-                "jwt": true,
+                "jwt": false,
                 "phone": false,
-                "invites": true,
+                "invites": false,
                 "anonymous": false,
                 "email-otp": true,
                 "magic-url": false,
                 "email-password": true
             },
             "security": {
-                "duration": 31536000,
+                "duration": 2592000,
                 "limit": null,
-                "sessionsLimit": null,
-                "passwordHistory": null,
+                "sessionsLimit": 5,
+                "passwordHistory": 3,
                 "passwordDictionary": true,
                 "personalDataCheck": true,
-                "sessionAlerts": false,
+                "sessionAlerts": true,
                 "mockNumbers": []
             }
         }

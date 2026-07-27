@@ -1,6 +1,19 @@
 (() => {
   "use strict";
 
+  if (window.self !== window.top) {
+    const notice = document.createElement("main");
+    notice.className = "embedding-blocked";
+    notice.setAttribute("role", "alert");
+    const title = document.createElement("h1");
+    title.textContent = "请直接打开山巅微光";
+    const detail = document.createElement("p");
+    detail.textContent = "为保护账号与云存档操作，本页面不在嵌入式窗口中运行。";
+    notice.append(title, detail);
+    document.body.replaceChildren(notice);
+    return;
+  }
+
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
   const stage = canvas.closest(".stage");
@@ -6412,6 +6425,7 @@
         const password = accountPasswordInput?.value || "";
         if (password.length < 8) throw new Error("密码至少 8 位");
         await accountSdk.account.createEmailPasswordSession({ email, password });
+        if (accountPasswordInput) accountPasswordInput.value = "";
       } else {
         await accountSdk.account.createSession({ userId: otpUserId, secret: otpSecret });
         clearAccountOtpState();
@@ -6786,6 +6800,9 @@
       removeSessionValue(ENTRY_MODE_SESSION_KEY);
       writeAccountHint(false);
       clearAccountOtpState();
+      if (accountPasswordInput) accountPasswordInput.value = "";
+      if (accountNewPasswordInput) accountNewPasswordInput.value = "";
+      if (accountOldPasswordInput) accountOldPasswordInput.value = "";
       if (!started) {
         revealEntryGate();
         closeSettings();

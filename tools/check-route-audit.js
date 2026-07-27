@@ -6,7 +6,7 @@ const path = require("path");
 const { loadRoomDataSnapshot } = require("./lib/read-summit-data");
 
 const root = path.resolve(__dirname, "..");
-const js = fs.readFileSync(path.join(root, "summit-spark.js"), "utf8");
+const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8");
 const snapshot = loadRoomDataSnapshot();
 const errors = [];
 const warnings = [];

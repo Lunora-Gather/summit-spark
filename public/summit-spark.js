@@ -243,6 +243,7 @@
   const NEAR_MISS_COOLDOWN = 0.48;
   const ECHO_RECALL_COOLDOWN = 0.32;
   const ROOM_INTRO_TIME = 1.2;
+  const CHAPTER_TRANSITION_TIME = 1.8;
   const CURRENT_PATH_DRAW_POINTS = 90;
   const CRUMBLE_BREAK_TIME = 0.42;
   const DASH_AIM_PREVIEW_LENGTH = 58;
@@ -358,6 +359,12 @@
   const ROOM_NAMES = ["\u8d77\u52bf\u5c71\u95e8", "\u5149\u7ee7\u6a2a\u6865", "\u5f39\u7c27\u96fe\u53f0", "\u4e09\u6bb5\u8fde\u9501", "\u68f1\u7ebf\u56de\u73af", "\u65e7\u5cf0\u51fa\u53e3", "\u98ce\u5347\u5ce1\u53e3", "\u68f1\u955c\u957f\u5eca", "\u56de\u58f0\u5ca9\u573a", "\u661f\u9876\u7ec8\u7ebf"];
   const ROOM_TIERS = ["learn", "learn", "learn", "combine", "combine", "combine", "pressure", "pressure", "finale", "finale"];
   const ROOM_CHAPTER_LABELS = ["I · 山门", "I · 山门", "I · 山门", "II · 旧峰", "II · 旧峰", "II · 旧峰", "III · 风峡", "III · 风峡", "IV · 星顶", "IV · 星顶"];
+  const CHAPTER_EXPERIENCE = [
+    { title: "第一幕 · 山门", vow: "先读懂落点，再相信速度。", focus: "起跳 · 冲刺 · 回收" },
+    { title: "第二幕 · 旧峰", vow: "旧路断开后，把微光连成新路。", focus: "光继 · 折返 · 恢复" },
+    { title: "第三幕 · 风峡", vow: "风会改变路线，不会替你判断。", focus: "风升 · 碎冰 · 落点" },
+    { title: "第四幕 · 星顶", vow: "把此前学会的一切，带到山顶。", focus: "回声 · 超载 · 连续段" }
+  ];
   const ROOM_WHISPERS = [
     "先迈出第一步，山会回应。",
     "让微光接住你的速度。",
@@ -945,6 +952,8 @@
   let recallCooldown = 0;
   let recallPulseTimer = 0;
   let roomIntroTimer = ROOM_INTRO_TIME;
+  let chapterTransitionTimer = 0;
+  let chapterTransitionChapter = 0;
   let activeDrill = null;
   let activeChallenge = null;
   let activeRouteContract = null;
@@ -1100,7 +1109,7 @@
     if (debugVisible && firstPress && event.code.startsWith("Digit")) {
       const digit = Number(event.code.slice(5));
       const target = digit === 0 ? 9 : digit - 1;
-      if (target >= 0 && target < maps.length) jumpToRoom(target);
+      if (target >= 0 && target < maps.length) jumpToRoom(target, { chapterEntry: true });
     }
   });
 
@@ -2050,6 +2059,7 @@
     clearMasteryPopup();
     runTime = 0;
     roomTime = 0;
+    chapterTransitionTimer = 0;
     timingArmed = false;
     timingInputReady = false;
     won = false;
@@ -2111,6 +2121,7 @@
     clearMasteryPopup();
     runTime = 0;
     roomTime = 0;
+    chapterTransitionTimer = 0;
     timingArmed = false;
     timingInputReady = false;
     won = false;
@@ -2151,6 +2162,7 @@
     resetToStart(index);
     roomAttemptClean = true;
     seedHair();
+    if (options.chapterEntry && [3, 6, 8].includes(index)) beginChapterEntry(index);
     refreshRoomSelectOptions();
     updateHud();
     focusGame();
@@ -2191,7 +2203,13 @@
     }
 
     if (started && !won && !paused) {
-      update(assistActive() ? dt * ASSIST_SPEED : dt, dt);
+      if (chapterTransitionTimer > 0) {
+        updateParticles(dt * 0.22);
+        updateHair(dt);
+        updateHud();
+      } else {
+        update(assistActive() ? dt * ASSIST_SPEED : dt, dt);
+      }
     } else {
       updateParticles(paused ? dt * 0.25 : dt);
       updateGhosts(paused ? 0 : dt);
@@ -3170,6 +3188,24 @@
     return false;
   }
 
+  function chapterIndexForRoom(index) {
+    return index < 3 ? 0 : index < 6 ? 1 : index < 8 ? 2 : 3;
+  }
+
+  function beginChapterEntry(room) {
+    chapterTransitionChapter = chapterIndexForRoom(room);
+    chapterTransitionTimer = prefersReducedMotion ? 0.9 : CHAPTER_TRANSITION_TIME;
+    ambientNextTime = audioContext?.currentTime || 0;
+    playSound("clear", 0.72);
+  }
+
+  function beginChapterTransition(fromRoom, toRoom) {
+    const fromChapter = chapterIndexForRoom(fromRoom);
+    const toChapter = chapterIndexForRoom(toRoom);
+    if (toChapter === fromChapter) return;
+    beginChapterEntry(toRoom);
+  }
+
   function resolveRoomTransition() {
     if (player.x > W + 3 && roomIndex < maps.length - 1) {
       const clearedRoom = roomIndex;
@@ -3182,6 +3218,7 @@
       if (drillResult === false) return;
       showMasteryPopup(clearedRoom, masteryBefore, clearedClean, drillResult === true ? drillMode : "", isNewRoomBest);
       roomIndex += 1;
+      beginChapterTransition(clearedRoom, roomIndex);
       roomAttemptClean = true;
       room = parseRoom(roomIndex);
       resetRoomTech();
@@ -4231,7 +4268,12 @@
     if (!options.keepRoute) cancelActiveRouteContract("改练中断");
     if (options.feelFixture && activeFeelFixture && activeFeelFixture.id !== options.feelFixture) cancelActiveFeelFixture("改练中断");
     if (!options.keepFeel && !options.feelFixture) cancelActiveFeelFixture("改练中断");
-    jumpToRoom(index, { keepDrill: true, keepRoute: Boolean(options.keepRoute), keepFeel: Boolean(options.keepFeel || options.feelFixture) });
+    jumpToRoom(index, {
+      keepDrill: true,
+      keepRoute: Boolean(options.keepRoute),
+      keepFeel: Boolean(options.keepFeel || options.feelFixture),
+      chapterEntry: true
+    });
     clearFailureRehearsal();
     activeDrill = { room: index, mode: resolvedMode, objective, target: ROOM_TARGETS[index] || 0 };
     if (options.feelFixture) activeFeelFixture = { id: options.feelFixture, room: index, mode: resolvedMode };
@@ -5952,6 +5994,8 @@
         started,
         won,
         room: roomIndex + 1,
+        chapter: chapterIndexForRoom(roomIndex) + 1,
+        chapterTransition: chapterTransitionTimer > 0,
         deaths: deathCount,
         runTime: Math.round(runTime * 100) / 100,
         roomTime: Math.round(roomTime * 100) / 100,
@@ -7712,21 +7756,23 @@
       if (debugVisible) updateDebug();
       return;
     }
+    const chapterBreathing = chapterTransitionTimer > 0;
+    chapterTransitionTimer = Math.max(0, chapterTransitionTimer - dt);
     roomBestFlashTimer = Math.max(0, roomBestFlashTimer - dt);
     nearMissCooldown = Math.max(0, nearMissCooldown - dt);
     recallCooldown = Math.max(0, recallCooldown - dt);
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
     roomIntroTimer = Math.max(0, roomIntroTimer - dt);
-    splitPopupTimer = Math.max(0, splitPopupTimer - dt);
+    splitPopupTimer = Math.max(0, splitPopupTimer - (chapterBreathing ? 0 : dt));
     feelCueTimer = Math.max(0, feelCueTimer - dt);
-    routeCueTimer = Math.max(0, routeCueTimer - dt);
-    masteryPopupTimer = Math.max(0, masteryPopupTimer - dt);
-    focusPopupTimer = Math.max(0, focusPopupTimer - dt);
+    routeCueTimer = Math.max(0, routeCueTimer - (chapterBreathing ? 0 : dt));
+    masteryPopupTimer = Math.max(0, masteryPopupTimer - (chapterBreathing ? 0 : dt));
+    focusPopupTimer = Math.max(0, focusPopupTimer - (chapterBreathing ? 0 : dt));
     deathCoachTimer = Math.max(0, deathCoachTimer - dt);
     failureCueTimer = Math.max(0, failureCueTimer - dt);
     crumbleSlipTimer = Math.max(0, crumbleSlipTimer - dt);
     updateGameTip(dt);
-    updateFlow(dt);
+    updateFlow(chapterBreathing ? 0 : dt);
     updateCrumblePlatforms(dt);
     for (const key of Object.keys(actionPulse)) {
       actionPulse[key] = Math.max(0, actionPulse[key] - dt);
@@ -8051,6 +8097,7 @@
     drawDrillHud(time);
     drawActiveChallengeHud(time);
     drawPaceRibbon(time);
+    drawChapterTransition(time);
     drawVignette();
   }
 
@@ -8540,9 +8587,56 @@
     return viewportWidth <= 760 && viewportHeight > viewportWidth;
   }
 
+  function drawChapterTransition(time) {
+    if (chapterTransitionTimer <= 0 || !started || won) return;
+    const chapter = CHAPTER_EXPERIENCE[chapterTransitionChapter] || CHAPTER_EXPERIENCE[0];
+    const duration = prefersReducedMotion ? 0.9 : CHAPTER_TRANSITION_TIME;
+    const progress = 1 - chapterTransitionTimer / duration;
+    const alpha = Math.max(0, Math.min(1, progress * 10, (1 - progress) * 7));
+    const atmosphere = roomAtmosphere();
+    const compact = isCompactCanvas();
+    const centerY = compact ? H * 0.39 : H * 0.42;
+    const drift = prefersReducedMotion ? 0 : (1 - progress) * 14;
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.34;
+    ctx.fillStyle = atmosphere.top;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = alpha * 0.52;
+    const band = ctx.createLinearGradient(0, centerY - 68, 0, centerY + 68);
+    band.addColorStop(0, "rgba(20, 29, 43, 0)");
+    band.addColorStop(0.28, "rgba(20, 29, 43, 0.72)");
+    band.addColorStop(0.72, "rgba(20, 29, 43, 0.72)");
+    band.addColorStop(1, "rgba(20, 29, 43, 0)");
+    ctx.fillStyle = band;
+    ctx.fillRect(0, centerY - 68, W, 136);
+    ctx.globalAlpha = alpha;
+    const lineWidth = compact ? 230 : 310;
+    const line = ctx.createLinearGradient(W / 2 - lineWidth / 2, 0, W / 2 + lineWidth / 2, 0);
+    line.addColorStop(0, `${atmosphere.rim}00`);
+    line.addColorStop(0.5, `${atmosphere.rim}d8`);
+    line.addColorStop(1, `${atmosphere.rim}00`);
+    ctx.fillStyle = line;
+    ctx.fillRect(W / 2 - lineWidth / 2, centerY - 39, lineWidth, 1.5);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(248, 247, 239, 0.96)";
+    ctx.font = `700 ${compact ? 21 : 25}px system-ui, sans-serif`;
+    ctx.fillText(chapter.title, W / 2, centerY - 12 + drift);
+    ctx.fillStyle = "rgba(240, 245, 239, 0.82)";
+    ctx.font = `600 ${compact ? 11 : 12}px system-ui, sans-serif`;
+    ctx.fillText(chapter.vow, W / 2, centerY + 17 + drift * 0.5);
+    ctx.fillStyle = `${atmosphere.rim}d8`;
+    ctx.font = `700 ${compact ? 9 : 10}px system-ui, sans-serif`;
+    ctx.letterSpacing = "0.12em";
+    ctx.fillText(chapter.focus, W / 2, centerY + 39);
+    ctx.restore();
+  }
+
   function drawRoomIntro(time) {
     void time;
     if (roomIntroTimer <= 0) return;
+    if (chapterTransitionTimer > 0) return;
     if (!started || (overlay && !overlay.classList.contains("hidden"))) return;
     if (gameTipVisible("onboarding") || gameTipVisible("death")) return;
     if (failureCueActive()) return;
@@ -9141,6 +9235,7 @@
     drawMountainLayer(atmosphere.back, 0.35, 80 + roomIndex * 18, 0.18);
     drawMountainLayer(atmosphere.midPeak, 0.48, 150 + roomIndex * 9, 0.12);
     drawChapterLandmarks(ambientTime, atmosphere);
+    drawChapterWeather(ambientTime, atmosphere);
     drawMountainLayer(atmosphere.front, 0.72, 220, 0.08);
 
     // Let the moon travel across the chapters instead of pinning every exit
@@ -9325,6 +9420,51 @@
       });
       ctx.stroke();
       stars.forEach(([x, y], index) => ctx.fillRect(x - 2, y - 2, index === 3 ? 5 : 4, index === 3 ? 5 : 4));
+    }
+    ctx.restore();
+  }
+
+  function drawChapterWeather(time, atmosphere) {
+    const chapter = chapterIndexForRoom(roomIndex);
+    const count = settings.lowPerformance ? 6 : settings.calmEffects ? 10 : 16;
+    const motion = prefersReducedMotion ? 0 : time;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < count; i += 1) {
+      const seedX = (i * 173 + roomIndex * 67) % (W + 120);
+      const seedY = (i * 83 + roomIndex * 31) % 330;
+      if (chapter === 0) {
+        const y = 72 + ((seedY + motion * (7 + i % 3)) % 250);
+        const x = (seedX + Math.sin(motion * 0.45 + i) * 12) % W;
+        ctx.globalAlpha = 0.12 + (i % 4) * 0.018;
+        ctx.fillStyle = i % 3 === 0 ? atmosphere.rim : atmosphere.haze;
+        ctx.fillRect(x, y, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1);
+      } else if (chapter === 1) {
+        const x = (seedX + motion * (3 + i % 2)) % (W + 80) - 40;
+        const y = 76 + ((seedY + motion * (12 + i % 4)) % 300);
+        ctx.globalAlpha = 0.08 + (i % 3) * 0.02;
+        ctx.fillStyle = i % 4 === 0 ? atmosphere.rim : "#d8c7ad";
+        ctx.fillRect(x, y, 1.5, 2.5);
+      } else if (chapter === 2) {
+        const x = (seedX + motion * (36 + i % 4 * 5)) % (W + 160) - 80;
+        const y = 64 + seedY * 0.82 + Math.sin(motion * 1.2 + i) * 9;
+        ctx.globalAlpha = 0.08 + (i % 3) * 0.025;
+        ctx.strokeStyle = i % 4 === 0 ? atmosphere.rim : atmosphere.haze;
+        ctx.lineWidth = i % 5 === 0 ? 1.5 : 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 18 + (i % 4) * 6, y - 3);
+        ctx.stroke();
+      } else {
+        const x = seedX % W;
+        const y = H - ((seedY + motion * (14 + i % 5)) % (H - 48));
+        const twinkle = prefersReducedMotion ? 0.12 : 0.1 + Math.sin(time * 1.8 + i) * 0.04;
+        ctx.globalAlpha = twinkle;
+        ctx.fillStyle = i % 4 === 0 ? atmosphere.rim : atmosphere.moon;
+        const size = i % 6 === 0 ? 2 : 1;
+        ctx.fillRect(x, y, size, size + 1);
+      }
     }
     ctx.restore();
   }

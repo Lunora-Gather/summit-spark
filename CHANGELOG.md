@@ -2,6 +2,10 @@
 
 ## 2026-07-28
 
+- Turned the existing four visual acts into a paced chapter experience for `20260728-p176`. Crossing into Old Peak, Wind Gorge, and Star Summit now creates a short non-timed breath at the safe room edge, names the act, states its movement promise, and then returns control without adding a menu or blocking cutscene. Each act also receives a restrained motion identity—gate motes, old-peak dust, wind streaks, or rising summit stars—while honoring reduced-motion and low-performance settings.
+
+## 2026-07-28
+
 - Added the restrained `20260728-p175` atmosphere/accessibility pass without expanding the main surfaces: an original light-ribbon silhouette for the climber, one quiet narrative line per room, a four-chapter procedural ambient harmony layer that subtly lifts with Flow, and a single Gentle assist setting (85% simulation speed, two dashes, unlimited stamina). Assisted runs remain playable to the summit but are isolated from PBs, clean clears, Flow bests, challenges, training contracts, summit profiles, and best times; settings migrate to schema v4.
 
 ## 2026-07-28

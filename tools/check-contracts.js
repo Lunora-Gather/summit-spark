@@ -521,6 +521,8 @@ if (!js.includes("SETTINGS_SCHEMA_VERSION")) errors.push("settings schema versio
 if (!js.includes("function recordsEligible()") || !js.includes("辅助完成 · 不计 PB")) errors.push("assist mode must isolate PB and long-term records");
 if (!js.includes("function updateAmbientMusic(") || !js.includes("AMBIENT_CHAPTER_CHORDS")) errors.push("chapter ambient music layer is missing");
 if (!js.includes("function drawPlayerRibbon(") || !js.includes("ROOM_WHISPERS")) errors.push("character ribbon or room atmosphere copy is missing");
+if (!js.includes("CHAPTER_EXPERIENCE") || !js.includes("function beginChapterTransition(") || !js.includes("function drawChapterTransition(") || !js.includes("chapterEntry: true")) errors.push("chapter boundaries and direct chapter practice need a paced in-canvas transition");
+if (!js.includes("function drawChapterWeather(") || !js.includes("chapterIndexForRoom(roomIndex)")) errors.push("each chapter needs a distinct environmental motion language");
 if (!js.includes("PROFILE_SCHEMA_VERSION")) errors.push("profile schema version is missing");
 if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("room focus schema version is missing");
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay direct resume helper is missing");

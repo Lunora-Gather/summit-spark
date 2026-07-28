@@ -2,6 +2,10 @@
 
 ## 2026-07-28
 
+- Polished the chapter capstones and summit payoff for `20260728-p178`: R3 now closes Gate Approach with an offset two-spring exam, R6 closes Old Peak with paired relays and springs, and R8 reconnects prism/crumble pressure to a final updraft. Reaching the R10 goal now holds on a restrained in-world summit reveal before the finish review. The classic climber gains a subtle body-level updraft response while the restored silhouette and fixed dark-blue hair remain unchanged.
+
+## 2026-07-28
+
 - Restored the preferred classic climber silhouette for `20260728-p177`: removed the added light ribbon and fixed the hair to its dark-blue color instead of changing it with dash or overdrive state, while retaining the chapter pacing, room atmosphere, ambient harmony, accessibility, and assist-mode work from P175–P176.
 
 ## 2026-07-28

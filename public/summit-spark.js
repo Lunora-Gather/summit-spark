@@ -244,6 +244,7 @@
   const ECHO_RECALL_COOLDOWN = 0.32;
   const ROOM_INTRO_TIME = 1.2;
   const CHAPTER_TRANSITION_TIME = 1.8;
+  const SUMMIT_REVEAL_TIME = 2.25;
   const CURRENT_PATH_DRAW_POINTS = 90;
   const CRUMBLE_BREAK_TIME = 0.42;
   const DASH_AIM_PREVIEW_LENGTH = 58;
@@ -355,7 +356,7 @@
     "F3"
   ]);
 
-  const ROOM_TARGETS = [8.8, 10.0, 11.2, 14.0, 16.0, 17.5, 20.0, 22.0, 24.0, 27.0];
+  const ROOM_TARGETS = [8.8, 10.0, 12.4, 14.0, 16.0, 19.0, 20.0, 23.5, 24.0, 27.0];
   const ROOM_NAMES = ["\u8d77\u52bf\u5c71\u95e8", "\u5149\u7ee7\u6a2a\u6865", "\u5f39\u7c27\u96fe\u53f0", "\u4e09\u6bb5\u8fde\u9501", "\u68f1\u7ebf\u56de\u73af", "\u65e7\u5cf0\u51fa\u53e3", "\u98ce\u5347\u5ce1\u53e3", "\u68f1\u955c\u957f\u5eca", "\u56de\u58f0\u5ca9\u573a", "\u661f\u9876\u7ec8\u7ebf"];
   const ROOM_TIERS = ["learn", "learn", "learn", "combine", "combine", "combine", "pressure", "pressure", "finale", "finale"];
   const ROOM_CHAPTER_LABELS = ["I · 山门", "I · 山门", "I · 山门", "II · 旧峰", "II · 旧峰", "II · 旧峰", "III · 风峡", "III · 风峡", "IV · 星顶", "IV · 星顶"];
@@ -386,7 +387,7 @@
     ["relay", "route", "recover"],
     ["relay", "spring", "exit"],
     ["wind", "crumble", "landing"],
-    ["overdrive", "relay", "crumble"],
+    ["overdrive", "relay", "crumble", "wind"],
     ["echo", "overdrive", "crumble", "wind"],
     ["finale", "relay", "overdrive", "crumble"]
   ];
@@ -411,36 +412,36 @@
   const ROOM_GUIDES = [
     "先把落点站稳，再追求更快。",
     "用第一颗光继建立速度，再用第二颗把落点收稳。",
-    "让两级弹簧分段给高度，过顶后再花冲刺。",
+    "先读两级弹簧的错位落点，过顶后再花冲刺。",
     "先读安全平台线，再把光继点连起来。",
     "保持折返节奏，同时留一个恢复选择。",
-    "把弹簧当作出口前的节拍重置。",
+    "用双光继校准双弹簧，把旧峰的组合句收完整。",
     "踩上脆冰就离开，让风把高度补回来。",
-    "干净进入棱镜加速，不要在脆冰前浪费。",
+    "干净进入棱镜，穿过脆冰后借最后一股风收住。",
     "先点亮本章第一枚回声锚点，再把风接进棱镜。",
     "把完整工具组带到高位终点，最后一次落地要留余量。"
   ];
   const ROOM_PURPOSES = [
     "信任跳跃弧线和安全落点",
     "用双光继建立速度与恢复的完整句子",
-    "用两级弹簧建立高度节拍",
+    "用错位双弹簧完成山门终考",
     "读清危险线后串联光继点",
     "练习折返路线和保底恢复",
-    "用弹簧重置出口节奏",
+    "用双光继和双弹簧完成旧峰终考",
     "脆冰上果断离开，借风回高度",
-    "用棱镜加速选择脆冰路线",
+    "用棱镜穿越脆冰，再借风完成风峡终考",
     "正式掌握回声锚点，再把风接进棱镜",
     "组合全部工具完成高位收束"
   ];
   const ROOM_ROUTE_LINES = [
     ["安全线：逐个平台稳定落点", "进阶线：每次落地后提前冲刺", "高手线：用 Spark 越过下方危险"],
     ["安全线：两颗光继之间先稳落点", "进阶线：保持冲刺速度连续触发", "高手线：把双光继带到补给前"],
-    ["安全线：两级弹簧分段接高位平台", "进阶线：第一弹簧后短跳接上层", "高手线：用 Spark 省掉低位等待"],
+    ["安全线：看准错位双弹簧再分段上升", "进阶线：第一弹簧后短跳切向第二级", "高手线：用 Spark 省掉低位等待"],
     ["安全线：把每个光继点当停顿", "进阶线：落地前连两次光继点", "高手线：带连锁穿过危险线"],
     ["安全线：折返时保留一次冲刺", "进阶线：用光继点进上层平台", "高手线：Wall Spark 进上层，不靠中段平台恢复"],
-    ["安全线：弹簧重置出口节奏", "进阶线：弹簧前先穿过光继点", "高手线：一整句动作进入上出口"],
+    ["安全线：逐个光继校准两级弹簧", "进阶线：第一弹簧后连光继切向第二级", "高手线：双光继与双弹簧一整句进出口"],
     ["安全线：脆冰只踩一下就走", "进阶线：用风代替中段落地", "高手线：风中不停顿接光继点"],
-    ["安全线：站稳后再吃棱镜", "进阶线：过载穿过脆冰排", "高手线：Prism Spark 后再选棱镜路线"],
+    ["安全线：站稳后吃棱镜，末段借风收住", "进阶线：过载穿过脆冰后不停顿进风", "高手线：Prism Spark 串脆冰与末段风场"],
     ["安全线：连段前先点亮回声", "进阶线：风接棱镜再接光继点", "高手线：只在保 PB 时召回"],
     ["安全线：每次重置都明确花掉再向上", "进阶线：棱镜穿中线接高位平台", "高手线：完整工具组连到星顶终点"]
   ];
@@ -464,7 +465,7 @@
     ["wallSpark"],
     ["relay", "spring"],
     ["updraft", "crumble"],
-    ["prism", "prismSpark", "crumble"],
+    ["prism", "prismSpark", "crumble", "updraft"],
     ["echo", "updraft", "prism"],
     ["relay", "prism", "crumble"]
   ];
@@ -591,8 +592,8 @@
       ".......................T.L....",
       ".....####..............####...",
       "..............................",
-      "..........^^^^^^..............",
-      ".....####.######.......T......",
+      "..........^^^^^^...^^^........",
+      ".....####.######...T..........",
       "..............................",
       "##########################...."
     ],
@@ -645,9 +646,9 @@
       "......................####....",
       "..P..........A................",
       "#####......#####..............",
-      "..................####........",
-      "..........A...................",
-      "........^^^^.........#####....",
+      "..................####..T.....",
+      "..........A.......A...........",
+      "........^^^^...^^....#####....",
       "........####..................",
       "....................T.........",
       "........#####............####.",
@@ -686,7 +687,7 @@
       "#####...CCCCC....CC###........",
       "..............####............",
       "............^^^^..............",
-      "............####......####....",
+      "............####..U...####....",
       "....U..........####....CCCC...",
       "........####..............####",
       "##########################...."
@@ -828,6 +829,8 @@
   let room = null;
   let started = false;
   let won = false;
+  let summitRevealTimer = 0;
+  let pendingSummitResult = null;
   let lastTime = performance.now();
   let deathCount = 0;
   let deathReasons = createDeathReasons();
@@ -1110,6 +1113,9 @@
       const digit = Number(event.code.slice(5));
       const target = digit === 0 ? 9 : digit - 1;
       if (target >= 0 && target < maps.length) jumpToRoom(target, { chapterEntry: true });
+    }
+    if (debugVisible && firstPress && event.code === "KeyH" && started && !won && roomIndex === maps.length - 1) {
+      beginSummitReveal({ isBest: false, assisted: runUsedAssist, drillResult: null });
     }
   });
 
@@ -1753,6 +1759,7 @@
       sparkHopDirY: 0,
       sparkHopVariant: "spark",
       wallJumpLock: 0,
+      inUpdraft: false,
       deadTimer: 0,
       respawnRoom: roomIndex,
       respawnX: spawn.x,
@@ -2063,6 +2070,8 @@
     timingArmed = false;
     timingInputReady = false;
     won = false;
+    summitRevealTimer = 0;
+    pendingSummitResult = null;
     hitStopTimer = 0;
     shakeTimer = 0;
     shakeDuration = 0;
@@ -2125,6 +2134,8 @@
     timingArmed = false;
     timingInputReady = false;
     won = false;
+    summitRevealTimer = 0;
+    pendingSummitResult = null;
     hitStopTimer = 0;
     ghosts.length = 0;
     lightTrails.length = 0;
@@ -2545,6 +2556,7 @@
   }
 
   function updateEntities(dt, input) {
+    player.inUpdraft = false;
     const box = getPlayerBox();
 
     for (const lumen of room.entities.lumens) {
@@ -2571,6 +2583,7 @@
       updraft.pulse = Math.max(0, updraft.pulse - dt);
       const field = updraftFieldBounds(updraft);
       if (aabb(box, field)) {
+        player.inUpdraft = true;
         markRoomTech("updraft");
         const center = field.x + field.w / 2;
         const pull = Math.max(-1, Math.min(1, (center - (player.x + player.w / 2)) / 34));
@@ -2724,9 +2737,7 @@
     if (room.entities.goal && distRectPoint(box, room.entities.goal.x, room.entities.goal.y) < 28) {
       const result = completeRun();
       if (result.drillResult === false) return;
-      won = true;
-      showFinishOverlay(result.isBest);
-      burst(room.entities.goal.x, room.entities.goal.y, palette.gold, 30, 300);
+      beginSummitReveal(result);
     }
 
     const hazard = touchingHazard(box);
@@ -2759,6 +2770,32 @@
       return { isBest: true, drillResult, assisted: false };
     }
     return { isBest: false, drillResult, assisted: !eligible };
+  }
+
+  function beginSummitReveal(result) {
+    won = true;
+    summitRevealTimer = prefersReducedMotion ? 1.35 : SUMMIT_REVEAL_TIME;
+    pendingSummitResult = result;
+    overlay.classList.add("hidden");
+    setGameStatus("星顶回应 · 山风安静下来");
+    resetRelayChain();
+    player.vx = 0;
+    player.vy = 0;
+    playSound("clear", 1);
+    const goal = room.entities.goal;
+    if (goal) {
+      burst(goal.x, goal.y, palette.gold, 30, 300);
+      burst(goal.x, goal.y, palette.cyan, settings.lowPerformance ? 10 : 20, 220);
+    }
+  }
+
+  function updateSummitReveal(dt) {
+    if (summitRevealTimer <= 0) return;
+    summitRevealTimer = Math.max(0, summitRevealTimer - dt);
+    if (summitRevealTimer > 0 || !pendingSummitResult) return;
+    const result = pendingSummitResult;
+    pendingSummitResult = null;
+    showFinishOverlay(result.isBest, result.assisted);
   }
 
   function showFinishOverlay(isBest, assisted = runUsedAssist) {
@@ -5996,6 +6033,7 @@
         room: roomIndex + 1,
         chapter: chapterIndexForRoom(roomIndex) + 1,
         chapterTransition: chapterTransitionTimer > 0,
+        summitReveal: summitRevealTimer > 0,
         deaths: deathCount,
         runTime: Math.round(runTime * 100) / 100,
         roomTime: Math.round(roomTime * 100) / 100,
@@ -7773,6 +7811,7 @@
     crumbleSlipTimer = Math.max(0, crumbleSlipTimer - dt);
     updateGameTip(dt);
     updateFlow(chapterBreathing ? 0 : dt);
+    updateSummitReveal(dt);
     updateCrumblePlatforms(dt);
     for (const key of Object.keys(actionPulse)) {
       actionPulse[key] = Math.max(0, actionPulse[key] - dt);
@@ -8098,6 +8137,7 @@
     drawActiveChallengeHud(time);
     drawPaceRibbon(time);
     drawChapterTransition(time);
+    drawSummitReveal(time);
     drawVignette();
   }
 
@@ -8631,6 +8671,49 @@
     ctx.letterSpacing = "0.12em";
     ctx.fillText(chapter.focus, W / 2, centerY + 39);
     ctx.restore();
+  }
+
+  function drawSummitReveal(time) {
+    if (summitRevealTimer <= 0 || !won) return;
+    const duration = prefersReducedMotion ? 1.35 : SUMMIT_REVEAL_TIME;
+    const progress = 1 - summitRevealTimer / duration;
+    const reveal = Math.max(0, Math.min(1, progress * 2.8));
+    const goal = room.entities.goal;
+    const gx = goal?.x || W * 0.72;
+    const gy = goal?.y || H * 0.24;
+    const compact = isCompactCanvas();
+    ctx.save();
+    const glow = ctx.createRadialGradient(gx, gy, 12, gx, gy, 190 + progress * 90);
+    glow.addColorStop(0, `rgba(255, 232, 156, ${0.2 + reveal * 0.24})`);
+    glow.addColorStop(0.4, `rgba(174, 225, 215, ${0.08 + reveal * 0.08})`);
+    glow.addColorStop(1, "rgba(174, 225, 215, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+    if (!prefersReducedMotion) {
+      ctx.globalAlpha = (1 - progress) * 0.5;
+      ctx.strokeStyle = palette.gold;
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 3; i += 1) {
+        ctx.beginPath();
+        ctx.arc(gx, gy, 28 + progress * (70 + i * 34), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    const textAlpha = Math.max(0, Math.min(1, (progress - 0.18) * 4.2, (1 - progress) * 8));
+    ctx.globalAlpha = textAlpha;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(18, 32, 42, 0.35)";
+    ctx.shadowBlur = performanceShadowBlur(8);
+    ctx.fillStyle = "rgba(250, 248, 236, 0.97)";
+    ctx.font = `700 ${compact ? 22 : 27}px system-ui, sans-serif`;
+    ctx.fillText("你抵达了星顶", W / 2, H * 0.43);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(240, 246, 238, 0.82)";
+    ctx.font = `600 ${compact ? 11 : 12}px system-ui, sans-serif`;
+    ctx.fillText("山风停了一瞬。", W / 2, H * 0.43 + 33);
+    ctx.restore();
+    void time;
   }
 
   function drawRoomIntro(time) {
@@ -10529,6 +10612,22 @@
       ctx.restore();
     }
 
+    if (state.windborne) {
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = palette.cyan;
+      ctx.lineWidth = 1.4;
+      ctx.lineCap = "round";
+      for (let i = -1; i <= 1; i += 1) {
+        const sway = prefersReducedMotion ? 0 : Math.sin(time * 7 + i * 1.8) * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx + i * 8, y + 35);
+        ctx.quadraticCurveTo(cx + i * 8 + sway, y + 25, cx + i * 7 - sway, y + 14);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     if (!state.airborne && state.run > 0.42) {
       ctx.save();
       ctx.globalAlpha = 0.18 + state.run * 0.16;
@@ -10556,6 +10655,7 @@
     const over = player.overdrive > 0;
     const airborne = !player.wasGrounded && !player.onGround;
     const walling = player.wallDir !== 0 && airborne;
+    const windborne = Boolean(player.inUpdraft);
     const dashPulse = Math.max(visualRatio("dash", 0.24), player.dashTimer / DASH_TIME);
     const sparkPulse = visualRatio("spark", 0.28);
     const prismPulse = visualRatio("prism", 0.42);
@@ -10576,8 +10676,8 @@
     const hairColor = "#294657";
     const playerVisualScale = isPortraitViewport() ? 1.38 : 1.09;
     const squashX = 1 + landPulse * 0.16 + dashPulse * 0.08 - springPulse * 0.05;
-    const squashY = 1 - landPulse * 0.14 - dashPulse * 0.06 + Math.max(sparkPulse, springPulse) * 0.1;
-    const lean = Math.max(-0.22, Math.min(0.22, player.vx / 980 + dashPulse * player.dashDirX * 0.12 + wallPulse * player.facing * 0.05));
+    const squashY = 1 - landPulse * 0.14 - dashPulse * 0.06 + Math.max(sparkPulse, springPulse) * 0.1 + (windborne ? 0.035 : 0);
+    const lean = Math.max(-0.22, Math.min(0.22, player.vx / 980 + dashPulse * player.dashDirX * 0.12 + wallPulse * player.facing * 0.05 + (windborne && !prefersReducedMotion ? Math.sin(time * 6) * 0.018 : 0)));
     const eyeX = x + 11 + player.facing * 2;
 
     ctx.save();
@@ -10610,6 +10710,7 @@
       sparkPulse,
       wallPulse,
       walling,
+      windborne,
       airborne,
       run,
       accent

@@ -523,6 +523,10 @@ if (!js.includes("function updateAmbientMusic(") || !js.includes("AMBIENT_CHAPTE
 if (!js.includes("ROOM_WHISPERS") || !js.includes('const hairColor = "#294657"') || js.includes("function drawPlayerRibbon(")) errors.push("classic fixed-hair climber or room atmosphere copy is missing");
 if (!js.includes("CHAPTER_EXPERIENCE") || !js.includes("function beginChapterTransition(") || !js.includes("function drawChapterTransition(") || !js.includes("chapterEntry: true")) errors.push("chapter boundaries and direct chapter practice need a paced in-canvas transition");
 if (!js.includes("function drawChapterWeather(") || !js.includes("chapterIndexForRoom(roomIndex)")) errors.push("each chapter needs a distinct environmental motion language");
+if (!js.includes("function beginSummitReveal(") || !js.includes("function drawSummitReveal(") || !js.includes("SUMMIT_REVEAL_TIME") || !js.includes("summitReveal: summitRevealTimer > 0")) errors.push("the summit must pause for a testable in-world reveal before opening the finish review");
+if (!js.includes("player.inUpdraft = true") || !js.includes("const windborne = Boolean(player.inUpdraft)") || !js.includes("windborne,")) errors.push("the fixed-hair climber needs a restrained body-level updraft response without recoloring the hair");
+if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
+if ((maps[2]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match(/A/g) || []).length < 2) errors.push("R3 and R6 capstones must retain their two-stage spring and relay exams");
 if (!js.includes("PROFILE_SCHEMA_VERSION")) errors.push("profile schema version is missing");
 if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("room focus schema version is missing");
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay direct resume helper is missing");
@@ -631,7 +635,9 @@ if (!indexHtml.includes('data-touch="grab" aria-label="抓墙">抓</button>') ||
 
 const counts = maps.map(countTiles);
 const pressures = counts.map(pressure);
-const earlyAvg = pressures.slice(0, 3).reduce((sum, value) => sum + value, 0) / 3;
+// Compare the middle act against the two teaching rooms; R3 is intentionally
+// a capstone spike rather than part of the introductory pressure baseline.
+const earlyAvg = pressures.slice(0, 2).reduce((sum, value) => sum + value, 0) / 2;
 const midMax = Math.max(...pressures.slice(3, 6));
 pressures.slice(3, 6).forEach((value, offset) => {
   if (value < earlyAvg + 3) errors.push("middle room " + (offset + 4) + " pressure should clearly exceed early average");

@@ -10546,34 +10546,6 @@
     }
   }
 
-  function drawPlayerRibbon(time) {
-    if (!player.hair?.length) return;
-    const over = player.overdrive > 0;
-    const color = over ? palette.gold : player.dashes > 0 ? palette.cyan : "#8aa7b6";
-    const anchorX = player.x + player.w / 2 - player.facing * 4;
-    const anchorY = player.y + 8;
-    ctx.save();
-    ctx.globalAlpha = 0.72;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = isPortraitViewport() ? 3.2 : 2.35;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.shadowColor = color;
-    ctx.shadowBlur = performanceShadowBlur(over ? 9 : 5);
-    ctx.beginPath();
-    ctx.moveTo(anchorX, anchorY);
-    for (const point of player.hair) ctx.lineTo(point.x, point.y);
-    ctx.stroke();
-    const tail = player.hair[player.hair.length - 1];
-    const pulse = prefersReducedMotion ? 1 : 1 + Math.sin(time * 9) * 0.08;
-    ctx.translate(tail.x, tail.y);
-    ctx.rotate(Math.PI / 4);
-    ctx.scale(pulse, pulse);
-    ctx.fillStyle = color;
-    ctx.fillRect(-2.4, -2.4, 4.8, 4.8);
-    ctx.restore();
-  }
-
   function drawPlayer(time) {
     const x = player.x;
     const y = player.y;
@@ -10601,7 +10573,7 @@
           : over ? palette.green
             : player.dashes > 0 ? palette.cyan
               : "#9bb4c6";
-    const hairColor = over ? "#315c58" : "#294657";
+    const hairColor = "#294657";
     const playerVisualScale = isPortraitViewport() ? 1.38 : 1.09;
     const squashX = 1 + landPulse * 0.16 + dashPulse * 0.08 - springPulse * 0.05;
     const squashY = 1 - landPulse * 0.14 - dashPulse * 0.06 + Math.max(sparkPulse, springPulse) * 0.1;
@@ -10632,8 +10604,6 @@
       ctx.ellipse(cx, y + player.h + 3.2, 9.5 + run * 1.4 + landPulse * 3, 2.4, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-
-    drawPlayerRibbon(time);
 
     drawPlayerStateFrame(x, y, cx, cy, time, {
       dashPulse,

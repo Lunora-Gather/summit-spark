@@ -2,6 +2,10 @@
 
 ## 2026-07-28
 
+- Restored the preferred classic climber silhouette for `20260728-p177`: removed the added light ribbon and fixed the hair to its dark-blue color instead of changing it with dash or overdrive state, while retaining the chapter pacing, room atmosphere, ambient harmony, accessibility, and assist-mode work from P175–P176.
+
+## 2026-07-28
+
 - Turned the existing four visual acts into a paced chapter experience for `20260728-p176`. Crossing into Old Peak, Wind Gorge, and Star Summit now creates a short non-timed breath at the safe room edge, names the act, states its movement promise, and then returns control without adding a menu or blocking cutscene. Each act also receives a restrained motion identity—gate motes, old-peak dust, wind streaks, or rising summit stars—while honoring reduced-motion and low-performance settings.
 
 ## 2026-07-28

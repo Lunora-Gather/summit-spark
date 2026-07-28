@@ -580,6 +580,49 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!/失 1/.test(retryState.deaths)) errors.push("quick retry should increment the visible mistake count once: " + JSON.stringify({ retryDeathsBefore, retryState }));
   const gameplayCanvas = await canvasInkSummary(cdp);
   if (gameplayCanvas.varied < 20 || gameplayCanvas.bright < 20) errors.push("canvas appears blank during gameplay: " + JSON.stringify(gameplayCanvas));
+  await keyTap(cdp, "Digit0", "0");
+  await waitUntil("debug jump reaches summit room", () => evaluate(cdp, `/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
+  await sleep(2100);
+  await keyHold(cdp, "KeyD", "D", 180);
+  await waitUntil("summit room timing contributes to current-run evidence", () => evaluate(cdp, `!/0:00\\.00$/.test(document.querySelector("#runTime").textContent)`));
+  await evaluate(cdp, `window.addEventListener("error", (event) => { window.__summitRevealTestError = event.message || "unknown"; }, { once: true })`);
+  await keyTap(cdp, "KeyH", "H");
+  await sleep(80);
+  const debugSummitState = await evaluate(cdp, `({
+    status: document.querySelector("#gameStatus").textContent,
+    room: document.querySelector("#roomCount").textContent,
+    debugVisible: !document.querySelector("#debugPanel").classList.contains("hidden"),
+    overlayHidden: document.querySelector("#overlay").classList.contains("hidden")
+  })`);
+  if (!/星顶回应/.test(debugSummitState.status)) {
+    errors.push("debug summit trigger did not begin the reveal: " + JSON.stringify(debugSummitState));
+  }
+  const summitRevealState = await waitUntil("summit reveal holds before review", () => evaluate(cdp, `(() => {
+    const status = document.querySelector("#gameStatus").textContent;
+    const hidden = document.querySelector("#overlay").classList.contains("hidden");
+    return /星顶回应/.test(status) && hidden ? { status, hidden } : null;
+  })()`));
+  if (!summitRevealState.hidden || !/星顶回应/.test(summitRevealState.status)) {
+    errors.push("summit goal should hold on an in-world reveal before opening review: " + JSON.stringify(summitRevealState));
+  }
+  await sleep(2800);
+  const finishProbe = await evaluate(cdp, `({
+    hasTitle: !!document.querySelector("#finishTitle"),
+    status: document.querySelector("#gameStatus").textContent,
+    error: window.__summitRevealTestError || ""
+  })`);
+  if (!finishProbe.hasTitle) {
+    errors.push("summit reveal did not open finish review: " + JSON.stringify(finishProbe));
+  }
+  const runEvidenceReview = finishProbe.hasTitle ? await evaluate(cdp, `(() => {
+    const title = document.querySelector("#finishTitle");
+    const more = document.querySelector(".review-more");
+    const text = more.textContent || "";
+    return { text, focused: document.activeElement === title };
+  })()`) : { text: "", focused: false };
+  if (finishProbe.hasTitle && (!/本轮分幕/.test(runEvidenceReview.text) || !/已记录 1\/10 房/.test(runEvidenceReview.text) || !runEvidenceReview.focused)) {
+    errors.push("summit review should expose bounded current-run act evidence without losing modal focus: " + JSON.stringify(runEvidenceReview));
+  }
   await navigateApp(cdp, baseUrl, "desktop reset");
   await tapSelector(cdp, "#openTrainingButton");
   await waitUntil("practice panel open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
@@ -970,11 +1013,17 @@ async function runDesktopSmoke(cdp, baseUrl) {
       gamepad: snapshot.gamepad,
       hasSettings: !!snapshot.settings && typeof snapshot.settings.gamepadDeadzone === "number",
       hasProgress: !!snapshot.progress && typeof snapshot.progress.chapterPercent === "number",
+      hasRunEvidence: Array.isArray(snapshot.run?.roomTimes)
+        && snapshot.run.roomTimes.length === 10
+        && Array.isArray(snapshot.run?.roomMistakes)
+        && snapshot.run.roomMistakes.length === 10
+        && Array.isArray(snapshot.run?.chapterSplits)
+        && snapshot.run.chapterSplits.length === 4,
       hasNoUserAgent: !JSON.stringify(snapshot).includes("userAgent"),
       status
     };
   })()`), 5000);
-  if (!/^\d{8}-p\d+$/.test(diagnostics.build) || diagnostics.schemaVersion !== 1 || diagnostics.feedbackType !== "mobile" || !/R7 touch note/.test(diagnostics.feedbackNote || "") || !diagnostics.gamepad || typeof diagnostics.gamepad.deadzone !== "number" || !diagnostics.hasSettings || !diagnostics.hasProgress || !diagnostics.hasNoUserAgent || !/诊断/.test(diagnostics.status)) {
+  if (!/^\d{8}-p\d+$/.test(diagnostics.build) || diagnostics.schemaVersion !== 1 || diagnostics.feedbackType !== "mobile" || !/R7 touch note/.test(diagnostics.feedbackNote || "") || !diagnostics.gamepad || typeof diagnostics.gamepad.deadzone !== "number" || !diagnostics.hasSettings || !diagnostics.hasProgress || !diagnostics.hasRunEvidence || !diagnostics.hasNoUserAgent || !/诊断/.test(diagnostics.status)) {
     errors.push("diagnostics button did not produce a safe feedback snapshot: " + JSON.stringify(diagnostics));
   }
   await clickSelector(cdp, "#feedbackTemplateButton");
@@ -3531,7 +3580,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, summit reveal fallback and current-run act evidence, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

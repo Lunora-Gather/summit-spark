@@ -40,12 +40,12 @@ For each room, record `pass`, `friction`, or `blocked`.
 | --- | --- | --- |
 | R1 | basic jump, dash, safe landing | First clear should not require menu knowledge. |
 | R2 | relay timing and recovery | Light relay should read as a reset, not a platform. |
-| R3 | spring height and late dash | Spring route should be visible before committing. |
+| R3 | offset two-spring capstone and late dash | Both spring landings should be visible before committing. |
 | R4 | relay chain under hazard pressure | Safe line and faster chain should both be understandable. |
 | R5 | foldback route memory | Wall Spark line should look optional, not mandatory. |
-| R6 | spring plus relay exit rhythm | Exit should feel like a rhythm reset, not a surprise. |
+| R6 | paired relays plus two-spring exit rhythm | The second relay/spring choice should complete the Old Peak sentence, not surprise the player. |
 | R7 | wind plus crumble introduction | Crumble warning and wind lift must be readable together. |
-| R8 | prism route choice | Overdrive route should not obscure crumble hazards. |
+| R8 | prism/crumble route into a final updraft | Overdrive should not obscure hazards, and the late wind should feel like a deliberate Wind Gorge exam. |
 | R9 | echo anchor, wind, prism | Recall route should reduce practice friction. |
 | R10 | full-kit finale | Finale should feel pressured but fair after R1-R9. |
 
@@ -55,6 +55,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 - Start one Feel Lab card, interrupt it with a different Drill, reopen the practice panel, and confirm the card says it was interrupted.
 - Finish or fail at least one Clean/Pace/Style/Expert Drill and confirm retry/review text names the missing condition.
 - Complete a full run, open “更多复盘” and “掌握路线图”, and confirm a screen reader announces only those names plus their collapsed/expanded state—not `+`, `-`, or arrow characters—while the visible chevron still rotates.
+- In “更多复盘”, confirm “本轮分幕” lists all four acts, their current-run times and mistakes; the slowest act must match the room-by-room notes from this pass.
 - In the same summit-review modal, Tab forward from the last visible control and Shift+Tab backward from the first; both must wrap inside the review without moving focus to browser chrome or hidden gameplay controls.
 - Use the direct resume button from the start screen after creating progress; it should enter a useful recommended Drill.
 - Choose a feedback type, write a short note, then click `诊断 / 复制`; keep the local snapshot with the note. It should not upload anything by itself.

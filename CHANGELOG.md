@@ -2,6 +2,10 @@
 
 ## 2026-07-28
 
+- Added current-run evidence for `20260728-p179` without expanding the persistent HUD or save schema. Every timed room now contributes to an in-memory ten-room breakdown; the collapsed summit review compares all visited acts, reports their times and mistakes, and names the slowest complete-run act. Diagnostics expose bounded `roomTimes`, `roomMistakes`, and four `chapterSplits` arrays so a human R1–R10 pass can drive the next difficulty-tuning round instead of relying on lifetime PBs alone. The summit-to-review handoff now also has an identity-guarded timer fallback, preventing a throttled background tab from remaining stuck in the in-world reveal while keeping stale timers harmless after a reset.
+
+## 2026-07-28
+
 - Polished the chapter capstones and summit payoff for `20260728-p178`: R3 now closes Gate Approach with an offset two-spring exam, R6 closes Old Peak with paired relays and springs, and R8 reconnects prism/crumble pressure to a final updraft. Reaching the R10 goal now holds on a restrained in-world summit reveal before the finish review. The classic climber gains a subtle body-level updraft response while the restored silhouette and fixed dark-blue hair remain unchanged.
 
 ## 2026-07-28

@@ -835,6 +835,7 @@
   let deathCount = 0;
   let deathReasons = createDeathReasons();
   let roomMistakes = createRoomCounters();
+  let runRoomTimes = createRoomCounters();
   let roomFocus = readRoomFocus();
   let roomAttemptClean = true;
   let runUsedAssist = false;
@@ -2058,6 +2059,7 @@
     deathCount = 0;
     deathReasons = createDeathReasons();
     roomMistakes = createRoomCounters();
+    runRoomTimes = createRoomCounters();
     roomAttemptClean = true;
     runUsedAssist = assistActive();
     lastDeathReason = "none";
@@ -2122,6 +2124,7 @@
     deathCount = 0;
     deathReasons = createDeathReasons();
     roomMistakes = createRoomCounters();
+    runRoomTimes = createRoomCounters();
     roomAttemptClean = true;
     runUsedAssist = assistActive();
     lastDeathReason = "none";
@@ -2273,6 +2276,7 @@
     if (timingArmed) {
       runTime += clockDt;
       roomTime += clockDt;
+      runRoomTimes[roomIndex] = (runRoomTimes[roomIndex] || 0) + clockDt;
     }
     updateLastAim(input, dt);
     if (input.x !== 0) {
@@ -2776,6 +2780,12 @@
     won = true;
     summitRevealTimer = prefersReducedMotion ? 1.35 : SUMMIT_REVEAL_TIME;
     pendingSummitResult = result;
+    const expectedResult = result;
+    const fallbackDelay = summitRevealTimer * 1000 + 120;
+    window.setTimeout(() => {
+      if (!won || pendingSummitResult !== expectedResult) return;
+      finishSummitReveal();
+    }, fallbackDelay);
     overlay.classList.add("hidden");
     setGameStatus("星顶回应 · 山风安静下来");
     resetRelayChain();
@@ -2793,8 +2803,14 @@
     if (summitRevealTimer <= 0) return;
     summitRevealTimer = Math.max(0, summitRevealTimer - dt);
     if (summitRevealTimer > 0 || !pendingSummitResult) return;
+    finishSummitReveal();
+  }
+
+  function finishSummitReveal() {
+    if (!pendingSummitResult) return;
     const result = pendingSummitResult;
     pendingSummitResult = null;
+    summitRevealTimer = 0;
     showFinishOverlay(result.isBest, result.assisted);
   }
 
@@ -6037,6 +6053,15 @@
         deaths: deathCount,
         runTime: Math.round(runTime * 100) / 100,
         roomTime: Math.round(roomTime * 100) / 100,
+        roomTimes: runRoomTimes.map((seconds) => Math.round(seconds * 100) / 100),
+        roomMistakes: roomMistakes.slice(),
+        chapterSplits: runChapterSplits().map((chapter) => ({
+          chapter: chapter.index + 1,
+          seconds: Math.round(chapter.seconds * 100) / 100,
+          mistakes: chapter.mistakes,
+          visited: chapter.visited,
+          rooms: chapter.rooms
+        })),
         flowPeak: Math.floor(flowPeak),
         recordsEligible: recordsEligible(),
         activeDrill: activeDrill ? { room: activeDrill.room + 1, mode: activeDrill.mode } : null,
@@ -8798,7 +8823,49 @@
 
   function summitReview() {
     const next = recommendedPracticeRoom();
-    return `${chapterSummary()} / ${challengeSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 下个 Drill ${roomTrainingAdvice(next)}`;
+    return `${chapterSummary()} / ${challengeSummary()} / ${runChapterReview().summary} / ${weakestRoomSummary()} / ${splitLossSummary()} / 下个 Drill ${roomTrainingAdvice(next)}`;
+  }
+
+  function runChapterSplits() {
+    return CHAPTER_EXPERIENCE.map((chapter, chapterIndex) => {
+      const rooms = maps.map((_, index) => index).filter((index) => chapterIndexForRoom(index) === chapterIndex);
+      const seconds = rooms.reduce((sum, index) => sum + (runRoomTimes[index] || 0), 0);
+      const mistakes = rooms.reduce((sum, index) => sum + (roomMistakes[index] || 0), 0);
+      const visited = rooms.filter((index) => (runRoomTimes[index] || 0) > 0).length;
+      const label = ROOM_CHAPTER_LABELS[rooms[0]] || chapter.title;
+      return {
+        index: chapterIndex,
+        label,
+        seconds,
+        mistakes,
+        visited,
+        rooms: rooms.length
+      };
+    });
+  }
+
+  function runChapterReview() {
+    const chapters = runChapterSplits().filter((chapter) => chapter.visited > 0);
+    const visitedRooms = chapters.reduce((sum, chapter) => sum + chapter.visited, 0);
+    if (!chapters.length) {
+      return {
+        value: "等待完整路线",
+        detail: "从 R1 开始后，这里会比较四幕用时与失误。",
+        summary: "本轮分幕 无"
+      };
+    }
+    const slowest = chapters.reduce((candidate, chapter) => (
+      chapter.seconds > candidate.seconds ? chapter : candidate
+    ), chapters[0]);
+    const complete = visitedRooms === maps.length;
+    const detail = chapters
+      .map((chapter) => `${chapter.label} ${formatTime(chapter.seconds)} / 失 ${chapter.mistakes}`)
+      .join(" · ");
+    return {
+      value: complete ? `最慢 ${slowest.label} · ${formatTime(slowest.seconds)}` : `已记录 ${visitedRooms}/${maps.length} 房`,
+      detail,
+      summary: complete ? `本轮最慢 ${slowest.label} ${formatTime(slowest.seconds)}` : `本轮分幕 ${visitedRooms}/${maps.length} 房`
+    };
   }
 
   function practiceReportText() {
@@ -8885,6 +8952,7 @@
     const challengeWins = challengeItems.filter((item) => item.done).length;
     const nextChallenge = challengeItems.find((item) => !item.done) || challengeItems[challengeItems.length - 1];
     const challengeReview = activeChallengeReview();
+    const runReview = runChapterReview();
     const challengeReviewCard = challengeReview ? reviewCardHtml("本轮挑战", challengeReview.value, challengeReview.detail, "primary") : "";
     const routeContractCard = reviewCardHtml("航线合同", routeContractSummaryText(), lastRouteContractResult?.detail || "三步连练会自动推进下一 Drill。", lastRouteContractResult ? "primary" : "secondary");
     const splitValue = loss && loss.loss > 0 ? `R${loss.index + 1} ${formatDelta(loss.loss)}` : "全部达标";
@@ -8899,7 +8967,8 @@
       + reviewCardHtml("章节完成度", chapterText, `Clean ${chapter.clean}/${maps.length} · S ${chapter.pace}/${maps.length} · X ${chapter.expert}/${maps.length}`, "primary")
       + (challengeReviewCard || reviewCardHtml("长期挑战", `${challengeWins}/${LONG_TERM_CHALLENGES.length}`, nextChallenge ? `${nextChallenge.label}：${nextChallenge.detail}` : "挑战已全部完成", "primary"))
       + (lastRouteContractResult ? routeContractCard : "");
-    const extraCards = reviewCardHtml("最大损失", splitValue, splitDetail)
+    const extraCards = reviewCardHtml("本轮分幕", runReview.value, runReview.detail)
+      + reviewCardHtml("最大损失", splitValue, splitDetail)
       + reviewCardHtml("薄弱原因", focusValue, focusDetail)
       + reviewCardHtml("类型挑战", `R${styleIndex + 1} ${styleTrialLabel(styleIndex)}`, styleTrialReviewText(styleIndex))
       + reviewCardHtml("训练航线", practiceRouteSummary(), "先稳无失误，再追目标时间，最后冲高手线。")

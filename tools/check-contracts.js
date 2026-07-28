@@ -205,6 +205,8 @@ if (!js.includes("roomDrillText")) errors.push("room drill stats helper is missi
 if (!js.includes("roomPaceLabel")) errors.push("room pace helper is missing");
 if (!js.includes("summitReview")) errors.push("summit review helper is missing");
 if (!js.includes("summitReviewCardsHtml")) errors.push("summit review card helper is missing");
+if (!js.includes("function runChapterSplits(") || !js.includes("function runChapterReview(") || !js.includes('reviewCardHtml("本轮分幕"') || !js.includes("runRoomTimes[roomIndex]")) errors.push("summit review must retain per-room timing and a quiet four-act breakdown");
+if (!js.includes("roomTimes: runRoomTimes.map(") || !js.includes("roomMistakes: roomMistakes.slice()") || !js.includes("chapterSplits: runChapterSplits().map(")) errors.push("diagnostics must expose current-run room and chapter evidence for full-pass tuning");
 if (!js.includes("bindFinishReviewActions")) errors.push("finish review drill buttons are missing");
 if (!js.includes("showFinishOverlay") || !js.includes('aria-labelledby", "finishTitle"') || !js.includes('focus({ preventScroll: true })')) errors.push("finish overlay must move focus into a labelled modal review surface");
 if (!js.includes('overlay.classList.add("finish-overlay")')) errors.push("finish overlay should use its scroll-safe layout mode");
@@ -523,7 +525,7 @@ if (!js.includes("function updateAmbientMusic(") || !js.includes("AMBIENT_CHAPTE
 if (!js.includes("ROOM_WHISPERS") || !js.includes('const hairColor = "#294657"') || js.includes("function drawPlayerRibbon(")) errors.push("classic fixed-hair climber or room atmosphere copy is missing");
 if (!js.includes("CHAPTER_EXPERIENCE") || !js.includes("function beginChapterTransition(") || !js.includes("function drawChapterTransition(") || !js.includes("chapterEntry: true")) errors.push("chapter boundaries and direct chapter practice need a paced in-canvas transition");
 if (!js.includes("function drawChapterWeather(") || !js.includes("chapterIndexForRoom(roomIndex)")) errors.push("each chapter needs a distinct environmental motion language");
-if (!js.includes("function beginSummitReveal(") || !js.includes("function drawSummitReveal(") || !js.includes("SUMMIT_REVEAL_TIME") || !js.includes("summitReveal: summitRevealTimer > 0")) errors.push("the summit must pause for a testable in-world reveal before opening the finish review");
+if (!js.includes("function beginSummitReveal(") || !js.includes("function finishSummitReveal(") || !js.includes("pendingSummitResult !== expectedResult") || !js.includes("function drawSummitReveal(") || !js.includes("SUMMIT_REVEAL_TIME") || !js.includes("summitReveal: summitRevealTimer > 0")) errors.push("the summit must pause for a testable in-world reveal and safely reach review even when animation frames are throttled");
 if (!js.includes("player.inUpdraft = true") || !js.includes("const windborne = Boolean(player.inUpdraft)") || !js.includes("windborne,")) errors.push("the fixed-hair climber needs a restrained body-level updraft response without recoloring the hair");
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match(/A/g) || []).length < 2) errors.push("R3 and R6 capstones must retain their two-stage spring and relay exams");

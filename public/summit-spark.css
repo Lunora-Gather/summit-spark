@@ -2133,6 +2133,18 @@ canvas:focus {
   text-align: left;
 }
 
+.overlay .finish-whisper {
+  color: rgba(45, 73, 78, 0.72);
+  font-size: 0.92rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+.stage.assist-active #settingsButton::after {
+  background: #69c8c0;
+  box-shadow: 0 0 0 2px rgba(105, 200, 192, 0.18);
+}
+
 .finish-title:focus {
   outline: none;
 }

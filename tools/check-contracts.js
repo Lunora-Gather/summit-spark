@@ -154,7 +154,7 @@ const requiredIds = [
   "game", "startButton", "overlay", "lumenCount", "roomCount", "splitTime", "splitDelta",
   "flowCount", "runTime", "deathCount", "debugPanel", "settingsButton", "practiceButton", "settingsPanel",
   "settingsClose", "shakeSlider", "debugToggle", "calmEffectsToggle", "lowPerformanceToggle", "practiceLinesToggle",
-  "ghostOpacitySlider", "audioToggle", "audioVolumeSlider", "audioTestButton", "feedbackType", "feedbackNote", "diagnosticsButton", "feedbackTemplateButton", "controlPreset", "keyboardLayout", "keyBindingEditor", "keyBindingStatus", "resetKeyBindings", "grabMode", "gamepadDeadzoneSlider", "gamepadStatus", "touchSizeSlider", "saveExportButton", "saveDownloadButton", "saveImportButton", "saveRestoreButton", "saveImportText", "saveImportStatus", "saveBackupStatus", "roomSelect", "focusRoomButton", "focusResetButton",
+  "ghostOpacitySlider", "assistMode", "audioToggle", "audioVolumeSlider", "audioTestButton", "feedbackType", "feedbackNote", "diagnosticsButton", "feedbackTemplateButton", "controlPreset", "keyboardLayout", "keyBindingEditor", "keyBindingStatus", "resetKeyBindings", "grabMode", "gamepadDeadzoneSlider", "gamepadStatus", "touchSizeSlider", "saveExportButton", "saveDownloadButton", "saveImportButton", "saveRestoreButton", "saveImportText", "saveImportStatus", "saveBackupStatus", "roomSelect", "focusRoomButton", "focusResetButton",
   "roomBrief", "practiceReport", "chapterOverview", "practicePlan", "routeContracts", "feelLab", "practiceQueue", "challengeBoard", "profileSummary", "practiceLedger", "drillCleanButton", "drillPaceButton", "drillStyleButton", "drillExpertButton",
   "startReadiness", "loadStatus", "bootFallback", "openTrainingButton", "startSettingsButton", "resumeTrainingButton", "gameStatus", "gameTip", "gameTipTitle", "gameTipDetail", "panelTitle"
 ];
@@ -518,6 +518,9 @@ if (!js.includes("TOUCH_SIZE_DEFAULT")) errors.push("touch size defaults are mis
 if (!js.includes("clampTouchSize")) errors.push("touch size normalization helper is missing");
 if (!js.includes("lowPerformance")) errors.push("low performance setting is missing");
 if (!js.includes("SETTINGS_SCHEMA_VERSION")) errors.push("settings schema version is missing");
+if (!js.includes("function recordsEligible()") || !js.includes("辅助完成 · 不计 PB")) errors.push("assist mode must isolate PB and long-term records");
+if (!js.includes("function updateAmbientMusic(") || !js.includes("AMBIENT_CHAPTER_CHORDS")) errors.push("chapter ambient music layer is missing");
+if (!js.includes("function drawPlayerRibbon(") || !js.includes("ROOM_WHISPERS")) errors.push("character ribbon or room atmosphere copy is missing");
 if (!js.includes("PROFILE_SCHEMA_VERSION")) errors.push("profile schema version is missing");
 if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("room focus schema version is missing");
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay direct resume helper is missing");

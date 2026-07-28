@@ -132,7 +132,7 @@ if (!retryBody.includes("routeContractMatchesDrill") || !retryBody.includes("fee
 const resumeBody = functionBody("resumeRecommendedTraining");
 if (!resumeBody.includes("clearTransientTrainingResults") || !resumeBody.includes("startRoomDrill")) errors.push("direct resume should clear stale summaries and start the recommended Drill");
 
-if (!js.includes("SETTINGS_SCHEMA_VERSION = 3")) errors.push("settings schema version should be current");
+if (!js.includes("SETTINGS_SCHEMA_VERSION = 4")) errors.push("settings schema version should be current");
 if (!js.includes("PROFILE_SCHEMA_VERSION = 2")) errors.push("profile schema version should be current");
 if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION = 2")) errors.push("room focus schema version should be current");
 if (!js.includes("lowPerformance") || !js.includes("touchSize")) errors.push("comfort settings must include lowPerformance and touchSize");

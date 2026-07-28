@@ -2134,7 +2134,7 @@ async function runResumeSmoke(cdp, baseUrl) {
   })`);
   if (!startState.resumeVisible || !/继续训练 · R/.test(startState.resumeText)) errors.push("start overlay should distinguish direct training resume from free play");
   if (!startState.lowPerformance || startState.touchSize !== "62px") errors.push("comfort settings did not apply from stored settings: " + JSON.stringify(startState));
-  if (startState.settingsVersion !== 3 || startState.focusVersion !== 2) errors.push("stored settings/focus should migrate to current schema: " + JSON.stringify(startState));
+  if (startState.settingsVersion !== 4 || startState.focusVersion !== 2) errors.push("stored settings/focus should migrate to current schema: " + JSON.stringify(startState));
   await clickSelector(cdp, "#resumeTrainingButton");
   await waitUntil("resume training starts drill", () => evaluate(cdp, `/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#overlay").classList.contains("hidden")`), 5000);
 }
@@ -2221,6 +2221,54 @@ async function runKeyboardSettingsSmoke(cdp, baseUrl) {
   })()`), 3500);
   await keyTap(cdp, "KeyP", "P");
   await waitUntil("practice toggles closed from keyboard P", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
+}
+
+async function runAssistModeSmoke(cdp, baseUrl) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 720,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
+  await navigateApp(cdp, baseUrl, "assist mode");
+  await evaluate(cdp, `(() => {
+    localStorage.clear();
+    localStorage.setItem("summit-spark-best-flow", "1");
+  })()`);
+  await navigateApp(cdp, baseUrl, "assist mode clean");
+  await clickSelector(cdp, "#startSettingsButton");
+  await openSettingsGroup(cdp, ".settings-group-display");
+  const enabled = await evaluate(cdp, `(() => {
+    const select = document.querySelector("#assistMode");
+    select.value = "gentle";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const stored = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    return {
+      value: select.value,
+      stored: stored.assistMode,
+      version: stored.schemaVersion,
+      stageClass: document.querySelector(".stage")?.classList.contains("assist-active"),
+      status: document.querySelector("#gameStatus")?.textContent || ""
+    };
+  })()`);
+  if (enabled.value !== "gentle" || enabled.stored !== "gentle" || enabled.version !== 4 || !enabled.stageClass || !/不计纪录/.test(enabled.status)) {
+    errors.push("gentle assist should persist, expose its active state, and explain record isolation: " + JSON.stringify(enabled));
+  }
+  await clickSelector(cdp, "#settingsClose");
+  await clickSelector(cdp, "#startButton");
+  const focusBefore = await evaluate(cdp, `localStorage.getItem("summit-spark-room-focus")`);
+  await keyTap(cdp, "KeyX", "x");
+  await keyTap(cdp, "KeyR", "r");
+  await sleep(220);
+  const isolated = await evaluate(cdp, `({
+    bestFlow: localStorage.getItem("summit-spark-best-flow"),
+    roomFocus: localStorage.getItem("summit-spark-room-focus"),
+    assistMode: JSON.parse(localStorage.getItem("summit-spark-settings") || "{}").assistMode,
+    stageClass: document.querySelector(".stage")?.classList.contains("assist-active")
+  })`);
+  if (isolated.bestFlow !== "1" || isolated.roomFocus !== focusBefore || isolated.assistMode !== "gentle" || !isolated.stageClass) {
+    errors.push("assisted movement and retries must not replace Flow or room-focus records: " + JSON.stringify({ ...isolated, focusBefore }));
+  }
 }
 
 async function runTrainingInterruptionSmoke(cdp, baseUrl) {
@@ -2479,7 +2527,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       stageTouchSize: getComputedStyle(document.querySelector(".stage")).getPropertyValue("--touch-size").trim()
     };
   })()`);
-  if (imported.settingsVersion !== 3 || imported.touchSize !== 62 || !imported.lowPerformance || imported.deadzone !== 0.18 || imported.profileVersion !== 2 || imported.clears !== 2 || imported.focusVersion !== 2 || imported.focusRooms !== 10 || imported.bestFlow !== 321 || imported.backupKind !== "summit-spark-save-backup" || imported.backupReason !== "before-import" || imported.backupArchiveKind !== "summit-spark-save" || imported.backupOldTouchSize !== 48 || imported.stageTouchSize !== "62px") {
+  if (imported.settingsVersion !== 4 || imported.touchSize !== 62 || !imported.lowPerformance || imported.deadzone !== 0.18 || imported.profileVersion !== 2 || imported.clears !== 2 || imported.focusVersion !== 2 || imported.focusRooms !== 10 || imported.bestFlow !== 321 || imported.backupKind !== "summit-spark-save-backup" || imported.backupReason !== "before-import" || imported.backupArchiveKind !== "summit-spark-save" || imported.backupOldTouchSize !== 48 || imported.stageTouchSize !== "62px") {
     errors.push("save archive import did not normalize and apply storage: " + JSON.stringify(imported));
   }
   await clickSelector(cdp, "#startSettingsButton");
@@ -3448,6 +3496,7 @@ async function main() {
 
     await runDesktopSmoke(cdp, baseUrl);
     await runKeyboardSettingsSmoke(cdp, baseUrl);
+    await runAssistModeSmoke(cdp, baseUrl);
     await runResumeSmoke(cdp, baseUrl);
     await runTrainingInterruptionSmoke(cdp, baseUrl);
     await runStorageSmoke(cdp, baseUrl);
@@ -3482,7 +3531,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

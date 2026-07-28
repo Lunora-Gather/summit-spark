@@ -63,6 +63,7 @@
   const lowPerformanceToggle = document.getElementById("lowPerformanceToggle");
   const practiceLinesToggle = document.getElementById("practiceLinesToggle");
   const ghostOpacitySlider = document.getElementById("ghostOpacitySlider");
+  const assistModeSelect = document.getElementById("assistMode");
   const audioToggle = document.getElementById("audioToggle");
   const audioVolumeSlider = document.getElementById("audioVolumeSlider");
   const audioTestButton = document.getElementById("audioTestButton");
@@ -217,7 +218,7 @@
   const ROUTE_CUE_TIME = 3.8;
   const MASTERY_POPUP_TIME = 1.8;
   const SETTINGS_KEY = "summit-spark-settings";
-  const SETTINGS_SCHEMA_VERSION = 3;
+  const SETTINGS_SCHEMA_VERSION = 4;
   const PROFILE_SCHEMA_VERSION = 2;
   const ROOM_FOCUS_SCHEMA_VERSION = 2;
   const SAVE_ARCHIVE_SCHEMA_VERSION = 1;
@@ -357,6 +358,19 @@
   const ROOM_NAMES = ["\u8d77\u52bf\u5c71\u95e8", "\u5149\u7ee7\u6a2a\u6865", "\u5f39\u7c27\u96fe\u53f0", "\u4e09\u6bb5\u8fde\u9501", "\u68f1\u7ebf\u56de\u73af", "\u65e7\u5cf0\u51fa\u53e3", "\u98ce\u5347\u5ce1\u53e3", "\u68f1\u955c\u957f\u5eca", "\u56de\u58f0\u5ca9\u573a", "\u661f\u9876\u7ec8\u7ebf"];
   const ROOM_TIERS = ["learn", "learn", "learn", "combine", "combine", "combine", "pressure", "pressure", "finale", "finale"];
   const ROOM_CHAPTER_LABELS = ["I · 山门", "I · 山门", "I · 山门", "II · 旧峰", "II · 旧峰", "II · 旧峰", "III · 风峡", "III · 风峡", "IV · 星顶", "IV · 星顶"];
+  const ROOM_WHISPERS = [
+    "先迈出第一步，山会回应。",
+    "让微光接住你的速度。",
+    "借雾抬升，不必急着冲。",
+    "旧路不会替你选择。",
+    "折返，也是一种向上。",
+    "出口藏在节奏之后。",
+    "风开始说话。",
+    "越快，越要看清落点。",
+    "回声记得你来过。",
+    "把所有微光带到山顶。"
+  ];
+  const ASSIST_SPEED = 0.85;
   const ROOM_SKILLS = [
     ["jump", "dash", "landing"],
     ["dash", "relay", "recover"],
@@ -813,6 +827,7 @@
   let roomMistakes = createRoomCounters();
   let roomFocus = readRoomFocus();
   let roomAttemptClean = true;
+  let runUsedAssist = false;
   let lastDeathReason = "none";
   let crumbleSlipTimer = 0;
   let runTime = 0;
@@ -940,6 +955,9 @@
   let lastFeelFixtureResult = null;
   let audioContext = null;
   let audioMaster = null;
+  let ambientBus = null;
+  let ambientNextTime = 0;
+  let ambientStep = 0;
   const soundCooldowns = {};
   let timingArmed = false;
   let timingInputReady = false;
@@ -1295,6 +1313,18 @@
   ghostOpacitySlider?.addEventListener("input", () => {
     settings.ghostOpacity = Number(ghostOpacitySlider.value);
     writeSettings();
+  });
+  assistModeSelect?.addEventListener("change", () => {
+    settings.assistMode = assistModeSelect.value === "gentle" ? "gentle" : "off";
+    if (assistActive()) {
+      runUsedAssist = true;
+      player.stamina = MAX_STAMINA;
+      restoreDashCharge();
+      activeChallenge = null;
+    }
+    syncComfortSettings();
+    writeSettings();
+    setGameStatus(assistActive() ? "舒缓辅助：85% 速度、双冲刺、无限体力；本轮不计纪录" : "辅助已关闭；重新开始后恢复纪录");
   });
   audioToggle?.addEventListener("change", () => {
     settings.audioEnabled = audioToggle.checked;
@@ -1699,8 +1729,8 @@
       wallCoyoteDir: 0,
       overdrive: 0,
       stamina: MAX_STAMINA,
-      dashes: 1,
-      lumenReserve: false,
+      dashes: assistActive() ? 2 : 1,
+      lumenReserve: assistActive(),
       dashTimer: 0,
       dashCooldown: 0,
       dashDirX: 1,
@@ -2013,6 +2043,7 @@
     deathReasons = createDeathReasons();
     roomMistakes = createRoomCounters();
     roomAttemptClean = true;
+    runUsedAssist = assistActive();
     lastDeathReason = "none";
     crumbleSlipTimer = 0;
     clearFocusPopup();
@@ -2048,7 +2079,7 @@
     clearGameTip();
     onboardingStep = 0;
     applyTrainingTransition("hardReset", {
-      keepChallenge: Boolean(options.keepChallenge),
+      keepChallenge: Boolean(options.keepChallenge) && !assistActive(),
       keepRoute: Boolean(options.keepRoute),
       keepFeel: Boolean(options.keepFeel)
     });
@@ -2073,6 +2104,7 @@
     deathReasons = createDeathReasons();
     roomMistakes = createRoomCounters();
     roomAttemptClean = true;
+    runUsedAssist = assistActive();
     lastDeathReason = "none";
     crumbleSlipTimer = 0;
     clearFocusPopup();
@@ -2150,6 +2182,7 @@
     fps = fps * 0.9 + (dt > 0 ? (1 / dt) * 0.1 : 0);
     const paused = isGamePaused();
     updateGlobalEffects(paused ? 0 : dt);
+    updateAmbientMusic(paused);
     if (!started || won) {
       updateGamepad();
       if (!started && (gamepadPressed.has("jump") || gamepadPressed.has("dash"))) {
@@ -2158,7 +2191,7 @@
     }
 
     if (started && !won && !paused) {
-      update(dt);
+      update(assistActive() ? dt * ASSIST_SPEED : dt, dt);
     } else {
       updateParticles(paused ? dt * 0.25 : dt);
       updateGhosts(paused ? 0 : dt);
@@ -2174,7 +2207,8 @@
     requestAnimationFrame(frame);
   }
 
-  function update(dt) {
+  function update(dt, clockDt = dt) {
+    if (assistActive()) runUsedAssist = true;
     updateDeathMarks(dt);
     updateRelayChain(dt);
     updateActionVisuals(dt);
@@ -2208,8 +2242,8 @@
       setGameStatus(`R${roomIndex + 1} 计时开始`);
     }
     if (timingArmed) {
-      runTime += dt;
-      roomTime += dt;
+      runTime += clockDt;
+      roomTime += clockDt;
     }
     updateLastAim(input, dt);
     if (input.x !== 0) {
@@ -2261,7 +2295,9 @@
       }
     } else {
       runGroundAir(input, dt);
+      if (assistActive()) player.stamina = MAX_STAMINA;
       climb(input, dt);
+      if (assistActive()) player.stamina = MAX_STAMINA;
       jump(input);
       const maxFall = input.y > 0 ? FAST_FALL_MAX : MAX_FALL;
       player.vy = Math.min(maxFall, player.vy + currentGravity(input) * dt);
@@ -2482,6 +2518,11 @@
   }
 
   function restoreDashCharge() {
+    if (assistActive()) {
+      player.dashes = 2;
+      player.lumenReserve = true;
+      return;
+    }
     player.dashes = player.lumenReserve ? 2 : 1;
   }
 
@@ -2692,18 +2733,20 @@
     if (drillResult === false) return { isBest: false, drillResult };
     showMasteryPopup(roomIndex, masteryBefore, clearedClean, drillResult === true ? drillMode : "", isNewRoomBest);
     addFlow(120, "summit");
-    recordSummitProfile();
-    if (bestTime <= 0 || runTime < bestTime) {
+    const eligible = recordsEligible();
+    if (eligible) recordSummitProfile();
+    if (eligible && (bestTime <= 0 || runTime < bestTime)) {
       bestTime = runTime;
       writeBestTime(bestTime);
-      return { isBest: true, drillResult };
+      return { isBest: true, drillResult, assisted: false };
     }
-    return { isBest: false, drillResult };
+    return { isBest: false, drillResult, assisted: !eligible };
   }
 
-  function showFinishOverlay(isBest) {
+  function showFinishOverlay(isBest, assisted = runUsedAssist) {
     const record = isBest ? " · 新纪录" : "";
-    overlay.innerHTML = `<h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">${formatTime(runTime)}${record} · 失误 ${deathCount} · 光继连锁 ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">再来</button>`;
+    const assistNote = assisted ? " · 辅助完成，不计纪录" : "";
+    overlay.innerHTML = `<h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">${formatTime(runTime)}${record}${assistNote} · 失误 ${deathCount} · 光继连锁 ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><p class="finish-whisper">山没有变轻，是你学会了继续向上。</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">再来</button>`;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");
@@ -2753,7 +2796,7 @@
     const chainBonus = flowTimer > 0 ? 1.18 : 1;
     flowScore = Math.min(999, flowScore + amount * chainBonus);
     flowPeak = Math.max(flowPeak, flowScore);
-    if (flowPeak > bestFlow) {
+    if (recordsEligible() && flowPeak > bestFlow) {
       bestFlow = flowPeak;
       writeBestFlow(bestFlow);
     }
@@ -2935,6 +2978,12 @@
 
   function recordRoomBest(index) {
     if (roomTime <= 0) return false;
+    if (!recordsEligible()) {
+      splitPopupText = "辅助完成 · 不计 PB";
+      splitPopupAhead = true;
+      splitPopupTimer = SPLIT_POPUP_TIME;
+      return false;
+    }
     const current = bestRoomTimes[index] || 0;
     const target = ROOM_TARGETS[index] || 0;
     const reference = current || target;
@@ -3519,13 +3568,17 @@
 
   function trackRoomFault(reason) {
     const normalized = normalizeDeathReason(reason);
-    const entry = roomFocus[roomIndex] || createRoomFocusEntry();
     roomMistakes[roomIndex] = (roomMistakes[roomIndex] || 0) + 1;
+    roomAttemptClean = false;
+    if (!recordsEligible()) {
+      showFocusPopup(roomIndex, normalized);
+      return;
+    }
+    const entry = roomFocus[roomIndex] || createRoomFocusEntry();
     entry.faults += 1;
     entry[normalized] = (entry[normalized] || 0) + 1;
     entry.last = normalized;
     roomFocus[roomIndex] = entry;
-    roomAttemptClean = false;
     showFocusPopup(roomIndex, normalized);
     updatePracticeCoach();
     writeRoomFocus();
@@ -3533,6 +3586,13 @@
   }
 
   function markRoomClear(index) {
+    if (!recordsEligible()) {
+      roomAttemptClean = true;
+      focusPopupText = `辅助通过 R${index + 1}`;
+      focusPopupDetail = "本次未写入房间、Clean 或长期训练记录";
+      focusPopupTimer = FOCUS_POPUP_TIME;
+      return;
+    }
     const entry = roomFocus[index] || createRoomFocusEntry();
     entry.clears += 1;
     const clean = roomAttemptClean;
@@ -3546,6 +3606,7 @@
   }
 
   function trackDrillStart(index, mode = "auto") {
+    if (!recordsEligible()) return;
     const entry = roomFocus[index] || createRoomFocusEntry();
     entry.drills += 1;
     if (mode === "clean") entry.cleanDrills += 1;
@@ -4183,6 +4244,17 @@
 
   function completeDrill(index, clean) {
     if (!activeDrill || activeDrill.room !== index) return null;
+    if (!recordsEligible()) {
+      activeDrill = null;
+      cancelActiveRouteContract("辅助练习不计合同");
+      cancelActiveFeelFixture("辅助练习不计校准");
+      focusPopupText = `辅助练习完成 R${index + 1}`;
+      focusPopupDetail = "本次不计 PB、挑战或训练合同";
+      focusPopupTimer = FOCUS_POPUP_TIME;
+      setGameStatus("辅助练习完成 · 未计入训练档案");
+      updatePracticeCoach();
+      return true;
+    }
     const success = drillSucceeded(activeDrill, clean, roomTime);
     if (success) {
       const mode = activeDrill.mode;
@@ -5864,6 +5936,7 @@
         lowPerformance: settings.lowPerformance,
         calmEffects: settings.calmEffects,
         practiceLines: settings.practiceLines,
+        assistMode: settings.assistMode,
         audioEnabled: settings.audioEnabled,
         audioVolume: settings.audioVolume
       },
@@ -5883,6 +5956,7 @@
         runTime: Math.round(runTime * 100) / 100,
         roomTime: Math.round(roomTime * 100) / 100,
         flowPeak: Math.floor(flowPeak),
+        recordsEligible: recordsEligible(),
         activeDrill: activeDrill ? { room: activeDrill.room + 1, mode: activeDrill.mode } : null,
         activeChallenge: challenge ? { id: challenge.id, status: challenge.status, progress: challenge.progress } : null,
         activeRoute: activeRouteDiagnostics(),
@@ -7272,6 +7346,7 @@
     if (lowPerformanceToggle) lowPerformanceToggle.checked = settings.lowPerformance;
     if (practiceLinesToggle) practiceLinesToggle.checked = settings.practiceLines;
     if (ghostOpacitySlider) ghostOpacitySlider.value = String(settings.ghostOpacity);
+    if (assistModeSelect) assistModeSelect.value = settings.assistMode;
     if (audioToggle) audioToggle.checked = settings.audioEnabled;
     if (audioVolumeSlider) audioVolumeSlider.value = String(settings.audioVolume);
     if (grabModeSelect) grabModeSelect.value = settings.grabMode;
@@ -7286,7 +7361,16 @@
 
   function syncComfortSettings() {
     stage?.classList.toggle("low-performance", settings.lowPerformance);
+    stage?.classList.toggle("assist-active", assistActive());
     stage?.style.setProperty("--touch-size", `${settings.touchSize}px`);
+  }
+
+  function assistActive() {
+    return settings.assistMode === "gentle";
+  }
+
+  function recordsEligible() {
+    return !runUsedAssist && !assistActive();
   }
 
   function syncPlayModeClass() {
@@ -7358,6 +7442,7 @@
       touchSize: TOUCH_SIZE_DEFAULT,
       practiceLines: true,
       ghostOpacity: 0.75,
+      assistMode: "off",
       audioEnabled: true,
       audioVolume: 0.35
     };
@@ -7398,6 +7483,7 @@
       touchSize: clampTouchSize(source.touchSize ?? defaults.touchSize),
       practiceLines: strictBoolean(source.practiceLines, defaults.practiceLines),
       ghostOpacity: Math.max(0.2, Math.min(1, finiteNonNegativeNumber(source.ghostOpacity, defaults.ghostOpacity, 1))),
+      assistMode: source.assistMode === "gentle" ? "gentle" : defaults.assistMode,
       audioEnabled: strictBoolean(source.audioEnabled, defaults.audioEnabled),
       audioVolume: finiteNonNegativeNumber(source.audioVolume, defaults.audioVolume, 1)
     };
@@ -7432,6 +7518,12 @@
     death: [{ type: "sawtooth", from: 240, to: 80, gain: 0.048, time: 0.18 }],
     clear: [{ type: "sine", from: 520, to: 880, gain: 0.038, time: 0.15 }, { type: "triangle", from: 780, to: 1120, gain: 0.026, time: 0.18 }]
   };
+  const AMBIENT_CHAPTER_CHORDS = [
+    [[146.83, 220, 293.66], [164.81, 246.94, 329.63]],
+    [[130.81, 196, 261.63], [146.83, 220, 293.66]],
+    [[123.47, 185, 246.94], [138.59, 207.65, 277.18]],
+    [[146.83, 220, 329.63], [164.81, 246.94, 369.99]]
+  ];
 
   function unlockAudio() {
     if (!settings.audioEnabled || audioContext) return;
@@ -7442,10 +7534,53 @@
       audioMaster = audioContext.createGain();
       audioMaster.gain.value = Math.max(0, Math.min(0.7, settings.audioVolume));
       audioMaster.connect(audioContext.destination);
+      ambientBus = audioContext.createGain();
+      ambientBus.gain.value = 0.0001;
+      ambientBus.connect(audioMaster);
+      ambientNextTime = audioContext.currentTime;
     } catch {
       audioContext = null;
       audioMaster = null;
+      ambientBus = null;
     }
+  }
+
+  function updateAmbientMusic(paused = false) {
+    if (!audioContext || !ambientBus) return;
+    const now = audioContext.currentTime;
+    const audible = settings.audioEnabled && settings.audioVolume > 0 && started && !won && !paused;
+    ambientBus.gain.setTargetAtTime(audible ? 1 : 0.0001, now, 0.35);
+    if (!audible || audioContext.state !== "running") {
+      ambientNextTime = now;
+      return;
+    }
+    if (ambientNextTime > now + 0.6) return;
+    const chapter = roomIndex < 3 ? 0 : roomIndex < 6 ? 1 : roomIndex < 8 ? 2 : 3;
+    const chords = AMBIENT_CHAPTER_CHORDS[chapter];
+    const chord = chords[ambientStep % chords.length];
+    const start = Math.max(now + 0.05, ambientNextTime);
+    const duration = 4.6 - chapter * 0.18;
+    const flowLift = flowScore > 120 ? 1.5 : 1;
+    chord.forEach((frequency, index) => {
+      playAmbientTone(frequency * flowLift, start + index * 0.045, duration, 0.0048 + chapter * 0.00055);
+    });
+    ambientStep += 1;
+    ambientNextTime = start + duration * 0.82;
+  }
+
+  function playAmbientTone(frequency, start, duration, volume) {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(volume, start + 0.55);
+    gain.gain.setValueAtTime(volume, start + duration * 0.68);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.connect(gain);
+    gain.connect(ambientBus);
+    osc.start(start);
+    osc.stop(start + duration + 0.05);
   }
 
   function playSound(name, intensity = 1) {
@@ -8414,6 +8549,7 @@
     const t = roomIntroTimer / ROOM_INTRO_TIME;
     const introAlpha = Math.min(1, t * 2.4);
     const introTarget = ROOM_TARGETS[roomIndex] || 0;
+    const trainingActive = Boolean(activeDrill || activeChallenge || activeRouteContract || activeFeelFixture);
     const introCompact = isCompactCanvas();
     const width = introCompact ? 250 : 218;
     const height = introCompact ? 40 : 36;
@@ -8437,7 +8573,10 @@
     ctx.fillText(`R${roomIndex + 1} ${ROOM_NAMES[roomIndex] || "Summit"}`, W / 2, y + 13);
     ctx.fillStyle = "rgba(50, 75, 80, 0.76)";
     ctx.font = `600 ${introCompact ? 10.5 : 10}px system-ui, sans-serif`;
-    ctx.fillText(`${ROOM_CHAPTER_LABELS[roomIndex] || "山巅"} · 目标 ${formatTime(introTarget)}`, W / 2, y + 27);
+    const subline = trainingActive
+      ? `${ROOM_CHAPTER_LABELS[roomIndex] || "山巅"} · 目标 ${formatTime(introTarget)}`
+      : ROOM_WHISPERS[roomIndex] || "继续向上。";
+    ctx.fillText(subline, W / 2, y + 27);
     ctx.restore();
   }
 
@@ -10267,6 +10406,34 @@
     }
   }
 
+  function drawPlayerRibbon(time) {
+    if (!player.hair?.length) return;
+    const over = player.overdrive > 0;
+    const color = over ? palette.gold : player.dashes > 0 ? palette.cyan : "#8aa7b6";
+    const anchorX = player.x + player.w / 2 - player.facing * 4;
+    const anchorY = player.y + 8;
+    ctx.save();
+    ctx.globalAlpha = 0.72;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = isPortraitViewport() ? 3.2 : 2.35;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = performanceShadowBlur(over ? 9 : 5);
+    ctx.beginPath();
+    ctx.moveTo(anchorX, anchorY);
+    for (const point of player.hair) ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    const tail = player.hair[player.hair.length - 1];
+    const pulse = prefersReducedMotion ? 1 : 1 + Math.sin(time * 9) * 0.08;
+    ctx.translate(tail.x, tail.y);
+    ctx.rotate(Math.PI / 4);
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = color;
+    ctx.fillRect(-2.4, -2.4, 4.8, 4.8);
+    ctx.restore();
+  }
+
   function drawPlayer(time) {
     const x = player.x;
     const y = player.y;
@@ -10294,7 +10461,7 @@
           : over ? palette.green
             : player.dashes > 0 ? palette.cyan
               : "#9bb4c6";
-    const hairColor = over ? "#8fe39b" : player.dashes > 0 ? "#ff657d" : "#78cfff";
+    const hairColor = over ? "#315c58" : "#294657";
     const playerVisualScale = isPortraitViewport() ? 1.38 : 1.09;
     const squashX = 1 + landPulse * 0.16 + dashPulse * 0.08 - springPulse * 0.05;
     const squashY = 1 - landPulse * 0.14 - dashPulse * 0.06 + Math.max(sparkPulse, springPulse) * 0.1;
@@ -10325,6 +10492,8 @@
       ctx.ellipse(cx, y + player.h + 3.2, 9.5 + run * 1.4 + landPulse * 3, 2.4, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    drawPlayerRibbon(time);
 
     drawPlayerStateFrame(x, y, cx, cy, time, {
       dashPulse,

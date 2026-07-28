@@ -2,6 +2,10 @@
 
 ## 2026-07-28
 
+- Added the restrained `20260728-p175` atmosphere/accessibility pass without expanding the main surfaces: an original light-ribbon silhouette for the climber, one quiet narrative line per room, a four-chapter procedural ambient harmony layer that subtly lifts with Flow, and a single Gentle assist setting (85% simulation speed, two dashes, unlimited stamina). Assisted runs remain playable to the summit but are isolated from PBs, clean clears, Flow bests, challenges, training contracts, summit profiles, and best times; settings migrate to schema v4.
+
+## 2026-07-28
+
 - Simplified the playable surfaces for `20260728-p174`: the start menu now has one dominant climb action, two compact utility actions, and a separate full-width cloud-save entry. Practice now opens with only `选择房间` and `训练记录`; route contracts, Feel Lab, progress history, and long-term goals are nested one level deeper so no capability is lost while the first view stays quiet.
 - Reworked R4–R10 without adding another mechanic or room. The midgame now uses clearer alternating ledges, foldback recovery, and route splits; the wind/prism/echo rooms have stronger shafts and corridor silhouettes; the finale carries longer connected platform phrases. Target times now follow the enlarged routes, while pressure order, crumble teaching order, contracts, and Feel fixtures remain intact.
 

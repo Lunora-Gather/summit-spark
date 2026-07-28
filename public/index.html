@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20260728-p173">
+  <meta name="build-version" content="20260728-p174">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260728-p173">
+  <link rel="stylesheet" href="summit-spark.css?v=20260728-p174">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -243,7 +243,7 @@
           </div>
           <div class="settings-column settings-column-side">
             <details class="settings-group settings-group-room practice-only">
-              <summary aria-expanded="false"><span>房间</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
+              <summary aria-expanded="false"><span>选择房间</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
               <div class="settings-group-body">
                 <label class="control-row control-row-room">
                   <span>房间</span>
@@ -301,33 +301,43 @@
                 <div class="save-import-status backup-status" id="saveBackupStatus" aria-live="polite">暂无导入前备份</div>
               </div>
             </details>
-            <details class="settings-group settings-group-profile practice-only">
-              <summary aria-expanded="false"><span>档案</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
-              <div class="settings-group-body">
-                <div class="practice-report" id="practiceReport">无失误 0/10 / 分段损失 无 / 下一训练 R1</div>
-                <div class="profile-summary" id="profileSummary" aria-label="长期档案"></div>
-                <div class="practice-ledger" id="practiceLedger" aria-label="房间掌握度"></div>
-              </div>
-            </details>
             <details class="settings-group settings-group-training practice-only">
-              <summary aria-expanded="false"><span>训练</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
+              <summary aria-expanded="false"><span>训练记录</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
               <div class="settings-group-body">
                 <div class="chapter-overview" id="chapterOverview" aria-label="章节完成度"></div>
                 <div class="practice-plan" id="practicePlan" aria-label="训练计划"></div>
-                <div class="route-contracts" id="routeContracts" aria-label="航线合同"></div>
-                <div class="feel-lab" id="feelLab" aria-label="手感校准"></div>
-              </div>
-            </details>
-            <details class="settings-group settings-group-advanced practice-only">
-              <summary aria-expanded="false"><span>进阶</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
-              <div class="settings-group-body">
-                <div class="settings-section-title">连续训练</div>
-                <div class="practice-queue" id="practiceQueue" aria-label="连续训练队列"></div>
-                <div class="challenge-board" id="challengeBoard" aria-label="长期挑战"></div>
-                <div class="control-row practice-reset-row">
-                  <span>训练统计</span>
-                  <button class="focus-button ghost" id="focusResetButton" type="button">清空</button>
-                </div>
+                <details class="practice-subgroup practice-subgroup-route">
+                  <summary>路线挑战</summary>
+                  <div class="practice-subgroup-body">
+                    <div class="route-contracts" id="routeContracts" aria-label="航线合同"></div>
+                  </div>
+                </details>
+                <details class="practice-subgroup practice-subgroup-feel">
+                  <summary>手感练习</summary>
+                  <div class="practice-subgroup-body">
+                    <div class="feel-lab" id="feelLab" aria-label="手感校准"></div>
+                  </div>
+                </details>
+                <details class="practice-subgroup practice-subgroup-profile">
+                  <summary>进度档案</summary>
+                  <div class="practice-subgroup-body">
+                    <div class="practice-report" id="practiceReport">无失误 0/10 / 分段损失 无 / 下一训练 R1</div>
+                    <div class="profile-summary" id="profileSummary" aria-label="长期档案"></div>
+                    <div class="practice-ledger" id="practiceLedger" aria-label="房间掌握度"></div>
+                  </div>
+                </details>
+                <details class="practice-subgroup practice-subgroup-advanced">
+                  <summary>长期目标</summary>
+                  <div class="practice-subgroup-body">
+                    <div class="settings-section-title">进阶训练</div>
+                    <div class="practice-queue" id="practiceQueue" aria-label="连续训练队列"></div>
+                    <div class="challenge-board" id="challengeBoard" aria-label="长期挑战"></div>
+                    <div class="control-row practice-reset-row">
+                      <span>训练统计</span>
+                      <button class="focus-button ghost" id="focusResetButton" type="button">清空</button>
+                    </div>
+                  </div>
+                </details>
               </div>
             </details>
           </div>
@@ -368,7 +378,7 @@
             <button class="secondary-start resume-start hidden" id="resumeTrainingButton" type="button" aria-hidden="true">继续训练</button>
             <button class="secondary-start" id="openTrainingButton" type="button">练习</button>
             <button class="secondary-start subtle" id="startSettingsButton" type="button">设置</button>
-            <button class="account-entry" id="startAccountButton" type="button">登录 · 云存档</button>
+            <button class="account-entry" id="startAccountButton" type="button">云存档</button>
           </div>
           <div class="load-strip" aria-hidden="true"><span id="loadStatus">正在准备训练数据</span></div>
           <p class="boot-fallback" id="bootFallback">如果长时间停留在这里，请刷新页面；线上刚更新时浏览器可能还在使用旧资源。</p>
@@ -399,6 +409,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260728-p173"></script>
+  <script src="summit-spark.js?v=20260728-p174"></script>
 </body>
 </html>

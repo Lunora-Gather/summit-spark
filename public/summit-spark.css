@@ -7969,3 +7969,99 @@ textarea,
 .embedding-blocked p {
   margin: 0;
 }
+
+/* P174 quiet surfaces: one obvious start action, with training depth on demand. */
+.start-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.start-actions > #startButton,
+.start-actions > .resume-start:not(.hidden),
+.start-actions > .account-entry {
+  grid-column: 1 / -1;
+}
+
+.start-actions > .secondary-start,
+.start-actions > .account-entry {
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border-color: rgba(73, 103, 111, 0.16);
+  background: rgba(241, 246, 242, 0.58);
+  box-shadow: none;
+  color: rgba(43, 66, 73, 0.72);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.settings-panel.mode-practice .settings-column-side {
+  gap: 10px;
+}
+
+.settings-panel.mode-practice .settings-group {
+  border-radius: 16px;
+}
+
+.practice-subgroup {
+  border: 1px solid rgba(69, 101, 108, 0.12);
+  border-radius: 13px;
+  background: rgba(245, 248, 244, 0.5);
+  overflow: clip;
+}
+
+.practice-subgroup + .practice-subgroup {
+  margin-top: 8px;
+}
+
+.practice-subgroup > summary {
+  min-height: 46px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  color: rgba(42, 66, 73, 0.82);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.practice-subgroup > summary::-webkit-details-marker {
+  display: none;
+}
+
+.practice-subgroup > summary::after {
+  content: "＋";
+  color: rgba(56, 86, 94, 0.48);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.practice-subgroup[open] > summary::after {
+  content: "－";
+}
+
+.practice-subgroup[open] > summary {
+  border-bottom: 1px solid rgba(69, 101, 108, 0.1);
+  background: rgba(225, 236, 230, 0.42);
+}
+
+.practice-subgroup-body {
+  padding: 10px;
+}
+
+@media (max-width: 520px) {
+  .start-actions {
+    gap: 6px;
+  }
+
+  .start-actions > .secondary-start,
+  .start-actions > .account-entry {
+    min-height: 44px;
+    padding-inline: 6px;
+    font-size: 11px;
+  }
+}

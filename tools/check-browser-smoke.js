@@ -633,7 +633,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!cockpit.systemList || !cockpit.panelWidthCalm || !/235, 241, 238/.test(cockpit.panelSurface)) errors.push("practice panel should render as a restrained adaptive training sheet: " + JSON.stringify(cockpit));
   if (cockpit.actionTray.trayBackground !== "none" || cockpit.actionTray.trayShadow !== "none" || !/103, 142, 121/.test(cockpit.actionTray.buttonBackground) || cockpit.actionTray.buttonRadius !== "11px") errors.push("upper-right actions should remain unboxed, individually surfaced tools with a restrained practice-active state: " + JSON.stringify(cockpit.actionTray));
   if (cockpit.panelBox.overflow) errors.push("practice panel overflows desktop viewport: " + JSON.stringify(cockpit.panelBox));
-  await openSettingsGroup(cdp, ".settings-group-advanced");
+  await openSettingsGroup(cdp, ".settings-group-training");
+  await openSettingsGroup(cdp, ".practice-subgroup-advanced");
   await clickSelector(cdp, "#focusResetButton");
   const resetArmed = await evaluate(cdp, `document.querySelector("#focusResetButton").textContent.trim()`);
   if (resetArmed !== "确认清空") errors.push("advanced reset should retain its first-step confirmation after being moved out of the launch dock: " + resetArmed);
@@ -644,20 +645,20 @@ async function runDesktopSmoke(cdp, baseUrl) {
     return /统计已清空/.test(status) && label === "清空" ? { status, label } : null;
   })()`));
   if (!/统计已清空/.test(resetComplete.status) || resetComplete.label !== "清空") errors.push("advanced reset should finish and return to its concise label: " + JSON.stringify(resetComplete));
-  await evaluate(cdp, `document.querySelector(".settings-group-advanced").open = false`);
+  await evaluate(cdp, `document.querySelector(".practice-subgroup-advanced").open = false`);
   await waitUntil("advanced disclosure closes with synchronized semantics", () => evaluate(cdp, `(() => {
-    const group = document.querySelector(".settings-group-advanced");
-    return !group.open && group.querySelector(":scope > summary")?.getAttribute("aria-expanded") === "false";
+    const group = document.querySelector(".practice-subgroup-advanced");
+    return !group.open;
   })()`));
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("practice panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
 
   await clickSelector(cdp, "#startSettingsButton");
   await waitUntil("quiet settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
-  const defaultOpenGroups = await evaluate(cdp, `[...document.querySelectorAll(".settings-group[open]")].map((group) => group.className)`);
+  const defaultOpenGroups = await evaluate(cdp, `[...document.querySelectorAll(".settings-group.settings-only[open]")].map((group) => group.className)`);
   if (defaultOpenGroups.length !== 0) errors.push("settings should open with every system group collapsed: " + JSON.stringify(defaultOpenGroups));
   const collapsedDisclosureSemantics = await evaluate(cdp, `(() => {
-    const groups = [...document.querySelectorAll(".settings-group")];
+    const groups = [...document.querySelectorAll(".settings-group.settings-only")];
     return {
       groupCount: groups.length,
       generatedContent: groups.map((group) => getComputedStyle(group.querySelector("summary"), "::after").content),
@@ -672,7 +673,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     };
   })()`);
   if (
-    collapsedDisclosureSemantics.groupCount < 9
+    collapsedDisclosureSemantics.groupCount < 5
     || collapsedDisclosureSemantics.generatedContent.some((content) => content !== "none")
     || collapsedDisclosureSemantics.expandedStates.some((state) => state !== "false")
     || collapsedDisclosureSemantics.chevrons.some((chevron) => chevron.count !== 1 || chevron.hidden !== "true")
@@ -994,7 +995,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })()`));
   if (outsideDismissFocus !== "startSettingsButton") errors.push("outside settings dismissal should return start-screen focus to its visible trigger: " + outsideDismissFocus);
   await clickSelector(cdp, "#startSettingsButton");
-  await waitUntil("quiet settings reopens collapsed", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group[open]").length === 0`));
+  await waitUntil("quiet settings reopens collapsed", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group.settings-only[open]").length === 0`));
   const outsideStartPoint = await evaluate(cdp, `(() => {
     const rect = document.querySelector("#startButton").getBoundingClientRect();
     return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
@@ -1022,6 +1023,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("practice panel opens for feel", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await openSettingsGroup(cdp, ".settings-group-training");
+  await openSettingsGroup(cdp, ".practice-subgroup-feel");
   await evaluate(cdp, `document.querySelector(".settings-group-training")?.scrollIntoView({ block: "start" })`);
   await sleep(160);
   await clickSelector(cdp, "[data-feel-fixture]");
@@ -1029,6 +1031,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#practiceButton");
   await waitUntil("practice reopened after feel fixture", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await openSettingsGroup(cdp, ".settings-group-training");
+  await openSettingsGroup(cdp, ".practice-subgroup-feel");
   await evaluate(cdp, `document.querySelector(".settings-group-training")?.scrollIntoView({ block: "start" })`);
   await sleep(160);
   const feelState = await evaluate(cdp, `document.querySelector(".feel-card.active, .feel-card.recent, .feel-card.interrupted")?.className || ""`);
@@ -1036,14 +1039,17 @@ async function runDesktopSmoke(cdp, baseUrl) {
 
   const routeAfterFeel = await evaluate(cdp, `(() => {
     const group = document.querySelector(".settings-group-training");
+    const subgroup = document.querySelector(".practice-subgroup-route");
     const panel = document.querySelector("#settingsPanel");
     const card = document.querySelector("[data-route-contract]");
     if (group) group.open = true;
+    if (subgroup) subgroup.open = true;
     if (card) card.scrollIntoView({ block: "center", inline: "center" });
     const rect = card ? card.getBoundingClientRect() : null;
     const hit = rect ? document.elementFromPoint(Math.max(1, Math.min(window.innerWidth - 1, rect.left + rect.width / 2)), Math.max(1, Math.min(window.innerHeight - 1, rect.top + rect.height / 2))) : null;
     return {
       groupOpen: Boolean(group?.open),
+      subgroupOpen: Boolean(subgroup?.open),
       cardCount: document.querySelectorAll("[data-route-contract]").length,
       rect: rect ? { left: Math.round(rect.left), top: Math.round(rect.top), width: Math.round(rect.width), height: Math.round(rect.height) } : null,
       panel: panel ? { scrollTop: Math.round(panel.scrollTop), height: Math.round(panel.getBoundingClientRect().height) } : null,
@@ -2232,6 +2238,7 @@ async function runTrainingInterruptionSmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("route interruption practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await openSettingsGroup(cdp, ".settings-group-training");
+  await openSettingsGroup(cdp, ".practice-subgroup-route");
   await clickSelector(cdp, "[data-route-contract]");
   await waitUntil("route contract starts before interruption", () => evaluate(cdp, `/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent)`), 5000);
   await clickSelector(cdp, "#practiceButton");
@@ -2242,6 +2249,7 @@ async function runTrainingInterruptionSmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#practiceButton");
   await waitUntil("practice reopened after route interruption", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await openSettingsGroup(cdp, ".settings-group-training");
+  await openSettingsGroup(cdp, ".practice-subgroup-route");
   const routeInterrupted = await evaluate(cdp, `(() => {
     const card = document.querySelector(".route-contract-card.interrupted");
     const badge = document.querySelector(".route-resume-badge");
@@ -2264,6 +2272,7 @@ async function runTrainingInterruptionSmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("feel interruption practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
   await openSettingsGroup(cdp, ".settings-group-training");
+  await openSettingsGroup(cdp, ".practice-subgroup-feel");
   await clickSelector(cdp, "[data-feel-fixture]");
   await waitUntil("feel fixture starts before interruption", () => evaluate(cdp, `/手感校准/.test(document.querySelector("#gameStatus").textContent)`), 5000);
   await clickSelector(cdp, "#practiceButton");
@@ -3181,7 +3190,7 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
       panelFits: panel.left >= -1 && panel.right <= window.innerWidth + 1 && panel.bottom <= window.innerHeight + 1,
       dockFits: dock.top >= panel.top && dock.bottom <= panel.bottom + 1,
       actionTouchSafe: launch.height >= 44,
-      resetNestedInAdvanced: !!document.querySelector(".settings-group-advanced #focusResetButton"),
+      resetNestedInAdvanced: !!document.querySelector(".practice-subgroup-advanced #focusResetButton"),
       launchHeight: Math.round(launch.height),
       viewport: { width: window.innerWidth, height: window.innerHeight }
     };

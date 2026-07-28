@@ -29,7 +29,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 - Confirm settings opens as a quiet system list with Controls, Audio, Display, and Feedback/Save only; Room, Route, Feel, Profile, Training, and Advanced should not crowd the settings view.
 - Confirm the entry descriptions, collapsed setting labels, account status, key labels, placeholders, and training details remain crisp at normal viewing distance instead of fading into the pale panel.
 - Confirm the compact “移动 / 动作” headings and every collapsed disclosure arrow remain visibly distinct from their local card backgrounds; on touch, tap the exposed blank margin beside an open Settings drawer and confirm it closes without activating anything behind it.
-- Confirm the practice panel exposes the recommended Drill, Room, Route contracts, Feel Lab, Profile, Training, and Advanced sections without hiding the close button.
+- Confirm the practice panel initially exposes only room selection and training history; Route, Feel, Profile, and long-term goals remain reachable one level deeper without hiding the close button.
 - Start a recommended Drill from the practice panel and confirm the goal is clear before moving.
 
 ## Ten-Room Route Pass

@@ -47,4 +47,4 @@ Use this before publishing a public demo update.
 43. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
 44. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
 45. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
-46. Confirm the Pages workflow keeps `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` and `node-version: 24` unless GitHub's runner guidance changes.
+46. Confirm the Pages workflow uses `node-version: 24`, reviewed native-Node-24 releases of Configure Pages, Upload Pages Artifact and Deploy Pages, and no retired `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` compatibility override.

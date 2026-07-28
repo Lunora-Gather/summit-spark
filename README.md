@@ -101,7 +101,7 @@ node tools/export-room-data.js --check
 node tools/report-room-data.js
 ```
 
-`npm run check` 覆盖语法、目录结构、CSP、Pages 发布边界、Appwrite 策略、GitHub Actions SHA 固定、地图、路线、训练状态、存档契约和本地 HTTP 安全边界。浏览器回归覆盖真实 UI、账号 mock、云冲突、1MB 存档、原子回滚、移动端、Canvas 和手柄死区。
+`npm run check` 覆盖语法、目录结构、CSP、Pages 发布边界、Appwrite 策略、GitHub Actions SHA 固定与原生 Node 24 发布链、地图、路线、训练状态、存档契约和本地 HTTP 安全边界。浏览器回归覆盖真实 UI、账号 mock、云冲突、1MB 存档、原子回滚、移动端、Canvas 和手柄死区。
 
 详细说明见 [docs/QUALITY_GATES.md](docs/QUALITY_GATES.md)。
 发布前人工路径见 [PLAYTEST_CHECKLIST.md](PLAYTEST_CHECKLIST.md)。

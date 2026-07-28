@@ -677,7 +677,13 @@ if (!counts.slice(6).some((room) => room.M > 0)) errors.push("late route should 
 if (!counts.slice(7).some((room) => room.B > 0)) errors.push("rooms 8-10 should include prism practice");
 
 if (!workflow.includes("npm run check")) errors.push("GitHub Pages workflow must run npm run check before deploy");
-if (!workflow.includes("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24") || !workflow.includes("node-version: 24")) errors.push("GitHub Pages workflow should opt into Node 24 for action/runtime compatibility");
+if (!workflow.includes("node-version: 24")
+  || !workflow.includes("actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0")
+  || !workflow.includes("actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0")
+  || !workflow.includes("actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0")
+  || workflow.includes("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24")) {
+  errors.push("GitHub Pages workflow should use reviewed native Node 24 Pages actions without the retired compatibility override");
+}
 if (!fs.readFileSync(path.join(root, "package.json"), "utf8").includes("\"check\"")) errors.push("package.json must expose npm run check");
 if (!fs.readFileSync(path.join(root, "package.json"), "utf8").includes("\"browser-smoke\"")) errors.push("package.json must expose npm run browser-smoke");
 if (!fs.readFileSync(path.join(root, "package.json"), "utf8").includes("\"route-audit\"")) errors.push("package.json must expose npm run route-audit");

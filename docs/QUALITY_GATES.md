@@ -65,7 +65,8 @@ node tools/report-room-data.js
 4. `node tools/export-room-data.js --check`
 5. 确认 `public/index.html` 版本号与 CSS/JS query 一致
 6. 确认 Pages workflow 只复制 `public/`
-7. 推送后等待 GitHub Pages workflow 成功
-8. 在线检查构建号、开始按钮、Canvas、设置、账号 SDK 和移动端视口
+7. 确认 Pages workflow 的外部 Action 固定到完整 SHA，并原生使用 Node 24，不依赖旧版 Node 20 兼容覆盖
+8. 推送后等待 GitHub Pages workflow 成功，且不出现 Node 20 Action 弃用警告
+9. 在线检查构建号、开始按钮、Canvas、设置、账号 SDK 和移动端视口
 
 失败时保留日志和最小复现，不通过跳过检查或删除断言来“修复”。

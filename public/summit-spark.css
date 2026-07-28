@@ -3593,9 +3593,18 @@ output {
 
 .touch-actions {
   display: grid;
-  grid-template-columns: repeat(3, var(--touch-size, 48px));
+  grid-template-columns: repeat(2, var(--touch-size, 48px));
+  grid-template-rows: repeat(2, var(--touch-size, 48px));
+  grid-template-areas:
+    "recall grab"
+    "jump dash";
   gap: 8px;
 }
+
+.touch-actions [data-touch="recall"] { grid-area: recall; }
+.touch-actions [data-touch="grab"] { grid-area: grab; }
+.touch-actions [data-touch="jump"] { grid-area: jump; }
+.touch-actions [data-touch="dash"] { grid-area: dash; }
 
 .touch button {
   border-radius: 10px;
@@ -3692,7 +3701,8 @@ output {
   }
 
   .touch-actions {
-    grid-template-columns: repeat(3, min(var(--touch-size, 48px), 17vw));
+    grid-template-columns: repeat(2, min(var(--touch-size, 48px), 17vw));
+    grid-template-rows: repeat(2, min(var(--touch-size, 48px), 17vw));
   }
 
   .touch button {
@@ -5178,10 +5188,11 @@ body {
     grid-template-columns: repeat(2, var(--portrait-touch-size));
     grid-template-rows: repeat(2, var(--portrait-touch-size));
     grid-template-areas:
-      ". grab"
+      "recall grab"
       "jump dash";
   }
 
+  .touch-actions [data-touch="recall"] { grid-area: recall; }
   .touch-actions [data-touch="grab"] { grid-area: grab; }
   .touch-actions [data-touch="jump"] { grid-area: jump; }
   .touch-actions [data-touch="dash"] { grid-area: dash; }
@@ -5190,6 +5201,22 @@ body {
     width: var(--portrait-touch-size);
     height: var(--portrait-touch-size);
   }
+}
+
+/* P181: the contextual Echo recall action occupies the action cluster's
+   existing spare cell. It stays hidden before Echo rooms and visibly dormant
+   until an anchor is active, so touch parity does not add permanent HUD noise. */
+.touch-actions [data-touch="recall"]:disabled {
+  border-color: rgba(224, 237, 231, 0.12);
+  background: rgba(46, 65, 76, 0.28);
+  color: rgba(250, 250, 244, 0.38);
+  box-shadow: none;
+}
+
+.touch-actions [data-touch="recall"].available {
+  border-color: rgba(143, 215, 165, 0.38);
+  background: linear-gradient(180deg, rgba(70, 115, 103, 0.72), rgba(44, 78, 78, 0.68));
+  color: rgba(250, 250, 244, 0.94);
 }
 
 /* P96: very short portrait screens move the room brief into the true upper

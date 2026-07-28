@@ -2,6 +2,8 @@
 
 ## 2026-07-28
 
+- Restored input parity and softened the first Echo lesson for `20260728-p181`. R9 now places its first anchor one safe tile from the entry checkpoint so activation and the temporary device-aware recall cue happen before the wind/prism/crumble exam. Touch players gain a contextual `召` action in the action cluster's existing spare cell: it stays hidden outside Echo rooms, exposes unavailable/ready/cooldown states, and drives the same recall path as keyboard and gamepad. Browser smoke performs a real touch recall, rejects boot-time runtime errors, and covers the contextual control at 390px and 320px widths. Manual retry and room restart now refresh mistake HUD state synchronously instead of waiting for the next animation frame.
+
 - Closed the human-playtest evidence loop for `20260728-p180` without adding a persistent surface or changing the save schema. The collapsed summit review now offers one `复制本轮` action that exports a bounded text report with build, total time, four-act and ten-room timing, mistakes, Flow and assist status. The report explicitly excludes identity, device names, raw input history and route coordinates, never uploads, and falls back to a local text download when clipboard access fails. Diagnostics, feedback templates and the new run report now share one clipboard/download helper, replacing duplicated error-handling code.
 
 ## 2026-07-28

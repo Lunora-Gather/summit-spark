@@ -109,11 +109,37 @@ if (!(latePressure >= midPressure + 20)) {
 for (let i = 0; i < Math.min(6, maps.length); i += 1) {
   if (maps[i].some((line) => line.includes("C"))) errors.push("crumble C should not appear before room 7");
 }
+
+function tilePoints(room, tile) {
+  const points = [];
+  room.forEach((line, y) => {
+    [...line].forEach((value, x) => {
+      if (value === tile) points.push({ x, y });
+    });
+  });
+  return points;
+}
 for (let i = 0; i < Math.min(8, maps.length); i += 1) {
   if (maps[i].some((line) => line.includes("M"))) errors.push("echo anchor M should first appear in room 9");
 }
 if ((maps[1]?.join("").match(/A/g) || []).length < 2) errors.push("room 2 should establish a two-relay movement sentence");
 if ((maps[2]?.join("").match(/T/g) || []).length < 2) errors.push("room 3 should establish a two-spring height rhythm");
+const echoTeachingRoom = maps[8];
+const echoCheckpoints = echoTeachingRoom ? tilePoints(echoTeachingRoom, "P") : [];
+const echoAnchors = echoTeachingRoom ? tilePoints(echoTeachingRoom, "M") : [];
+if (echoCheckpoints.length !== 1 || echoAnchors.length !== 1) {
+  errors.push("room 9 should keep one checkpoint and one first Echo anchor");
+} else {
+  const checkpoint = echoCheckpoints[0];
+  const anchor = echoAnchors[0];
+  const teachingDistance = Math.abs(anchor.x - checkpoint.x) + Math.abs(anchor.y - checkpoint.y);
+  if (anchor.y !== checkpoint.y || teachingDistance > 3) {
+    errors.push("room 9 first Echo anchor should sit within a short level teaching walk of its checkpoint");
+  }
+  if ((echoTeachingRoom[anchor.y + 1]?.[anchor.x] || "") !== "#") {
+    errors.push("room 9 first Echo anchor should be supported by a stable readable landing");
+  }
+}
 const finalGoalRow = maps[maps.length - 1]?.findIndex((line) => line.includes("H")) ?? -1;
 if (finalGoalRow < 0 || finalGoalRow >= Math.floor(rows / 2)) errors.push("final summit goal H should resolve in the upper half of room 10");
 for (let i = 6; i < maps.length; i += 1) {

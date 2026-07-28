@@ -5,7 +5,7 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 ## Needs Human Or Device Verification
 
 - Physical gamepad feel: browser smoke mocks a standard gamepad and deadzone logic, and the settings panel now reports non-sensitive connection status, but a real controller pass is still needed for stick drift, button layout comfort, and long-session grab fatigue.
-- Real touch device feel: mobile smoke covers portrait/landscape fit, synthetic notch/home-indicator insets, keyboard-resized account input and touch UI visibility; a physical phone or tablet pass is still needed for thumb reach, accidental presses, and vendor-specific browser chrome behavior.
+- Real touch device feel: mobile smoke covers portrait/landscape fit, synthetic notch/home-indicator insets, keyboard-resized account input, contextual R9 recall and touch UI visibility; a physical phone or tablet pass is still needed for thumb reach, accidental presses, and vendor-specific browser chrome behavior.
 - Full 10-room human pass: scripts verify maps, state, and UI surfaces, but at least one uninterrupted human playthrough is still required before treating difficulty and teaching order as public-test stable.
 - Online Pages freshness: local HTML asset versioning and Node 24 Pages workflow are guarded, but after any push the public URL still needs one live check to confirm it serves the intended build.
 - Audio perception: headless smoke can verify the audio test path updates status, but volume balance and fatigue need a real listening pass.

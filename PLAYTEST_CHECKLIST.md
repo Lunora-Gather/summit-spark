@@ -46,7 +46,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 | R6 | paired relays plus two-spring exit rhythm | The second relay/spring choice should complete the Old Peak sentence, not surprise the player. |
 | R7 | wind plus crumble introduction | Crumble warning and wind lift must be readable together. |
 | R8 | prism/crumble route into a final updraft | Overdrive should not obscure hazards, and the late wind should feel like a deliberate Wind Gorge exam. |
-| R9 | echo anchor, wind, prism | Recall route should reduce practice friction. |
+| R9 | safe entry anchor, recall, wind, prism | The anchor should activate beside the checkpoint before pressure begins; leave it once and confirm recall returns cleanly. |
 | R10 | full-kit finale | Finale should feel pressured but fair after R1-R9. |
 
 ## Training And Recovery
@@ -82,6 +82,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 - Before signing into an account with existing cloud progress, create only a local custom setting, path, or failed Drill; confirm the account drawer asks which version to use rather than silently replacing the local data.
 - Confirm the hand-held/mobile view has no horizontal scroll after opening feedback, save import, backup restore status, Route cards, and Feel Lab sections.
 - Increase touch size to 64 and confirm both clusters stay fully inside the viewport, remain separated, and keep Jump/Dash paired without covering critical HUD text or the playfield.
+- Enter R9 on touch: `召` must be absent in R1-R8, appear dormant only until the entry anchor activates, then become usable without covering Jump/Dash. Move away, tap it once, confirm the player returns to the anchor and the button visibly enters cooldown.
 - Enable low-performance mode and confirm the solid, non-blurred HUD, tips and touch controls remain crisp while hazards, route compass, and Drill guidance stay readable.
 - Enable the operating system's reduced-motion preference and confirm UI transitions, ambient ribbons, snowfall, velocity wakes, and idle entity drift stop while player movement, hazards, and action confirmation remain visible.
 - If a physical gamepad is available, verify the settings panel reports connected standard mapping, axis strength, and near-deadzone risk without exposing the controller name.

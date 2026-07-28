@@ -22,6 +22,7 @@
   let prefersReducedMotion = Boolean(reducedMotionQuery?.matches);
   const gameHud = document.getElementById("gameHud");
   const touchControls = document.getElementById("touchControls");
+  const touchRecallButton = document.querySelector('[data-touch="recall"]');
   const startButton = document.getElementById("startButton");
   const startPanel = document.getElementById("startPanel");
   const entryGate = document.getElementById("entryGate");
@@ -243,6 +244,7 @@
   const NEAR_MISS_COOLDOWN = 0.48;
   const ECHO_RECALL_COOLDOWN = 0.32;
   const ROOM_INTRO_TIME = 1.2;
+  const ECHO_LESSON_TIME = 3.2;
   const CHAPTER_TRANSITION_TIME = 1.8;
   const SUMMIT_REVEAL_TIME = 2.25;
   const CURRENT_PATH_DRAW_POINTS = 90;
@@ -697,10 +699,10 @@
       ".........................L....",
       ".....................#####....",
       ".........####.................",
-      "......M.............####......",
+      "....................####......",
       ".....CCCC..............B......",
       "............####...........R..",
-      "..P.......A.........#####.....",
+      "..PM......A.........#####.....",
       "#####....####.................",
       ".............U......####......",
       ".........CCCC###......CCCC....",
@@ -955,6 +957,8 @@
   let echoAnchor = null;
   let recallCooldown = 0;
   let recallPulseTimer = 0;
+  let echoLessonTimer = 0;
+  let echoLessonShown = false;
   let roomIntroTimer = ROOM_INTRO_TIME;
   let chapterTransitionTimer = 0;
   let chapterTransitionChapter = 0;
@@ -1113,7 +1117,7 @@
     if (debugVisible && firstPress && event.code.startsWith("Digit")) {
       const digit = Number(event.code.slice(5));
       const target = digit === 0 ? 9 : digit - 1;
-      if (target >= 0 && target < maps.length) jumpToRoom(target, { chapterEntry: true });
+      if (target >= 0 && target < maps.length) jumpToRoom(target);
     }
     if (debugVisible && firstPress && event.code === "KeyH" && started && !won && roomIndex === maps.length - 1) {
       beginSummitReveal({ isBest: false, assisted: runUsedAssist, drillResult: null });
@@ -2371,7 +2375,7 @@
     if (justPressedAny(actionCodes("dash")) || touchPressed.has("dash") || gamepadPressed.has("dash")) {
       player.dashBuffer = DASH_BUFFER_TIME;
     }
-    if (gamepadPressed.has("recall") && started && !won) {
+    if ((touchPressed.has("recall") || gamepadPressed.has("recall")) && started && !won) {
       recallToAnchor();
     }
   }
@@ -2715,6 +2719,10 @@
         anchor.pulse = 0.3;
         recallPulseTimer = Math.max(recallPulseTimer, 0.35);
         if (changed) {
+          if (!echoLessonShown) {
+            echoLessonShown = true;
+            echoLessonTimer = ECHO_LESSON_TIME;
+          }
           addFlow(10, "echo");
           triggerActionVisual("recall", 0.2);
           playSound("echo");
@@ -3396,6 +3404,7 @@
     hitStopTimer = 0;
     shake(0.08, 3.4);
     respawn();
+    updateHud();
   }
 
   function restartCurrentRoom() {
@@ -3464,6 +3473,7 @@
     routeCueReason = "";
     const restartBurstCount = settings.calmEffects ? 7 : 12;
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", restartBurstCount, 210);
+    updateHud();
   }
 
   function createDeathReasons() {
@@ -7818,6 +7828,7 @@
     nearMissCooldown = Math.max(0, nearMissCooldown - dt);
     recallCooldown = Math.max(0, recallCooldown - dt);
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
+    echoLessonTimer = Math.max(0, echoLessonTimer - dt);
     roomIntroTimer = Math.max(0, roomIntroTimer - dt);
     splitPopupTimer = Math.max(0, splitPopupTimer - (chapterBreathing ? 0 : dt));
     feelCueTimer = Math.max(0, feelCueTimer - dt);
@@ -10520,6 +10531,7 @@
       ctx.stroke();
       ctx.restore();
     }
+    if (active && echoLessonTimer > 0) drawEchoLessonCue(anchor, time);
   }
 
   function drawCooldownRing(x, y, radius, progress, color) {
@@ -10758,6 +10770,36 @@
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  function drawEchoLessonCue(anchor, time) {
+    const touchActive = touchControls && !touchControls.hidden && getComputedStyle(touchControls).display !== "none";
+    const label = touchActive
+      ? "点「召」返回"
+      : lastGamepadStatus.connected
+        ? "Y · 召回"
+        : `${keyCodeLabel(effectiveBindings().recall)} · 召回`;
+    const fade = Math.min(1, echoLessonTimer * 2.5, (ECHO_LESSON_TIME - echoLessonTimer) * 3.5);
+    const drift = prefersReducedMotion ? 0 : Math.sin(time * 3.2) * 1.2;
+    ctx.save();
+    ctx.font = "700 10px system-ui, sans-serif";
+    const width = Math.ceil(ctx.measureText(label).width) + 22;
+    const height = 25;
+    const x = Math.max(10, Math.min(W - width - 10, anchor.x - width / 2));
+    const y = Math.max(14, anchor.y - 48 + drift);
+    ctx.globalAlpha = fade * 0.92;
+    ctx.fillStyle = CANVAS_PANEL_BG;
+    roundRect(ctx, x, y, width, height, 9);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(84, 132, 116, 0.34)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, x + 0.5, y + 0.5, width - 1, height - 1, 9);
+    ctx.stroke();
+    ctx.fillStyle = CANVAS_PANEL_INK;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, x + width / 2, y + height / 2 + 0.5);
+    ctx.restore();
   }
 
   function drawPlayer(time) {
@@ -11043,6 +11085,7 @@
     lumenCount.textContent = `✦ ${found}/${totalLumens}`;
     lumenCount.title = "微光会恢复冲刺；满冲刺拾取时可储备第二次冲刺";
     roomCount.textContent = `R${roomIndex + 1}/${maps.length}${grade ? ` ${grade}` : ""}`;
+    syncTouchRecallButton();
     updatePortraitBrief();
     splitTimeText.textContent = formatTime(roomTime);
     const splitReference = roomBest || ROOM_TARGETS[roomIndex] || 0;
@@ -11135,6 +11178,24 @@
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,
       `audio ${settings.audioEnabled ? settings.audioVolume.toFixed(2) : "off"}  route ${activeRouteContract ? `${activeRouteContract.id}:${activeRouteContract.step + 1}` : "none"}`
     ].join("\n");
+  }
+
+  function syncTouchRecallButton() {
+    if (!touchRecallButton) return;
+    const roomHasAnchor = Boolean(room?.entities?.anchors?.length);
+    const anchorActive = Boolean(echoAnchor && echoAnchor.room === roomIndex);
+    const available = roomHasAnchor && anchorActive && recallCooldown <= 0 && player.deadTimer <= 0 && !won;
+    touchRecallButton.hidden = !roomHasAnchor;
+    touchRecallButton.disabled = !available;
+    touchRecallButton.classList.toggle("available", available);
+    if (!available) {
+      touch.recall = false;
+      touchRecallButton.classList.remove("active");
+    }
+    touchRecallButton.setAttribute(
+      "aria-label",
+      available ? "召回到回声锚点" : anchorActive ? "召回冷却中" : "先激活回声锚点"
+    );
   }
 
   function tileAt(x, y) {

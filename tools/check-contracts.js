@@ -565,7 +565,7 @@ if (!indexHtml.includes('id="practiceLaunchDock"') || indexHtml.includes('class=
 if (!js.includes("const cachedRockTiles = new Map()") || !js.includes("const cachedCrumbleTiles = new Map()") || !js.includes("function createTileSpriteSurface()") || !js.includes("function rockTileSprite(") || !js.includes("ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE)") || js.includes("ctx.createLinearGradient(x, y, x + TILE, y + TILE)")) errors.push("static rock/crumble tiles should use density-aware cached sprites while dynamic warning overlays remain live");
 if (!js.includes('rockDark: "#30465b"') || !js.includes('rockLight: "#8298a8"') || !js.includes('spriteCtx.fillStyle = "#2b4054"') || js.includes('spriteCtx.fillStyle = "#101827"')) errors.push("ordinary platforms should use lifted blue-gray rock faces instead of near-black rectangular slabs");
 if (!js.includes('const shell = stage.closest(".shell")') || !js.includes('const chapterTone = target < 3 ? "gate"') || !js.includes("shell.dataset.portraitChapter = chapterTone") || !css.includes('.shell[data-portrait-chapter="old-peak"]') || !css.includes('.shell[data-portrait-chapter="wind"]') || !css.includes('.shell[data-portrait-chapter="summit"]') || !css.includes("--portrait-ridge-top") || !css.includes("clip-path: polygon(") || !css.includes("top: clamp(96px, calc(50dvh - 285px), 220px)")) errors.push("portrait play should extend a chapter-aware, static low-contrast atmosphere through the brief, stage and touch zones while using the upper safe field for its room brief");
-if (!css.includes("--portrait-touch-size: clamp(44px, calc((100vw - 82px) / 5), var(--touch-size, 48px))") || !css.includes('". grab"') || !css.includes('"jump dash"') || !browserSmoke.includes("largeTouchUi.withinViewport") || !browserSmoke.includes("commonActionsPaired")) errors.push("large portrait touch controls should adapt to narrow phone widths and keep Jump/Dash paired without clipping");
+if (!css.includes("--portrait-touch-size: clamp(44px, calc((100vw - 82px) / 5), var(--touch-size, 48px))") || !css.includes('"recall grab"') || !css.includes('"jump dash"') || !browserSmoke.includes("largeTouchUi.withinViewport") || !browserSmoke.includes("commonActionsPaired")) errors.push("large portrait touch controls should adapt to narrow phone widths, keep Jump/Dash paired and reserve one contextual Echo action without clipping");
 if (!js.includes('window.matchMedia?.("(prefers-reduced-motion: reduce)")') || !js.includes('stage?.classList.toggle("reduced-motion", prefersReducedMotion)') || !js.includes("player.deadTimer > 0 || prefersReducedMotion") || !js.includes("!settings.lowPerformance && !prefersReducedMotion") || !css.includes("@media (prefers-reduced-motion: reduce)") || !browserSmoke.includes("reducedMotionState")) errors.push("system reduced-motion preference should freeze nonessential canvas ambience and collapse UI animation without hiding gameplay feedback");
 if (js.includes('burst(player.x + player.w / 2, player.y + player.h, "#e9f7ff", 5, 135)')) errors.push("ordinary jumps should not leave square debris beneath the player silhouette");
 if (!js.includes("function drawSummitGoal(goal, time)") || !js.includes("drawSummitGoal(room.entities.goal, time)") || js.includes('drawDiamond(goal.x, goal.y + Math.sin(time * 4) * 5, 19')) errors.push("the summit goal should use a unique beacon silhouette instead of another collectible diamond");
@@ -628,7 +628,16 @@ if (!js.includes("function restoreDashCharge()") || !js.includes("dashes: player
 if (!indexHtml.includes('aria-labelledby="panelTitle" aria-modal="true"')) {
   errors.push("settings and practice should expose dynamic dialog semantics");
 }
-if (!indexHtml.includes('data-touch="grab" aria-label="抓墙">抓</button>') || !indexHtml.includes('data-touch="jump" aria-label="跳跃">跳</button>') || !indexHtml.includes('data-touch="dash" aria-label="冲刺">冲</button>')) {
+if (!indexHtml.includes('data-touch="recall" aria-label="先激活回声锚点" hidden disabled>召</button>')
+  || !indexHtml.includes('data-touch="grab" aria-label="抓墙">抓</button>')
+  || !indexHtml.includes('data-touch="jump" aria-label="跳跃">跳</button>')
+  || !indexHtml.includes('data-touch="dash" aria-label="冲刺">冲</button>')
+  || !js.includes('touchPressed.has("recall") || gamepadPressed.has("recall")')
+  || !js.includes("function syncTouchRecallButton()")
+  || !js.includes('touchRecallButton.classList.remove("active")')
+  || !js.includes("function drawEchoLessonCue(anchor, time)")
+  || !browserSmoke.includes("touch Echo recall returns to the active anchor")
+  || !browserSmoke.includes("afterTouchRecall.active")) {
   errors.push("touch actions should keep direct visible labels");
 }
 

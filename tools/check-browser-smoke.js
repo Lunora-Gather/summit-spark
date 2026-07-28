@@ -322,6 +322,13 @@ async function keyHold(cdp, code, key, ms = 300) {
   await keyUp(cdp, code, key);
 }
 
+async function windowKeyHold(cdp, code, key, ms = 300) {
+  await evaluate(cdp, `window.dispatchEvent(new KeyboardEvent("keydown", { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key)}, bubbles: true }))`);
+  await sleep(ms);
+  await evaluate(cdp, `window.dispatchEvent(new KeyboardEvent("keyup", { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key)}, bubbles: true }))`);
+  await sleep(80);
+}
+
 async function canvasInkSummary(cdp) {
   return evaluate(cdp, `(() => {
     const canvas = document.querySelector("#game");
@@ -373,6 +380,14 @@ async function runDesktopSmoke(cdp, baseUrl) {
     mobile: false
   });
   await navigateApp(cdp, baseUrl, "desktop smoke");
+  const bootRuntimeErrors = await evaluate(cdp, `window.__summitEarlyRuntimeErrors || []`);
+  if (bootRuntimeErrors.length) throw new Error("runtime error during boot: " + JSON.stringify(bootRuntimeErrors));
+  await evaluate(cdp, `(() => {
+    window.__summitSmokeRuntimeErrors = [];
+    window.addEventListener("error", (event) => {
+      window.__summitSmokeRuntimeErrors.push(String(event.message || "unknown runtime error"));
+    });
+  })()`);
   await waitUntil("entry chooser after session check", () => evaluate(cdp, `(() => {
     const gate = document.querySelector("#entryGate");
     return !!gate && !gate.classList.contains("hidden") && !document.querySelector("#overlay")?.classList.contains("entry-checking");
@@ -584,6 +599,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await waitUntil("debug jump reaches summit room", () => evaluate(cdp, `/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
   await sleep(2100);
   await keyHold(cdp, "KeyD", "D", 180);
+  const earlyRuntimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
+  if (earlyRuntimeErrors.length) throw new Error("runtime error stopped gameplay: " + JSON.stringify(earlyRuntimeErrors));
   await waitUntil("summit room timing contributes to current-run evidence", () => evaluate(cdp, `!/0:00\\.00$/.test(document.querySelector("#runTime").textContent)`));
   await evaluate(cdp, `window.addEventListener("error", (event) => { window.__summitRevealTestError = event.message || "unknown"; }, { once: true })`);
   await keyTap(cdp, "KeyH", "H");
@@ -3032,6 +3049,8 @@ async function runMobileSmoke(cdp, baseUrl) {
   }
   await tapSelector(cdp, "#startButton");
   await waitUntil("mobile game starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
+  await cdp.send("Page.bringToFront");
+  await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
   const touchUi = await evaluate(cdp, `(() => {
     const touch = document.querySelector(".touch");
     const direction = document.querySelector(".touch-directions");
@@ -3048,7 +3067,8 @@ async function runMobileSmoke(cdp, baseUrl) {
     const buttons = [...document.querySelectorAll("[data-touch]")].map((button) => {
       const rect = button.getBoundingClientRect();
       return { id: button.dataset.touch, width: Math.round(rect.width), height: Math.round(rect.height), top: Math.round(rect.top), bottom: Math.round(rect.bottom) };
-    });
+    }).filter((button) => button.width > 0 && button.height > 0);
+    const recall = document.querySelector('[data-touch="recall"]');
     return {
       visible: getComputedStyle(touch).display !== "none",
       position: getComputedStyle(touch).position,
@@ -3056,6 +3076,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       actionGrid: getComputedStyle(action).display === "grid",
       buttonBackground: getComputedStyle(document.querySelector("[data-touch]")).backgroundImage,
       buttons,
+      recallContextual: recall.hidden && recall.disabled && recall.getAttribute("aria-label") === "先激活回声锚点",
       hudActions,
       hudActionsTouchSafe: hudActions.every((button) => button.width >= 44 && button.height >= 44 && button.left >= 0 && button.right <= window.innerWidth),
       allButtonsLarge: buttons.every((button) => button.width >= 44 && button.height >= 44),
@@ -3070,7 +3091,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       stageTop: Math.round(stage.top)
     };
   })()`);
-  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap > 150 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap > 160 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 360) {
+  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap > 150 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap > 160 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 360) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
   const largeTouchUi = await evaluate(cdp, `(() => {
@@ -3084,7 +3105,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     const buttons = [...document.querySelectorAll("[data-touch]")].map((button) => {
       const rect = button.getBoundingClientRect();
       return { id: button.dataset.touch, left: rect.left, right: rect.right, top: rect.top, width: rect.width, height: rect.height };
-    });
+    }).filter((button) => button.width > 0 && button.height > 0);
     const grab = buttons.find((button) => button.id === "grab");
     const jump = buttons.find((button) => button.id === "jump");
     const dash = buttons.find((button) => button.id === "dash");
@@ -3108,6 +3129,36 @@ async function runMobileSmoke(cdp, baseUrl) {
     errors.push("64px portrait touch setting should adapt within the phone width and keep Jump/Dash reachable: " + JSON.stringify(largeTouchUi));
   }
 
+  await enableDebugPanel(cdp);
+  await keyTap(cdp, "Digit9", "9");
+  await waitUntil("mobile debug jump reaches Echo room", () => evaluate(cdp, `/R9\\/10/.test(document.querySelector("#roomCount").textContent)`));
+  const echoRecallReady = await waitUntil("touch Echo recall becomes available in the safe entry pocket", () => evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-touch="recall"]');
+    const debug = document.querySelector("#debugPanel").textContent;
+    const rect = button.getBoundingClientRect();
+    return !button.hidden && !button.disabled && /anchor 1/.test(debug)
+      ? { label: button.getAttribute("aria-label"), available: button.classList.contains("available"), width: Math.round(rect.width) }
+      : null;
+  })()`), 3500);
+  await windowKeyHold(cdp, "KeyA", "a", 220);
+  const beforeTouchRecall = await debugPosition(cdp);
+  await tapSelector(cdp, '[data-touch="recall"]');
+  const afterTouchRecall = await waitUntil("touch Echo recall returns to the active anchor", () => evaluate(cdp, `(() => {
+    const match = document.querySelector("#debugPanel").textContent.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    const button = document.querySelector('[data-touch="recall"]');
+    if (!match || !button.disabled) return null;
+    const x = Number(match[1]);
+    return x > ${Math.round(beforeTouchRecall.x + 20)}
+      ? { x, label: button.getAttribute("aria-label"), active: button.classList.contains("active") }
+      : null;
+  })()`), 3500);
+  if (!echoRecallReady.available || echoRecallReady.width < 44 || echoRecallReady.label !== "召回到回声锚点"
+    || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active) {
+    errors.push("R9 touch recall should appear contextually, activate in the safe Echo entry pocket, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
+  }
+  await keyTap(cdp, "Digit1", "1");
+  await keyTap(cdp, "F3", "F3");
+
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 320,
     height: 480,
@@ -3120,7 +3171,9 @@ async function runMobileSmoke(cdp, baseUrl) {
     const hud = document.querySelector(".hud").getBoundingClientRect();
     const stage = document.querySelector(".stage").getBoundingClientRect();
     const touch = document.querySelector("#touchControls").getBoundingClientRect();
-    const buttons = [...document.querySelectorAll("[data-touch]")].map((button) => button.getBoundingClientRect());
+    const buttons = [...document.querySelectorAll("[data-touch]")]
+      .map((button) => button.getBoundingClientRect())
+      .filter((button) => button.width > 0 && button.height > 0);
     return {
       briefAboveHud: brief.bottom <= hud.top - 6,
       briefTop: Math.round(brief.top),
@@ -3273,7 +3326,10 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   await waitUntil("mobile landscape game starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
   const landscapeTouch = await evaluate(cdp, `(() => {
     const touch = document.querySelector("#touchControls");
-    const buttons = [...touch.querySelectorAll("button")];
+    const buttons = [...touch.querySelectorAll("button")].filter((button) => {
+      const rect = button.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
     const rgba = getComputedStyle(buttons[0]).backgroundColor.match(/[\\d.]+/g)?.map(Number) || [];
     return {
       visible: getComputedStyle(touch).display === "flex",
@@ -3548,9 +3604,15 @@ async function main() {
     await cdp.ready();
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
+    await cdp.send("Page.bringToFront");
+    await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
     await cdp.send("Input.setIgnoreInputEvents", { ignore: false });
     await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `(() => {
+        window.__summitEarlyRuntimeErrors = [];
+        window.addEventListener("error", (event) => {
+          window.__summitEarlyRuntimeErrors.push(String(event.message || "unknown boot runtime error"));
+        });
         const makeButtons = () => Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }));
         window.__summitMockPadState = { axes: [0, 0, 0, 0], buttons: makeButtons(), connected: true, mapping: "standard" };
         Object.defineProperty(Navigator.prototype, "getGamepads", {

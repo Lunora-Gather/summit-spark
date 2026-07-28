@@ -61,6 +61,7 @@ if (maps.length !== 10) errors.push("route should keep the current ten-room camp
 const width = maps[0]?.[0]?.length || 0;
 const height = maps[0]?.length || 0;
 const pressureByRoom = [];
+let echoTeachingDistance = 0;
 
 maps.forEach((room, index) => {
   if (!Array.isArray(room) || room.length !== height) errors.push("room " + (index + 1) + " height drifted");
@@ -77,6 +78,18 @@ maps.forEach((room, index) => {
   if (landings < 4) errors.push("room " + (index + 1) + " has too few readable landing segments: " + landings);
   if (index >= 6 && roomPressure < 35) warnings.push("late room " + (index + 1) + " pressure is comparatively low: " + roomPressure);
 });
+
+const echoTeachingRoom = maps[8] || [];
+const echoCheckpointRow = echoTeachingRoom.findIndex((row) => row.includes("P"));
+const echoAnchorRow = echoTeachingRoom.findIndex((row) => row.includes("M"));
+const echoCheckpointColumn = echoCheckpointRow >= 0 ? echoTeachingRoom[echoCheckpointRow].indexOf("P") : -1;
+const echoAnchorColumn = echoAnchorRow >= 0 ? echoTeachingRoom[echoAnchorRow].indexOf("M") : -1;
+echoTeachingDistance = echoCheckpointRow >= 0 && echoAnchorRow >= 0
+  ? Math.abs(echoCheckpointRow - echoAnchorRow) + Math.abs(echoCheckpointColumn - echoAnchorColumn)
+  : Infinity;
+if (echoTeachingDistance > 3 || echoCheckpointRow !== echoAnchorRow) {
+  errors.push("R9 should teach its first Echo anchor in a short low-risk checkpoint pocket before the combined route");
+}
 
 routeLines.forEach((lines, index) => {
   if (!Array.isArray(lines) || lines.length !== 3) {
@@ -134,5 +147,5 @@ if (errors.length > 0) {
 }
 
 const summary = pressureByRoom.map((value, index) => "R" + (index + 1) + ":" + value).join(" ");
-console.log("Route audit passed: ten-room readable route, contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
+console.log("Route audit passed: ten-room readable route, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
 for (const warning of warnings) console.log("warn: " + warning);

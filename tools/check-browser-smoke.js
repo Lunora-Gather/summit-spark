@@ -623,6 +623,25 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (finishProbe.hasTitle && (!/本轮分幕/.test(runEvidenceReview.text) || !/已记录 1\/10 房/.test(runEvidenceReview.text) || !runEvidenceReview.focused)) {
     errors.push("summit review should expose bounded current-run act evidence without losing modal focus: " + JSON.stringify(runEvidenceReview));
   }
+  if (finishProbe.hasTitle) {
+    await evaluate(cdp, `document.querySelector(".review-more").open = true`);
+    await waitUntil("current-run report action becomes visible", () => evaluate(cdp, `document.querySelector("[data-copy-run-report]")?.getClientRects().length > 0`));
+    await clickSelector(cdp, "[data-copy-run-report]");
+    const runReport = await waitUntil("current-run report copy", () => evaluate(cdp, `(() => {
+      const text = window.__summitLastRunReport || "";
+      const status = document.querySelector("#gameStatus").textContent;
+      return text && /本轮报告/.test(status) ? { text, status } : null;
+    })()`));
+    if (!/结果：部分路线 1\/10 房/.test(runReport.text)
+      || !/IV · 星顶/.test(runReport.text)
+      || !/R10 星顶终线：0:/.test(runReport.text)
+      || !/R1 起势山门：—/.test(runReport.text)
+      || !/不含身份、设备名称、输入历史或路线坐标/.test(runReport.text)
+      || /userAgent|@/.test(runReport.text)
+      || runReport.text.length > 4000) {
+      errors.push("current-run report should be bounded, useful and privacy-labelled: " + JSON.stringify(runReport));
+    }
+  }
   await navigateApp(cdp, baseUrl, "desktop reset");
   await tapSelector(cdp, "#openTrainingButton");
   await waitUntil("practice panel open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
@@ -3580,7 +3599,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, summit reveal fallback and current-run act evidence, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, summit reveal fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

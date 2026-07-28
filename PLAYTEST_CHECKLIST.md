@@ -56,6 +56,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 - Finish or fail at least one Clean/Pace/Style/Expert Drill and confirm retry/review text names the missing condition.
 - Complete a full run, open “更多复盘” and “掌握路线图”, and confirm a screen reader announces only those names plus their collapsed/expanded state—not `+`, `-`, or arrow characters—while the visible chevron still rotates.
 - In “更多复盘”, confirm “本轮分幕” lists all four acts, their current-run times and mistakes; the slowest act must match the room-by-room notes from this pass.
+- Click “复制本轮” and confirm the pasted report matches the four-act/ten-room notes, stays under 4,000 characters, contains no identity, device name, raw input history or route coordinates, and does not make a network request.
 - In the same summit-review modal, Tab forward from the last visible control and Shift+Tab backward from the first; both must wrap inside the review without moving focus to browser chrome or hidden gameplay controls.
 - Use the direct resume button from the start screen after creating progress; it should enter a useful recommended Drill.
 - Choose a feedback type, write a short note, then click `诊断 / 复制`; keep the local snapshot with the note. It should not upload anything by itself.

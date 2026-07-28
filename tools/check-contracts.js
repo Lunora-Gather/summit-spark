@@ -207,6 +207,8 @@ if (!js.includes("summitReview")) errors.push("summit review helper is missing")
 if (!js.includes("summitReviewCardsHtml")) errors.push("summit review card helper is missing");
 if (!js.includes("function runChapterSplits(") || !js.includes("function runChapterReview(") || !js.includes('reviewCardHtml("本轮分幕"') || !js.includes("runRoomTimes[roomIndex]")) errors.push("summit review must retain per-room timing and a quiet four-act breakdown");
 if (!js.includes("roomTimes: runRoomTimes.map(") || !js.includes("roomMistakes: roomMistakes.slice()") || !js.includes("chapterSplits: runChapterSplits().map(")) errors.push("diagnostics must expose current-run room and chapter evidence for full-pass tuning");
+if (!js.includes("function buildRunReport(") || !js.includes("function copyRunReport(") || !js.includes("data-copy-run-report") || !js.includes("__summitLastRunReport") || !js.includes("不含身份、设备名称、输入历史或路线坐标")) errors.push("collapsed summit review must provide a bounded privacy-labelled current-run report without uploading it");
+if (!js.includes("function copyTextWithDownloadFallback(") || !js.includes("copyTextWithDownloadFallback(text, filename")) errors.push("text exports should share one clipboard-to-download fallback instead of duplicating browser error handling");
 if (!js.includes("bindFinishReviewActions")) errors.push("finish review drill buttons are missing");
 if (!js.includes("showFinishOverlay") || !js.includes('aria-labelledby", "finishTitle"') || !js.includes('focus({ preventScroll: true })')) errors.push("finish overlay must move focus into a labelled modal review surface");
 if (!js.includes('overlay.classList.add("finish-overlay")')) errors.push("finish overlay should use its scroll-safe layout mode");
@@ -703,7 +705,7 @@ if (!playtestChecklist.includes("operating system's reduced-motion preference") 
 if (!knownIssues.includes("Physical gamepad") || !knownIssues.includes("Full 10-room human pass") || !knownIssues.includes("Online Pages freshness")) {
   errors.push("KNOWN_ISSUES.md must keep current real-world verification limits visible");
 }
-if (!knownIssues.includes("Diagnostics and feedback templates are local-only")) errors.push("KNOWN_ISSUES.md must describe diagnostics/templates as local-only");
+if (!knownIssues.includes("Diagnostics, feedback templates and summit run reports are local-only")) errors.push("KNOWN_ISSUES.md must describe diagnostics, templates and run reports as local-only");
 
 if (errors.length > 0) {
   console.error("Contract check failed:");

@@ -9,7 +9,7 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 - Full 10-room human pass: scripts verify maps, state, and UI surfaces, but at least one uninterrupted human playthrough is still required before treating difficulty and teaching order as public-test stable.
 - Online Pages freshness: local HTML asset versioning and Node 24 Pages workflow are guarded, but after any push the public URL still needs one live check to confirm it serves the intended build.
 - Audio perception: headless smoke can verify the audio test path updates status, but volume balance and fatigue need a real listening pass.
-- Diagnostics and feedback templates are local-only: snapshots and templates can include the current feedback type, note, viewport, training state, and gamepad summary, but there is no automatic upload or issue tracker integration.
+- Diagnostics, feedback templates and summit run reports are local-only: they can include the current feedback note, viewport/training/gamepad summary, or bounded run timing evidence as appropriate, but there is no automatic upload or issue tracker integration.
 
 ## Current Product Boundaries
 

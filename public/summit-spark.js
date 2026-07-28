@@ -6159,13 +6159,7 @@
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
-  function downloadDiagnosticsSnapshot(text, build) {
-    downloadTextFile(text, `summit-spark-diagnostics-${build || "dev"}.json`, "application/json");
-  }
-
-  async function copyDiagnosticsSnapshot() {
-    const snapshot = buildDiagnosticsSnapshot();
-    const text = JSON.stringify(snapshot, null, 2);
+  async function copyTextWithDownloadFallback(text, filename, type = "text/plain") {
     let copied = false;
     try {
       if (navigator.clipboard?.writeText) {
@@ -6175,7 +6169,15 @@
     } catch {
       copied = false;
     }
-    if (!copied) downloadDiagnosticsSnapshot(text, snapshot.build);
+    if (!copied) downloadTextFile(text, filename, type);
+    return copied;
+  }
+
+  async function copyDiagnosticsSnapshot() {
+    const snapshot = buildDiagnosticsSnapshot();
+    const text = JSON.stringify(snapshot, null, 2);
+    const filename = `summit-spark-diagnostics-${snapshot.build || "dev"}.json`;
+    const copied = await copyTextWithDownloadFallback(text, filename, "application/json");
     const verb = copied ? "已复制" : "已下载";
     setGameStatus(`诊断${verb}，可贴到反馈`);
     showGameTip(`诊断${verb}`, "仅包含版本、设置、进度摘要和设备视口，不含身份信息", "coach", GAME_TIP_TIME, 3);
@@ -6186,16 +6188,7 @@
     const snapshot = buildDiagnosticsSnapshot();
     const text = buildFeedbackTemplate(snapshot);
     window.__summitLastFeedbackTemplate = text;
-    let copied = false;
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        copied = true;
-      }
-    } catch {
-      copied = false;
-    }
-    if (!copied) downloadTextFile(text, `summit-spark-feedback-${snapshot.build || "dev"}.txt`);
+    const copied = await copyTextWithDownloadFallback(text, `summit-spark-feedback-${snapshot.build || "dev"}.txt`);
     const verb = copied ? "已复制" : "已下载";
     setGameStatus(`反馈模板${verb}`);
     showGameTip(`反馈模板${verb}`, "包含版本、视口、训练状态和可填写复现项", "coach", GAME_TIP_TIME, 3);
@@ -8868,6 +8861,53 @@
     };
   }
 
+  function buildRunReport() {
+    const build = document.querySelector('meta[name="build-version"]')?.content || "dev";
+    const chapters = runChapterSplits();
+    const visitedRooms = runRoomTimes.filter((seconds) => seconds > 0).length;
+    const complete = won && visitedRooms === maps.length;
+    const chapterLines = chapters.map((chapter) => (
+      `${chapter.label}：${chapter.visited ? formatTime(chapter.seconds) : "—"} / 失误 ${chapter.mistakes} / 房间 ${chapter.visited}/${chapter.rooms}`
+    ));
+    const roomLines = maps.map((_, index) => (
+      `R${index + 1} ${ROOM_NAMES[index] || ""}：${runRoomTimes[index] > 0 ? formatTime(runRoomTimes[index]) : "—"} / 失误 ${roomMistakes[index] || 0}`
+    ));
+    const text = [
+      "山巅微光 · 本轮报告",
+      `构建：${build}`,
+      `结果：${complete ? "完整登顶" : `部分路线 ${visitedRooms}/${maps.length} 房`}`,
+      `总时间：${formatTime(runTime)} / 失误 ${deathCount} / Flow ${Math.floor(flowPeak)}`,
+      `辅助：${runUsedAssist ? "舒缓模式，本轮不计纪录" : "关闭"}`,
+      "",
+      "分幕：",
+      ...chapterLines,
+      "",
+      "分房：",
+      ...roomLines,
+      "",
+      "隐私：仅包含本轮时间、失误、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
+    ].join("\n");
+    window.__summitLastRunReport = text;
+    return text;
+  }
+
+  async function copyRunReport(button) {
+    const text = buildRunReport();
+    const build = document.querySelector('meta[name="build-version"]')?.content || "dev";
+    const copied = await copyTextWithDownloadFallback(text, `summit-spark-run-${build}.txt`);
+    const verb = copied ? "已复制" : "已下载";
+    if (button) {
+      const original = button.dataset.originalLabel || button.textContent || "复制本轮";
+      button.dataset.originalLabel = original;
+      button.textContent = `本轮${verb}`;
+      window.setTimeout(() => {
+        if (button.isConnected) button.textContent = original;
+      }, 1800);
+    }
+    setGameStatus(`本轮报告${verb}，可直接贴到试玩反馈`);
+    playSound("ui", 0.68);
+  }
+
   function practiceReportText() {
     const cleanRooms = roomFocus.filter((entry) => entry && entry.clean > 0).length;
     const next = recommendedPracticeRoom();
@@ -8976,7 +9016,7 @@
     return `<div class="review-grid review-grid-primary">${primaryCards}</div>`
       + `<p class="review-advice">${escapeHtml(roomTrainingAdvice(next))}</p>`
       + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">下一 ${drillModeLabel(nextMode)}</button>${styleButton}${lossButton}</div>`
-      + `<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra">${extraCards}</div></details>`
+      + `<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>仅含本轮时间、失误、Flow 与辅助状态；不会上传。</small></div></details>`
       + `<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>掌握路线图</span><span class="review-more-chevron" aria-hidden="true">›</span></summary>${reviewRoadmapHtml()}</details>`;
   }
 
@@ -8988,6 +9028,12 @@
         if (Number.isInteger(target) && target >= 0 && target < maps.length) {
           startRoomDrill(target, mode);
         }
+      });
+    });
+    const copyButton = overlay.querySelector("[data-copy-run-report]");
+    copyButton?.addEventListener("click", () => {
+      copyRunReport(copyButton).catch(() => {
+        setGameStatus("本轮报告复制失败，请重试");
       });
     });
   }

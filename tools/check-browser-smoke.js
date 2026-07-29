@@ -571,6 +571,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await waitUntil("settings close after start", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === 0`));
   await enableDebugPanel(cdp);
   const beforeMove = await debugPosition(cdp);
+  if (!/relay chain 0  path 0/.test(beforeMove.text)) {
+    errors.push("a fresh room should begin without a stale Relay thread: " + beforeMove.text);
+  }
   await keyHold(cdp, "KeyD", "D", 360);
   const afterMove = await debugPosition(cdp);
   const moved = afterMove.x - beforeMove.x;

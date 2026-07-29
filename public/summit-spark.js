@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p237"),
-    import("./modules/core/math.mjs?v=20260729-p237"),
-    import("./modules/game/room-data.mjs?v=20260729-p237"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p237"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p237"),
-    import("./modules/systems/storage.mjs?v=20260729-p237"),
-    import("./modules/systems/input.mjs?v=20260729-p237"),
-    import("./modules/training/state.mjs?v=20260729-p237"),
-    import("./modules/training/replay.mjs?v=20260729-p237"),
-    import("./modules/ui/presentation.mjs?v=20260729-p237")
+    import("./modules/core/format.mjs?v=20260729-p238"),
+    import("./modules/core/math.mjs?v=20260729-p238"),
+    import("./modules/game/room-data.mjs?v=20260729-p238"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p238"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p238"),
+    import("./modules/systems/storage.mjs?v=20260729-p238"),
+    import("./modules/systems/input.mjs?v=20260729-p238"),
+    import("./modules/training/state.mjs?v=20260729-p238"),
+    import("./modules/training/replay.mjs?v=20260729-p238"),
+    import("./modules/ui/presentation.mjs?v=20260729-p238")
   ]);
 
   const canvas = document.getElementById("game");
@@ -663,6 +663,7 @@
   let pathSampleTimer = 0;
   let relayChain = 0;
   let relayChainTimer = 0;
+  const relayChainPath = [];
   let bestRelayChain = 0;
   let splitPopupTimer = 0;
   let splitPopupText = "";
@@ -2359,7 +2360,7 @@
       const speed = Math.hypot(player.vx, player.vy);
       const charged = player.dashTimer > 0 || player.sparkHopTimer > 0 || speed >= RELAY_TRIGGER_SPEED;
       if (relay.ready && charged && distRectPoint(box, relay.x, relay.y) < 26) {
-        const chain = scoreRelayChain();
+        const chain = scoreRelayChain(relay);
         markRoomTech("relay");
         showMechanicFirstTouchCue("relay");
         if (chain >= 3) markRoomTech("relayChain");
@@ -2604,21 +2605,30 @@
     writeProfile();
   }
 
-  function scoreRelayChain() {
+  function scoreRelayChain(relay) {
+    if (relayChainTimer <= 0) relayChainPath.length = 0;
     relayChain = relayChainTimer > 0 ? relayChain + 1 : 1;
     relayChainTimer = RELAY_CHAIN_TIME;
+    if (relay && Number.isFinite(relay.x) && Number.isFinite(relay.y)) {
+      relayChainPath.push({ x: relay.x, y: relay.y });
+      if (relayChainPath.length > 4) relayChainPath.splice(0, relayChainPath.length - 4);
+    }
     bestRelayChain = Math.max(bestRelayChain, relayChain);
     return relayChain;
   }
 
   function updateRelayChain(dt) {
     relayChainTimer = Math.max(0, relayChainTimer - dt);
-    if (relayChainTimer <= 0) relayChain = 0;
+    if (relayChainTimer <= 0) {
+      relayChain = 0;
+      relayChainPath.length = 0;
+    }
   }
 
   function resetRelayChain() {
     relayChain = 0;
     relayChainTimer = 0;
+    relayChainPath.length = 0;
   }
 
   function addFlow(amount) {
@@ -7373,6 +7383,7 @@
     drawCurrentRoomPath(time);
     drawBestRoomGhost(time);
     drawRelayRoutes(time);
+    drawActiveRelayThread(time);
     drawVelocityWake(time);
     drawLightTrails(time);
     drawEntities(time);
@@ -9822,6 +9833,58 @@
     ctx.restore();
   }
 
+  function drawActiveRelayThread(time) {
+    if (relayChainPath.length < 2 || relayChainTimer <= 0) return;
+    const life = Math.max(0, Math.min(1, relayChainTimer / RELAY_CHAIN_TIME));
+    const points = relayChainPath;
+    const drawPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i += 1) {
+        const previous = points[i - 1];
+        const current = points[i];
+        const midX = (previous.x + current.x) * 0.5;
+        const midY = (previous.y + current.y) * 0.5;
+        const bend = ((roomIndex + i) % 2 === 0 ? -1 : 1) * Math.min(18, Math.abs(current.x - previous.x) * 0.08);
+        ctx.quadraticCurveTo(midX, midY + bend, current.x, current.y);
+      }
+    };
+
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowColor = palette.cyan;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 2 : 8);
+    ctx.globalAlpha = life * (settings.calmEffects ? 0.1 : 0.14);
+    ctx.strokeStyle = palette.cyan;
+    ctx.lineWidth = settings.lowPerformance ? 3 : 5;
+    drawPath();
+    ctx.stroke();
+    ctx.globalAlpha = life * (settings.calmEffects ? 0.38 : 0.56);
+    ctx.strokeStyle = points.length >= 3 ? palette.gold : "#dff8ff";
+    ctx.lineWidth = 1.4;
+    drawPath();
+    ctx.stroke();
+
+    if (!prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance) {
+      for (let i = 1; i < points.length; i += 1) {
+        const from = points[i - 1];
+        const to = points[i];
+        const progress = (time * 1.65 + i * 0.31) % 1;
+        const x = from.x + (to.x - from.x) * progress;
+        const y = from.y + (to.y - from.y) * progress;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.PI / 4);
+        ctx.globalAlpha = life * 0.72;
+        ctx.fillStyle = points.length >= 3 ? palette.gold : "#f8fbff";
+        ctx.fillRect(-2, -2, 4, 4);
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
   function drawLumen(lumen, time) {
     const y = lumen.y + Math.sin(lumen.bob) * (prefersReducedMotion ? 0 : 4);
     ctx.save();
@@ -10672,7 +10735,7 @@
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,
       `tip ${gameTipKind || "none"} ${gameTipTimer.toFixed(2)}`,
-      `relay chain ${relayChain}  best ${bestRelayChain}`,
+      `relay chain ${relayChain}  path ${relayChainPath.length}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,
       `room focus ${roomFocusDetails(roomIndex)}`,

@@ -249,6 +249,17 @@ if (!js.includes("recharge: 0")
   || !js.includes("const strongest = Math.max(dash, spark, relay, prism, spring, recall, death, wall)")) {
   errors.push("ground dash restoration must raise one quiet foot-only pulse without changing hair, status copy or the body aura");
 }
+if (!js.includes("const relayChainPath = [];")
+  || !js.includes("const chain = scoreRelayChain(relay);")
+  || !js.includes("relayChainPath.push({ x: relay.x, y: relay.y });")
+  || !js.includes("if (relayChainPath.length > 4) relayChainPath.splice(0, relayChainPath.length - 4);")
+  || (js.match(/relayChainPath\.length = 0;/g) || []).length < 3
+  || !js.includes("function drawActiveRelayThread(time)")
+  || !js.includes("drawRelayRoutes(time);\n    drawActiveRelayThread(time);\n    drawVelocityWake(time);")
+  || !js.includes("if (!prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance)")
+  || !js.includes("path ${relayChainPath.length}")) {
+  errors.push("Relay chains must own one bounded activation-order thread that clears with the existing chain lifecycle and respects comfort budgets");
+}
 if (!js.includes("ctx.lineWidth = 2.65") || !js.includes("ctx.lineWidth = 2.55") || !js.includes('const handSkin = "#d6aa8f"') || !js.includes("walling ? 1.3 : 1.15") || js.includes("ctx.arc(cx + player.wallDir * 12, y + 15, 2")) errors.push("player arms and muted hands should stay compact and wall grip must not add a duplicate glowing hand dot");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");
@@ -496,6 +507,10 @@ if (!browserSmoke.includes("surface warm-dust")) {
 if (!browserSmoke.includes("ground dash recharge should emit one foot-only pulse")
   || !browserSmoke.includes("settled.status !== active.status")) {
   errors.push("browser smoke must prove the ground recharge pulse is one-shot and leaves live status copy quiet");
+}
+if (!browserSmoke.includes("a fresh room should begin without a stale Relay thread")
+  || !browserSmoke.includes("relay chain 0  path 0")) {
+  errors.push("browser smoke must prove a fresh room starts with a cleared Relay thread lifecycle");
 }
 if (!css.includes(".stage.low-performance #game") || !css.includes("-webkit-backdrop-filter: none;") || !browserSmoke.includes("low-performance mode should remove per-frame canvas filters and backdrop blurs")) errors.push("low-performance mode must remove canvas filter passes and live backdrop compositing");
 if (!js.includes("function writeStorageTransaction(entries)")

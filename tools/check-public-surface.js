@@ -297,6 +297,17 @@ if (!runtimeSource.includes("function restoreGroundDashCharge()")
   || runtimeSource.includes("hairColor = recharge")) {
   fail("ground dash recharge should use a foot-level pulse while the climber hair remains state-independent");
 }
+if (!runtimeSource.includes("const relayChainPath = [];")
+  || !runtimeSource.includes("const chain = scoreRelayChain(relay);")
+  || !runtimeSource.includes("relayChainPath.push({ x: relay.x, y: relay.y });")
+  || !runtimeSource.includes("if (relayChainPath.length > 4) relayChainPath.splice(0, relayChainPath.length - 4);")
+  || (runtimeSource.match(/relayChainPath\.length = 0;/g) || []).length < 3
+  || !runtimeSource.includes("function drawActiveRelayThread(time)")
+  || !runtimeSource.includes("drawRelayRoutes(time);\n    drawActiveRelayThread(time);\n    drawVelocityWake(time);")
+  || !runtimeSource.includes("points.length >= 3 ? palette.gold")
+  || !runtimeSource.includes("if (!prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance)")) {
+  fail("Relay activation order should render one bounded in-world thread that clears with the chain and respects comfort modes");
+}
 for (const trigger of [
   'showMechanicFirstTouchCue("relay")',
   'showMechanicFirstTouchCue("spring")',

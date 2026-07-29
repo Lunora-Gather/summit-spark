@@ -30,6 +30,7 @@ const pagesWorkflow = read(".github/workflows/pages.yml");
 const runtimeSource = read("public/summit-spark.js");
 const coreFormatSource = read("public/modules/core/format.mjs");
 const coreMathSource = read("public/modules/core/math.mjs");
+const roomDataSource = read("public/modules/game/room-data.mjs");
 
 const buildVersion = extractOne(
   "meta build-version",
@@ -56,6 +57,11 @@ const coreMathVersion = extractOne(
   runtimeSource,
   /modules\/core\/math\.mjs\?v=([^"]+)"/
 );
+const roomDataVersion = extractOne(
+  "room data module version",
+  runtimeSource,
+  /modules\/game\/room-data\.mjs\?v=([^"]+)"/
+);
 
 if (buildVersion && cssVersion && buildVersion !== cssVersion) {
   fail(`css version ${cssVersion} does not match build version ${buildVersion}`);
@@ -71,6 +77,10 @@ if (buildVersion && coreFormatVersion && buildVersion !== coreFormatVersion) {
 
 if (buildVersion && coreMathVersion && buildVersion !== coreMathVersion) {
   fail(`core math version ${coreMathVersion} does not match build version ${buildVersion}`);
+}
+
+if (buildVersion && roomDataVersion && buildVersion !== roomDataVersion) {
+  fail(`room data version ${roomDataVersion} does not match build version ${buildVersion}`);
 }
 
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js")) {
@@ -118,6 +128,16 @@ if (!runtimeSource.includes('import("./modules/core/format.mjs?v=') || !coreForm
 }
 if (!runtimeSource.includes('import("./modules/core/math.mjs?v=') || !coreMathSource.includes("export function aabb(")) {
   fail("public runtime must consume the versioned core math module");
+}
+if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
+  || !roomDataSource.includes("export const maps = [")
+  || !roomDataSource.includes("].forEach(deepFreeze);")) {
+  fail("public runtime must consume the versioned immutable room data module");
+}
+for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_REQUIREMENTS", "maps", "ROOM_ATMOSPHERES"]) {
+  if (new RegExp(`\\bconst\\s+${name}\\s*=`).test(runtimeSource)) {
+    fail(`public runtime must not duplicate room-data ownership for ${name}`);
+  }
 }
 
 if (errors.length > 0) {

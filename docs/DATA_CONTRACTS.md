@@ -2,7 +2,7 @@
 
 ## 当前数据源
 
-浏览器运行时的房间地图、目标、技能标签、路线说明、Style/Expert 合同、Route contracts 和 Feel fixtures 仍内嵌在 `public/summit-spark.js`。
+浏览器运行时的房间地图、目标、章节文案、技能标签、路线说明、氛围色和 Style/Expert 合同统一位于 `public/modules/game/room-data.mjs`，导出后递归冻结。Route contracts 和 Feel fixtures 仍位于 `public/summit-spark.js`，因为它们与训练状态机共同演进。
 
 `data/rooms.generated.json` 是由 `tools/export-room-data.js` 生成的验证快照。自动检查优先读取快照，同时用导出检查确认它没有落后于运行时源。
 
@@ -30,7 +30,7 @@ node tools/check-route-audit.js
 
 ## 修改流程
 
-1. 修改 `public/summit-spark.js` 中的源数据。
+1. 修改 `public/modules/game/room-data.mjs` 中的房间内容；只在调整 Route/Feel 训练夹具时修改 `public/summit-spark.js`。
 2. 运行 `node tools/export-room-data.js --write`。
 3. 检查 JSON 差异是否仅反映预期内容。
 4. 运行 `npm run check`。

@@ -4,10 +4,11 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..", "..");
-const defaultSourcePath = path.join(root, "public", "summit-spark.js");
+const defaultRoomDataSourcePath = path.join(root, "public", "modules", "game", "room-data.mjs");
+const defaultRuntimeSourcePath = path.join(root, "public", "summit-spark.js");
 const defaultSnapshotPath = path.join(root, "data", "rooms.generated.json");
 
-function readSource(sourcePath = defaultSourcePath) {
+function readSource(sourcePath = defaultRoomDataSourcePath) {
   return fs.readFileSync(sourcePath, "utf8");
 }
 
@@ -61,26 +62,29 @@ function extractConst(source, name, expectedStart) {
   throw new Error(`Unclosed ${name}`);
 }
 
-function buildRoomDataSnapshotFromSource(source = readSource()) {
-  const maps = extractConst(source, "maps", "[");
+function buildRoomDataSnapshotFromSources(
+  roomDataSource = readSource(defaultRoomDataSourcePath),
+  runtimeSource = readSource(defaultRuntimeSourcePath)
+) {
+  const maps = extractConst(roomDataSource, "maps", "[");
   return {
-    generatedFrom: "public/summit-spark.js",
+    generatedFrom: "public/modules/game/room-data.mjs + public/summit-spark.js",
     generatedBy: "tools/export-room-data.js",
-    note: "Generated validation snapshot; runtime source remains public/summit-spark.js.",
+    note: "Generated validation snapshot; canonical room content lives in room-data.mjs while training fixtures remain in summit-spark.js.",
     roomCount: maps.length,
-    roomTargets: extractConst(source, "ROOM_TARGETS", "["),
-    roomNames: extractConst(source, "ROOM_NAMES", "["),
-    roomTiers: extractConst(source, "ROOM_TIERS", "["),
-    roomSkills: extractConst(source, "ROOM_SKILLS", "["),
-    skillLabels: extractConst(source, "SKILL_LABELS", "{"),
-    roomGuides: extractConst(source, "ROOM_GUIDES", "["),
-    roomPurposes: extractConst(source, "ROOM_PURPOSES", "["),
-    roomRouteLines: extractConst(source, "ROOM_ROUTE_LINES", "["),
-    roomStyleTrials: extractConst(source, "ROOM_STYLE_TRIALS", "["),
-    expertRequirements: extractConst(source, "EXPERT_REQUIREMENTS", "["),
-    expertRequirementLabels: extractConst(source, "EXPERT_REQUIREMENT_LABELS", "{"),
-    routeContracts: extractConst(source, "ROUTE_CONTRACTS", "["),
-    feelReplayFixtures: extractConst(source, "FEEL_REPLAY_FIXTURES", "["),
+    roomTargets: extractConst(roomDataSource, "ROOM_TARGETS", "["),
+    roomNames: extractConst(roomDataSource, "ROOM_NAMES", "["),
+    roomTiers: extractConst(roomDataSource, "ROOM_TIERS", "["),
+    roomSkills: extractConst(roomDataSource, "ROOM_SKILLS", "["),
+    skillLabels: extractConst(roomDataSource, "SKILL_LABELS", "{"),
+    roomGuides: extractConst(roomDataSource, "ROOM_GUIDES", "["),
+    roomPurposes: extractConst(roomDataSource, "ROOM_PURPOSES", "["),
+    roomRouteLines: extractConst(roomDataSource, "ROOM_ROUTE_LINES", "["),
+    roomStyleTrials: extractConst(roomDataSource, "ROOM_STYLE_TRIALS", "["),
+    expertRequirements: extractConst(roomDataSource, "EXPERT_REQUIREMENTS", "["),
+    expertRequirementLabels: extractConst(roomDataSource, "EXPERT_REQUIREMENT_LABELS", "{"),
+    routeContracts: extractConst(runtimeSource, "ROUTE_CONTRACTS", "["),
+    feelReplayFixtures: extractConst(runtimeSource, "FEEL_REPLAY_FIXTURES", "["),
     maps
   };
 }
@@ -89,18 +93,22 @@ function loadRoomDataSnapshot(options = {}) {
   const {
     preferGenerated = true,
     snapshotPath = defaultSnapshotPath,
-    sourcePath = defaultSourcePath
+    sourcePath = defaultRoomDataSourcePath,
+    runtimeSourcePath = defaultRuntimeSourcePath
   } = options;
 
   if (preferGenerated && hasGeneratedSnapshot(snapshotPath)) {
     return readGeneratedSnapshot(snapshotPath);
   }
 
-  return buildRoomDataSnapshotFromSource(readSource(sourcePath));
+  return buildRoomDataSnapshotFromSources(readSource(sourcePath), readSource(runtimeSourcePath));
 }
 
-function buildRoomDataSnapshot(source = readSource()) {
-  return buildRoomDataSnapshotFromSource(source);
+function buildRoomDataSnapshot(
+  roomDataSource = readSource(defaultRoomDataSourcePath),
+  runtimeSource = readSource(defaultRuntimeSourcePath)
+) {
+  return buildRoomDataSnapshotFromSources(roomDataSource, runtimeSource);
 }
 
 function normalizeSnapshot(value) {
@@ -109,14 +117,15 @@ function normalizeSnapshot(value) {
 
 module.exports = {
   root,
-  defaultSourcePath,
+  defaultRoomDataSourcePath,
+  defaultRuntimeSourcePath,
   defaultSnapshotPath,
   readSource,
   hasGeneratedSnapshot,
   readGeneratedSnapshot,
   extractConst,
   buildRoomDataSnapshot,
-  buildRoomDataSnapshotFromSource,
+  buildRoomDataSnapshotFromSources,
   loadRoomDataSnapshot,
   normalizeSnapshot
 };

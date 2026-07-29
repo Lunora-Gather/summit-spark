@@ -8,6 +8,8 @@ const root = path.resolve(__dirname, "..");
 const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8");
 const coreFormat = fs.readFileSync(path.join(root, "public", "modules", "core", "format.mjs"), "utf8");
 const coreMath = fs.readFileSync(path.join(root, "public", "modules", "core", "math.mjs"), "utf8");
+const roomData = fs.readFileSync(path.join(root, "public", "modules", "game", "room-data.mjs"), "utf8");
+const dataAndRuntime = roomData + "\n" + js;
 const indexHtml = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const workflowPath = path.join(root, ".github", "workflows", "pages.yml");
 const workflow = fs.existsSync(workflowPath) ? fs.readFileSync(workflowPath, "utf8") : "";
@@ -30,17 +32,17 @@ function extractObject(name) {
 
 function extractLiteral(name, opener) {
   const needle = "const " + name + " = ";
-  const start = js.indexOf(needle);
+  const start = dataAndRuntime.indexOf(needle);
   if (start === -1) throw new Error("Missing " + name);
-  const literalStart = js.indexOf(opener, start);
+  const literalStart = dataAndRuntime.indexOf(opener, start);
   if (literalStart === -1) throw new Error("Missing literal for " + name);
   const close = opener === "[" ? "]" : "}";
   let depth = 0;
   let inString = false;
   let quote = "";
   let escaped = false;
-  for (let i = literalStart; i < js.length; i += 1) {
-    const ch = js[i];
+  for (let i = literalStart; i < dataAndRuntime.length; i += 1) {
+    const ch = dataAndRuntime[i];
     if (inString) {
       if (escaped) escaped = false;
       else if (ch === "\\") escaped = true;
@@ -56,7 +58,7 @@ function extractLiteral(name, opener) {
     if (ch === close) {
       depth -= 1;
       if (depth === 0) {
-        return Function("\"use strict\"; return (" + js.slice(literalStart, i + 1) + ");")();
+        return Function("\"use strict\"; return (" + dataAndRuntime.slice(literalStart, i + 1) + ");")();
       }
     }
   }
@@ -182,7 +184,7 @@ if (!js.includes("drawDrillHud")) errors.push("drill HUD helper is missing");
 if (!js.includes("drillModeLabel")) errors.push("drill mode label helper is missing");
 if (!js.includes("drillSucceeded")) errors.push("drill variant success helper is missing");
 if (!js.includes("ROOM_STYLE_TRIALS")) errors.push("style difficulty trials are missing");
-if (!js.includes('{ top: "#294563", mid: "#66869c", low: "#c99b84", back: "#728b9c", midPeak: "#536f86", front: "#354c64"') || !js.includes("act === 0 ? 0.19 : 0.14") || !js.includes("[gateX + 27, gateX + 75].forEach((lanternX)")) errors.push("R1 should open with a bright dawn gradient, clear aerial perspective and restrained static gate lantern detail");
+if (!roomData.includes('{ top: "#294563", mid: "#66869c", low: "#c99b84", back: "#728b9c", midPeak: "#536f86", front: "#354c64"') || !js.includes("act === 0 ? 0.19 : 0.14") || !js.includes("[gateX + 27, gateX + 75].forEach((lanternX)")) errors.push("R1 should open with a bright dawn gradient, clear aerial perspective and restrained static gate lantern detail");
 if (!js.includes("styleTrialSucceeded")) errors.push("style trial success helper is missing");
 if (!js.includes("styleTrialReviewText")) errors.push("finish review must expose a Style trial card");
 if (!js.includes("drillHudDetailText")) errors.push("Drill HUD should show contract progress details");

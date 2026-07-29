@@ -4,7 +4,7 @@
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260728-p183`
+当前公开构建：`20260728-p184`
 
 ## 快速开始
 
@@ -67,6 +67,7 @@ public/                 可直接部署的唯一运行目录
   summit-spark.css      UI、响应式与视觉
   summit-spark.js       当前游戏运行时
   modules/core/         已迁移且有独立契约的格式与数学纯函数
+  modules/game/         十房地图、章节文案、路线合同与氛围的只读数据源
   vendor/               固定 Appwrite SDK 与许可证
 data/                   房间/训练数据验证快照
 tools/                  自动质量门和共享验证器
@@ -76,7 +77,7 @@ appwrite.config.json    云端资源和最小权限策略
 game-server.js          public 白名单本地服务器
 ```
 
-当前运行时主体仍是单体脚本；格式、安全文本、矩形判定、距离和数值逼近已迁入无状态核心模块。后续继续按只读数据、存档、输入、训练、UI、物理、渲染的顺序迁移。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+当前运行时主体仍是单体脚本；格式、安全文本、矩形判定、距离、数值逼近以及只读房间内容已迁入独立模块。后续继续按存档、输入、训练、UI、物理、渲染的顺序迁移。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 质量检查
 
@@ -109,7 +110,7 @@ node tools/report-room-data.js
 
 ## 房间数据
 
-运行时数据当前内嵌在 `public/summit-spark.js`。`data/rooms.generated.json` 是自动生成的验证快照，不会被线上页面加载。
+地图、目标、章节文案、路线说明和 Style/Expert 合同的唯一运行时源是 `public/modules/game/room-data.mjs`；Route 与 Feel 的有状态训练夹具暂留在 `public/summit-spark.js`。`data/rooms.generated.json` 是自动生成的合并验证快照，不会被线上页面加载。
 
 修改地图、路线或合同后：
 

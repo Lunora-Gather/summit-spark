@@ -12,11 +12,11 @@
 | `npm run state-check` | Route、Feel、Drill、Challenge 和存档状态迁移矩阵 |
 | `npm run smoke` | 本地服务器、安全响应头、公开文件白名单和关键资源检查 |
 
-`check-core-format.mjs` 和 `check-core-math.mjs` 直接导入公开核心模块，固定时间、差值、评级、HTML 转义、矩形判定、距离和数值逼近的输入输出；它们由 `npm run check` 自动执行。
+`check-core-format.mjs`、`check-core-math.mjs` 和 `check-room-data.mjs` 直接导入公开模块，固定纯函数输入输出，以及十房集合对齐、嵌套只读性和终点归属；它们由 `npm run check` 自动执行。
 
 ## 房间数据
 
-- `lib/read-summit-data.js`：唯一允许解析 `public/summit-spark.js` 内嵌房间数据的共享读取器。
+- `lib/read-summit-data.js`：唯一允许合并解析 `public/modules/game/room-data.mjs` 与主运行时训练夹具的共享读取器。
 - `lib/validate-room-data.js`：地图、路线、Style/Expert 和 Feel 数据的共享验证器。
 - `export-room-data.js`：生成或核对 `data/rooms.generated.json`。
 - `report-room-data.js`：输出房间数据摘要。
@@ -45,6 +45,6 @@ npm run check
 1. 能捕获真实产品或发布回归，而不是验证计划是否存在。
 2. 可以在本地或 CI 稳定复现。
 3. 已加入 `npm run check` 或有明确的人工运行入口。
-4. 不重复解析 `public/summit-spark.js` 中的房间数据。
+4. 不重复解析房间模块或主运行时中的训练夹具。
 
 短期一次性迁移应在独立分支完成并随任务删除，不应长期留在 `tools/`。

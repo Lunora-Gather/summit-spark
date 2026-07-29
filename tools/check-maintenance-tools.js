@@ -12,6 +12,7 @@ const requiredTools = [
   "tools/check-browser-smoke.js",
   "tools/check-core-format.mjs",
   "tools/check-core-math.mjs",
+  "tools/check-room-data.mjs",
   "tools/check-contracts.js",
   "tools/check-data-contracts.js",
   "tools/check-docs.js",

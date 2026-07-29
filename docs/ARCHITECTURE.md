@@ -13,6 +13,8 @@ summit-spark/
 │  ├─ modules/core/
 │  │  ├─ format.mjs         # 无 DOM 的时间、评级与安全文本纯函数
 │  │  └─ math.mjs           # 无状态的矩形判定、距离与数值逼近
+│  ├─ modules/game/
+│  │  └─ room-data.mjs      # 递归冻结的地图、章节、路线与氛围内容
 │  └─ vendor/               # 固定版本 Appwrite SDK 与许可证
 ├─ data/
 │  └─ rooms.generated.json # 房间/训练数据验证快照，不参与运行
@@ -43,21 +45,22 @@ public/index.html
   └─ public/summit-spark.js
        ├─ public/modules/core/format.mjs
        ├─ public/modules/core/math.mjs
+       ├─ public/modules/game/room-data.mjs
        ├─ Canvas / DOM / WebAudio / 输入
        ├─ localStorage / sessionStorage
        └─ Appwrite Account + TablesDB
 
-public/summit-spark.js
-  └─ tools/export-room-data.js
-       └─ data/rooms.generated.json
-            └─ 数据、地图、路线质量门
+public/modules/game/room-data.mjs ─┐
+public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
+                                  └─ data/rooms.generated.json
+                                       └─ 数据、地图、路线质量门
 ```
 
 生产代码不得反向依赖 `tools/`、`docs/` 或 `data/rooms.generated.json`。质量工具可以读取生产代码，但必须通过共享读取器，避免多套解析逻辑。
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入、物理、渲染、训练、存档和账号逻辑。两个低风险切片已迁出格式、安全文本、矩形判定、距离和数值逼近，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入、物理、渲染、训练、存档和账号逻辑。三个低风险切片已迁出格式、安全文本、矩形判定、距离、数值逼近与只读房间内容，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
 
 短期修改遵守：
 
@@ -68,15 +71,15 @@ public/summit-spark.js
 
 ## 下一阶段拆分顺序
 
-只有真正开始迁移时才创建目录，建议目标位于 `public/modules/`：
+只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-1. `game/room-data.mjs`：房间名、目标、地图、路线和合同，只读导出；`core/format.mjs` 与 `core/math.mjs` 已完成。
-2. `systems/storage.mjs`：规范化、事务写入、备份与迁移。
-3. `systems/storage.js`：规范化、事务写入、备份与迁移。
-4. `systems/input.js`：键盘、触控、手柄和输入缓冲。
-5. `training/`：Drill、Route、Feel 和 Focus 纯状态计算。
-6. `ui/`：面板和 HUD 的 DOM 更新。
-7. `game/physics.js` 与 `render/`：最后移动，并要求完整人工通关。
+`core/format.mjs`、`core/math.mjs` 与 `game/room-data.mjs` 已完成。接下来的顺序是：
+
+1. `systems/storage.mjs`：规范化、事务写入、备份与迁移。
+2. `systems/input.mjs`：键盘、触控、手柄和输入缓冲。
+3. `training/`：Drill、Route、Feel 和 Focus 纯状态计算。
+4. `ui/`：面板和 HUD 的 DOM 更新。
+5. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。
 
 首次模块化应采用原生 ES modules，不引入构建器。若以后需要 TypeScript、打包或代码分割，先写独立架构决策并证明部署、源码映射和回滚路径。
 

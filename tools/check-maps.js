@@ -124,6 +124,15 @@ for (let i = 0; i < Math.min(8, maps.length); i += 1) {
 }
 if ((maps[1]?.join("").match(/A/g) || []).length < 2) errors.push("room 2 should establish a two-relay movement sentence");
 if ((maps[2]?.join("").match(/T/g) || []).length < 2) errors.push("room 3 should establish a two-spring height rhythm");
+if (maps[4]?.[8]?.slice(14, 17) !== "###" || maps[4]?.[9]?.[15] !== "#" || maps[4]?.[10]?.[15] !== "#") {
+  errors.push("room 5 should keep a capped central ridge for the safe turn and Wall Spark cut");
+}
+if (maps[4]?.[9]?.[6] !== "A" || maps[4]?.[9]?.[12] === "A") {
+  errors.push("room 5 relay should sit left of the central ridge to create a real switchback");
+}
+if (maps[4]?.[7]?.[2] !== "P" || maps[4]?.[4]?.[21] !== "A") {
+  errors.push("room 5 should keep its left recovery checkpoint and right upper relay");
+}
 const echoTeachingRoom = maps[8];
 const echoCheckpoints = echoTeachingRoom ? tilePoints(echoTeachingRoom, "P") : [];
 const echoAnchors = echoTeachingRoom ? tilePoints(echoTeachingRoom, "M") : [];

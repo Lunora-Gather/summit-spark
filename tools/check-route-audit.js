@@ -79,6 +79,17 @@ maps.forEach((room, index) => {
   if (index >= 6 && roomPressure < 35) warnings.push("late room " + (index + 1) + " pressure is comparatively low: " + roomPressure);
 });
 
+const room5Relay = maps[4]?.[9]?.[6] === "A";
+const room5Ridge = maps[4]?.[8]?.slice(14, 17) === "###"
+  && maps[4]?.[9]?.[15] === "#"
+  && maps[4]?.[10]?.[15] === "#";
+if (!room5Relay || !room5Ridge) {
+  errors.push("R5 should force a readable left relay switchback around a capped central ridge");
+}
+if (!String(guides[4] || "").includes("中棱") || !String(routeLines[4]?.[2] || "").includes("Wall Spark")) {
+  errors.push("R5 guide and expert line should explain the central-ridge switchback and Wall Spark cut");
+}
+
 const echoTeachingRoom = maps[8] || [];
 const echoCheckpointRow = echoTeachingRoom.findIndex((row) => row.includes("P"));
 const echoAnchorRow = echoTeachingRoom.findIndex((row) => row.includes("M"));
@@ -147,5 +158,5 @@ if (errors.length > 0) {
 }
 
 const summary = pressureByRoom.map((value, index) => "R" + (index + 1) + ":" + value).join(" ");
-console.log("Route audit passed: ten-room readable route, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
+console.log("Route audit passed: ten-room readable route, R5 central-ridge switchback, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
 for (const warning of warnings) console.log("warn: " + warning);

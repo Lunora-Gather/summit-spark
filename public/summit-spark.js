@@ -124,12 +124,12 @@
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p194"),
-    import("./modules/core/math.mjs?v=20260729-p194"),
-    import("./modules/game/room-data.mjs?v=20260729-p194"),
-    import("./modules/systems/storage.mjs?v=20260729-p194"),
-    import("./modules/systems/input.mjs?v=20260729-p194"),
-    import("./modules/training/state.mjs?v=20260729-p194")
+    import("./modules/core/format.mjs?v=20260729-p195"),
+    import("./modules/core/math.mjs?v=20260729-p195"),
+    import("./modules/game/room-data.mjs?v=20260729-p195"),
+    import("./modules/systems/storage.mjs?v=20260729-p195"),
+    import("./modules/systems/input.mjs?v=20260729-p195"),
+    import("./modules/training/state.mjs?v=20260729-p195")
   ]);
 
   const canvas = document.getElementById("game");

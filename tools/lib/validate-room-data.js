@@ -13,6 +13,7 @@ function validateRoomDataSnapshot(snapshot) {
     roomTargets: targets,
     roomNames: names,
     roomTiers: tiers,
+    chapterSurfaceKinds,
     roomLandmarks: landmarks,
     roomSkills: skills,
     skillLabels,
@@ -80,6 +81,19 @@ function validateRoomDataSnapshot(snapshot) {
   if (Array.isArray(tiers)) {
     tiers.forEach((tier, index) => {
       if (!allowedTiers.has(tier)) push(`ROOM_TIERS ${index + 1} has unknown tier ${tier}`);
+    });
+  }
+
+  const expectedChapterSurfaces = ["gate-slate", "old-peak", "wind-cut", "star-etched"];
+  if (!Array.isArray(chapterSurfaceKinds)) {
+    push("CHAPTER_SURFACE_KINDS must be an array");
+  } else if (chapterSurfaceKinds.length !== expectedChapterSurfaces.length) {
+    push("CHAPTER_SURFACE_KINDS must cover four acts");
+  } else {
+    chapterSurfaceKinds.forEach((kind, index) => {
+      if (kind !== expectedChapterSurfaces[index]) {
+        push(`CHAPTER_SURFACE_KINDS ${index + 1} should be ${expectedChapterSurfaces[index]}`);
+      }
     });
   }
 

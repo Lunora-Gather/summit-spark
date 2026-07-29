@@ -75,6 +75,7 @@ function buildRoomDataSnapshotFromSources(
     roomTargets: extractConst(roomDataSource, "ROOM_TARGETS", "["),
     roomNames: extractConst(roomDataSource, "ROOM_NAMES", "["),
     roomTiers: extractConst(roomDataSource, "ROOM_TIERS", "["),
+    chapterSurfaceKinds: extractConst(roomDataSource, "CHAPTER_SURFACE_KINDS", "["),
     roomLandmarks: extractConst(roomDataSource, "ROOM_LANDMARKS", "["),
     roomSkills: extractConst(roomDataSource, "ROOM_SKILLS", "["),
     skillLabels: extractConst(roomDataSource, "SKILL_LABELS", "{"),

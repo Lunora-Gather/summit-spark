@@ -39,6 +39,12 @@
     "finale",
     "finale"
   ],
+  "chapterSurfaceKinds": [
+    "gate-slate",
+    "old-peak",
+    "wind-cut",
+    "star-etched"
+  ],
   "roomLandmarks": [
     {
       "kind": "gate-steps",

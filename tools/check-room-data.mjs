@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import {
   CHAPTER_EXPERIENCE,
+  CHAPTER_SURFACE_KINDS,
   EXPERT_REQUIREMENTS,
   EXPERT_REQUIREMENT_LABELS,
   MECHANIC_FIRST_TOUCH_CUES,
@@ -57,6 +58,8 @@ maps.forEach((room) => {
   room.forEach((row) => assert.equal(row.length, 30, "every room row should have 30 columns"));
 });
 assert.equal(CHAPTER_EXPERIENCE.length, 4, "chapter copy should cover four acts");
+assert.deepEqual(CHAPTER_SURFACE_KINDS, ["gate-slate", "old-peak", "wind-cut", "star-etched"], "four acts should own distinct platform materials");
+assert.equal(new Set(CHAPTER_SURFACE_KINDS).size, CHAPTER_EXPERIENCE.length, "chapter platform materials should remain distinct");
 CHAPTER_EXPERIENCE.forEach((chapter, index) => {
   for (const field of ["title", "vow", "focus", "resolve"]) {
     assert.equal(typeof chapter[field], "string", `chapter ${index + 1} should include ${field}`);
@@ -82,6 +85,7 @@ ROOM_LANDMARKS.forEach((landmark, index) => {
   assert.ok(landmark.scale > 0.5 && landmark.scale < 1.5, `room ${index + 1} landmark scale should stay restrained`);
 });
 assertDeepFrozen(CHAPTER_EXPERIENCE, "chapter experience");
+assertDeepFrozen(CHAPTER_SURFACE_KINDS, "chapter surface kinds");
 assertDeepFrozen(SKILL_LABELS, "skill labels");
 assertDeepFrozen(EXPERT_REQUIREMENT_LABELS, "expert labels");
 assertDeepFrozen(MECHANIC_FIRST_TOUCH_CUES, "mechanic first-touch cues");

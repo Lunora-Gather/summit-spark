@@ -15,6 +15,13 @@ export const CHAPTER_EXPERIENCE = [
     { title: "第四幕 · 星顶", vow: "把此前学会的一切，带到山顶。", focus: "回声 · 超载 · 连续段", resolve: "所有微光，都抵达了山顶。" }
   ];
 
+export const CHAPTER_SURFACE_KINDS = [
+  "gate-slate",
+  "old-peak",
+  "wind-cut",
+  "star-etched"
+];
+
 export const ROOM_WHISPERS = [
     "先迈出第一步，山会回应。",
     "让微光接住你的速度。",
@@ -395,6 +402,7 @@ function deepFreeze(value) {
   ROOM_TIERS,
   ROOM_CHAPTER_LABELS,
   CHAPTER_EXPERIENCE,
+  CHAPTER_SURFACE_KINDS,
   ROOM_WHISPERS,
   ROOM_SKILLS,
   SKILL_LABELS,

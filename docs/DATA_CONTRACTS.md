@@ -2,7 +2,7 @@
 
 ## 当前数据源
 
-浏览器运行时的房间地图、目标、章节文案、技能标签、路线说明、氛围色和 Style/Expert 合同统一位于 `public/modules/game/room-data.mjs`，导出后递归冻结。Route contracts 和 Feel fixtures 仍位于 `public/summit-spark.js`，因为它们与训练状态机共同演进。
+浏览器运行时的房间地图、目标、章节文案、技能标签、路线说明、氛围色、章节岩台材质和 Style/Expert 合同统一位于 `public/modules/game/room-data.mjs`，导出后递归冻结。Route contracts 和 Feel fixtures 仍位于 `public/summit-spark.js`，因为它们与训练状态机共同演进。
 
 `data/rooms.generated.json` 是由 `tools/export-room-data.js` 生成的验证快照。自动检查优先读取快照，同时用导出检查确认它没有落后于运行时源。
 
@@ -11,6 +11,7 @@
 - 房间数量固定为 10，所有房间级数组长度一致。
 - 每张地图固定 30×17，并具有有效出生点、出口和边界缺口。
 - 每房都有目标时间、名称、技能标签、目的以及 safe/fast/expert 三条路线。
+- 四幕各自拥有唯一且受支持的岩台材质 key；材质只改变缓存贴图，不改变地图与碰撞。
 - Style 合同只能引用已知技术 key，并具有目标、时间比例和 clean 条件。
 - Expert 条件必须与房间机制一致。
 - Route contract 只能引用有效房间和 Drill 模式。

@@ -28,6 +28,7 @@
     },
     {
       CHAPTER_EXPERIENCE,
+      CHAPTER_SURFACE_KINDS,
       EXPERT_REQUIREMENTS,
       EXPERT_REQUIREMENT_LABELS,
       maps,
@@ -131,13 +132,13 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p200"),
-    import("./modules/core/math.mjs?v=20260729-p200"),
-    import("./modules/game/room-data.mjs?v=20260729-p200"),
-    import("./modules/systems/storage.mjs?v=20260729-p200"),
-    import("./modules/systems/input.mjs?v=20260729-p200"),
-    import("./modules/training/state.mjs?v=20260729-p200"),
-    import("./modules/ui/presentation.mjs?v=20260729-p200")
+    import("./modules/core/format.mjs?v=20260729-p201"),
+    import("./modules/core/math.mjs?v=20260729-p201"),
+    import("./modules/game/room-data.mjs?v=20260729-p201"),
+    import("./modules/systems/storage.mjs?v=20260729-p201"),
+    import("./modules/systems/input.mjs?v=20260729-p201"),
+    import("./modules/training/state.mjs?v=20260729-p201"),
+    import("./modules/ui/presentation.mjs?v=20260729-p201")
   ]);
 
   const canvas = document.getElementById("game");
@@ -9431,9 +9432,10 @@
     return { sprite, spriteCtx, scale };
   }
 
-  function rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, alternateCrack) {
+  function rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, alternateCrack, surfaceKind) {
     const scale = canvasBufferScale();
-    const key = `${scale}:${Number(leftSolid)}${Number(rightSolid)}${Number(belowSolid)}${Number(topOpen)}${Number(alternateCrack)}`;
+    const material = CHAPTER_SURFACE_KINDS.includes(surfaceKind) ? surfaceKind : CHAPTER_SURFACE_KINDS[0];
+    const key = `${scale}:${material}:${Number(leftSolid)}${Number(rightSolid)}${Number(belowSolid)}${Number(topOpen)}${Number(alternateCrack)}`;
     if (cachedRockTiles.has(key)) return cachedRockTiles.get(key);
     const { sprite, spriteCtx } = createTileSpriteSurface();
     spriteCtx.fillStyle = "#2b4054";
@@ -9456,10 +9458,47 @@
       spriteCtx.fillStyle = "rgba(10, 18, 29, 0.16)";
       spriteCtx.fillRect(0, TILE - 3, TILE, 3);
     }
-    spriteCtx.strokeStyle = "rgba(220,235,239,0.12)";
+    spriteCtx.strokeStyle = material === "old-peak"
+      ? "rgba(238,207,157,0.12)"
+      : material === "wind-cut"
+        ? "rgba(196,232,225,0.13)"
+        : material === "star-etched"
+          ? "rgba(237,202,218,0.14)"
+          : "rgba(220,235,239,0.12)";
     spriteCtx.lineWidth = 1;
     spriteCtx.beginPath();
-    if (!alternateCrack) {
+    if (material === "old-peak") {
+      if (!alternateCrack) {
+        spriteCtx.moveTo(5, 10);
+        spriteCtx.lineTo(18, 10);
+        spriteCtx.lineTo(23, 15);
+        spriteCtx.lineTo(28, 15);
+      } else {
+        spriteCtx.moveTo(4, 21);
+        spriteCtx.lineTo(11, 15);
+        spriteCtx.lineTo(25, 15);
+      }
+    } else if (material === "wind-cut") {
+      const drift = alternateCrack ? 4 : 0;
+      spriteCtx.moveTo(3 + drift, 19);
+      spriteCtx.lineTo(15 + drift, 12);
+      spriteCtx.moveTo(10 - drift, 26);
+      spriteCtx.lineTo(25 - drift, 17);
+      spriteCtx.moveTo(18, 9);
+      spriteCtx.lineTo(29, 4);
+    } else if (material === "star-etched") {
+      spriteCtx.moveTo(16, 7);
+      spriteCtx.lineTo(24, 15);
+      spriteCtx.lineTo(16, 23);
+      spriteCtx.lineTo(8, 15);
+      spriteCtx.closePath();
+      if (alternateCrack) {
+        spriteCtx.moveTo(3, 25);
+        spriteCtx.lineTo(9, 20);
+        spriteCtx.moveTo(23, 9);
+        spriteCtx.lineTo(29, 4);
+      }
+    } else if (!alternateCrack) {
       spriteCtx.moveTo(5, 8);
       spriteCtx.lineTo(22, 4);
       spriteCtx.lineTo(28, 21);
@@ -9469,12 +9508,31 @@
       spriteCtx.lineTo(29, 14);
     }
     spriteCtx.stroke();
+    if (material === "old-peak") {
+      spriteCtx.fillStyle = "rgba(238,207,157,0.12)";
+      spriteCtx.fillRect(alternateCrack ? 25 : 6, alternateCrack ? 7 : 22, 2, 2);
+    } else if (material === "star-etched") {
+      spriteCtx.fillStyle = "rgba(247,198,93,0.16)";
+      spriteCtx.fillRect(alternateCrack ? 5 : 26, alternateCrack ? 6 : 24, 2, 2);
+    }
     if (topOpen) {
       const snowInsetLeft = leftSolid ? 0 : 1;
       const snowInsetRight = rightSolid ? 0 : 1;
-      spriteCtx.fillStyle = palette.snow;
+      spriteCtx.fillStyle = material === "old-peak"
+        ? "#edf0e7"
+        : material === "wind-cut"
+          ? "#e8f4f2"
+          : material === "star-etched"
+            ? "#f1e8ef"
+            : palette.snow;
       spriteCtx.fillRect(snowInsetLeft, 0, TILE - snowInsetLeft - snowInsetRight, 5);
-      spriteCtx.fillStyle = "rgba(119,196,215,0.36)";
+      spriteCtx.fillStyle = material === "old-peak"
+        ? "rgba(225,172,110,0.32)"
+        : material === "wind-cut"
+          ? "rgba(133,211,197,0.34)"
+          : material === "star-etched"
+            ? "rgba(230,174,203,0.34)"
+            : "rgba(119,196,215,0.36)";
       spriteCtx.fillRect(snowInsetLeft, 5, TILE - snowInsetLeft - snowInsetRight, 2);
     }
     cachedRockTiles.set(key, sprite);
@@ -9486,7 +9544,8 @@
     const rightSolid = SOLID.has(room.tiles[gy]?.[gx + 1]);
     const belowSolid = SOLID.has(room.tiles[gy + 1]?.[gx]);
     const topOpen = gy > 0 && !SOLID.has(room.tiles[gy - 1]?.[gx]);
-    const sprite = rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, (gx + gy) % 2 !== 0);
+    const surfaceKind = CHAPTER_SURFACE_KINDS[chapterIndexForRoom(roomIndex)] || CHAPTER_SURFACE_KINDS[0];
+    const sprite = rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, (gx + gy) % 2 !== 0, surfaceKind);
     ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE);
   }
 

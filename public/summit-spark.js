@@ -28,11 +28,13 @@
     },
     {
       CHAPTER_EXPERIENCE,
+      CHAPTER_START_ROOMS,
       CHAPTER_SURFACE_KINDS,
       EXPERT_REQUIREMENTS,
       EXPERT_REQUIREMENT_LABELS,
       maps,
       ROOM_ATMOSPHERES,
+      ROOM_CHAPTER_INDEXES,
       ROOM_CHAPTER_LABELS,
       ROOM_GUIDES,
       ROOM_LANDMARKS,
@@ -152,16 +154,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p229"),
-    import("./modules/core/math.mjs?v=20260729-p229"),
-    import("./modules/game/room-data.mjs?v=20260729-p229"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p229"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p229"),
-    import("./modules/systems/storage.mjs?v=20260729-p229"),
-    import("./modules/systems/input.mjs?v=20260729-p229"),
-    import("./modules/training/state.mjs?v=20260729-p229"),
-    import("./modules/training/replay.mjs?v=20260729-p229"),
-    import("./modules/ui/presentation.mjs?v=20260729-p229")
+    import("./modules/core/format.mjs?v=20260729-p230"),
+    import("./modules/core/math.mjs?v=20260729-p230"),
+    import("./modules/game/room-data.mjs?v=20260729-p230"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p230"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p230"),
+    import("./modules/systems/storage.mjs?v=20260729-p230"),
+    import("./modules/systems/input.mjs?v=20260729-p230"),
+    import("./modules/training/state.mjs?v=20260729-p230"),
+    import("./modules/training/replay.mjs?v=20260729-p230"),
+    import("./modules/ui/presentation.mjs?v=20260729-p230")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1552,12 +1554,13 @@
 
   function begin() {
     started = true;
+    roomIntroTimer = ROOM_INTRO_TIME;
     clearTransientTrainingResults();
     unlockAudio();
     overlay.classList.add("hidden");
     settingsVisible = false;
     syncSettingsVisibility();
-    setGameStatus("游戏开始");
+    setGameStatus(`游戏开始 · ${CHAPTER_EXPERIENCE[0]?.title || "第一幕"}：${CHAPTER_EXPERIENCE[0]?.vow || "继续向上。"}`);
     focusGame();
   }
 
@@ -2878,7 +2881,8 @@
   }
 
   function chapterIndexForRoom(index) {
-    return index < 3 ? 0 : index < 6 ? 1 : index < 8 ? 2 : 3;
+    const chapter = ROOM_CHAPTER_INDEXES[index];
+    return Number.isInteger(chapter) && chapter >= 0 && chapter < CHAPTER_EXPERIENCE.length ? chapter : 0;
   }
 
   function beginChapterEntry(room, fromChapter = -1) {
@@ -7977,10 +7981,15 @@
     ctx.fillText(`R${roomIndex + 1} ${ROOM_NAMES[roomIndex] || "Summit"}`, W / 2, y + 13);
     ctx.fillStyle = "rgba(50, 75, 80, 0.76)";
     ctx.font = `600 ${introCompact ? 10.5 : 10}px system-ui, sans-serif`;
+    const openingChapter = CHAPTER_START_ROOMS[0] === roomIndex
+      ? CHAPTER_EXPERIENCE[chapterIndexForRoom(roomIndex)]
+      : null;
     const subline = trainingActive
       ? `${ROOM_CHAPTER_LABELS[roomIndex] || "山巅"} · 目标 ${formatTime(introTarget)}`
-      : ROOM_WHISPERS[roomIndex] || "继续向上。";
-    ctx.fillText(subline, W / 2, y + 27);
+      : openingChapter
+        ? `${openingChapter.title} · ${openingChapter.vow}`
+        : ROOM_WHISPERS[roomIndex] || "继续向上。";
+    ctx.fillText(fitText(subline, width - 18), W / 2, y + 27);
     ctx.restore();
   }
 

@@ -587,6 +587,15 @@ if (!js.includes("function updateAmbientMusic(")
   || !audioCuesModule.includes("export function chapterEntryCueData(")
   || !audioCuesModule.includes("export function summitCueData(")) errors.push("chapter audio identities and transition cadence are missing");
 if (!js.includes("ROOM_WHISPERS") || !js.includes('const hairColor = "#294657"') || js.includes("function drawPlayerRibbon(")) errors.push("classic fixed-hair climber or room atmosphere copy is missing");
+if (!roomData.includes("export const ROOM_CHAPTER_INDEXES = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3];")
+  || !roomData.includes("export const CHAPTER_START_ROOMS = [0, 3, 6, 8];")
+  || !js.includes("const chapter = ROOM_CHAPTER_INDEXES[index];")
+  || !js.includes("started = true;\n    roomIntroTimer = ROOM_INTRO_TIME;\n    clearTransientTrainingResults();")
+  || !js.includes("CHAPTER_START_ROOMS[0] === roomIndex")
+  || !js.includes("`${openingChapter.title} · ${openingChapter.vow}`")
+  || !js.includes("fitText(subline, width - 18)")) {
+  errors.push("chapter ownership and the non-blocking first-act opening must stay canonical and visible");
+}
 if (!js.includes("CHAPTER_EXPERIENCE") || !js.includes("function beginChapterTransition(") || !js.includes("function drawChapterTransition(") || !js.includes("chapterEntry: true")) errors.push("chapter boundaries and direct chapter practice need a paced in-canvas transition");
 if (!js.includes("function chapterTransitionResultText(") || !js.includes("chapterTransitionFromResult") || !js.includes("result.visited}/${result.roomCount} 房")) errors.push("chapter closure should reuse current-run time, mistake and partial-coverage evidence");
 if (!js.includes("function drawChapterWeather(") || !js.includes("chapterIndexForRoom(roomIndex)")) errors.push("each chapter needs a distinct environmental motion language");

@@ -8,6 +8,10 @@ export const ROOM_TIERS = ["learn", "learn", "learn", "combine", "combine", "com
 
 export const ROOM_CHAPTER_LABELS = ["I · 山门", "I · 山门", "I · 山门", "II · 旧峰", "II · 旧峰", "II · 旧峰", "III · 风峡", "III · 风峡", "IV · 星顶", "IV · 星顶"];
 
+export const ROOM_CHAPTER_INDEXES = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3];
+
+export const CHAPTER_START_ROOMS = [0, 3, 6, 8];
+
 export const CHAPTER_EXPERIENCE = [
     { title: "第一幕 · 山门", vow: "先读懂落点，再相信速度。", focus: "起跳 · 冲刺 · 回收", resolve: "山门的落点，已经成为本能。" },
     { title: "第二幕 · 旧峰", vow: "旧路断开后，把微光连成新路。", focus: "光继 · 折返 · 恢复", resolve: "断开的旧路，被你重新连起。" },
@@ -401,6 +405,8 @@ function deepFreeze(value) {
   ROOM_NAMES,
   ROOM_TIERS,
   ROOM_CHAPTER_LABELS,
+  ROOM_CHAPTER_INDEXES,
+  CHAPTER_START_ROOMS,
   CHAPTER_EXPERIENCE,
   CHAPTER_SURFACE_KINDS,
   ROOM_WHISPERS,

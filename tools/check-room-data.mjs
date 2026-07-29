@@ -4,12 +4,14 @@
 import assert from "node:assert/strict";
 import {
   CHAPTER_EXPERIENCE,
+  CHAPTER_START_ROOMS,
   CHAPTER_SURFACE_KINDS,
   EXPERT_REQUIREMENTS,
   EXPERT_REQUIREMENT_LABELS,
   MECHANIC_FIRST_TOUCH_CUES,
   maps,
   ROOM_ATMOSPHERES,
+  ROOM_CHAPTER_INDEXES,
   ROOM_CHAPTER_LABELS,
   ROOM_GUIDES,
   ROOM_LANDMARKS,
@@ -29,6 +31,7 @@ const roomCollections = [
   ROOM_TARGETS,
   ROOM_NAMES,
   ROOM_TIERS,
+  ROOM_CHAPTER_INDEXES,
   ROOM_CHAPTER_LABELS,
   ROOM_WHISPERS,
   ROOM_SKILLS,
@@ -69,6 +72,13 @@ maps.forEach((room, index) => {
   assert.equal(room[entryAnchors[0].y + 1]?.[entryAnchors[0].x], "#", `room ${index + 1} entry should have stable support`);
 });
 assert.equal(CHAPTER_EXPERIENCE.length, 4, "chapter copy should cover four acts");
+assert.deepEqual(ROOM_CHAPTER_INDEXES, [0, 0, 0, 1, 1, 1, 2, 2, 3, 3], "each room should own one canonical chapter index");
+assert.deepEqual(CHAPTER_START_ROOMS, [0, 3, 6, 8], "four acts should expose their canonical opening rooms");
+assert.equal(CHAPTER_START_ROOMS.length, CHAPTER_EXPERIENCE.length, "every act should own one opening room");
+CHAPTER_START_ROOMS.forEach((room, chapter) => {
+  assert.equal(ROOM_CHAPTER_INDEXES[room], chapter, `chapter ${chapter + 1} should begin at its declared room`);
+  assert.match(ROOM_CHAPTER_LABELS[room], new RegExp(`^${["I", "II", "III", "IV"][chapter]} · `), `chapter ${chapter + 1} opening label should stay aligned`);
+});
 assert.deepEqual(CHAPTER_SURFACE_KINDS, ["gate-slate", "old-peak", "wind-cut", "star-etched"], "four acts should own distinct platform materials");
 assert.equal(new Set(CHAPTER_SURFACE_KINDS).size, CHAPTER_EXPERIENCE.length, "chapter platform materials should remain distinct");
 CHAPTER_EXPERIENCE.forEach((chapter, index) => {
@@ -96,6 +106,7 @@ ROOM_LANDMARKS.forEach((landmark, index) => {
   assert.ok(landmark.scale > 0.5 && landmark.scale < 1.5, `room ${index + 1} landmark scale should stay restrained`);
 });
 assertDeepFrozen(CHAPTER_EXPERIENCE, "chapter experience");
+assertDeepFrozen(CHAPTER_START_ROOMS, "chapter start rooms");
 assertDeepFrozen(CHAPTER_SURFACE_KINDS, "chapter surface kinds");
 assertDeepFrozen(SKILL_LABELS, "skill labels");
 assertDeepFrozen(EXPERT_REQUIREMENT_LABELS, "expert labels");

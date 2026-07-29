@@ -165,6 +165,12 @@ if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
   || !roomDataSource.includes("].forEach(deepFreeze);")) {
   fail("public runtime must consume the versioned immutable room data and landmark module");
 }
+if (!roomDataSource.includes('resolve: "断开的旧路，被你重新连起。"')
+  || !runtimeSource.includes("let chapterTransitionFromChapter = -1")
+  || !runtimeSource.includes("drawChapterTransitionCopy({")
+  || !runtimeSource.includes('focus: "章节收束"')) {
+  fail("chapter transitions must close the previous act before presenting the next act");
+}
 for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_REQUIREMENTS", "maps", "ROOM_ATMOSPHERES", "ROOM_LANDMARKS"]) {
   if (new RegExp(`\\bconst\\s+${name}\\s*=`).test(runtimeSource)) {
     fail(`public runtime must not duplicate room-data ownership for ${name}`);

@@ -55,6 +55,12 @@ maps.forEach((room) => {
   room.forEach((row) => assert.equal(row.length, 30, "every room row should have 30 columns"));
 });
 assert.equal(CHAPTER_EXPERIENCE.length, 4, "chapter copy should cover four acts");
+CHAPTER_EXPERIENCE.forEach((chapter, index) => {
+  for (const field of ["title", "vow", "focus", "resolve"]) {
+    assert.equal(typeof chapter[field], "string", `chapter ${index + 1} should include ${field}`);
+    assert.ok(chapter[field].length > 0, `chapter ${index + 1} ${field} should be non-empty`);
+  }
+});
 assert.ok(Object.isFrozen(CHAPTER_EXPERIENCE[0]), "nested chapter records should be read-only");
 assert.ok(Object.isFrozen(ROOM_STYLE_TRIALS[0].tech), "nested trial requirements should be read-only");
 assert.ok(Object.isFrozen(SKILL_LABELS), "skill labels should be read-only");

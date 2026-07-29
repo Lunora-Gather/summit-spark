@@ -124,12 +124,12 @@
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p195"),
-    import("./modules/core/math.mjs?v=20260729-p195"),
-    import("./modules/game/room-data.mjs?v=20260729-p195"),
-    import("./modules/systems/storage.mjs?v=20260729-p195"),
-    import("./modules/systems/input.mjs?v=20260729-p195"),
-    import("./modules/training/state.mjs?v=20260729-p195")
+    import("./modules/core/format.mjs?v=20260729-p196"),
+    import("./modules/core/math.mjs?v=20260729-p196"),
+    import("./modules/game/room-data.mjs?v=20260729-p196"),
+    import("./modules/systems/storage.mjs?v=20260729-p196"),
+    import("./modules/systems/input.mjs?v=20260729-p196"),
+    import("./modules/training/state.mjs?v=20260729-p196")
   ]);
 
   const canvas = document.getElementById("game");
@@ -730,6 +730,7 @@
   let roomIntroTimer = ROOM_INTRO_TIME;
   let chapterTransitionTimer = 0;
   let chapterTransitionChapter = 0;
+  let chapterTransitionFromChapter = -1;
   let activeDrill = null;
   let activeChallenge = null;
   let activeRouteContract = null;
@@ -1836,6 +1837,7 @@
     runTime = 0;
     roomTime = 0;
     chapterTransitionTimer = 0;
+    chapterTransitionFromChapter = -1;
     timingArmed = false;
     timingInputReady = false;
     won = false;
@@ -1901,6 +1903,7 @@
     runTime = 0;
     roomTime = 0;
     chapterTransitionTimer = 0;
+    chapterTransitionFromChapter = -1;
     timingArmed = false;
     timingInputReady = false;
     won = false;
@@ -2940,9 +2943,14 @@
     return index < 3 ? 0 : index < 6 ? 1 : index < 8 ? 2 : 3;
   }
 
-  function beginChapterEntry(room) {
+  function beginChapterEntry(room, fromChapter = -1) {
     chapterTransitionChapter = chapterIndexForRoom(room);
-    chapterTransitionTimer = prefersReducedMotion ? 0.9 : CHAPTER_TRANSITION_TIME;
+    chapterTransitionFromChapter = Number.isInteger(fromChapter) && fromChapter !== chapterTransitionChapter
+      ? fromChapter
+      : -1;
+    chapterTransitionTimer = prefersReducedMotion
+      ? chapterTransitionFromChapter >= 0 ? 1.2 : 0.9
+      : CHAPTER_TRANSITION_TIME;
     ambientNextTime = audioContext?.currentTime || 0;
     playSound("clear", 0.72);
   }
@@ -2951,7 +2959,7 @@
     const fromChapter = chapterIndexForRoom(fromRoom);
     const toChapter = chapterIndexForRoom(toRoom);
     if (toChapter === fromChapter) return;
-    beginChapterEntry(toRoom);
+    beginChapterEntry(toRoom, fromChapter);
   }
 
   function resolveRoomTransition() {
@@ -8076,7 +8084,12 @@
   function drawChapterTransition(time) {
     if (chapterTransitionTimer <= 0 || !started || won) return;
     const chapter = CHAPTER_EXPERIENCE[chapterTransitionChapter] || CHAPTER_EXPERIENCE[0];
-    const duration = prefersReducedMotion ? 0.9 : CHAPTER_TRANSITION_TIME;
+    const previousChapter = chapterTransitionFromChapter >= 0
+      ? CHAPTER_EXPERIENCE[chapterTransitionFromChapter] || null
+      : null;
+    const duration = prefersReducedMotion
+      ? previousChapter ? 1.2 : 0.9
+      : CHAPTER_TRANSITION_TIME;
     const progress = 1 - chapterTransitionTimer / duration;
     const alpha = Math.max(0, Math.min(1, progress * 10, (1 - progress) * 7));
     const atmosphere = roomAtmosphere();
@@ -8095,27 +8108,63 @@
     band.addColorStop(1, "rgba(20, 29, 43, 0)");
     ctx.fillStyle = band;
     ctx.fillRect(0, centerY - 68, W, 136);
-    ctx.globalAlpha = alpha;
     const lineWidth = compact ? 230 : 310;
     const line = ctx.createLinearGradient(W / 2 - lineWidth / 2, 0, W / 2 + lineWidth / 2, 0);
     line.addColorStop(0, `${atmosphere.rim}00`);
     line.addColorStop(0.5, `${atmosphere.rim}d8`);
     line.addColorStop(1, `${atmosphere.rim}00`);
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = line;
     ctx.fillRect(W / 2 - lineWidth / 2, centerY - 39, lineWidth, 1.5);
+    const previousAlpha = previousChapter
+      ? alpha * Math.max(0, Math.min(1, (0.58 - progress) * 7))
+      : 0;
+    const nextAlpha = previousChapter
+      ? alpha * Math.max(0, Math.min(1, (progress - 0.34) * 7))
+      : alpha;
+    if (previousAlpha > 0.01) {
+      drawChapterTransitionCopy({
+        title: `${previousChapter.title} · 已越`,
+        detail: previousChapter.resolve,
+        focus: "章节收束",
+        alpha: previousAlpha,
+        centerY,
+        drift: -drift * 0.35,
+        compact,
+        atmosphere
+      });
+    }
+    if (nextAlpha > 0.01) {
+      drawChapterTransitionCopy({
+        title: chapter.title,
+        detail: chapter.vow,
+        focus: chapter.focus,
+        alpha: nextAlpha,
+        centerY,
+        drift,
+        compact,
+        atmosphere
+      });
+    }
+    ctx.restore();
+  }
+
+  function drawChapterTransitionCopy({ title, detail, focus, alpha, centerY, drift, compact, atmosphere }) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(248, 247, 239, 0.96)";
     ctx.font = `700 ${compact ? 21 : 25}px system-ui, sans-serif`;
-    ctx.fillText(chapter.title, W / 2, centerY - 12 + drift);
+    ctx.fillText(title, W / 2, centerY - 12 + drift);
     ctx.fillStyle = "rgba(240, 245, 239, 0.82)";
     ctx.font = `600 ${compact ? 11 : 12}px system-ui, sans-serif`;
-    ctx.fillText(chapter.vow, W / 2, centerY + 17 + drift * 0.5);
+    ctx.fillText(detail, W / 2, centerY + 17 + drift * 0.5);
     ctx.fillStyle = `${atmosphere.rim}d8`;
     ctx.font = `700 ${compact ? 9 : 10}px system-ui, sans-serif`;
     ctx.letterSpacing = "0.12em";
-    ctx.fillText(chapter.focus, W / 2, centerY + 39);
+    ctx.fillText(focus, W / 2, centerY + 39);
     ctx.restore();
   }
 

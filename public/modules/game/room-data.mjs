@@ -9,10 +9,10 @@ export const ROOM_TIERS = ["learn", "learn", "learn", "combine", "combine", "com
 export const ROOM_CHAPTER_LABELS = ["I · 山门", "I · 山门", "I · 山门", "II · 旧峰", "II · 旧峰", "II · 旧峰", "III · 风峡", "III · 风峡", "IV · 星顶", "IV · 星顶"];
 
 export const CHAPTER_EXPERIENCE = [
-    { title: "第一幕 · 山门", vow: "先读懂落点，再相信速度。", focus: "起跳 · 冲刺 · 回收" },
-    { title: "第二幕 · 旧峰", vow: "旧路断开后，把微光连成新路。", focus: "光继 · 折返 · 恢复" },
-    { title: "第三幕 · 风峡", vow: "风会改变路线，不会替你判断。", focus: "风升 · 碎冰 · 落点" },
-    { title: "第四幕 · 星顶", vow: "把此前学会的一切，带到山顶。", focus: "回声 · 超载 · 连续段" }
+    { title: "第一幕 · 山门", vow: "先读懂落点，再相信速度。", focus: "起跳 · 冲刺 · 回收", resolve: "山门的落点，已经成为本能。" },
+    { title: "第二幕 · 旧峰", vow: "旧路断开后，把微光连成新路。", focus: "光继 · 折返 · 恢复", resolve: "断开的旧路，被你重新连起。" },
+    { title: "第三幕 · 风峡", vow: "风会改变路线，不会替你判断。", focus: "风升 · 碎冰 · 落点", resolve: "你借过风，也守住了判断。" },
+    { title: "第四幕 · 星顶", vow: "把此前学会的一切，带到山顶。", focus: "回声 · 超载 · 连续段", resolve: "所有微光，都抵达了山顶。" }
   ];
 
 export const ROOM_WHISPERS = [

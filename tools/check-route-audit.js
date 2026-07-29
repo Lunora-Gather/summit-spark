@@ -7,6 +7,7 @@ const { loadRoomDataSnapshot } = require("./lib/read-summit-data");
 
 const root = path.resolve(__dirname, "..");
 const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8");
+const trainingModule = fs.readFileSync(path.join(root, "public", "modules", "training", "state.mjs"), "utf8");
 const snapshot = loadRoomDataSnapshot();
 const errors = [];
 const warnings = [];
@@ -177,7 +178,7 @@ feelFixtures.forEach((fixture) => {
   }
 });
 
-if (!js.includes("TRAINING_TRANSITIONS")) errors.push("training state transitions must stay explicit");
+if (!trainingModule.includes("export const TRAINING_TRANSITIONS = Object.freeze({") || !js.includes("trainingTransitionOptionsData(name, overrides)")) errors.push("training state transitions must stay explicit and module-owned");
 if (!js.includes("gamepadDeadzone")) errors.push("gamepad deadzone setting must stay wired into runtime settings");
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay should keep a direct resume-training action");
 if (!js.includes("SETTINGS_SCHEMA_VERSION") || !js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("storage schema versions should stay explicit");

@@ -315,6 +315,16 @@ for (const match of runtimeSource.matchAll(/^  function\s+([A-Za-z_$][\w$]*)\s*\
   const references = runtimeSource.match(new RegExp(`\\b${name}\\b`, "g"))?.length || 0;
   if (references <= 1) fail(`public runtime function ${name} has no consumer`);
 }
+const importBindingsSource = runtimeSource.slice(
+  runtimeSource.indexOf("  const ["),
+  runtimeSource.indexOf("  ] = await Promise.all")
+);
+for (const match of importBindingsSource.matchAll(/^      ([A-Za-z_$][\w$]*)(?::\s*([A-Za-z_$][\w$]*))?,?$/gm)) {
+  const localName = match[2] || match[1];
+  const escaped = localName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const references = runtimeSource.match(new RegExp(`\\b${escaped}\\b`, "g"))?.length || 0;
+  if (references <= 1) fail(`public runtime import ${localName} has no consumer`);
+}
 const surfaceConsumerSource = `${gameHtml}\n${runtimeSource}`;
 const stylesheetClasses = new Set(
   [...stylesheetSource.matchAll(/\.([A-Za-z_][\w-]*)/g)].map((match) => match[1])

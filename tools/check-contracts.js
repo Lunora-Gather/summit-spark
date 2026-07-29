@@ -568,7 +568,7 @@ if ((maps[2]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match
 if (!js.includes("PROFILE_SCHEMA_VERSION")) errors.push("profile schema version is missing");
 if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("room focus schema version is missing");
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay direct resume helper is missing");
-if (!js.includes("TRAINING_TRANSITIONS")) errors.push("training state transition table is missing");
+if (!trainingModule.includes("export const TRAINING_TRANSITIONS = Object.freeze({") || !js.includes("trainingTransitionOptionsData(name, overrides)")) errors.push("training state transition table must stay owned and consumed through the training module");
 if (!js.includes("syncPlayModeClass")) errors.push("stage play-mode class sync helper is missing");
 if (!js.includes("function createCurrentSaveBackup")
   || !js.includes("[SAVE_BACKUP_KEY, JSON.stringify(backup)]")

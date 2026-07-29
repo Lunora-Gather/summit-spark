@@ -2,6 +2,8 @@
 
 ## 2026-07-29
 
+- Unified keyboard, touch and gamepad held/edge/release handling for `20260729-p188`. Repeated keydown and touch events no longer create duplicate action edges, gamepad device changes are reconciled without replacing state ownership, and blur/visibility/panel transitions now neutralize both touch and gamepad digital state instead of leaving a stale gamepad direction until the next poll. Direct tests cover repeat suppression, release/re-press, per-frame edge clearing, touch transitions, gamepad reconciliation and full focus-release reset. Buffer windows, event ownership, gameplay, rooms, physics, the classic climber and fixed dark-blue hair remain unchanged.
+
 - Extracted the device-independent input mapping slice for `20260729-p187`. Gamepad axes, D-pad/buttons, trigger thresholds, drift diagnostics and edge presses now share `public/modules/systems/input.mjs` with preset/custom binding resolution, platform labels, reserved-key validation and duplicate-key swaps. Direct Node tests cover exact deadzone and trigger boundaries, mixed axis/button input, multi-pad diagnostics, opposing direction cancellation, prototype-named preset rejection, Mac/PC labels and binding swaps. DOM focus isolation, keyboard/touch listeners, jump/dash buffers, gameplay, rooms, physics, the classic climber and fixed dark-blue hair remain unchanged.
 
 ## 2026-07-28

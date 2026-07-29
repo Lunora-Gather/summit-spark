@@ -5,14 +5,22 @@ import assert from "node:assert/strict";
 import {
   defaultBindingsForLayoutData,
   effectiveBindingsData,
+  clearInputEdges,
+  inputHeldAny,
+  inputPressedAny,
   isStartCodeData,
   keyCodeLabelData,
   newlyPressedActions,
+  pressInput,
   presetBindingsForData,
   rebindActionData,
+  releaseInput,
+  releaseInputState,
   resolveGamepadState,
   resolveMovementInput,
   shouldBlockKeyData,
+  syncInputHeld,
+  transitionDigitalInput,
   validBindingCodeData
 } from "../public/modules/systems/input.mjs";
 
@@ -87,6 +95,54 @@ assert.deepEqual(
   newlyPressedActions(new Set(["jump", "grab"]), new Set(["jump", "dash", "recall"])),
   ["dash", "recall"]
 );
+
+const keyboardHeld = new Set();
+const keyboardPressed = new Set();
+assert.equal(pressInput(keyboardHeld, keyboardPressed, "Space"), true);
+assert.equal(pressInput(keyboardHeld, keyboardPressed, "Space"), false, "key repeat must not create another edge");
+assert.equal(inputHeldAny(keyboardHeld, ["KeyX", "Space"]), true);
+assert.equal(inputPressedAny(keyboardPressed, ["Space"]), true);
+clearInputEdges(keyboardPressed);
+assert.equal(inputPressedAny(keyboardPressed, ["Space"]), false);
+assert.equal(inputHeldAny(keyboardHeld, ["Space"]), true, "frame edge clearing must preserve held state");
+assert.equal(releaseInput(keyboardHeld, "Space"), true);
+assert.equal(releaseInput(keyboardHeld, "Space"), false);
+assert.equal(pressInput(keyboardHeld, keyboardPressed, "Space"), true, "release must allow a fresh edge");
+
+const touchInput = { jump: false, dash: false };
+const touchEdges = new Set();
+assert.deepEqual(transitionDigitalInput(touchInput, touchEdges, "jump", true), {
+  pressed: true,
+  released: false
+});
+assert.deepEqual(transitionDigitalInput(touchInput, touchEdges, "jump", true), {
+  pressed: false,
+  released: false
+});
+assert.deepEqual(transitionDigitalInput(touchInput, touchEdges, "jump", false), {
+  pressed: false,
+  released: true
+});
+
+const gamepadHeld = new Set(["jump", "grab"]);
+const gamepadEdges = new Set();
+assert.deepEqual(syncInputHeld(gamepadHeld, gamepadEdges, ["jump", "dash"]), ["dash"]);
+assert.deepEqual(Array.from(gamepadHeld), ["jump", "dash"]);
+assert.deepEqual(Array.from(gamepadEdges), ["dash"]);
+assert.deepEqual(syncInputHeld(gamepadHeld, gamepadEdges, ["jump", "dash"]), []);
+
+releaseInputState({
+  heldSets: [keyboardHeld, gamepadHeld],
+  pressedSets: [keyboardPressed, touchEdges, gamepadEdges],
+  digitalStates: [touchInput]
+});
+assert.equal(keyboardHeld.size, 0);
+assert.equal(gamepadHeld.size, 0);
+assert.equal(keyboardPressed.size, 0);
+assert.equal(touchEdges.size, 0);
+assert.equal(gamepadEdges.size, 0);
+assert.deepEqual(touchInput, { jump: false, dash: false }, "focus release must neutralize digital device state");
+
 assert.deepEqual(resolveMovementInput({
   left: true,
   right: true,
@@ -158,4 +214,4 @@ assert.equal(isStartCodeData("Enter", {}), true);
 assert.equal(isStartCodeData("Space", { jump: "Space" }), true);
 assert.equal(isStartCodeData("KeyQ", { recall: "KeyQ" }), false);
 
-console.log("Input module check passed: gamepad thresholds, drift, movement, presets and rebinding.");
+console.log("Input module check passed: state edges/releases, gamepad thresholds, drift, movement, presets and rebinding.");

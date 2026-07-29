@@ -17,7 +17,7 @@ summit-spark/
 │  │  └─ room-data.mjs      # 递归冻结的地图、章节、路线与氛围内容
 │  ├─ modules/systems/
 │  │  ├─ storage.mjs        # 设置/存档迁移、读修复、档案/备份与事务回滚
-│  │  └─ input.mjs          # 手柄映射、诊断与键位解析/交换
+│  │  └─ input.mjs          # 三类设备状态、手柄映射、诊断与键位规则
 │  └─ vendor/               # 固定版本 Appwrite SDK 与许可证
 ├─ data/
 │  └─ rooms.generated.json # 房间/训练数据验证快照，不参与运行
@@ -65,7 +65,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入事件/缓冲、物理、渲染、训练、存档 UI/云编排和账号逻辑。五个低风险切片已迁出格式、安全文本、数学、只读房间内容、存档规则，以及设备无关的手柄/键位映射，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入事件/缓冲、物理、渲染、训练、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、存档规则，以及三类设备的 held/edge/release 状态与设备无关映射，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
 
 短期修改遵守：
 
@@ -78,9 +78,9 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`systems/storage.mjs` 与 `systems/input.mjs` 的映射切片已完成。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`systems/storage.mjs` 与 `systems/input.mjs` 的设备状态/映射切片已完成。接下来的顺序是：
 
-1. `systems/input.mjs`：继续迁移键盘/触控事件状态和输入缓冲；DOM 焦点编排暂留主运行时。
+1. `systems/input.mjs`：继续迁移跳跃/冲刺缓冲的纯状态计算；DOM 焦点和事件编排暂留主运行时。
 2. `training/`：Drill、Route、Feel 和 Focus 纯状态计算。
 3. `ui/`：面板和 HUD 的 DOM 更新。
 4. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。

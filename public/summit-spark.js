@@ -66,21 +66,28 @@
     {
       defaultBindingsForLayoutData,
       effectiveBindingsData,
+      clearInputEdges,
+      inputHeldAny,
+      inputPressedAny,
       isStartCodeData,
       keyCodeLabelData,
-      newlyPressedActions,
+      pressInput,
       rebindActionData,
+      releaseInput,
+      releaseInputState,
       resolveGamepadState,
       resolveMovementInput,
       shouldBlockKeyData,
+      syncInputHeld,
+      transitionDigitalInput,
       validBindingCodeData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p187"),
-    import("./modules/core/math.mjs?v=20260729-p187"),
-    import("./modules/game/room-data.mjs?v=20260729-p187"),
-    import("./modules/systems/storage.mjs?v=20260729-p187"),
-    import("./modules/systems/input.mjs?v=20260729-p187")
+    import("./modules/core/format.mjs?v=20260729-p188"),
+    import("./modules/core/math.mjs?v=20260729-p188"),
+    import("./modules/game/room-data.mjs?v=20260729-p188"),
+    import("./modules/systems/storage.mjs?v=20260729-p188"),
+    import("./modules/systems/input.mjs?v=20260729-p188")
   ]);
 
   const canvas = document.getElementById("game");
@@ -525,7 +532,7 @@
   const pressed = new Set();
   const touchPressed = new Set();
   const gamepadPressed = new Set();
-  let gamepadHeld = new Set();
+  const gamepadHeld = new Set();
   const gamepadInput = {
     left: false,
     right: false,
@@ -820,12 +827,10 @@
     if (shouldBlockKey(event.code)) {
       event.preventDefault();
     }
-    const firstPress = !keys.has(event.code);
+    const firstPress = pressInput(keys, pressed, event.code);
     if (firstPress) {
-      pressed.add(event.code);
       queueAction(event.code);
     }
-    keys.add(event.code);
     if (event.code === "F3" && firstPress) {
       toggleDebug();
     }
@@ -865,7 +870,7 @@
 
   window.addEventListener("keyup", (event) => {
     if (isSettingsInputTarget(event.target)) return;
-    keys.delete(event.code);
+    releaseInput(keys, event.code);
     if (isActionCode(event.code, "jump")) cutJump();
   });
 
@@ -1000,13 +1005,12 @@
   }
 
   function releaseAllInputs() {
-    keys.clear();
-    pressed.clear();
-    touchPressed.clear();
-    gamepadPressed.clear();
-    gamepadHeld.clear();
+    releaseInputState({
+      heldSets: [keys, gamepadHeld],
+      pressedSets: [pressed, touchPressed, gamepadPressed],
+      digitalStates: [touch, gamepadInput]
+    });
     clearGrabToggle();
-    for (const key of Object.keys(touch)) touch[key] = false;
     document.querySelectorAll("[data-touch]").forEach((button) => button.classList.remove("active"));
     player.jumpBuffer = 0;
     player.dashBuffer = 0;
@@ -1370,16 +1374,14 @@
   document.querySelectorAll("[data-touch]").forEach((button) => {
     const action = button.dataset.touch;
     const set = (value) => {
-      const was = touch[action];
-      touch[action] = value;
+      const transition = transitionDigitalInput(touch, touchPressed, action, value);
       button.classList.toggle("active", value);
-      if (value && !was) {
-        touchPressed.add(action);
+      if (transition.pressed) {
         if (action === "jump") player.jumpBuffer = JUMP_BUFFER_TIME;
         if (action === "dash") player.dashBuffer = DASH_BUFFER_TIME;
         if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
         if (!started) begin();
-      } else if (!value && was && action === "jump") {
+      } else if (transition.released && action === "jump") {
         cutJump();
       }
     };
@@ -1976,9 +1978,7 @@
     }
 
     render(now / 1000);
-    pressed.clear();
-    touchPressed.clear();
-    gamepadPressed.clear();
+    clearInputEdges(pressed, touchPressed, gamepadPressed);
     requestAnimationFrame(frame);
   }
 
@@ -5168,17 +5168,11 @@
   }
 
   function justPressedAny(codes) {
-    for (const code of codes) {
-      if (pressed.has(code)) return true;
-    }
-    return false;
+    return inputPressedAny(pressed, codes);
   }
 
   function keyHeldAny(codes) {
-    for (const code of codes) {
-      if (keys.has(code)) return true;
-    }
-    return false;
+    return inputHeldAny(keys, codes);
   }
 
   function queueAction(code) {
@@ -5206,12 +5200,9 @@
     lastGamepadStatus = resolved.status;
     updateGamepadStatusOutput();
 
-    const nextHeld = new Set(resolved.heldActions);
-    newlyPressedActions(gamepadHeld, nextHeld).forEach((action) => {
-      gamepadPressed.add(action);
+    syncInputHeld(gamepadHeld, gamepadPressed, resolved.heldActions).forEach((action) => {
       if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
     });
-    gamepadHeld = nextHeld;
   }
 
   function updateGamepadStatusOutput() {

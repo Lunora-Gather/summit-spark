@@ -54,6 +54,65 @@ export function newlyPressedActions(previousHeld, nextHeld) {
   return Array.from(nextHeld || []).filter((action) => !previous.has(action));
 }
 
+export function pressInput(held, pressed, value) {
+  const firstPress = !held.has(value);
+  if (firstPress) pressed.add(value);
+  held.add(value);
+  return firstPress;
+}
+
+export function releaseInput(held, value) {
+  const wasHeld = held.has(value);
+  held.delete(value);
+  return wasHeld;
+}
+
+export function inputHeldAny(held, values) {
+  return Array.from(values || []).some((value) => held.has(value));
+}
+
+export function inputPressedAny(pressed, values) {
+  return Array.from(values || []).some((value) => pressed.has(value));
+}
+
+export function transitionDigitalInput(input, pressed, action, value) {
+  const wasHeld = Boolean(input[action]);
+  const isHeld = Boolean(value);
+  input[action] = isHeld;
+  if (isHeld && !wasHeld) pressed.add(action);
+  return {
+    pressed: isHeld && !wasHeld,
+    released: !isHeld && wasHeld
+  };
+}
+
+export function syncInputHeld(held, pressed, nextValues) {
+  const next = nextValues instanceof Set ? nextValues : new Set(nextValues || []);
+  const newlyPressed = newlyPressedActions(held, next);
+  newlyPressed.forEach((value) => pressed.add(value));
+  held.clear();
+  next.forEach((value) => held.add(value));
+  return newlyPressed;
+}
+
+export function clearInputEdges(...pressedSets) {
+  pressedSets.forEach((pressed) => pressed.clear());
+}
+
+export function releaseInputState({
+  heldSets = [],
+  pressedSets = [],
+  digitalStates = []
+} = {}) {
+  heldSets.forEach((held) => held.clear());
+  clearInputEdges(...pressedSets);
+  digitalStates.forEach((input) => {
+    Object.keys(input).forEach((action) => {
+      input[action] = false;
+    });
+  });
+}
+
 export function resolveMovementInput({
   left,
   right,

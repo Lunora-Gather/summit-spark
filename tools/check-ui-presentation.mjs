@@ -7,6 +7,9 @@ import {
   chapterTransitionResultData,
   postRunReviewData,
   rankPracticeLedgerRowsData,
+  runChapterReviewData,
+  runChapterSplitsData,
+  runReportTextData,
   roomSplitFeedbackData,
   roomReviewPriorityData
 } from "../public/modules/ui/presentation.mjs";
@@ -259,4 +262,89 @@ assert.notEqual(rankedRows[0], sourceRows[1], "presentation ranking must not exp
 assert.deepEqual(sourceRows.map((row) => row.index), [0, 1, 2], "presentation ranking must not reorder caller data");
 assert.deepEqual(rankPracticeLedgerRowsData(null), []);
 
-console.log("UI presentation check passed: chapter completion/grades, transition results, room split feedback, post-run evidence and practice priority ranking preserved.");
+const runChapters = runChapterSplitsData({
+  chapterTitles: ["山门", "旧峰", "风峡", "星顶"],
+  chapterIndexes: [0, 0, 1, 2, 2, 3],
+  roomLabels: ["第一幕", "第一幕", "第二幕", "第三幕", "第三幕", "第四幕"],
+  roomTimes: [8, 10, 14, 22, 0, 28],
+  roomMistakes: [0, 1, 2, 1, 9, 0]
+});
+assert.deepEqual(runChapters, [
+  { index: 0, label: "第一幕", seconds: 18, mistakes: 1, visited: 2, rooms: 2 },
+  { index: 1, label: "第二幕", seconds: 14, mistakes: 2, visited: 1, rooms: 1 },
+  { index: 2, label: "第三幕", seconds: 22, mistakes: 10, visited: 1, rooms: 2 },
+  { index: 3, label: "第四幕", seconds: 28, mistakes: 0, visited: 1, rooms: 1 }
+]);
+assert.deepEqual(runChapterSplitsData({
+  chapterTitles: ["一", "二"],
+  chapterIndexes: [undefined, -1, 1.5, 1],
+  roomTimes: [99, 99, 99, 4]
+}), [
+  { index: 0, label: "一", seconds: 0, mistakes: 0, visited: 0, rooms: 0 },
+  { index: 1, label: "二", seconds: 4, mistakes: 0, visited: 1, rooms: 1 }
+], "invalid room-to-chapter mappings must not fabricate Act I evidence");
+
+const runReview = runChapterReviewData({ chapters: runChapters, totalRooms: 6 });
+assert.equal(runReview.visitedRooms, 5);
+assert.equal(runReview.complete, false);
+assert.equal(runReview.slowest?.label, "第四幕");
+assert.notEqual(runReview.slowest, runChapters[3], "review data must not expose a mutable chapter row");
+assert.deepEqual(runChapterReviewData({ chapters: [], totalRooms: 10 }), {
+  chapters: [],
+  visitedRooms: 0,
+  totalRooms: 10,
+  complete: false,
+  slowest: null
+});
+assert.equal(runChapterReviewData({
+  chapters: [
+    { index: 0, label: "先", seconds: 12, visited: 1 },
+    { index: 1, label: "后", seconds: 12, visited: 1 }
+  ],
+  totalRooms: 2
+}).slowest?.label, "先", "equal act times must keep chronological order");
+
+const runReport = runReportTextData({
+  build: "20260729-test",
+  complete: true,
+  visitedRooms: 2,
+  totalRooms: 2,
+  totalTime: "0:18.00",
+  mistakes: 1,
+  flow: 42.9,
+  assistUsed: false,
+  chapters: [
+    { label: "第一幕", time: "0:18.00", mistakes: 1, visited: 2, rooms: 2 }
+  ],
+  rooms: [
+    { index: 0, label: "起势山门", time: "0:08.00", mistakes: 0, visited: true },
+    { index: 1, label: "光继横桥", time: "0:10.00", mistakes: 1, visited: true }
+  ]
+});
+assert.match(runReport, /结果：完整登顶/);
+assert.match(runReport, /总时间：0:18\.00 \/ 失误 1 \/ Flow 42/);
+assert.match(runReport, /第一幕：0:18\.00 \/ 失误 1 \/ 房间 2\/2/);
+assert.match(runReport, /R2 光继横桥：0:10\.00 \/ 失误 1/);
+assert.match(runReport, /不含身份、设备名称、输入历史或路线坐标/);
+const sanitizedReport = runReportTextData({
+  build: "bad\ninjected",
+  complete: true,
+  visitedRooms: 1,
+  totalRooms: 2,
+  chapters: [{ label: "幕\r\n伪造", visited: 0, rooms: 1 }],
+  rooms: [{ index: -4, label: "房\n伪造", visited: false }]
+});
+assert.match(sanitizedReport, /构建：bad injected/);
+assert.match(sanitizedReport, /结果：部分路线 1\/2 房/);
+assert.doesNotMatch(sanitizedReport, /bad\ninjected|幕\r?\n伪造|房\r?\n伪造/);
+assert.ok(runReportTextData({
+  totalRooms: 10,
+  rooms: Array.from({ length: 10 }, (_, index) => ({
+    index,
+    label: "超长房名".repeat(1000),
+    visited: true,
+    time: "0:10.00"
+  }))
+}).length < 4000, "run reports must stay bounded even when display labels are malformed");
+
+console.log("UI presentation check passed: chapter completion/grades, transition results, room split feedback, post-run evidence, run reports and practice priority ranking preserved.");

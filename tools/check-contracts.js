@@ -214,7 +214,15 @@ if (!js.includes("roomPaceLabel")) errors.push("room pace helper is missing");
 if (!js.includes("summitReviewCardsHtml")) errors.push("summit review card helper is missing");
 if (!js.includes("function runChapterSplits(") || !js.includes("function runChapterReview(") || !js.includes('reviewCardHtml("本轮分幕"') || !js.includes("runRoomTimes[roomIndex]")) errors.push("summit review must retain per-room timing and a quiet four-act breakdown");
 if (!js.includes("roomTimes: runRoomTimes.map(") || !js.includes("roomMistakes: roomMistakes.slice()") || !js.includes("chapterSplits: runChapterSplits().map(")) errors.push("diagnostics must expose current-run room and chapter evidence for full-pass tuning");
-if (!js.includes("function buildRunReport(") || !js.includes("function copyRunReport(") || !js.includes("data-copy-run-report") || !js.includes("__summitLastRunReport") || !js.includes("不含身份、设备名称、输入历史或路线坐标")) errors.push("collapsed summit review must provide a bounded privacy-labelled current-run report without uploading it");
+if (!js.includes("function buildRunReport(")
+  || !js.includes("function copyRunReport(")
+  || !js.includes("const text = runReportTextData({")
+  || !js.includes("data-copy-run-report")
+  || !js.includes("__summitLastRunReport")
+  || !uiPresentationModule.includes("export function runReportTextData(")
+  || !uiPresentationModule.includes("不含身份、设备名称、输入历史或路线坐标")) {
+  errors.push("collapsed summit review must provide a bounded privacy-labelled current-run report without uploading it");
+}
 if (!js.includes("function copyTextWithDownloadFallback(") || !js.includes("copyTextWithDownloadFallback(text, filename")) errors.push("text exports should share one clipboard-to-download fallback instead of duplicating browser error handling");
 if (!js.includes("bindFinishReviewActions")) errors.push("finish review drill buttons are missing");
 if (!js.includes("showFinishOverlay") || !js.includes('aria-labelledby", "finishTitle"') || !js.includes('focus({ preventScroll: true })')) errors.push("finish overlay must move focus into a labelled modal review surface");

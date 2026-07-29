@@ -142,20 +142,23 @@
       chapterTransitionResultData,
       postRunReviewData,
       rankPracticeLedgerRowsData,
+      runChapterReviewData,
+      runChapterSplitsData,
+      runReportTextData,
       roomSplitFeedbackData,
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p215"),
-    import("./modules/core/math.mjs?v=20260729-p215"),
-    import("./modules/game/room-data.mjs?v=20260729-p215"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p215"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p215"),
-    import("./modules/systems/storage.mjs?v=20260729-p215"),
-    import("./modules/systems/input.mjs?v=20260729-p215"),
-    import("./modules/training/state.mjs?v=20260729-p215"),
-    import("./modules/training/replay.mjs?v=20260729-p215"),
-    import("./modules/ui/presentation.mjs?v=20260729-p215")
+    import("./modules/core/format.mjs?v=20260729-p216"),
+    import("./modules/core/math.mjs?v=20260729-p216"),
+    import("./modules/game/room-data.mjs?v=20260729-p216"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p216"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p216"),
+    import("./modules/systems/storage.mjs?v=20260729-p216"),
+    import("./modules/systems/input.mjs?v=20260729-p216"),
+    import("./modules/training/state.mjs?v=20260729-p216"),
+    import("./modules/training/replay.mjs?v=20260729-p216"),
+    import("./modules/ui/presentation.mjs?v=20260729-p216")
   ]);
 
   const canvas = document.getElementById("game");
@@ -8069,44 +8072,34 @@
   }
 
   function runChapterSplits() {
-    return CHAPTER_EXPERIENCE.map((chapter, chapterIndex) => {
-      const rooms = maps.map((_, index) => index).filter((index) => chapterIndexForRoom(index) === chapterIndex);
-      const seconds = rooms.reduce((sum, index) => sum + (runRoomTimes[index] || 0), 0);
-      const mistakes = rooms.reduce((sum, index) => sum + (roomMistakes[index] || 0), 0);
-      const visited = rooms.filter((index) => (runRoomTimes[index] || 0) > 0).length;
-      const label = ROOM_CHAPTER_LABELS[rooms[0]] || chapter.title;
-      return {
-        index: chapterIndex,
-        label,
-        seconds,
-        mistakes,
-        visited,
-        rooms: rooms.length
-      };
+    return runChapterSplitsData({
+      chapterTitles: CHAPTER_EXPERIENCE.map((chapter) => chapter.title),
+      chapterIndexes: maps.map((_, index) => chapterIndexForRoom(index)),
+      roomLabels: ROOM_CHAPTER_LABELS,
+      roomTimes: runRoomTimes,
+      roomMistakes
     });
   }
 
   function runChapterReview() {
-    const chapters = runChapterSplits().filter((chapter) => chapter.visited > 0);
-    const visitedRooms = chapters.reduce((sum, chapter) => sum + chapter.visited, 0);
-    if (!chapters.length) {
+    const review = runChapterReviewData({
+      chapters: runChapterSplits(),
+      totalRooms: maps.length
+    });
+    if (!review.chapters.length) {
       return {
         value: "等待完整路线",
         detail: "从 R1 开始后，这里会比较四幕用时与失误。",
         summary: "本轮分幕 无"
       };
     }
-    const slowest = chapters.reduce((candidate, chapter) => (
-      chapter.seconds > candidate.seconds ? chapter : candidate
-    ), chapters[0]);
-    const complete = visitedRooms === maps.length;
-    const detail = chapters
+    const detail = review.chapters
       .map((chapter) => `${chapter.label} ${formatTime(chapter.seconds)} / 失 ${chapter.mistakes}`)
       .join(" · ");
     return {
-      value: complete ? `最慢 ${slowest.label} · ${formatTime(slowest.seconds)}` : `已记录 ${visitedRooms}/${maps.length} 房`,
+      value: review.complete ? `最慢 ${review.slowest.label} · ${formatTime(review.slowest.seconds)}` : `已记录 ${review.visitedRooms}/${review.totalRooms} 房`,
       detail,
-      summary: complete ? `本轮最慢 ${slowest.label} ${formatTime(slowest.seconds)}` : `本轮分幕 ${visitedRooms}/${maps.length} 房`
+      summary: review.complete ? `本轮最慢 ${review.slowest.label} ${formatTime(review.slowest.seconds)}` : `本轮分幕 ${review.visitedRooms}/${review.totalRooms} 房`
     };
   }
 
@@ -8115,27 +8108,27 @@
     const chapters = runChapterSplits();
     const visitedRooms = runRoomTimes.filter((seconds) => seconds > 0).length;
     const complete = won && visitedRooms === maps.length;
-    const chapterLines = chapters.map((chapter) => (
-      `${chapter.label}：${chapter.visited ? formatTime(chapter.seconds) : "—"} / 失误 ${chapter.mistakes} / 房间 ${chapter.visited}/${chapter.rooms}`
-    ));
-    const roomLines = maps.map((_, index) => (
-      `R${index + 1} ${ROOM_NAMES[index] || ""}：${runRoomTimes[index] > 0 ? formatTime(runRoomTimes[index]) : "—"} / 失误 ${roomMistakes[index] || 0}`
-    ));
-    const text = [
-      "山巅微光 · 本轮报告",
-      `构建：${build}`,
-      `结果：${complete ? "完整登顶" : `部分路线 ${visitedRooms}/${maps.length} 房`}`,
-      `总时间：${formatTime(runTime)} / 失误 ${deathCount} / Flow ${Math.floor(flowPeak)}`,
-      `辅助：${runUsedAssist ? "舒缓模式，本轮不计纪录" : "关闭"}`,
-      "",
-      "分幕：",
-      ...chapterLines,
-      "",
-      "分房：",
-      ...roomLines,
-      "",
-      "隐私：仅包含本轮时间、失误、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
-    ].join("\n");
+    const text = runReportTextData({
+      build,
+      complete,
+      visitedRooms,
+      totalRooms: maps.length,
+      totalTime: formatTime(runTime),
+      mistakes: deathCount,
+      flow: flowPeak,
+      assistUsed: runUsedAssist,
+      chapters: chapters.map((chapter) => ({
+        ...chapter,
+        time: chapter.visited ? formatTime(chapter.seconds) : "—"
+      })),
+      rooms: maps.map((_, index) => ({
+        index,
+        label: ROOM_NAMES[index] || "",
+        time: runRoomTimes[index] > 0 ? formatTime(runRoomTimes[index]) : "—",
+        mistakes: roomMistakes[index] || 0,
+        visited: runRoomTimes[index] > 0
+      }))
+    });
     window.__summitLastRunReport = text;
     return text;
   }

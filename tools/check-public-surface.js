@@ -469,7 +469,10 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterTransitionResultData(")
   || !uiPresentationSource.includes("export function roomSplitFeedbackData(")
   || !uiPresentationSource.includes("export function roomReviewPriorityData(")
-  || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")) {
+  || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")
+  || !uiPresentationSource.includes("export function runChapterSplitsData(")
+  || !uiPresentationSource.includes("export function runChapterReviewData(")
+  || !uiPresentationSource.includes("export function runReportTextData(")) {
   fail("public runtime must consume the versioned UI presentation module");
 }
 for (const delegation of [
@@ -477,7 +480,10 @@ for (const delegation of [
   "return chapterTransitionResultData({",
   "const result = roomSplitFeedbackData({",
   "return roomReviewPriorityData({",
-  "return rankPracticeLedgerRowsData(maps.map("
+  "return rankPracticeLedgerRowsData(maps.map(",
+  "return runChapterSplitsData({",
+  "const review = runChapterReviewData({",
+  "const text = runReportTextData({"
 ]) {
   if (!runtimeSource.includes(delegation)) {
     fail(`public runtime must delegate UI presentation ownership through ${delegation}`);

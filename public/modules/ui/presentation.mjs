@@ -177,3 +177,96 @@ export function rankPracticeLedgerRowsData(rows = []) {
     .map((row) => ({ ...row }))
     .sort((a, b) => finiteNumber(b.priority) - finiteNumber(a.priority));
 }
+
+export function runChapterSplitsData(input = {}) {
+  const chapterTitles = Array.isArray(input.chapterTitles) ? input.chapterTitles : [];
+  const chapterIndexes = Array.isArray(input.chapterIndexes) ? input.chapterIndexes : [];
+  const roomLabels = Array.isArray(input.roomLabels) ? input.roomLabels : [];
+  const roomTimes = Array.isArray(input.roomTimes) ? input.roomTimes : [];
+  const roomMistakes = Array.isArray(input.roomMistakes) ? input.roomMistakes : [];
+  const chapterCount = chapterTitles.length;
+  const roomCount = Math.max(chapterIndexes.length, roomLabels.length, roomTimes.length, roomMistakes.length);
+
+  return Array.from({ length: chapterCount }, (_, chapterIndex) => {
+    const rooms = [];
+    for (let roomIndex = 0; roomIndex < roomCount; roomIndex += 1) {
+      const mappedChapter = Number(chapterIndexes[roomIndex]);
+      if (Number.isInteger(mappedChapter) && mappedChapter >= 0 && mappedChapter === chapterIndex) rooms.push(roomIndex);
+    }
+    const firstRoom = rooms[0];
+    return {
+      index: chapterIndex,
+      label: firstRoom === undefined
+        ? String(chapterTitles[chapterIndex] || "")
+        : String(roomLabels[firstRoom] || chapterTitles[chapterIndex] || ""),
+      seconds: rooms.reduce((sum, roomIndex) => sum + nonNegativeNumber(roomTimes[roomIndex]), 0),
+      mistakes: rooms.reduce((sum, roomIndex) => sum + Math.floor(nonNegativeNumber(roomMistakes[roomIndex])), 0),
+      visited: rooms.filter((roomIndex) => nonNegativeNumber(roomTimes[roomIndex]) > 0).length,
+      rooms: rooms.length
+    };
+  });
+}
+
+export function runChapterReviewData(input = {}) {
+  const chapters = Array.isArray(input.chapters)
+    ? input.chapters.filter((chapter) => chapter && typeof chapter === "object" && nonNegativeNumber(chapter.visited) > 0)
+    : [];
+  const totalRooms = Math.floor(nonNegativeNumber(input.totalRooms));
+  const visitedRooms = chapters.reduce((sum, chapter) => sum + Math.floor(nonNegativeNumber(chapter.visited)), 0);
+  if (!chapters.length) {
+    return {
+      chapters: [],
+      visitedRooms: 0,
+      totalRooms,
+      complete: false,
+      slowest: null
+    };
+  }
+  const slowest = chapters.reduce((candidate, chapter) => (
+    nonNegativeNumber(chapter.seconds) > nonNegativeNumber(candidate.seconds) ? chapter : candidate
+  ), chapters[0]);
+  return {
+    chapters: chapters.map((chapter) => ({ ...chapter })),
+    visitedRooms,
+    totalRooms,
+    complete: totalRooms > 0 && visitedRooms === totalRooms,
+    slowest: { ...slowest }
+  };
+}
+
+function reportLineText(value, fallback = "") {
+  const text = String(value ?? fallback).replace(/[\r\n]+/g, " ").trim();
+  return (text || fallback).slice(0, 120);
+}
+
+export function runReportTextData(input = {}) {
+  const totalRooms = Math.floor(nonNegativeNumber(input.totalRooms));
+  const visitedRooms = Math.min(totalRooms, Math.floor(nonNegativeNumber(input.visitedRooms)));
+  const complete = input.complete === true && totalRooms > 0 && visitedRooms === totalRooms;
+  const chapters = Array.isArray(input.chapters) ? input.chapters.filter((chapter) => chapter && typeof chapter === "object") : [];
+  const rooms = Array.isArray(input.rooms) ? input.rooms.filter((room) => room && typeof room === "object") : [];
+  const chapterLines = chapters.map((chapter) => (
+    `${reportLineText(chapter.label, "未命名幕")}：${chapter.visited ? reportLineText(chapter.time, "—") : "—"}`
+    + ` / 失误 ${Math.floor(nonNegativeNumber(chapter.mistakes))}`
+    + ` / 房间 ${Math.floor(nonNegativeNumber(chapter.visited))}/${Math.floor(nonNegativeNumber(chapter.rooms))}`
+  ));
+  const roomLines = rooms.map((room) => (
+    `R${Math.floor(nonNegativeNumber(room.index)) + 1} ${reportLineText(room.label)}：${room.visited ? reportLineText(room.time, "—") : "—"}`
+    + ` / 失误 ${Math.floor(nonNegativeNumber(room.mistakes))}`
+  ));
+  return [
+    "山巅微光 · 本轮报告",
+    `构建：${reportLineText(input.build, "dev")}`,
+    `结果：${complete ? "完整登顶" : `部分路线 ${visitedRooms}/${totalRooms} 房`}`,
+    `总时间：${reportLineText(input.totalTime, "0:00.00")} / 失误 ${Math.floor(nonNegativeNumber(input.mistakes))} / Flow ${Math.floor(nonNegativeNumber(input.flow))}`,
+    `辅助：${input.assistUsed === true ? "舒缓模式，本轮不计纪录" : "关闭"}`,
+    "",
+    "分幕：",
+    ...chapterLines,
+    "",
+    "分房：",
+    ...roomLines,
+    "",
+    "隐私：仅包含本轮时间、失误、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
+  ].join("\n");
+}

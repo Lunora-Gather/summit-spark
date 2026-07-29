@@ -28,6 +28,7 @@ const gameHtml = read("public/index.html");
 const playtestChecklist = read("PLAYTEST_CHECKLIST.md");
 const pagesWorkflow = read(".github/workflows/pages.yml");
 const runtimeSource = read("public/summit-spark.js");
+const coreFormatSource = read("public/modules/core/format.mjs");
 
 const buildVersion = extractOne(
   "meta build-version",
@@ -44,6 +45,11 @@ const jsVersion = extractOne(
   gameHtml,
   /summit-spark\.js\?v=([^"]+)/
 );
+const coreFormatVersion = extractOne(
+  "core format module version",
+  runtimeSource,
+  /modules\/core\/format\.mjs\?v=([^"]+)"/
+);
 
 if (buildVersion && cssVersion && buildVersion !== cssVersion) {
   fail(`css version ${cssVersion} does not match build version ${buildVersion}`);
@@ -51,6 +57,10 @@ if (buildVersion && cssVersion && buildVersion !== cssVersion) {
 
 if (buildVersion && jsVersion && buildVersion !== jsVersion) {
   fail(`js version ${jsVersion} does not match build version ${buildVersion}`);
+}
+
+if (buildVersion && coreFormatVersion && buildVersion !== coreFormatVersion) {
+  fail(`core format version ${coreFormatVersion} does not match build version ${buildVersion}`);
 }
 
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js")) {
@@ -92,6 +102,9 @@ if (pagesWorkflow.includes("path: .\n")) {
 }
 if (!runtimeSource.includes("window.self !== window.top") || !runtimeSource.includes("document.body.replaceChildren(notice)")) {
   fail("public runtime must stop before initialization when embedded by another page");
+}
+if (!runtimeSource.includes('await import("./modules/core/format.mjs?v=') || !coreFormatSource.includes("export function formatTime(")) {
+  fail("public runtime must consume the versioned core format module");
 }
 
 if (errors.length > 0) {

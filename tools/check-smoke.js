@@ -75,6 +75,10 @@ async function verifyServerBoundary(baseUrl) {
   if (headResponse.status !== 200 || headResponse.body !== "") {
     errors.push("server HEAD must return the public asset without a response body");
   }
+  const moduleResponse = await request(baseUrl + "/modules/core/format.mjs", { method: "HEAD" });
+  if (moduleResponse.status !== 200 || moduleResponse.body !== "" || !/text\/javascript/.test(moduleResponse.headers["content-type"] || "")) {
+    errors.push("server HEAD must expose the core format module as JavaScript without a response body");
+  }
   const postResponse = await request(baseUrl + "/index.html", { method: "POST" });
   if (postResponse.status !== 405 || postResponse.headers.allow !== "GET, HEAD") {
     errors.push("server must reject non-read methods with 405 and an Allow header");
@@ -127,6 +131,7 @@ async function main() {
     const html = await waitForServer(baseUrl, child);
     await verifyServerBoundary(baseUrl);
     const js = await requestText(baseUrl + "/summit-spark.js?v=" + encodeURIComponent(buildVersion));
+    const coreFormat = await requestText(baseUrl + "/modules/core/format.mjs?v=" + encodeURIComponent(buildVersion));
     const css = await requestText(baseUrl + "/summit-spark.css?v=" + encodeURIComponent(buildVersion));
     expectNoInlineScript(html);
 
@@ -164,6 +169,9 @@ async function main() {
     ["首次输入开始计时", "松开按键后待命", "修正路线", "REHEARSE"].forEach((marker) => {
       if (js.includes(marker)) errors.push("runtime should not expose quiet-mode prompt text: " + marker);
     });
+    expectIncludes("js", js, `modules/core/format.mjs?v=${buildVersion}`);
+    ["export function formatTime(", "export function formatDelta(", "export function splitGrade(", "export function escapeHtml("]
+      .forEach((marker) => expectIncludes("core format", coreFormat, marker));
 
     [
       "markAppReady",

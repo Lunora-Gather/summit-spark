@@ -1,4 +1,4 @@
-(() => {
+(async () => {
   "use strict";
 
   if (window.self !== window.top) {
@@ -13,6 +13,13 @@
     document.body.replaceChildren(notice);
     return;
   }
+
+  const {
+    escapeHtml,
+    formatDelta,
+    formatTime,
+    splitGrade
+  } = await import("./modules/core/format.mjs?v=20260728-p182");
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -8965,14 +8972,6 @@
       .join(" → ");
   }
 
-  function escapeHtml(text) {
-    return String(text)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
   function reviewCardHtml(label, value, detail, priority = "secondary") {
     const resolved = priority === "primary" ? "primary" : "secondary";
     return `<article class="review-card ${resolved}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><p>${escapeHtml(detail)}</p></article>`;
@@ -11124,30 +11123,6 @@
     }
     syncRoomSelect();
     updateDebug();
-  }
-
-  function formatTime(value) {
-    const totalHundredths = Math.max(0, Math.floor(value * 100));
-    const minutes = Math.floor(totalHundredths / 6000);
-    const seconds = Math.floor((totalHundredths % 6000) / 100);
-    const hundredths = totalHundredths % 100;
-    return `${minutes}:${String(seconds).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
-  }
-
-  function formatDelta(value) {
-    const sign = value <= 0 ? "-" : "+";
-    const totalHundredths = Math.floor(Math.abs(value) * 100);
-    const seconds = Math.floor(totalHundredths / 100);
-    const hundredths = totalHundredths % 100;
-    return `${sign}${seconds}.${String(hundredths).padStart(2, "0")}`;
-  }
-
-  function splitGrade(best, target) {
-    if (!best || !target) return "";
-    if (best <= target) return "S";
-    if (best <= target * 1.25) return "A";
-    if (best <= target * 1.6) return "B";
-    return "C";
   }
 
   function updateDebug() {

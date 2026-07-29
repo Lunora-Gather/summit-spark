@@ -12,6 +12,8 @@
 | `npm run state-check` | Route、Feel、Drill、Challenge 和存档状态迁移矩阵 |
 | `npm run smoke` | 本地服务器、安全响应头、公开文件白名单和关键资源检查 |
 
+`check-core-format.mjs` 直接导入公开核心模块，固定时间、差值、评级和 HTML 转义的输入输出；它由 `npm run check` 自动执行。
+
 ## 房间数据
 
 - `lib/read-summit-data.js`：唯一允许解析 `public/summit-spark.js` 内嵌房间数据的共享读取器。

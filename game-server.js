@@ -24,12 +24,14 @@ const csp = [
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8"
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8"
 };
 const publicFiles = new Map([
   ["/index.html", path.join("public", "index.html")],
   ["/summit-spark.css", path.join("public", "summit-spark.css")],
   ["/summit-spark.js", path.join("public", "summit-spark.js")],
+  ["/modules/core/format.mjs", path.join("public", "modules", "core", "format.mjs")],
   ["/vendor/appwrite-26.2.0.js", path.join("public", "vendor", "appwrite-26.2.0.js")],
   ["/vendor/APPWRITE-LICENSE", path.join("public", "vendor", "APPWRITE-LICENSE")]
 ]);

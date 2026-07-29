@@ -220,6 +220,12 @@ if (!js.includes("function buildRunReport(")
   || !js.includes("data-copy-run-report")
   || !js.includes("__summitLastRunReport")
   || !uiPresentationModule.includes("export function runReportTextData(")
+  || !uiPresentationModule.includes("export function lumenRunSummaryData(")
+  || !uiPresentationModule.includes("所有微光，都抵达了山顶。")
+  || !js.includes("foundLumens: collected.size")
+  || !js.includes("completeWhisper: CHAPTER_EXPERIENCE.at(-1)?.resolve")
+  || !js.includes("微光 ${lumens.label}")
+  || !js.includes("escapeHtml(lumens.whisper)")
   || !uiPresentationModule.includes("不含身份、设备名称、输入历史或路线坐标")) {
   errors.push("collapsed summit review must provide a bounded privacy-labelled current-run report without uploading it");
 }

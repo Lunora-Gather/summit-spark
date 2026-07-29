@@ -628,6 +628,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   const finishProbe = await evaluate(cdp, `({
     hasTitle: !!document.querySelector("#finishTitle"),
     line: document.querySelector(".finish-line")?.textContent || "",
+    whisper: document.querySelector(".finish-whisper")?.textContent || "",
     status: document.querySelector("#gameStatus").textContent,
     error: window.__summitRevealTestError || ""
   })`);
@@ -636,6 +637,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
   if (finishProbe.hasTitle && !/练习登顶，不计总纪录/.test(finishProbe.line)) {
     errors.push("partial debug/Practice summit should be labelled as non-record full-run evidence: " + JSON.stringify(finishProbe));
+  }
+  if (finishProbe.hasTitle && (!/微光 0\/12/.test(finishProbe.line) || finishProbe.whisper !== "山没有变轻，是你学会了继续向上。")) {
+    errors.push("summit review should close the current-run Lumen loop without granting the all-Lumen ending to a partial route: " + JSON.stringify(finishProbe));
   }
   const runEvidenceReview = finishProbe.hasTitle ? await evaluate(cdp, `(() => {
     const title = document.querySelector("#finishTitle");
@@ -672,6 +676,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       || !/IV · 星顶/.test(runReport.text)
       || !/R10 星顶终线：0:/.test(runReport.text)
       || !/R1 起势山门：—/.test(runReport.text)
+      || !/微光 0\/12/.test(runReport.text)
       || !/不含身份、设备名称、输入历史或路线坐标/.test(runReport.text)
       || /userAgent|@/.test(runReport.text)
       || runReport.text.length > 4000) {
@@ -3601,7 +3606,7 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");
-    overlay.innerHTML = '<h1 id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">0:30.00 · 失误 1 · 光继连锁 3 · Flow 120</p><div class="review-grid">' +
+    overlay.innerHTML = '<h1 id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">0:30.00 · 失误 1 · 微光 7/12 · 光继连锁 3 · Flow 120</p><div class="review-grid">' +
       Array.from({ length: 9 }, (_, index) => '<article class="review-card ' + (index < 4 ? 'primary' : 'secondary') + '"><span>复盘项 ' + index + '</span><strong>长文本安全检查 R' + index + '</strong><p>这是一段用于横屏移动端滚动和断行的复盘内容，不能横向溢出。</p></article>').join('') +
       '</div><div class="review-actions"><button class="review-button primary-review" type="button">下一 Drill</button></div>' +
       '<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra"></div></details>' +
@@ -3664,11 +3669,13 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
     });
     const overlayRect = overlay.getBoundingClientRect();
     const titleRect = document.querySelector("#finishTitle").getBoundingClientRect();
+    const finishLine = document.querySelector(".finish-line");
     return {
       scrollSafe: getComputedStyle(overlay).overflowY === "auto" && overlay.scrollHeight >= overlay.clientHeight,
       topReachable: titleRect.top >= overlayRect.top - 1 && titleRect.bottom <= overlayRect.bottom + 1,
       focusInside: document.activeElement === document.querySelector("#finishTitle"),
       noHorizontalOverflow: articles.every((item) => item.scrollWidth <= item.width + 2),
+      finishLineNoOverflow: finishLine.scrollWidth <= finishLine.clientWidth + 2,
       primaryCount: document.querySelectorAll(".review-card.primary").length,
       disclosure: (() => {
         const details = document.querySelector(".review-more");
@@ -3687,6 +3694,7 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (!review.scrollSafe) errors.push("finish review overlay should remain vertically scroll-safe on mobile landscape");
   if (!review.topReachable || !review.focusInside) errors.push("finish review should keep its labelled top reachable and focused on mobile landscape: " + JSON.stringify(review));
   if (!review.noHorizontalOverflow) errors.push("finish review cards overflow horizontally on mobile landscape");
+  if (!review.finishLineNoOverflow) errors.push("finish review summary should wrap its current-run Lumen count without horizontal overflow");
   if (review.primaryCount < 4) errors.push("finish review should preserve primary card priority markers");
   if (!review.disclosure.open || review.disclosure.expanded !== "true" || review.disclosure.generatedContent !== "none" || review.disclosure.chevronHidden !== "true" || review.disclosure.transform === "none") {
     errors.push("finish review disclosures should synchronize expanded state while keeping their rotating chevron decorative: " + JSON.stringify(review.disclosure));
@@ -3884,7 +3892,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

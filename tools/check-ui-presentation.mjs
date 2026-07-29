@@ -6,6 +6,7 @@ import {
   chapterGrade,
   chapterTransitionResultData,
   fullRunRecordEligibilityData,
+  lumenRunSummaryData,
   postRunReviewData,
   rankPracticeLedgerRowsData,
   runChapterReviewData,
@@ -14,6 +15,27 @@ import {
   roomSplitFeedbackData,
   roomReviewPriorityData
 } from "../public/modules/ui/presentation.mjs";
+
+assert.deepEqual(lumenRunSummaryData({ found: 5, total: 12 }), {
+  found: 5,
+  total: 12,
+  complete: false,
+  label: "5/12",
+  whisper: "山没有变轻，是你学会了继续向上。"
+});
+assert.deepEqual(lumenRunSummaryData({ found: 99, total: 12 }), {
+  found: 12,
+  total: 12,
+  complete: true,
+  label: "12/12",
+  whisper: "所有微光，都抵达了山顶。"
+});
+assert.equal(lumenRunSummaryData({ found: 0, total: 0 }).complete, false, "an empty route must not count as full Lumen collection");
+assert.equal(
+  lumenRunSummaryData({ found: 2, total: 2, completeWhisper: "第四幕收束" }).whisper,
+  "第四幕收束",
+  "the full-Lumen ending should accept canonical act-resolution copy"
+);
 
 assert.deepEqual(chapterCompletionData({
   roomTotal: 10,
@@ -353,6 +375,8 @@ const runReport = runReportTextData({
   totalRooms: 2,
   totalTime: "0:18.00",
   mistakes: 1,
+  foundLumens: 2,
+  totalLumens: 3,
   flow: 42.9,
   assistUsed: false,
   chapters: [
@@ -364,9 +388,10 @@ const runReport = runReportTextData({
   ]
 });
 assert.match(runReport, /结果：完整登顶/);
-assert.match(runReport, /总时间：0:18\.00 \/ 失误 1 \/ Flow 42/);
+assert.match(runReport, /总时间：0:18\.00 \/ 失误 1 \/ 微光 2\/3 \/ Flow 42/);
 assert.match(runReport, /第一幕：0:18\.00 \/ 失误 1 \/ 房间 2\/2/);
 assert.match(runReport, /R2 光继横桥：0:10\.00 \/ 失误 1/);
+assert.match(runReport, /仅包含本轮时间、失误、微光、Flow、辅助状态与构建号/);
 assert.match(runReport, /不含身份、设备名称、输入历史或路线坐标/);
 const sanitizedReport = runReportTextData({
   build: "bad\ninjected",

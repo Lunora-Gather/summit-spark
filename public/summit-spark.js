@@ -145,6 +145,7 @@
       chapterGrade,
       chapterTransitionResultData,
       fullRunRecordEligibilityData,
+      lumenRunSummaryData,
       postRunReviewData,
       rankPracticeLedgerRowsData,
       runChapterReviewData,
@@ -154,16 +155,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p231"),
-    import("./modules/core/math.mjs?v=20260729-p231"),
-    import("./modules/game/room-data.mjs?v=20260729-p231"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p231"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p231"),
-    import("./modules/systems/storage.mjs?v=20260729-p231"),
-    import("./modules/systems/input.mjs?v=20260729-p231"),
-    import("./modules/training/state.mjs?v=20260729-p231"),
-    import("./modules/training/replay.mjs?v=20260729-p231"),
-    import("./modules/ui/presentation.mjs?v=20260729-p231")
+    import("./modules/core/format.mjs?v=20260729-p232"),
+    import("./modules/core/math.mjs?v=20260729-p232"),
+    import("./modules/game/room-data.mjs?v=20260729-p232"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p232"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p232"),
+    import("./modules/systems/storage.mjs?v=20260729-p232"),
+    import("./modules/systems/input.mjs?v=20260729-p232"),
+    import("./modules/training/state.mjs?v=20260729-p232"),
+    import("./modules/training/replay.mjs?v=20260729-p232"),
+    import("./modules/ui/presentation.mjs?v=20260729-p232")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2552,7 +2553,12 @@
     const recordNote = partial
       ? assisted ? " · 练习登顶 · 辅助开启，不计总纪录" : " · 练习登顶，不计总纪录"
       : assisted ? " · 辅助完成，不计纪录" : "";
-    overlay.innerHTML = `<h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">${formatTime(runTime)}${record}${recordNote} · 失误 ${deathCount} · 光继连锁 ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><p class="finish-whisper">山没有变轻，是你学会了继续向上。</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">再来</button>`;
+    const lumens = lumenRunSummaryData({
+      found: collected.size,
+      total: totalLumens,
+      completeWhisper: CHAPTER_EXPERIENCE.at(-1)?.resolve
+    });
+    overlay.innerHTML = `<h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">${formatTime(runTime)}${record}${recordNote} · 失误 ${deathCount} · 微光 ${lumens.label} · 光继连锁 ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">再来</button>`;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");
@@ -8105,6 +8111,8 @@
       totalRooms: maps.length,
       totalTime: formatTime(runTime),
       mistakes: deathCount,
+      foundLumens: collected.size,
+      totalLumens,
       flow: flowPeak,
       assistUsed: runUsedAssist,
       chapters: chapters.map((chapter) => ({
@@ -8243,7 +8251,7 @@
     return `<div class="review-grid review-grid-primary">${primaryCards}</div>`
       + `<p class="review-advice">${escapeHtml(postRunTrainingAdvice(runPlan))}</p>`
       + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">下一 ${drillModeLabel(nextMode)}</button>${styleButton}${lossButton}</div>`
-      + `<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>仅含本轮时间、失误、Flow 与辅助状态；不会上传。</small></div></details>`
+      + `<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>仅含本轮时间、失误、微光、Flow 与辅助状态；不会上传。</small></div></details>`
       + `<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>掌握路线图</span><span class="review-more-chevron" aria-hidden="true">›</span></summary>${reviewRoadmapHtml()}</details>`;
   }
 

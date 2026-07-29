@@ -257,10 +257,29 @@ function reportLineText(value, fallback = "") {
   return (text || fallback).slice(0, 120);
 }
 
+export function lumenRunSummaryData(input = {}) {
+  const total = Math.floor(nonNegativeNumber(input.total));
+  const found = Math.min(total, Math.floor(nonNegativeNumber(input.found)));
+  const complete = total > 0 && found === total;
+  const completeWhisper = reportLineText(input.completeWhisper, "所有微光，都抵达了山顶。");
+  const defaultWhisper = reportLineText(input.defaultWhisper, "山没有变轻，是你学会了继续向上。");
+  return {
+    found,
+    total,
+    complete,
+    label: `${found}/${total}`,
+    whisper: complete ? completeWhisper : defaultWhisper
+  };
+}
+
 export function runReportTextData(input = {}) {
   const totalRooms = Math.floor(nonNegativeNumber(input.totalRooms));
   const visitedRooms = Math.min(totalRooms, Math.floor(nonNegativeNumber(input.visitedRooms)));
   const complete = input.complete === true && totalRooms > 0 && visitedRooms === totalRooms;
+  const lumens = lumenRunSummaryData({
+    found: input.foundLumens,
+    total: input.totalLumens
+  });
   const chapters = Array.isArray(input.chapters) ? input.chapters.filter((chapter) => chapter && typeof chapter === "object") : [];
   const rooms = Array.isArray(input.rooms) ? input.rooms.filter((room) => room && typeof room === "object") : [];
   const chapterLines = chapters.map((chapter) => (
@@ -276,7 +295,7 @@ export function runReportTextData(input = {}) {
     "山巅微光 · 本轮报告",
     `构建：${reportLineText(input.build, "dev")}`,
     `结果：${complete ? "完整登顶" : `部分路线 ${visitedRooms}/${totalRooms} 房`}`,
-    `总时间：${reportLineText(input.totalTime, "0:00.00")} / 失误 ${Math.floor(nonNegativeNumber(input.mistakes))} / Flow ${Math.floor(nonNegativeNumber(input.flow))}`,
+    `总时间：${reportLineText(input.totalTime, "0:00.00")} / 失误 ${Math.floor(nonNegativeNumber(input.mistakes))} / 微光 ${lumens.label} / Flow ${Math.floor(nonNegativeNumber(input.flow))}`,
     `辅助：${input.assistUsed === true ? "舒缓模式，本轮不计纪录" : "关闭"}`,
     "",
     "分幕：",
@@ -285,6 +304,6 @@ export function runReportTextData(input = {}) {
     "分房：",
     ...roomLines,
     "",
-    "隐私：仅包含本轮时间、失误、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
+    "隐私：仅包含本轮时间、失误、微光、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
   ].join("\n");
 }

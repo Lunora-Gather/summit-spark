@@ -15,6 +15,8 @@ summit-spark/
 │  │  └─ math.mjs           # 无状态的矩形判定、距离与数值逼近
 │  ├─ modules/game/
 │  │  └─ room-data.mjs      # 递归冻结的地图、章节、路线与氛围内容
+│  ├─ modules/systems/
+│  │  └─ storage.mjs        # 存档规范化、结构守卫与多键事务回滚
 │  └─ vendor/               # 固定版本 Appwrite SDK 与许可证
 ├─ data/
 │  └─ rooms.generated.json # 房间/训练数据验证快照，不参与运行
@@ -46,6 +48,7 @@ public/index.html
        ├─ public/modules/core/format.mjs
        ├─ public/modules/core/math.mjs
        ├─ public/modules/game/room-data.mjs
+       ├─ public/modules/systems/storage.mjs
        ├─ Canvas / DOM / WebAudio / 输入
        ├─ localStorage / sessionStorage
        └─ Appwrite Account + TablesDB
@@ -60,7 +63,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入、物理、渲染、训练、存档和账号逻辑。三个低风险切片已迁出格式、安全文本、矩形判定、距离、数值逼近与只读房间内容，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入、物理、渲染、训练、存档编排和账号逻辑。四个低风险切片已迁出格式、安全文本、数学、只读房间内容，以及存档的规范化/结构守卫/事务回滚基础，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
 
 短期修改遵守：
 
@@ -73,9 +76,9 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs` 与 `game/room-data.mjs` 已完成。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs` 与 `systems/storage.mjs` 的安全基础已完成。接下来的顺序是：
 
-1. `systems/storage.mjs`：规范化、事务写入、备份与迁移。
+1. `systems/storage.mjs`：继续迁移设置规范化、读修复与备份组装；云端和 UI 编排暂留主运行时。
 2. `systems/input.mjs`：键盘、触控、手柄和输入缓冲。
 3. `training/`：Drill、Route、Feel 和 Focus 纯状态计算。
 4. `ui/`：面板和 HUD 的 DOM 更新。

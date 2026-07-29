@@ -4,7 +4,7 @@
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260728-p184`
+当前公开构建：`20260728-p185`
 
 ## 快速开始
 
@@ -68,6 +68,7 @@ public/                 可直接部署的唯一运行目录
   summit-spark.js       当前游戏运行时
   modules/core/         已迁移且有独立契约的格式与数学纯函数
   modules/game/         十房地图、章节文案、路线合同与氛围的只读数据源
+  modules/systems/      存档边界、上限校验与原子回滚基础
   vendor/               固定 Appwrite SDK 与许可证
 data/                   房间/训练数据验证快照
 tools/                  自动质量门和共享验证器
@@ -77,7 +78,7 @@ appwrite.config.json    云端资源和最小权限策略
 game-server.js          public 白名单本地服务器
 ```
 
-当前运行时主体仍是单体脚本；格式、安全文本、矩形判定、距离、数值逼近以及只读房间内容已迁入独立模块。后续继续按存档、输入、训练、UI、物理、渲染的顺序迁移。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+当前运行时主体仍是单体脚本；格式、安全文本、数学、只读房间内容，以及存档规范化/事务基础已迁入独立模块。后续继续按存档编排、输入、训练、UI、物理、渲染的顺序迁移。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 质量检查
 

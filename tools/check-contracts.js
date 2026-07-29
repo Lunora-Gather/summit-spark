@@ -9,6 +9,7 @@ const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8")
 const coreFormat = fs.readFileSync(path.join(root, "public", "modules", "core", "format.mjs"), "utf8");
 const coreMath = fs.readFileSync(path.join(root, "public", "modules", "core", "math.mjs"), "utf8");
 const roomData = fs.readFileSync(path.join(root, "public", "modules", "game", "room-data.mjs"), "utf8");
+const storageModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "storage.mjs"), "utf8");
 const dataAndRuntime = roomData + "\n" + js;
 const indexHtml = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const workflowPath = path.join(root, ".github", "workflows", "pages.yml");
@@ -146,7 +147,7 @@ if (styleKinds.size < 6) errors.push("style trials should cover at least six dif
 
 deathKeys.forEach((key) => {
   if (!deathLabels[key]) errors.push("DEATH_REASON_LABELS missing " + key);
-  if (!js.includes("entry[key] = 0") && !js.includes("entry[" + JSON.stringify(key) + "] = 0")) {
+  if (!storageModule.includes("entry[key] = 0") && !storageModule.includes("entry[" + JSON.stringify(key) + "] = 0")) {
     errors.push("createRoomFocusEntry must initialize death reason " + key);
   }
 });
@@ -232,7 +233,7 @@ if (!js.includes("PROFILE_KEY")) errors.push("long-term profile storage key is m
 if (!js.includes("LONG_TERM_CHALLENGES")) errors.push("long-term challenge definitions are missing");
 if (!js.includes("FLOW_CHALLENGE_TARGET = 900")) errors.push("Flow challenge target must stay reachable under the 999 flow cap");
 if (!js.includes("readProfile")) errors.push("long-term profile read helper is missing");
-if (!js.includes("profileData.summitClears <= 0")) errors.push("profile normalization must not turn missing death data into zero-death completion");
+if (!storageModule.includes("profile.summitClears <= 0")) errors.push("profile normalization must not turn missing death data into zero-death completion");
 if (!js.includes("recordSummitProfile")) errors.push("summit clear should update the long-term profile");
 if (!js.includes("chapterCompletionData")) errors.push("chapter completion data helper is missing");
 if (!js.includes("updateChapterOverview")) errors.push("settings panel should expose chapter completion");
@@ -428,7 +429,11 @@ if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is 
 const css = fs.readFileSync(path.join(root, "public", "summit-spark.css"), "utf8");
 const browserSmoke = fs.readFileSync(path.join(root, "tools", "check-browser-smoke.js"), "utf8");
 if (!css.includes(".stage.low-performance #game") || !css.includes("-webkit-backdrop-filter: none;") || !browserSmoke.includes("low-performance mode should remove per-frame canvas filters and backdrop blurs")) errors.push("low-performance mode must remove canvas filter passes and live backdrop compositing");
-if (!js.includes("function writeStorageTransaction(entries)") || !js.includes("for (const [key] of entries) previous.set(key, localStorage.getItem(key));") || !js.includes("localStorage.removeItem(key);") || !browserSmoke.includes("a partial save write must roll every imported key and the previous backup back before reporting failure")) errors.push("multi-key save imports must restore every previous value after a partial storage failure");
+if (!js.includes("function writeStorageTransaction(entries)")
+  || !js.includes("writeStorageTransactionData(localStorage, entries)")
+  || !storageModule.includes("for (const [key] of entries) previous.set(key, storage.getItem(key));")
+  || !storageModule.includes("storage.removeItem(key);")
+  || !browserSmoke.includes("a partial save write must roll every imported key and the previous backup back before reporting failure")) errors.push("multi-key save imports must restore every previous value after a partial storage failure");
 if (!indexHtml.includes("viewport-fit=cover, interactive-widget=resizes-content") || !css.includes("env(safe-area-inset-left, 0px)") || !css.includes("env(safe-area-inset-right, 0px)") || !browserSmoke.includes("account drawer must remain bounded and its focused field reachable after a mobile keyboard resize")) errors.push("mobile entry and settings must honor all safe-area edges and keyboard-resized viewports");
 if (!css.includes(".settings-panel.mode-settings {\n    bottom: auto;")
   || !css.includes("100dvh\n      - max(58px")
@@ -658,9 +663,9 @@ if (!indexHtml.includes('data-touch="recall" aria-label="先激活回声锚点" 
 }
 
 ["drills", "drillClears", "drillClean", "cleanDrills", "cleanWins", "paceDrills", "paceWins", "styleDrills", "styleWins", "expertDrills", "expertWins"].forEach((field) => {
-  if (!js.includes(field + ": 0")) errors.push("createRoomFocusEntry must initialize " + field);
-  if (!js.includes("saved." + field)) errors.push("normalizeRoomFocus must preserve " + field);
+  if (!storageModule.includes(field + ": 0") && !storageModule.includes(JSON.stringify(field))) errors.push("createRoomFocusEntry must initialize " + field);
 });
+if (!storageModule.includes("entry[key] = finiteNonNegativeInt(saved[key], 0, 9999)")) errors.push("normalizeRoomFocus must preserve every bounded focus counter");
 
 const counts = maps.map(countTiles);
 const pressures = counts.map(pressure);

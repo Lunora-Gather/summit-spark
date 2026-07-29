@@ -43,11 +43,26 @@
       ROOM_TIERS,
       ROOM_WHISPERS,
       SKILL_LABELS
+    },
+    {
+      createProfileData,
+      createRoomFocusEntryData,
+      finiteNonNegativeInt,
+      finiteNonNegativeNumber,
+      normalizeProfileData,
+      normalizeRoomBestsData,
+      normalizeRoomFocusData,
+      normalizeRoomPathPointData,
+      normalizeRoomPathsData,
+      parseSaveArchiveText,
+      strictBoolean,
+      writeStorageTransaction: writeStorageTransactionData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260728-p184"),
-    import("./modules/core/math.mjs?v=20260728-p184"),
-    import("./modules/game/room-data.mjs?v=20260728-p184")
+    import("./modules/core/format.mjs?v=20260728-p185"),
+    import("./modules/core/math.mjs?v=20260728-p185"),
+    import("./modules/game/room-data.mjs?v=20260728-p185"),
+    import("./modules/systems/storage.mjs?v=20260728-p185")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2648,22 +2663,6 @@
     }
   }
 
-  function finiteNonNegativeNumber(value, fallback = 0, cap = 999999) {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return fallback;
-    return Math.max(0, Math.min(cap, parsed));
-  }
-
-  function finiteNonNegativeInt(value, fallback = 0, cap = 999999) {
-    return Math.floor(finiteNonNegativeNumber(value, fallback, cap));
-  }
-
-  function strictBoolean(value, fallback = false) {
-    if (value === true || value === "true") return true;
-    if (value === false || value === "false") return false;
-    return fallback;
-  }
-
   function markStorageIssue(message) {
     storageHealthMessage = message;
   }
@@ -2695,37 +2694,14 @@
   }
 
   function createProfile() {
-    return {
-      version: PROFILE_SCHEMA_VERSION,
-      summitClears: 0,
-      bestDeathCount: null,
-      bestRelayChain: 0,
-      bestFlowPeak: 0,
-      lastClearTime: 0,
-      lastClearAt: "",
-      challengeWins: {}
-    };
+    return createProfileData(PROFILE_SCHEMA_VERSION);
   }
 
   function normalizeProfile(saved) {
-    const source = saved && typeof saved === "object" ? saved : {};
-    const profileData = createProfile();
-    profileData.version = PROFILE_SCHEMA_VERSION;
-    profileData.summitClears = finiteNonNegativeInt(source.summitClears, 0, 9999);
-    const savedBestDeath = source.bestDeathCount;
-    const parsedBestDeath = Number(savedBestDeath);
-    profileData.bestDeathCount = savedBestDeath === null || savedBestDeath === undefined || profileData.summitClears <= 0
-      ? null
-      : Number.isFinite(parsedBestDeath) ? finiteNonNegativeInt(parsedBestDeath, 0, 9999) : null;
-    profileData.bestRelayChain = finiteNonNegativeInt(source.bestRelayChain, 0, 9999);
-    profileData.bestFlowPeak = finiteNonNegativeNumber(source.bestFlowPeak, 0, 999);
-    profileData.lastClearTime = finiteNonNegativeNumber(source.lastClearTime, 0, 36000);
-    profileData.lastClearAt = typeof source.lastClearAt === "string" ? source.lastClearAt : "";
-    const wins = source.challengeWins && typeof source.challengeWins === "object" ? source.challengeWins : {};
-    LONG_TERM_CHALLENGES.forEach((challenge) => {
-      if (strictBoolean(wins[challenge.id], false)) profileData.challengeWins[challenge.id] = true;
+    return normalizeProfileData(saved, {
+      schemaVersion: PROFILE_SCHEMA_VERSION,
+      challengeIds: LONG_TERM_CHALLENGES.map((challenge) => challenge.id)
     });
-    return profileData;
   }
 
   function readProfile() {
@@ -2746,11 +2722,7 @@
   }
 
   function normalizeRoomBests(saved) {
-    const source = Array.isArray(saved) ? saved : [];
-    return maps.map((_, index) => {
-      const value = Number(source[index]);
-      return Number.isFinite(value) && value > 0 ? Math.min(3600, value) : 0;
-    });
+    return normalizeRoomBestsData(saved, maps.length);
   }
 
   function writeRoomBests() {
@@ -2805,27 +2777,21 @@
   }
 
   function normalizeRoomPaths(saved) {
-    const source = Array.isArray(saved) ? saved : [];
-    return maps.map((_, index) => {
-      const path = Array.isArray(source[index]) ? source[index] : [];
-      return path.slice(0, MAX_ROOM_PATH_POINTS).map((point) => normalizeRoomPathPoint(point)).filter(Boolean);
+    return normalizeRoomPathsData(saved, {
+      roomCount: maps.length,
+      maxPoints: MAX_ROOM_PATH_POINTS,
+      tile: TILE,
+      width: W,
+      height: H
     });
   }
 
   function normalizeRoomPathPoint(point) {
-    if (!point || typeof point !== "object") return null;
-    const x = Number(point.x);
-    const y = Number(point.y);
-    const t = Number(point.t);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    return {
-      x: Math.max(-TILE, Math.min(W + TILE, Math.round(x * 10) / 10)),
-      y: Math.max(-TILE, Math.min(H + TILE, Math.round(y * 10) / 10)),
-      dash: strictBoolean(point.dash, false),
-      spark: strictBoolean(point.spark, false),
-      over: strictBoolean(point.over, false),
-      t: Number.isFinite(t) && t > 0 ? Math.round(t * 1000) / 1000 : 0
-    };
+    return normalizeRoomPathPointData(point, {
+      tile: TILE,
+      width: W,
+      height: H
+    });
   }
 
   function writeRoomPaths() {
@@ -3272,55 +3238,15 @@
   }
 
   function createRoomFocusEntry() {
-    const entry = {
-      schemaVersion: ROOM_FOCUS_SCHEMA_VERSION,
-      faults: 0,
-      clears: 0,
-      clean: 0,
-      drills: 0,
-      drillClears: 0,
-      drillClean: 0,
-      cleanDrills: 0,
-      cleanWins: 0,
-      paceDrills: 0,
-      paceWins: 0,
-      styleDrills: 0,
-      styleWins: 0,
-      expertDrills: 0,
-      expertWins: 0,
-      last: "none"
-    };
-    DEATH_REASON_KEYS.forEach((key) => {
-      entry[key] = 0;
-    });
-    return entry;
+    return createRoomFocusEntryData(ROOM_FOCUS_SCHEMA_VERSION, DEATH_REASON_KEYS);
   }
 
   function normalizeRoomFocus(raw) {
-    const source = Array.isArray(raw) ? raw : Array.isArray(raw?.rooms) ? raw.rooms : [];
-    return maps.map((_, index) => {
-      const saved = source[index] && typeof source[index] === "object" ? source[index] : {};
-      const entry = createRoomFocusEntry();
-      entry.schemaVersion = ROOM_FOCUS_SCHEMA_VERSION;
-      entry.faults = finiteNonNegativeInt(saved.faults, 0, 9999);
-      entry.clears = finiteNonNegativeInt(saved.clears, 0, 9999);
-      entry.clean = finiteNonNegativeInt(saved.clean, 0, 9999);
-      entry.drills = finiteNonNegativeInt(saved.drills, 0, 9999);
-      entry.drillClears = finiteNonNegativeInt(saved.drillClears, 0, 9999);
-      entry.drillClean = finiteNonNegativeInt(saved.drillClean, 0, 9999);
-      entry.cleanDrills = finiteNonNegativeInt(saved.cleanDrills, 0, 9999);
-      entry.cleanWins = finiteNonNegativeInt(saved.cleanWins, 0, 9999);
-      entry.paceDrills = finiteNonNegativeInt(saved.paceDrills, 0, 9999);
-      entry.paceWins = finiteNonNegativeInt(saved.paceWins, 0, 9999);
-      entry.styleDrills = finiteNonNegativeInt(saved.styleDrills, 0, 9999);
-      entry.styleWins = finiteNonNegativeInt(saved.styleWins, 0, 9999);
-      entry.expertDrills = finiteNonNegativeInt(saved.expertDrills, 0, 9999);
-      entry.expertWins = finiteNonNegativeInt(saved.expertWins, 0, 9999);
-      entry.last = DEATH_REASON_LABELS[saved.last] ? saved.last : "none";
-      DEATH_REASON_KEYS.forEach((key) => {
-        entry[key] = finiteNonNegativeInt(saved[key], 0, 9999);
-      });
-      return entry;
+    return normalizeRoomFocusData(raw, {
+      roomCount: maps.length,
+      schemaVersion: ROOM_FOCUS_SCHEMA_VERSION,
+      deathReasonKeys: DEATH_REASON_KEYS,
+      deathReasonLabels: DEATH_REASON_LABELS
     });
   }
 
@@ -6918,19 +6844,13 @@
   }
 
   function normalizeSaveArchiveText(text) {
-    if (text.length > SAVE_ARCHIVE_MAX_CHARS) throw new Error("导入内容过大");
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      throw new Error("不是有效 JSON");
-    }
-    if (!parsed || typeof parsed !== "object" || parsed.kind !== SAVE_ARCHIVE_KIND || !parsed.storage || typeof parsed.storage !== "object") {
-      throw new Error("不是 summit-spark-save 存档");
-    }
+    const parsed = parseSaveArchiveText(text, {
+      maxChars: SAVE_ARCHIVE_MAX_CHARS,
+      kind: SAVE_ARCHIVE_KIND
+    });
     const source = parsed.storage;
     return {
-      sourceBuild: typeof parsed.build === "string" && parsed.build ? parsed.build.slice(0, 40) : "",
+      sourceBuild: parsed.sourceBuild,
       settings: normalizeSettings(source.settings, defaultSettings()),
       profile: normalizeProfile(source.profile),
       roomBests: normalizeRoomBests(source.roomBests),
@@ -6942,30 +6862,7 @@
   }
 
   function writeStorageTransaction(entries) {
-    const previous = new Map();
-    for (const [key] of entries) previous.set(key, localStorage.getItem(key));
-    try {
-      for (const [key, value] of entries) localStorage.setItem(key, value);
-    } catch (error) {
-      // Free any partial writes first so quota failures have room to restore the
-      // exact pre-import values. Rollback is best-effort when storage is blocked.
-      for (const [key] of entries) {
-        try {
-          localStorage.removeItem(key);
-        } catch {
-          // Continue attempting to restore the remaining keys.
-        }
-      }
-      for (const [key, value] of previous) {
-        if (value === null) continue;
-        try {
-          localStorage.setItem(key, value);
-        } catch {
-          // The original error remains the actionable import failure.
-        }
-      }
-      throw error;
-    }
+    writeStorageTransactionData(localStorage, entries);
   }
 
   function writeNormalizedSaveArchive(normalized) {

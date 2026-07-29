@@ -31,6 +31,7 @@ const runtimeSource = read("public/summit-spark.js");
 const coreFormatSource = read("public/modules/core/format.mjs");
 const coreMathSource = read("public/modules/core/math.mjs");
 const roomDataSource = read("public/modules/game/room-data.mjs");
+const storageSource = read("public/modules/systems/storage.mjs");
 
 const buildVersion = extractOne(
   "meta build-version",
@@ -62,6 +63,11 @@ const roomDataVersion = extractOne(
   runtimeSource,
   /modules\/game\/room-data\.mjs\?v=([^"]+)"/
 );
+const storageVersion = extractOne(
+  "storage module version",
+  runtimeSource,
+  /modules\/systems\/storage\.mjs\?v=([^"]+)"/
+);
 
 if (buildVersion && cssVersion && buildVersion !== cssVersion) {
   fail(`css version ${cssVersion} does not match build version ${buildVersion}`);
@@ -81,6 +87,10 @@ if (buildVersion && coreMathVersion && buildVersion !== coreMathVersion) {
 
 if (buildVersion && roomDataVersion && buildVersion !== roomDataVersion) {
   fail(`room data version ${roomDataVersion} does not match build version ${buildVersion}`);
+}
+
+if (buildVersion && storageVersion && buildVersion !== storageVersion) {
+  fail(`storage version ${storageVersion} does not match build version ${buildVersion}`);
 }
 
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js")) {
@@ -137,6 +147,16 @@ if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
 for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_REQUIREMENTS", "maps", "ROOM_ATMOSPHERES"]) {
   if (new RegExp(`\\bconst\\s+${name}\\s*=`).test(runtimeSource)) {
     fail(`public runtime must not duplicate room-data ownership for ${name}`);
+  }
+}
+if (!runtimeSource.includes('import("./modules/systems/storage.mjs?v=')
+  || !storageSource.includes("export function finiteNonNegativeNumber(")
+  || !storageSource.includes("export function writeStorageTransaction(")) {
+  fail("public runtime must consume the versioned storage foundation module");
+}
+for (const name of ["finiteNonNegativeNumber", "finiteNonNegativeInt", "strictBoolean"]) {
+  if (new RegExp(`\\bfunction\\s+${name}\\s*\\(`).test(runtimeSource)) {
+    fail(`public runtime must not duplicate storage ownership for ${name}`);
   }
 }
 

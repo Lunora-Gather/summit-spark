@@ -210,7 +210,7 @@ async function main() {
       .forEach((marker) => expectIncludes("storage module", storageModule, marker));
     ["export function resolveGamepadState(", "export function newlyPressedActions(", "export function effectiveBindingsData(", "export function rebindActionData(", "export function setInputBuffer(", "export function tickInputBuffers(", "export function consumeInputBuffer(", "export function clearInputBuffers("]
       .forEach((marker) => expectIncludes("input module", inputModule, marker));
-    ["export const TRAINING_TRANSITIONS = Object.freeze({", "export function createDrillData(", "export function drillSucceededData(", "export function activeRouteContractDataFor(", "export function advanceRouteContractData(", "export function feelFixtureModeData("]
+    ["export const TRAINING_TRANSITIONS = Object.freeze({", "export function createDrillData(", "export function drillSucceededData(", "export function activeRouteContractDataFor(", "export function advanceRouteContractData(", "export function feelFixtureModeData(", "export function recordRoomFaultData(", "export function recordDrillClearData(", "export function roomMasteryScoreData(", "export function roomReviewModeData("]
       .forEach((marker) => expectIncludes("training module", trainingModule, marker));
 
     [

@@ -93,20 +93,31 @@
       advanceRouteContractData,
       createDrillData,
       createRouteContractStateData,
+      drillContractProgressData,
+      drillContractStatsData,
       drillSucceededData,
       feelFixtureMatchesDrillData,
       feelFixtureModeData,
+      leadingRoomReasonData,
+      recordDrillClearData,
+      recordDrillStartData,
+      recordRoomClearData,
+      recordRoomFaultData,
       routeContractMatchesDrillData,
       routeContractResumeStepData,
+      roomFocusScoreData,
+      roomMasteryLevelData,
+      roomMasteryScoreData,
+      roomReviewModeData,
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p190"),
-    import("./modules/core/math.mjs?v=20260729-p190"),
-    import("./modules/game/room-data.mjs?v=20260729-p190"),
-    import("./modules/systems/storage.mjs?v=20260729-p190"),
-    import("./modules/systems/input.mjs?v=20260729-p190"),
-    import("./modules/training/state.mjs?v=20260729-p190")
+    import("./modules/core/format.mjs?v=20260729-p191"),
+    import("./modules/core/math.mjs?v=20260729-p191"),
+    import("./modules/game/room-data.mjs?v=20260729-p191"),
+    import("./modules/systems/storage.mjs?v=20260729-p191"),
+    import("./modules/systems/input.mjs?v=20260729-p191"),
+    import("./modules/training/state.mjs?v=20260729-p191")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3278,15 +3289,7 @@
   }
 
   function leadingRoomReason(entry) {
-    let lead = "fall";
-    let count = -1;
-    DEATH_REASON_KEYS.forEach((key) => {
-      if ((entry[key] || 0) > count) {
-        lead = key;
-        count = entry[key] || 0;
-      }
-    });
-    return count > 0 ? lead : normalizeDeathReason(entry.last);
+    return leadingRoomReasonData(entry, DEATH_REASON_KEYS, normalizeDeathReason);
   }
 
   function trackRoomFault(reason) {
@@ -3298,10 +3301,7 @@
       return;
     }
     const entry = roomFocus[roomIndex] || createRoomFocusEntry();
-    entry.faults += 1;
-    entry[normalized] = (entry[normalized] || 0) + 1;
-    entry.last = normalized;
-    roomFocus[roomIndex] = entry;
+    roomFocus[roomIndex] = recordRoomFaultData(entry, normalized);
     showFocusPopup(roomIndex, normalized);
     updatePracticeCoach();
     writeRoomFocus();
@@ -3317,10 +3317,8 @@
       return;
     }
     const entry = roomFocus[index] || createRoomFocusEntry();
-    entry.clears += 1;
     const clean = roomAttemptClean;
-    if (clean) entry.clean += 1;
-    roomFocus[index] = entry;
+    roomFocus[index] = recordRoomClearData(entry, clean);
     roomAttemptClean = true;
     showClearPopup(index, clean);
     updatePracticeCoach();
@@ -3331,25 +3329,14 @@
   function trackDrillStart(index, mode = "auto") {
     if (!recordsEligible()) return;
     const entry = roomFocus[index] || createRoomFocusEntry();
-    entry.drills += 1;
-    if (mode === "clean") entry.cleanDrills += 1;
-    if (mode === "pace") entry.paceDrills += 1;
-    if (mode === "style") entry.styleDrills += 1;
-    if (mode === "expert") entry.expertDrills += 1;
-    roomFocus[index] = entry;
+    roomFocus[index] = recordDrillStartData(entry, mode);
     writeRoomFocus();
     refreshRoomSelectOptions();
   }
 
   function trackDrillClear(index, clean, mode = "auto") {
     const entry = roomFocus[index] || createRoomFocusEntry();
-    entry.drillClears += 1;
-    if (clean) entry.drillClean += 1;
-    if (mode === "clean") entry.cleanWins += 1;
-    if (mode === "pace") entry.paceWins += 1;
-    if (mode === "style") entry.styleWins += 1;
-    if (mode === "expert") entry.expertWins += 1;
-    roomFocus[index] = entry;
+    roomFocus[index] = recordDrillClearData(entry, clean, mode);
     writeRoomFocus();
     refreshRoomSelectOptions();
   }
@@ -3773,7 +3760,7 @@
   function roomFocusScore(index) {
     const entry = roomFocus[index] || createRoomFocusEntry();
     const current = roomMistakes[index] || 0;
-    return current * 4 + Math.max(0, entry.faults - entry.clean * 2);
+    return roomFocusScoreData(entry, current);
   }
   function roomSelectFocusLabel(index) {
     const current = roomMistakes[index] || 0;
@@ -4672,11 +4659,7 @@
 
   function drillContractStats(index, mode) {
     const entry = roomFocus[index] || createRoomFocusEntry();
-    if (mode === "clean") return { starts: entry.cleanDrills, wins: entry.cleanWins };
-    if (mode === "pace") return { starts: entry.paceDrills, wins: entry.paceWins };
-    if (mode === "style") return { starts: entry.styleDrills, wins: entry.styleWins };
-    if (mode === "expert") return { starts: entry.expertDrills, wins: entry.expertWins };
-    return { starts: entry.drills, wins: entry.drillClears };
+    return drillContractStatsData(entry, mode);
   }
 
   function drillContractStatus(stats) {
@@ -4686,8 +4669,7 @@
   }
 
   function drillContractProgress(stats) {
-    if (stats.starts <= 0) return 0;
-    return Math.round(Math.max(0, Math.min(1, stats.wins / stats.starts)) * 100);
+    return drillContractProgressData(stats);
   }
 
   function contractModeShort(mode) {
@@ -4962,27 +4944,16 @@
     const best = bestRoomTimes[index] || 0;
     const target = ROOM_TARGETS[index] || 0;
     const grade = splitGrade(best, target);
-    let score = 0;
-    if (best > 0) score += 18;
-    if (entry.clean > 0) score += 24;
-    if (grade === "S") score += 26;
-    else if (grade === "A") score += 20;
-    else if (grade === "B") score += 13;
-    else if (grade === "C") score += 7;
-    if (entry.expertWins > 0) score += 22;
-    else if (entry.styleWins > 0) score += 18;
-    else if (entry.paceWins > 0) score += 15;
-    else if (entry.cleanWins > 0) score += 9;
-    score -= Math.min(18, roomFocusScore(index) * 2);
-    return Math.max(0, Math.min(100, Math.round(score)));
+    return roomMasteryScoreData({
+      entry,
+      best,
+      grade,
+      focusScore: roomFocusScore(index)
+    });
   }
 
   function roomMasteryLevel(score) {
-    if (score >= 86) return "掌握";
-    if (score >= 66) return "稳定";
-    if (score >= 42) return "成形";
-    if (score >= 18) return "可通";
-    return "待练";
+    return roomMasteryLevelData(score);
   }
 
   function roomReviewMode(index) {
@@ -4990,11 +4961,7 @@
     const loss = roomSplitLoss(index);
     const pressure = roomFocusScore(index);
     const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
-    if (entry.clean <= 0 || pressure >= 8) return "clean";
-    if (loss === null || loss > 0 || grade !== "S") return "pace";
-    if (entry.styleWins <= 0) return "style";
-    if (entry.expertWins <= 0) return "expert";
-    return "expert";
+    return roomReviewModeData({ entry, loss, pressure, grade });
   }
 
   function roomReviewPriority(index) {

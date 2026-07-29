@@ -99,6 +99,14 @@ const advanceBody = functionBody("advanceRouteContract");
 if (!advanceBody.includes("advanceRouteContractData(")) errors.push("Route advancement must delegate to the training module");
 const feelModeBody = functionBody("feelFixtureMode");
 if (!feelModeBody.includes("feelFixtureModeData(")) errors.push("Feel fixture mode must delegate to the training module");
+const faultBody = functionBody("trackRoomFault");
+if (!faultBody.includes("recordRoomFaultData(")) errors.push("Focus faults must delegate to the training module");
+const drillClearBody = functionBody("trackDrillClear");
+if (!drillClearBody.includes("recordDrillClearData(")) errors.push("Focus Drill wins must delegate to the training module");
+const masteryBody = functionBody("roomMasteryScore");
+if (!masteryBody.includes("roomMasteryScoreData(")) errors.push("Focus mastery must delegate to the training module");
+const reviewModeBody = functionBody("roomReviewMode");
+if (!reviewModeBody.includes("roomReviewModeData(")) errors.push("Focus review mode must delegate to the training module");
 
 if (!js.includes("SETTINGS_SCHEMA_VERSION = 4")) errors.push("settings schema version should be current");
 if (!js.includes("PROFILE_SCHEMA_VERSION = 2")) errors.push("profile schema version should be current");

@@ -9,8 +9,19 @@ import {
   createDrillData,
   createRouteContractStateData,
   drillSucceededData,
+  drillContractProgressData,
+  drillContractStatsData,
   feelFixtureMatchesDrillData,
   feelFixtureModeData,
+  leadingRoomReasonData,
+  recordDrillClearData,
+  recordDrillStartData,
+  recordRoomClearData,
+  recordRoomFaultData,
+  roomFocusScoreData,
+  roomMasteryLevelData,
+  roomMasteryScoreData,
+  roomReviewModeData,
   routeContractMatchesDrillData,
   routeContractResumeStepData,
   routeStepIndexData,
@@ -127,4 +138,103 @@ assert.equal(feelFixtureMatchesDrillData({
   mode: "pace"
 }, clean), false);
 
-console.log("Training module check passed: transitions, Drill outcomes, Route resume/advance and Feel matching.");
+const focusEntry = {
+  schemaVersion: 2,
+  faults: 2,
+  clears: 1,
+  clean: 1,
+  drills: 3,
+  drillClears: 1,
+  drillClean: 1,
+  cleanDrills: 1,
+  cleanWins: 1,
+  paceDrills: 2,
+  paceWins: 0,
+  styleDrills: 0,
+  styleWins: 0,
+  expertDrills: 0,
+  expertWins: 0,
+  fall: 1,
+  spikes: 1,
+  last: "spikes"
+};
+assert.equal(leadingRoomReasonData(focusEntry, ["fall", "spikes"], (reason) => reason || "none"), "fall", "ties preserve reason order");
+assert.equal(leadingRoomReasonData({
+  ...focusEntry,
+  fall: 0,
+  spikes: 0
+}, ["fall", "spikes"], (reason) => reason || "none"), "spikes");
+
+const faulted = recordRoomFaultData(focusEntry, "spikes");
+assert.equal(faulted.faults, 3);
+assert.equal(faulted.spikes, 2);
+assert.equal(faulted.last, "spikes");
+assert.equal(focusEntry.faults, 2, "Focus updates must not mutate the previous entry");
+const cleared = recordRoomClearData(focusEntry, true);
+assert.equal(cleared.clears, 2);
+assert.equal(cleared.clean, 2);
+assert.equal(recordRoomClearData(focusEntry, false).clean, 1);
+
+const drillStarted = recordDrillStartData(focusEntry, "style");
+assert.equal(drillStarted.drills, 4);
+assert.equal(drillStarted.styleDrills, 1);
+assert.equal(recordDrillStartData(focusEntry, "__proto__").drills, 4);
+assert.equal(recordDrillStartData(focusEntry, "__proto__").cleanDrills, 1);
+const drillCleared = recordDrillClearData(focusEntry, true, "pace");
+assert.equal(drillCleared.drillClears, 2);
+assert.equal(drillCleared.drillClean, 2);
+assert.equal(drillCleared.paceWins, 1);
+assert.deepEqual(drillContractStatsData(focusEntry, "pace"), { starts: 2, wins: 0 });
+assert.deepEqual(drillContractStatsData(focusEntry, "auto"), { starts: 3, wins: 1 });
+assert.equal(drillContractProgressData({ starts: 4, wins: 1 }), 25);
+assert.equal(drillContractProgressData({ starts: 1, wins: 4 }), 100);
+assert.equal(drillContractProgressData({ starts: 0, wins: 4 }), 0);
+
+const capped = recordRoomFaultData({ faults: 9999, spikes: 9999 }, "spikes");
+assert.equal(capped.faults, 9999);
+assert.equal(capped.spikes, 9999);
+assert.equal(roomFocusScoreData({ faults: 8, clean: 2 }, 3), 16);
+assert.equal(roomFocusScoreData({ faults: Number.NaN, clean: -1 }, -2), 0);
+assert.equal(roomMasteryScoreData({
+  entry: { clean: 1, expertWins: 1 },
+  best: 10,
+  grade: "S",
+  focusScore: 0
+}), 90);
+assert.equal(roomMasteryScoreData({
+  entry: { clean: 1, cleanWins: 1 },
+  best: 10,
+  grade: "B",
+  focusScore: 20
+}), 46, "mastery pressure penalty remains capped at 18");
+assert.equal(roomMasteryLevelData(86), "掌握");
+assert.equal(roomMasteryLevelData(66), "稳定");
+assert.equal(roomMasteryLevelData(42), "成形");
+assert.equal(roomMasteryLevelData(18), "可通");
+assert.equal(roomMasteryLevelData(17), "待练");
+assert.equal(roomReviewModeData({
+  entry: { clean: 0 },
+  loss: null,
+  pressure: 0,
+  grade: ""
+}), "clean");
+assert.equal(roomReviewModeData({
+  entry: { clean: 1 },
+  loss: 0.2,
+  pressure: 0,
+  grade: "A"
+}), "pace");
+assert.equal(roomReviewModeData({
+  entry: { clean: 1, styleWins: 0 },
+  loss: -0.2,
+  pressure: 0,
+  grade: "S"
+}), "style");
+assert.equal(roomReviewModeData({
+  entry: { clean: 1, styleWins: 1, expertWins: 0 },
+  loss: -0.2,
+  pressure: 0,
+  grade: "S"
+}), "expert");
+
+console.log("Training module check passed: transitions, Drill/Route/Feel state, Focus counters, mastery and review mode.");

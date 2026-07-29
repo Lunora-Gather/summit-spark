@@ -742,6 +742,22 @@ if (!js.includes("drawSummitConstellation(time, atmosphere);")
   || !js.includes("lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8")) {
   errors.push("Star Summit's existing constellation must continuously reflect current-run Lumen progress without becoming another UI counter");
 }
+if (!js.includes("const CRUMBLE_RIPPLE_DELAY = 0.065;")
+  || !js.includes("rippleDelay: 0")
+  || !js.includes("rippleDelayMax: 0")
+  || !js.includes("rippleOrder: 0")
+  || !js.includes("function activeCrumbleStrip(origin)")
+  || !js.includes("if (chapterIndexForRoom(roomIndex) !== 2) return [origin];")
+  || !js.includes("room.entities.crumble.get(`${x}:${origin.y}`)")
+  || !js.includes("function armCrumbleStrip(origin)")
+  || !js.includes("block.rippleDelay = order * CRUMBLE_RIPPLE_DELAY;")
+  || !js.includes("if (block.rippleDelay > 0) continue;")
+  || !js.includes("const queued = block?.rippleDelay > 0")
+  || !js.includes("(TILE - 8) * queued")
+  || !js.includes('name === "land" || name === "crumble"')
+  || !js.includes("q${crumble.queued} a${crumble.armed}")) {
+  errors.push("Wind Gorge crumble strips must ripple only through contiguous same-row tiles while queued collision, full warnings and bounded audio remain intact");
+}
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length !== 2
   || (maps[5]?.join("").match(/T/g) || []).length !== 2

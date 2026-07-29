@@ -409,7 +409,7 @@ for (const feedback of [
   'playSound("checkpoint", 0.72)',
   'setGameStatus(`检查点已点亮 · R${roomIndex + 1}`)',
   'playSound("crack", 0.62)',
-  'playSound("crumble", 0.72)'
+  'playSound("crumble", block.rippleOrder === 0 ? 0.72 : 0.46)'
 ]) {
   if (!runtimeSource.includes(feedback)) fail(`world feedback chain missing ${feedback}`);
 }
@@ -443,6 +443,19 @@ if (!runtimeSource.includes("drawSummitConstellation(time, atmosphere);")
   || !runtimeSource.includes("prefersReducedMotion ? 0")
   || runtimeSource.includes("hairColor = collected.size")) {
   fail("Star Summit's existing background constellation should respond continuously to current-run Lumens without recoloring the climber");
+}
+if (!runtimeSource.includes("const CRUMBLE_RIPPLE_DELAY = 0.065;")
+  || !runtimeSource.includes("function activeCrumbleStrip(origin)")
+  || !runtimeSource.includes("if (chapterIndexForRoom(roomIndex) !== 2) return [origin];")
+  || !runtimeSource.includes("room.entities.crumble.get(`${x}:${origin.y}`)")
+  || !runtimeSource.includes("function armCrumbleStrip(origin)")
+  || !runtimeSource.includes("block.rippleDelay = order * CRUMBLE_RIPPLE_DELAY;")
+  || !runtimeSource.includes("if (block.rippleDelay > 0) continue;")
+  || !runtimeSource.includes("const queued = block?.rippleDelay > 0")
+  || !runtimeSource.includes("block.rippleOrder === 0 ? 0.72 : 0.46")
+  || !runtimeSource.includes('name === "land" || name === "crumble"')
+  || runtimeSource.includes("hairColor = block.rippleDelay")) {
+  fail("Wind Gorge crumble strips should expose a bounded same-row fracture ripple without changing Star Summit or the climber");
 }
 if (!runtimeSource.includes("Number.isFinite(soundCooldowns[name])")) {
   fail("sound cooldowns should suppress same-frame world feedback even at audio time zero");

@@ -1561,6 +1561,60 @@ async function runOldPeakRelicSmoke(cdp, baseUrl) {
   }
 }
 
+async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
+  await navigateApp(cdp, baseUrl, "Wind Gorge crumble ripple seed");
+  await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    saved.assistMode = "off";
+    saved.controlsPreset = "comfort";
+    saved.keyboardLayout = "pc";
+    localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
+  })()`);
+  await navigateApp(cdp, baseUrl, "Wind Gorge crumble ripple");
+  await clickSelector(cdp, "#startButton");
+  await enableDebugPanel(cdp);
+  await keyTap(cdp, "Digit8", "8");
+  const dormant = await waitUntil("R8 crumble strip starts fully restored", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /room 8\\/10/.test(text) && /crumble 11\\/11 q0 a0/.test(text) ? { text } : null;
+  })()`), 3500);
+  let waveStart;
+  let waveBroken;
+  await keyDown(cdp, "KeyD", "D");
+  try {
+    await sleep(400);
+    await keyTap(cdp, "KeyK", "K");
+    waveStart = await waitUntil("R8 five-tile strip enters a staged fracture wave", () => evaluate(cdp, `(() => {
+      const text = document.querySelector("#debugPanel").textContent;
+      const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+      return /crumble 11\\/11 q4 a1/.test(text) && position
+        ? { x: Number(position[1]), y: Number(position[2]), text }
+        : null;
+    })()`), 1600, 20);
+    waveBroken = await waitUntil("R8 staged strip completes five bounded breaks", () => evaluate(cdp, `(() => {
+      const text = document.querySelector("#debugPanel").textContent;
+      return /crumble 6\\/11 q0 a0/.test(text) ? { text } : null;
+    })()`), 1800, 20);
+  } finally {
+    await keyUp(cdp, "KeyD", "D");
+  }
+  await keyTap(cdp, "KeyR", "R");
+  const reset = await waitUntil("R8 retry restores the full crumble strip", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /快速重开 · R8/.test(document.querySelector("#gameStatus").textContent)
+      && /crumble 11\\/11 q0 a0/.test(text)
+      ? { text }
+      : null;
+  })()`), 3500);
+  if (!/crumble 11\/11 q0 a0/.test(dormant.text)
+    || waveStart.x < 250
+    || waveStart.x > 320
+    || !/crumble 6\/11 q0 a0/.test(waveBroken.text)
+    || !/crumble 11\/11 q0 a0/.test(reset.text)) {
+    errors.push("R8 should stage one five-tile same-row fracture wave and restore it atomically on retry: " + JSON.stringify({ dormant, waveStart, waveBroken, reset }));
+  }
+}
+
 async function runGroundRechargeSmoke(cdp, baseUrl) {
   await navigateApp(cdp, baseUrl, "ground recharge seed");
   await evaluate(cdp, `(() => {
@@ -4137,6 +4191,7 @@ async function main() {
     await runDesktopSmoke(cdp, baseUrl);
     await runChapterTransitionInputSmoke(cdp, baseUrl);
     await runOldPeakRelicSmoke(cdp, baseUrl);
+    await runWindGorgeCrumbleRippleSmoke(cdp, baseUrl);
     await runGroundRechargeSmoke(cdp, baseUrl);
     await runKeyboardSettingsSmoke(cdp, baseUrl);
     await runAssistModeSmoke(cdp, baseUrl);
@@ -4174,7 +4229,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

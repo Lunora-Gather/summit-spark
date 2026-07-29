@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p242"),
-    import("./modules/core/math.mjs?v=20260729-p242"),
-    import("./modules/game/room-data.mjs?v=20260729-p242"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p242"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p242"),
-    import("./modules/systems/storage.mjs?v=20260729-p242"),
-    import("./modules/systems/input.mjs?v=20260729-p242"),
-    import("./modules/training/state.mjs?v=20260729-p242"),
-    import("./modules/training/replay.mjs?v=20260729-p242"),
-    import("./modules/ui/presentation.mjs?v=20260729-p242")
+    import("./modules/core/format.mjs?v=20260729-p243"),
+    import("./modules/core/math.mjs?v=20260729-p243"),
+    import("./modules/game/room-data.mjs?v=20260729-p243"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p243"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p243"),
+    import("./modules/systems/storage.mjs?v=20260729-p243"),
+    import("./modules/systems/input.mjs?v=20260729-p243"),
+    import("./modules/training/state.mjs?v=20260729-p243"),
+    import("./modules/training/replay.mjs?v=20260729-p243"),
+    import("./modules/ui/presentation.mjs?v=20260729-p243")
   ]);
 
   const canvas = document.getElementById("game");
@@ -393,6 +393,7 @@
   const SUMMIT_REVEAL_TIME = 2.25;
   const CURRENT_PATH_DRAW_POINTS = 90;
   const CRUMBLE_BREAK_TIME = 0.42;
+  const CRUMBLE_RIPPLE_DELAY = 0.065;
   const DASH_AIM_PREVIEW_LENGTH = 58;
   const DASH_AIM_PREVIEW_MIN_ALPHA = 0.24;
   const CRUMBLE_DEATH_MEMORY = 1.4;
@@ -1476,7 +1477,15 @@
           tiles[y][x] = ".";
         }
         if (tile === "C") {
-          entities.crumble.set(`${x}:${y}`, { x, y, timer: 0, warned: false });
+          entities.crumble.set(`${x}:${y}`, {
+            x,
+            y,
+            timer: 0,
+            rippleDelay: 0,
+            rippleDelayMax: 0,
+            rippleOrder: 0,
+            warned: false
+          });
         }
         if (tile === "T") {
           entities.springs.push({ x: x * TILE, y: y * TILE + 18, w: TILE, h: 14, pulse: 0 });
@@ -6842,7 +6851,15 @@
     if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
     const preset = SOUND_PRESETS[name] || SOUND_PRESETS.ui;
     const now = audioContext.currentTime;
-    const cooldown = name === "wind" ? 0.28 : name === "land" ? 0.08 : name === "crack" ? 0.06 : name === "ui" ? 0.04 : 0.035;
+    const cooldown = name === "wind"
+      ? 0.28
+      : name === "land" || name === "crumble"
+        ? 0.08
+        : name === "crack"
+          ? 0.06
+          : name === "ui"
+            ? 0.04
+            : 0.035;
     if (Number.isFinite(soundCooldowns[name]) && now - soundCooldowns[name] < cooldown) return;
     soundCooldowns[name] = now;
     audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
@@ -7040,13 +7057,41 @@
     return keys;
   }
 
+  function activeCrumbleStrip(origin) {
+    if (chapterIndexForRoom(roomIndex) !== 2) return [origin];
+    const strip = [origin];
+    for (const direction of [-1, 1]) {
+      for (let x = origin.x + direction; x >= 0 && x < COLS; x += direction) {
+        const block = room.entities.crumble.get(`${x}:${origin.y}`);
+        if (!block || room.tiles[origin.y]?.[x] !== "C") break;
+        strip.push(block);
+      }
+    }
+    return strip.sort((a, b) => Math.abs(a.x - origin.x) - Math.abs(b.x - origin.x) || a.x - b.x);
+  }
+
+  function armCrumbleStrip(origin) {
+    const strip = activeCrumbleStrip(origin);
+    for (const block of strip) {
+      if (block.timer > 0 || block.rippleDelay > 0 || room.tiles[block.y]?.[block.x] !== "C") continue;
+      const order = Math.abs(block.x - origin.x);
+      block.timer = CRUMBLE_BREAK_TIME;
+      block.rippleDelay = order * CRUMBLE_RIPPLE_DELAY;
+      block.rippleDelayMax = block.rippleDelay;
+      block.rippleOrder = order;
+      block.warned = true;
+    }
+  }
+
   function updateCrumblePlatforms(dt) {
     if (!room.entities.crumble || room.entities.crumble.size === 0) return;
     for (const key of crumbleTilesUnderPlayer()) {
       const block = room.entities.crumble.get(key);
-      if (block && room.tiles[block.y]?.[block.x] === "C" && block.timer <= 0) {
-        block.timer = CRUMBLE_BREAK_TIME;
-        block.warned = true;
+      if (block
+        && room.tiles[block.y]?.[block.x] === "C"
+        && block.timer <= 0
+        && block.rippleDelay <= 0) {
+        armCrumbleStrip(block);
         crumbleSlipTimer = CRUMBLE_DEATH_MEMORY;
         markRoomTech("crumble");
         showMechanicFirstTouchCue("crumble");
@@ -7057,13 +7102,24 @@
     }
 
     for (const block of room.entities.crumble.values()) {
-      if (room.tiles[block.y]?.[block.x] !== "C" || block.timer <= 0) continue;
+      if (room.tiles[block.y]?.[block.x] !== "C") continue;
+      if (block.rippleDelay > 0) {
+        block.rippleDelay = Math.max(0, block.rippleDelay - dt);
+        if (block.rippleDelay > 0) continue;
+      }
+      if (block.timer <= 0) continue;
       block.timer = Math.max(0, block.timer - dt);
       if (block.timer <= 0) {
         room.tiles[block.y][block.x] = ".";
         crumbleSlipTimer = CRUMBLE_DEATH_MEMORY;
-        playSound("crumble", 0.72);
-        burst(block.x * TILE + TILE / 2, block.y * TILE + TILE / 2, palette.cyan, 12, 210);
+        playSound("crumble", block.rippleOrder === 0 ? 0.72 : 0.46);
+        burst(
+          block.x * TILE + TILE / 2,
+          block.y * TILE + TILE / 2,
+          palette.cyan,
+          block.rippleOrder === 0 ? 12 : settings.lowPerformance ? 3 : 6,
+          210
+        );
         addSnow(block.x * TILE + TILE / 2, block.y * TILE + 4, 4);
       }
     }
@@ -9484,13 +9540,22 @@
 
   function drawCrumblePlatform(x, y, gx, gy, time) {
     const block = room.entities.crumble?.get(`${gx}:${gy}`);
-    const armed = block ? block.timer / CRUMBLE_BREAK_TIME : 0;
+    const queued = block?.rippleDelay > 0
+      ? 1 - block.rippleDelay / Math.max(block.rippleDelayMax, CRUMBLE_RIPPLE_DELAY)
+      : 0;
+    const armed = block && block.rippleDelay <= 0 ? block.timer / CRUMBLE_BREAK_TIME : 0;
     const danger = armed > 0 ? 1 - armed : 0;
     const jitter = armed > 0 ? Math.sin(time * 50 + gx) * (1 - armed) * 1.3 : 0;
     ctx.save();
     ctx.translate(jitter, 0);
     const sprite = crumbleTileSprite();
     ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE);
+    if (queued > 0) {
+      ctx.fillStyle = `rgba(118, 215, 255, ${settings.calmEffects ? 0.08 : 0.13})`;
+      ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
+      ctx.fillStyle = `rgba(214, 245, 248, ${settings.calmEffects ? 0.28 : 0.42})`;
+      ctx.fillRect(x + 4, y + 4, (TILE - 8) * queued, 2);
+    }
     if (armed > 0) {
       ctx.fillStyle = `rgba(239,248,246,${armed * 0.12})`;
       ctx.fillRect(x + 3, y + 3, TILE - 6, 4);
@@ -10794,12 +10859,17 @@
   }
 
   function crumbleCount() {
-    if (!room.entities.crumble) return { active: 0, total: 0 };
+    if (!room.entities.crumble) return { active: 0, total: 0, queued: 0, armed: 0 };
     let active = 0;
+    let queued = 0;
+    let armed = 0;
     for (const block of room.entities.crumble.values()) {
-      if (room.tiles[block.y]?.[block.x] === "C") active += 1;
+      if (room.tiles[block.y]?.[block.x] !== "C") continue;
+      active += 1;
+      if (block.rippleDelay > 0) queued += 1;
+      else if (block.timer > 0) armed += 1;
     }
-    return { active, total: room.entities.crumble.size };
+    return { active, total: room.entities.crumble.size, queued, armed };
   }
 
   function updatePortraitBrief() {
@@ -10890,7 +10960,7 @@
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  recall ${echoAnchor && echoAnchor.room === roomIndex && recallCooldown <= 0 && player.deadTimer <= 0 ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
-      `relays ${room.entities.relays.length}  relic ${relayLandmarkProgress().toFixed(2)}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
+      `relays ${room.entities.relays.length}  relic ${relayLandmarkProgress().toFixed(2)}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total} q${crumble.queued} a${crumble.armed}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
       `replay actions ${replayActionMarkersFor(bestRoomPaths[roomIndex]).length}  active ${practiceVisualsActive() ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,

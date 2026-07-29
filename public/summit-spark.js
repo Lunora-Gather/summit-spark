@@ -86,13 +86,27 @@
       tickInputBuffers,
       transitionDigitalInput,
       validBindingCodeData
+    },
+    {
+      TRAINING_TRANSITIONS,
+      activeRouteContractDataFor,
+      advanceRouteContractData,
+      createDrillData,
+      createRouteContractStateData,
+      drillSucceededData,
+      feelFixtureMatchesDrillData,
+      feelFixtureModeData,
+      routeContractMatchesDrillData,
+      routeContractResumeStepData,
+      trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p189"),
-    import("./modules/core/math.mjs?v=20260729-p189"),
-    import("./modules/game/room-data.mjs?v=20260729-p189"),
-    import("./modules/systems/storage.mjs?v=20260729-p189"),
-    import("./modules/systems/input.mjs?v=20260729-p189")
+    import("./modules/core/format.mjs?v=20260729-p190"),
+    import("./modules/core/math.mjs?v=20260729-p190"),
+    import("./modules/game/room-data.mjs?v=20260729-p190"),
+    import("./modules/systems/storage.mjs?v=20260729-p190"),
+    import("./modules/systems/input.mjs?v=20260729-p190"),
+    import("./modules/training/state.mjs?v=20260729-p190")
   ]);
 
   const canvas = document.getElementById("game");
@@ -477,26 +491,6 @@
     { id: "wall-spark", room: 5, window: "SPARK_HOP_WINDOW", maxDelay: 0.085, expected: ["wallSpark"], note: "贴墙续跃形成折返高手线" },
     { id: "prism-spark", room: 8, window: "SPARK_HOP_WINDOW", maxDelay: 0.085, expected: ["prismSpark"], note: "棱镜后续跃形成过载路线" }
   ];
-  const TRAINING_TRANSITIONS = Object.freeze({
-    hardReset: Object.freeze({
-      keepDrill: false,
-      keepChallenge: false,
-      keepRoute: false,
-      keepFeel: false,
-      routeReason: "重开路线",
-      feelReason: "重开中断"
-    }),
-    jumpRoom: Object.freeze({
-      keepDrill: false,
-      keepChallenge: false,
-      keepRoute: false,
-      keepFeel: false,
-      routeReason: "跳房中断",
-      feelReason: "跳房中断"
-    })
-  });
-
-
   const palette = {
     skyTop: "#273b59",
     skyMid: "#5b7084",
@@ -1940,8 +1934,7 @@
   }
 
   function applyTrainingTransition(name, overrides = {}) {
-    const base = TRAINING_TRANSITIONS[name] || {};
-    clearTrainingTransitionState({ ...base, ...overrides });
+    clearTrainingTransitionState(trainingTransitionOptionsData(name, overrides));
   }
 
   function clearTransientTrainingResults() {
@@ -3968,7 +3961,7 @@
       chapterEntry: true
     });
     clearFailureRehearsal();
-    activeDrill = { room: index, mode: resolvedMode, objective, target: ROOM_TARGETS[index] || 0 };
+    activeDrill = createDrillData(index, resolvedMode, objective, ROOM_TARGETS[index] || 0);
     if (options.feelFixture) activeFeelFixture = { id: options.feelFixture, room: index, mode: resolvedMode };
     armRouteCue("Drill", routeSlotForMode(resolvedMode), ROUTE_CUE_TIME + 1.2);
     trackDrillStart(index, resolvedMode);
@@ -4030,11 +4023,12 @@
   }
 
   function drillSucceeded(drill, clean, elapsed) {
-    if (drill.mode === "clean") return clean;
-    if (drill.mode === "pace") return drill.target > 0 && elapsed <= drill.target;
-    if (drill.mode === "style") return styleTrialSucceeded(drill.room, clean, elapsed);
-    if (drill.mode === "expert") return clean && drill.target > 0 && elapsed <= drill.target && expertRequirementsMet(drill.room);
-    return true;
+    return drillSucceededData(drill, {
+      clean,
+      elapsed,
+      styleSucceeded: drill.mode === "style" && styleTrialSucceeded(drill.room, clean, elapsed),
+      expertRequirementsMet: drill.mode === "expert" && expertRequirementsMet(drill.room)
+    });
   }
 
   function styleTrialSucceeded(index, clean, elapsed) {
@@ -4364,17 +4358,11 @@
   }
 
   function activeRouteContractData() {
-    if (!activeRouteContract) return null;
-    const contract = routeContractById(activeRouteContract.id);
-    const stepIndex = Math.max(0, Math.min(contract.steps.length - 1, activeRouteContract.step));
-    const step = contract.steps[stepIndex];
-    if (!step) return null;
-    return { contract, step, stepIndex, total: contract.steps.length };
+    return activeRouteContractDataFor(activeRouteContract, ROUTE_CONTRACTS);
   }
 
   function routeContractMatchesDrill(drill) {
-    const data = activeRouteContractData();
-    return Boolean(data && drill && data.step.index === drill.room && resolveDrillMode(data.step.index, data.step.mode) === drill.mode);
+    return routeContractMatchesDrillData(activeRouteContract, ROUTE_CONTRACTS, drill);
   }
 
   function routeContractHudDetail(index, mode) {
@@ -4395,9 +4383,7 @@
   }
 
   function routeContractResumeStep(contract) {
-    if (!lastRouteContractResult || lastRouteContractResult.done || lastRouteContractResult.id !== contract.id) return -1;
-    const step = Number(lastRouteContractResult.step);
-    return Number.isInteger(step) ? Math.max(0, Math.min(contract.steps.length - 1, step)) : 0;
+    return routeContractResumeStepData(lastRouteContractResult, contract);
   }
 
   function updateRouteContracts() {
@@ -4429,8 +4415,11 @@
       return false;
     }
     if (activeRouteContract) cancelActiveRouteContract("切换航线");
-    const step = Math.max(0, Math.min(contract.steps.length - 1, Number(stepIndex) || 0));
-    activeRouteContract = { id: contract.id, step, generation: nextRouteContractGeneration() };
+    activeRouteContract = createRouteContractStateData(contract, stepIndex, nextRouteContractGeneration());
+    if (!activeRouteContract) {
+      rejectTrainingEntry("航线合同");
+      return false;
+    }
     lastRouteContractResult = null;
     startRouteContractStep();
     return true;
@@ -4465,11 +4454,11 @@
   function advanceRouteContract(index, mode) {
     if (!activeRouteContract) return false;
     const contract = routeContractById(activeRouteContract.id);
-    const step = contract.steps[activeRouteContract.step];
-    if (!step || step.index !== index || resolveDrillMode(index, step.mode) !== mode) return false;
-    activeRouteContract.step += 1;
-    const next = contract.steps[activeRouteContract.step];
-    if (!next) {
+    const advancement = advanceRouteContractData(activeRouteContract, contract, index, mode);
+    if (!advancement.matched) return false;
+    activeRouteContract = advancement.state;
+    const next = advancement.next;
+    if (advancement.done) {
       focusPopupText = `${contract.label} 完成`;
       focusPopupDetail = contract.goal;
       focusPopupTimer = FOCUS_POPUP_TIME;
@@ -4503,12 +4492,7 @@
   }
 
   function feelFixtureMode(fixture) {
-    const expected = Array.isArray(fixture.expected) ? fixture.expected : [];
-    if (expected.includes("prismSpark")) return "style";
-    if (expected.includes("wallSpark")) return "style";
-    if (expected.includes("spark")) return "style";
-    if (expected.includes("dash")) return "pace";
-    return "clean";
+    return feelFixtureModeData(fixture);
   }
 
   function feelFixtureStats(fixture) {
@@ -4522,7 +4506,7 @@
   }
 
   function feelFixtureMatchesDrill(drill) {
-    return Boolean(activeFeelFixture && drill && activeFeelFixture.room === drill.room && activeFeelFixture.mode === drill.mode);
+    return feelFixtureMatchesDrillData(activeFeelFixture, drill);
   }
 
   function cancelActiveFeelFixture(reason = "已中断") {

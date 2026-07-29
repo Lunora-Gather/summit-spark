@@ -36,6 +36,7 @@ const publicFiles = new Map([
   ["/modules/game/room-data.mjs", path.join("public", "modules", "game", "room-data.mjs")],
   ["/modules/systems/storage.mjs", path.join("public", "modules", "systems", "storage.mjs")],
   ["/modules/systems/input.mjs", path.join("public", "modules", "systems", "input.mjs")],
+  ["/modules/training/state.mjs", path.join("public", "modules", "training", "state.mjs")],
   ["/vendor/appwrite-26.2.0.js", path.join("public", "vendor", "appwrite-26.2.0.js")],
   ["/vendor/APPWRITE-LICENSE", path.join("public", "vendor", "APPWRITE-LICENSE")]
 ]);

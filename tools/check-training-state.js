@@ -6,41 +6,8 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8");
+const trainingModule = fs.readFileSync(path.join(root, "public", "modules", "training", "state.mjs"), "utf8");
 const errors = [];
-
-function extractObject(name) {
-  const needle = "const " + name + " = ";
-  const start = js.indexOf(needle);
-  if (start === -1) throw new Error("Missing " + name);
-  const objectStart = js.indexOf("{", start);
-  if (objectStart === -1) throw new Error("Missing object for " + name);
-  let depth = 0;
-  let inString = false;
-  let quote = "";
-  let escaped = false;
-  for (let i = objectStart; i < js.length; i += 1) {
-    const ch = js[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === quote) inString = false;
-      continue;
-    }
-    if (ch === "\"" || ch === "'" || ch === "`") {
-      inString = true;
-      quote = ch;
-      continue;
-    }
-    if (ch === "{") depth += 1;
-    if (ch === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return Function("\"use strict\"; return (" + js.slice(objectStart, i + 1).replace(/Object\.freeze\(/g, "(") + ");")();
-      }
-    }
-  }
-  throw new Error("Unclosed object for " + name);
-}
 
 function functionBody(name) {
   const needle = "function " + name + "(";
@@ -90,21 +57,10 @@ function functionBody(name) {
   return "";
 }
 
-const transitions = extractObject("TRAINING_TRANSITIONS");
-const expected = {
-  hardReset: { keepDrill: false, keepChallenge: false, keepRoute: false, keepFeel: false, routeReason: "重开路线", feelReason: "重开中断" },
-  jumpRoom: { keepDrill: false, keepChallenge: false, keepRoute: false, keepFeel: false, routeReason: "跳房中断", feelReason: "跳房中断" }
-};
-
-for (const [name, rules] of Object.entries(expected)) {
-  const transition = transitions[name];
-  if (!transition) {
-    errors.push("missing transition " + name);
-    continue;
-  }
-  for (const [field, value] of Object.entries(rules)) {
-    if (transition[field] !== value) errors.push("transition " + name + " has invalid " + field);
-  }
+if (!trainingModule.includes("export const TRAINING_TRANSITIONS = Object.freeze({")
+  || !trainingModule.includes('routeReason: "重开路线"')
+  || !trainingModule.includes('feelReason: "跳房中断"')) {
+  errors.push("training module must own the immutable reset and room-jump transitions");
 }
 
 const clearBody = functionBody("clearTrainingTransitionState");
@@ -125,12 +81,24 @@ const drillBody = functionBody("startRoomDrill");
 if (!drillBody.includes('cancelActiveRouteContract("改练中断")')) errors.push("startRoomDrill should interrupt mismatched route contracts");
 if (!drillBody.includes('cancelActiveFeelFixture("改练中断")')) errors.push("startRoomDrill should interrupt mismatched feel fixtures");
 if (!drillBody.includes("keepRoute") || !drillBody.includes("keepFeel")) errors.push("startRoomDrill must pass keepRoute/keepFeel into jumpToRoom");
+if (!drillBody.includes("createDrillData(")) errors.push("startRoomDrill must create state through the training module");
 
 const retryBody = functionBody("retryFailedDrill");
 if (!retryBody.includes("routeContractMatchesDrill") || !retryBody.includes("feelFixtureMatchesDrill")) errors.push("failed Drill retry must validate Route/Feel state before preserving it");
 
 const resumeBody = functionBody("resumeRecommendedTraining");
 if (!resumeBody.includes("clearTransientTrainingResults") || !resumeBody.includes("startRoomDrill")) errors.push("direct resume should clear stale summaries and start the recommended Drill");
+
+const transitionBody = functionBody("applyTrainingTransition");
+if (!transitionBody.includes("trainingTransitionOptionsData(")) errors.push("training transitions must resolve through the training module");
+const succeededBody = functionBody("drillSucceeded");
+if (!succeededBody.includes("drillSucceededData(")) errors.push("Drill outcomes must delegate to the training module");
+const routeDataBody = functionBody("activeRouteContractData");
+if (!routeDataBody.includes("activeRouteContractDataFor(")) errors.push("Route active-state lookup must delegate to the training module");
+const advanceBody = functionBody("advanceRouteContract");
+if (!advanceBody.includes("advanceRouteContractData(")) errors.push("Route advancement must delegate to the training module");
+const feelModeBody = functionBody("feelFixtureMode");
+if (!feelModeBody.includes("feelFixtureModeData(")) errors.push("Feel fixture mode must delegate to the training module");
 
 if (!js.includes("SETTINGS_SCHEMA_VERSION = 4")) errors.push("settings schema version should be current");
 if (!js.includes("PROFILE_SCHEMA_VERSION = 2")) errors.push("profile schema version should be current");

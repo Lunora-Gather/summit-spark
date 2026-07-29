@@ -15,6 +15,7 @@ const requiredTools = [
   "tools/check-room-data.mjs",
   "tools/check-storage.mjs",
   "tools/check-input.mjs",
+  "tools/check-training.mjs",
   "tools/check-contracts.js",
   "tools/check-data-contracts.js",
   "tools/check-docs.js",

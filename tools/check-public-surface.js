@@ -33,6 +33,7 @@ const coreMathSource = read("public/modules/core/math.mjs");
 const roomDataSource = read("public/modules/game/room-data.mjs");
 const storageSource = read("public/modules/systems/storage.mjs");
 const inputSource = read("public/modules/systems/input.mjs");
+const trainingSource = read("public/modules/training/state.mjs");
 
 const buildVersion = extractOne(
   "meta build-version",
@@ -74,6 +75,11 @@ const inputVersion = extractOne(
   runtimeSource,
   /modules\/systems\/input\.mjs\?v=([^"]+)"/
 );
+const trainingVersion = extractOne(
+  "training state module version",
+  runtimeSource,
+  /modules\/training\/state\.mjs\?v=([^"]+)"/
+);
 
 if (buildVersion && cssVersion && buildVersion !== cssVersion) {
   fail(`css version ${cssVersion} does not match build version ${buildVersion}`);
@@ -101,6 +107,9 @@ if (buildVersion && storageVersion && buildVersion !== storageVersion) {
 
 if (buildVersion && inputVersion && buildVersion !== inputVersion) {
   fail(`input version ${inputVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && trainingVersion && buildVersion !== trainingVersion) {
+  fail(`training version ${trainingVersion} does not match build version ${buildVersion}`);
 }
 
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js")) {
@@ -204,6 +213,27 @@ for (const delegation of [
 ]) {
   if (!runtimeSource.includes(delegation)) {
     fail(`public runtime must delegate input ownership through ${delegation}`);
+  }
+}
+
+if (!runtimeSource.includes('import("./modules/training/state.mjs?v=')
+  || !trainingSource.includes("export const TRAINING_TRANSITIONS = Object.freeze({")
+  || !trainingSource.includes("export function drillSucceededData(")
+  || !trainingSource.includes("export function activeRouteContractDataFor(")
+  || !trainingSource.includes("export function advanceRouteContractData(")
+  || !trainingSource.includes("export function feelFixtureModeData(")) {
+  fail("public runtime must consume the versioned training state module");
+}
+for (const delegation of [
+  "clearTrainingTransitionState(trainingTransitionOptionsData(name, overrides))",
+  "activeDrill = createDrillData(",
+  "return drillSucceededData(drill, {",
+  "return activeRouteContractDataFor(activeRouteContract, ROUTE_CONTRACTS)",
+  "const advancement = advanceRouteContractData(",
+  "return feelFixtureModeData(fixture)"
+]) {
+  if (!runtimeSource.includes(delegation)) {
+    fail(`public runtime must delegate training ownership through ${delegation}`);
   }
 }
 

@@ -18,6 +18,8 @@ summit-spark/
 │  ├─ modules/systems/
 │  │  ├─ storage.mjs        # 设置/存档迁移、读修复、档案/备份与事务回滚
 │  │  └─ input.mjs          # 三类设备状态、动作缓冲、手柄映射与键位规则
+│  ├─ modules/training/
+│  │  └─ state.mjs          # Drill、Route、Feel 与训练转场的纯状态规则
 │  └─ vendor/               # 固定版本 Appwrite SDK 与许可证
 ├─ data/
 │  └─ rooms.generated.json # 房间/训练数据验证快照，不参与运行
@@ -51,6 +53,7 @@ public/index.html
        ├─ public/modules/game/room-data.mjs
        ├─ public/modules/systems/storage.mjs
        ├─ public/modules/systems/input.mjs
+       ├─ public/modules/training/state.mjs
        ├─ Canvas / DOM / WebAudio / 输入
        ├─ localStorage / sessionStorage
        └─ Appwrite Account + TablesDB
@@ -65,7 +68,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、存档规则，以及三类设备的 held/edge/release 状态、动作缓冲规则与设备无关映射，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、存档规则、输入状态/缓冲/映射，以及 Drill/Route/Feel 的首批纯状态规则，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
 
 短期修改遵守：
 
@@ -78,9 +81,9 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`systems/storage.mjs` 与 `systems/input.mjs` 的设备状态/映射/缓冲切片已完成。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`systems/storage.mjs`、`systems/input.mjs` 与 `training/state.mjs` 的首批低风险切片已完成。接下来的顺序是：
 
-1. `training/`：Drill、Route、Feel 和 Focus 纯状态计算。
+1. `training/`：继续迁移 Focus 统计与训练结果组装。
 2. `ui/`：面板和 HUD 的 DOM 更新。
 3. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。
 

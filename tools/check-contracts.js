@@ -512,6 +512,11 @@ if (!browserSmoke.includes("a fresh room should begin without a stale Relay thre
   || !browserSmoke.includes("relay chain 0  path 0")) {
   errors.push("browser smoke must prove a fresh room starts with a cleared Relay thread lifecycle");
 }
+if (!browserSmoke.includes("R7 player-relative updraft wake should exist only inside the exact occupied field")
+  || !browserSmoke.includes("R7 floor route enters its authored updraft")
+  || !browserSmoke.includes("R7 updraft wake clears after leaving the exact field")) {
+  errors.push("browser smoke must prove the authored R7 field toggles the player-relative wind wake on entry and exit");
+}
 if (!css.includes(".stage.low-performance #game") || !css.includes("-webkit-backdrop-filter: none;") || !browserSmoke.includes("low-performance mode should remove per-frame canvas filters and backdrop blurs")) errors.push("low-performance mode must remove canvas filter passes and live backdrop compositing");
 if (!js.includes("function writeStorageTransaction(entries)")
   || !js.includes("writeStorageTransactionData(localStorage, entries)")
@@ -692,6 +697,17 @@ if (!uiPresentationModule.includes("export function fullRunRecordEligibilityData
   errors.push("summit profile and total-time records must require a full-route origin plus current-run ten-room coverage");
 }
 if (!js.includes("player.inUpdraft = true") || !js.includes("const windborne = Boolean(player.inUpdraft)") || !js.includes("windborne,")) errors.push("the fixed-hair climber needs a restrained body-level updraft response without recoloring the hair");
+if (!js.includes("drawUpdraftPlayerWake(fieldBounds, motionTime, pulse);")
+  || !js.includes("function drawUpdraftPlayerWake(fieldBounds, time, pulse)")
+  || !js.includes("if (!player.inUpdraft || !aabb(getPlayerBox(), fieldBounds)) return;")
+  || !js.includes("player.x + player.w / 2")
+  || !js.includes("(-player.vy + 180) / 520")
+  || !js.includes("for (const side of [-1, 1])")
+  || !js.includes("if (!prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance)")
+  || !js.includes("wind ${player.inUpdraft ? 1 : 0}")
+  || js.indexOf("drawEntities(time);") > js.indexOf("if (player.deadTimer <= 0) drawPlayer(time);")) {
+  errors.push("an occupied updraft must draw one player-relative paired wake behind the climber with bounded comfort fallbacks");
+}
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length !== 2
   || (maps[5]?.join("").match(/T/g) || []).length !== 2

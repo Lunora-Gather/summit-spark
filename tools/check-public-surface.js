@@ -402,6 +402,16 @@ for (const feedback of [
 ]) {
   if (!runtimeSource.includes(feedback)) fail(`world feedback chain missing ${feedback}`);
 }
+if (!runtimeSource.includes("drawUpdraftPlayerWake(fieldBounds, motionTime, pulse);")
+  || !runtimeSource.includes("function drawUpdraftPlayerWake(fieldBounds, time, pulse)")
+  || !runtimeSource.includes("if (!player.inUpdraft || !aabb(getPlayerBox(), fieldBounds)) return;")
+  || !runtimeSource.includes("(-player.vy + 180) / 520")
+  || !runtimeSource.includes("for (const side of [-1, 1])")
+  || !runtimeSource.includes("if (!prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance)")
+  || runtimeSource.indexOf("drawEntities(time);") > runtimeSource.indexOf("if (player.deadTimer <= 0) drawPlayer(time);")
+  || runtimeSource.includes("hairColor = player.inUpdraft")) {
+  fail("occupied updrafts should draw a player-relative paired wake behind the fixed-hair climber with comfort fallbacks");
+}
 if (!runtimeSource.includes("Number.isFinite(soundCooldowns[name])")) {
   fail("sound cooldowns should suppress same-frame world feedback even at audio time zero");
 }

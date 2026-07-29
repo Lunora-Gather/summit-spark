@@ -1352,6 +1352,14 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
   await keyTap(cdp, "F3", "F3");
 
+  await navigateApp(cdp, baseUrl, "R7 grounded Practice seed");
+  await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    saved.assistMode = "off";
+    saved.controlsPreset = "comfort";
+    saved.keyboardLayout = "pc";
+    localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
+  })()`);
   await navigateApp(cdp, baseUrl, "R7 grounded Practice entry");
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("R7 practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
@@ -1373,6 +1381,30 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })()`), 3500);
   if (Math.abs(r7PracticeEntry.x - 70.5) > 1 || Math.abs(r7PracticeEntry.y - 487) > 1 || !r7PracticeEntry.ground) {
     errors.push("direct R7 Practice should begin on the intended grounded Wind Gorge checkpoint: " + JSON.stringify(r7PracticeEntry));
+  }
+  await keyHold(cdp, "KeyD", "D", 1320);
+  await keyDown(cdp, "KeyD", "D");
+  await keyHold(cdp, "Space", " ", 80);
+  const r7WindWake = await waitUntil("R7 floor route enters its authored updraft", () => evaluate(cdp, `(() => {
+    const debug = document.querySelector("#debugPanel").textContent;
+    const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    if (!position || !/wind 1/.test(debug)) return null;
+    return { x: Number(position[1]), y: Number(position[2]), debug };
+  })()`), 1400, 20);
+  await keyUp(cdp, "KeyD", "D");
+  await keyHold(cdp, "KeyA", "A", 520);
+  const r7WindExit = await waitUntil("R7 updraft wake clears after leaving the exact field", () => evaluate(cdp, `(() => {
+    const debug = document.querySelector("#debugPanel").textContent;
+    const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    if (!position || !/wind 0/.test(debug)) return null;
+    return { x: Number(position[1]), y: Number(position[2]), debug };
+  })()`), 1400, 20);
+  if (r7WindWake.x < 630
+    || r7WindWake.x > 730
+    || r7WindExit.x >= r7WindWake.x
+    || !/wind 1/.test(r7WindWake.debug)
+    || !/wind 0/.test(r7WindExit.debug)) {
+    errors.push("R7 player-relative updraft wake should exist only inside the exact occupied field: " + JSON.stringify({ r7WindWake, r7WindExit }));
   }
   await keyTap(cdp, "F3", "F3");
 
@@ -4100,7 +4132,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, one-shot hair-independent ground dash recharge, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

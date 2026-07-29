@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p238"),
-    import("./modules/core/math.mjs?v=20260729-p238"),
-    import("./modules/game/room-data.mjs?v=20260729-p238"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p238"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p238"),
-    import("./modules/systems/storage.mjs?v=20260729-p238"),
-    import("./modules/systems/input.mjs?v=20260729-p238"),
-    import("./modules/training/state.mjs?v=20260729-p238"),
-    import("./modules/training/replay.mjs?v=20260729-p238"),
-    import("./modules/ui/presentation.mjs?v=20260729-p238")
+    import("./modules/core/format.mjs?v=20260729-p239"),
+    import("./modules/core/math.mjs?v=20260729-p239"),
+    import("./modules/game/room-data.mjs?v=20260729-p239"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p239"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p239"),
+    import("./modules/systems/storage.mjs?v=20260729-p239"),
+    import("./modules/systems/input.mjs?v=20260729-p239"),
+    import("./modules/training/state.mjs?v=20260729-p239"),
+    import("./modules/training/replay.mjs?v=20260729-p239"),
+    import("./modules/ui/presentation.mjs?v=20260729-p239")
   ]);
 
   const canvas = document.getElementById("game");
@@ -9939,6 +9939,7 @@
       ctx.bezierCurveTo(x - wave * 0.5, y + 4, x + wave * 0.5, y - 7, x - wave * 0.25, y - 14);
       ctx.stroke();
     }
+    drawUpdraftPlayerWake(fieldBounds, motionTime, pulse);
     const arrowY = bottom - 34 + Math.sin(motionTime * 2.2 + updraft.bob) * 3;
     ctx.globalAlpha = 0.34 + pulse * 0.1;
     ctx.beginPath();
@@ -9958,6 +9959,44 @@
     ctx.moveTo(x, top + 2);
     ctx.lineTo(x, top + 13);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawUpdraftPlayerWake(fieldBounds, time, pulse) {
+    if (!player.inUpdraft || !aabb(getPlayerBox(), fieldBounds)) return;
+    const centerX = Math.max(fieldBounds.x + 10, Math.min(fieldBounds.x + fieldBounds.w - 10, player.x + player.w / 2));
+    const centerY = player.y + player.h / 2;
+    const lift = Math.max(0.28, Math.min(1, (-player.vy + 180) / 520));
+    const sway = prefersReducedMotion ? 0 : Math.sin(time * 5.2 + player.x * 0.018) * 2.4;
+    ctx.save();
+    ctx.globalAlpha = (settings.calmEffects ? 0.28 : 0.42) + pulse * 0.08;
+    ctx.strokeStyle = "rgba(235,249,246,0.9)";
+    ctx.lineWidth = settings.lowPerformance ? 1.3 : 1.6;
+    ctx.lineCap = "round";
+    ctx.shadowColor = palette.green;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 1 : 5);
+    for (const side of [-1, 1]) {
+      const shoulder = centerX + side * (player.w * 0.62 + 4);
+      ctx.beginPath();
+      ctx.moveTo(shoulder - sway * side * 0.25, centerY + player.h * 0.72);
+      ctx.bezierCurveTo(
+        shoulder + side * 5 + sway,
+        centerY + 5,
+        shoulder - side * 4 - sway * 0.5,
+        centerY - 15 - lift * 8,
+        shoulder + side * 2,
+        centerY - 28 - lift * 12
+      );
+      ctx.stroke();
+    }
+    if (!prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance) {
+      ctx.globalAlpha *= 0.68;
+      ctx.fillStyle = "#f8fbff";
+      for (const side of [-1, 1]) {
+        const rise = (time * 34 + (side > 0 ? 9 : 0)) % 22;
+        ctx.fillRect(centerX + side * 15 + sway - 1, centerY + 8 - rise, 2, 4);
+      }
+    }
     ctx.restore();
   }
 
@@ -10740,7 +10779,7 @@
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,
       `room focus ${roomFocusDetails(roomIndex)}`,
       `coach ${practiceCoachText()}`,
-      `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}`,
+      `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
       `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}  surface ${surfaceFeedbackForRoom().kind}`,

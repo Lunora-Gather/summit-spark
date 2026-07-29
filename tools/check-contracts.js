@@ -13,6 +13,7 @@ const audioCuesModule = fs.readFileSync(path.join(root, "public", "modules", "ga
 const storageModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "storage.mjs"), "utf8");
 const inputModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "input.mjs"), "utf8");
 const trainingModule = fs.readFileSync(path.join(root, "public", "modules", "training", "state.mjs"), "utf8");
+const uiPresentationModule = fs.readFileSync(path.join(root, "public", "modules", "ui", "presentation.mjs"), "utf8");
 const dataAndRuntime = roomData + "\n" + js;
 const indexHtml = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const workflowPath = path.join(root, ".github", "workflows", "pages.yml");
@@ -554,6 +555,7 @@ if (!js.includes("function chapterTransitionResultText(") || !js.includes("chapt
 if (!js.includes("function drawChapterWeather(") || !js.includes("chapterIndexForRoom(roomIndex)")) errors.push("each chapter needs a distinct environmental motion language");
 if (!js.includes("function beginSummitReveal(") || !js.includes("function finishSummitReveal(") || !js.includes("pendingSummitResult !== expectedResult") || !js.includes("function drawSummitReveal(") || !js.includes("SUMMIT_REVEAL_TIME") || !js.includes("summitReveal: summitRevealTimer > 0")) errors.push("the summit must pause for a testable in-world reveal and safely reach review even when animation frames are throttled");
 if (!js.includes("summitChapterResult = chapterResultForTransition(") || !js.includes("summitChapterResultText(summitChapterResult)") || !js.includes("clearSplitPopup();\n    clearMasteryPopup();\n    clearFocusPopup();")) errors.push("summit reveal should absorb final-act evidence instead of hiding expiring room-result overlays");
+if (!uiPresentationModule.includes("export function postRunReviewData(") || !js.includes("function currentRunReviewData(") || !js.includes('reviewCardHtml("本轮最大损失"') || !js.includes("postRunTrainingAdvice(runPlan)")) errors.push("summit review should derive its next Drill and largest loss from current-run evidence");
 if (!js.includes("player.inUpdraft = true") || !js.includes("const windborne = Boolean(player.inUpdraft)") || !js.includes("windborne,")) errors.push("the fixed-hair climber needs a restrained body-level updraft response without recoloring the hair");
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match(/A/g) || []).length < 2) errors.push("R3 and R6 capstones must retain their two-stage spring and relay exams");

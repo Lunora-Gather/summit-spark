@@ -142,21 +142,22 @@
       chapterCompletionData: chapterCompletionModelData,
       chapterGrade,
       chapterTransitionResultData,
+      postRunReviewData,
       rankPracticeLedgerRowsData,
       roomSplitFeedbackData,
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p210"),
-    import("./modules/core/math.mjs?v=20260729-p210"),
-    import("./modules/game/room-data.mjs?v=20260729-p210"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p210"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p210"),
-    import("./modules/systems/storage.mjs?v=20260729-p210"),
-    import("./modules/systems/input.mjs?v=20260729-p210"),
-    import("./modules/training/state.mjs?v=20260729-p210"),
-    import("./modules/training/replay.mjs?v=20260729-p210"),
-    import("./modules/ui/presentation.mjs?v=20260729-p210")
+    import("./modules/core/format.mjs?v=20260729-p211"),
+    import("./modules/core/math.mjs?v=20260729-p211"),
+    import("./modules/game/room-data.mjs?v=20260729-p211"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p211"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p211"),
+    import("./modules/systems/storage.mjs?v=20260729-p211"),
+    import("./modules/systems/input.mjs?v=20260729-p211"),
+    import("./modules/training/state.mjs?v=20260729-p211"),
+    import("./modules/training/replay.mjs?v=20260729-p211"),
+    import("./modules/ui/presentation.mjs?v=20260729-p211")
   ]);
 
   const canvas = document.getElementById("game");
@@ -8316,9 +8317,38 @@
     return `分段损失 R${loss.index + 1} ${formatDelta(loss.loss)}：${roomPurposeLabel(loss.index)}`;
   }
 
+  function currentRunReviewData() {
+    return postRunReviewData({
+      roomTimes: runRoomTimes,
+      roomMistakes,
+      targets: ROOM_TARGETS
+    });
+  }
+
+  function postRunTrainingAdvice(plan) {
+    const recommendation = plan?.recommendation;
+    if (!recommendation) {
+      const fallback = recommendedPracticeRoom();
+      return roomTrainingAdvice(fallback);
+    }
+    const index = recommendation.index;
+    if (recommendation.reason === "mistakes") {
+      const entry = roomFocus[index] || createRoomFocusEntry();
+      return `R${index + 1} ${ROOM_NAMES[index] || "Summit"}：本轮失误 ${recommendation.mistakes}；${roomCoachHint(index, leadingRoomReason(entry))}`;
+    }
+    return `R${index + 1} ${ROOM_NAMES[index] || "Summit"}：本轮慢 ${formatDelta(recommendation.loss)}；${roomRouteLine(index, 1)}`;
+  }
+
+  function runSplitLossSummary(plan = currentRunReviewData()) {
+    const loss = plan?.largestLoss;
+    if (!loss) return "本轮分段损失 无";
+    if (loss.loss <= 0) return "本轮全部达标";
+    return `本轮分段损失 R${loss.index + 1} ${formatDelta(loss.loss)}：${roomPurposeLabel(loss.index)}`;
+  }
+
   function summitReview() {
-    const next = recommendedPracticeRoom();
-    return `${chapterSummary()} / ${challengeSummary()} / ${runChapterReview().summary} / ${weakestRoomSummary()} / ${splitLossSummary()} / 下个 Drill ${roomTrainingAdvice(next)}`;
+    const plan = currentRunReviewData();
+    return `${chapterSummary()} / ${challengeSummary()} / ${runChapterReview().summary} / ${weakestRoomSummary()} / ${runSplitLossSummary(plan)} / 下个 Drill ${postRunTrainingAdvice(plan)}`;
   }
 
   function runChapterSplits() {
@@ -8475,10 +8505,11 @@
   }
 
   function summitReviewCardsHtml() {
-    const next = recommendedPracticeRoom();
-    const nextMode = resolveDrillMode(next);
+    const runPlan = currentRunReviewData();
+    const next = runPlan?.recommendation?.index ?? recommendedPracticeRoom();
+    const nextMode = runPlan?.recommendation?.mode || resolveDrillMode(next);
     const styleIndex = stylePracticeRoom();
-    const loss = largestSplitLossRoom();
+    const loss = runPlan?.largestLoss || null;
     const focus = strongestFocusRoom();
     const chapter = chapterCompletionData();
     const chapterText = `${chapterGrade(chapter.percent)} · ${chapter.percent}%`;
@@ -8490,25 +8521,27 @@
     const challengeReviewCard = challengeReview ? reviewCardHtml("本轮挑战", challengeReview.value, challengeReview.detail, "primary") : "";
     const routeContractCard = reviewCardHtml("航线合同", routeContractSummaryText(), lastRouteContractResult?.detail || "三步连练会自动推进下一 Drill。", lastRouteContractResult ? "primary" : "secondary");
     const splitValue = loss && loss.loss > 0 ? `R${loss.index + 1} ${formatDelta(loss.loss)}` : "全部达标";
-    const splitDetail = loss && loss.loss > 0 ? routePracticeLine(loss.index) : "可以开始追高手线和 clean clear。";
+    const splitDetail = loss && loss.loss > 0
+      ? `${formatTime(loss.seconds)} / 目标 ${formatTime(loss.target)} · ${roomRouteLine(loss.index, 1)}`
+      : "本轮已达到所有已访问房间的目标时间。";
     const focusValue = focus ? `R${focus.index + 1} ${deathReasonLabel(focus.reason)} ${focus.score}` : "暂无高压点";
     const focusDetail = focus ? roomCoachHint(focus.index, focus.reason) : "死亡结构稳定后，优先追最慢 split。";
     const lossButton = loss && loss.loss > 0
       ? `<button class="review-button" type="button" data-finish-drill="${loss.index}" data-finish-mode="pace">最慢房 Pace</button>`
       : "";
     const styleButton = `<button class="review-button" type="button" data-finish-drill="${styleIndex}" data-finish-mode="style">类型 Style</button>`;
-    const primaryCards = reviewCardHtml("下一 Drill", `R${next + 1} ${drillModeLabel(nextMode)}`, drillObjectiveForRoom(next, nextMode), "primary")
+    const primaryCards = reviewCardHtml("下一 Drill", `R${next + 1} ${drillModeLabel(nextMode)}`, postRunTrainingAdvice(runPlan), "primary")
       + reviewCardHtml("章节完成度", chapterText, `Clean ${chapter.clean}/${maps.length} · S ${chapter.pace}/${maps.length} · X ${chapter.expert}/${maps.length}`, "primary")
       + (challengeReviewCard || reviewCardHtml("长期挑战", `${challengeWins}/${LONG_TERM_CHALLENGES.length}`, nextChallenge ? `${nextChallenge.label}：${nextChallenge.detail}` : "挑战已全部完成", "primary"))
       + (lastRouteContractResult ? routeContractCard : "");
     const extraCards = reviewCardHtml("本轮分幕", runReview.value, runReview.detail)
-      + reviewCardHtml("最大损失", splitValue, splitDetail)
+      + reviewCardHtml("本轮最大损失", splitValue, splitDetail)
       + reviewCardHtml("薄弱原因", focusValue, focusDetail)
       + reviewCardHtml("类型挑战", `R${styleIndex + 1} ${styleTrialLabel(styleIndex)}`, styleTrialReviewText(styleIndex))
       + reviewCardHtml("训练航线", practiceRouteSummary(), "先稳无失误，再追目标时间，最后冲高手线。")
       + (lastRouteContractResult ? "" : routeContractCard);
     return `<div class="review-grid review-grid-primary">${primaryCards}</div>`
-      + `<p class="review-advice">${escapeHtml(roomTrainingAdvice(next))}</p>`
+      + `<p class="review-advice">${escapeHtml(postRunTrainingAdvice(runPlan))}</p>`
       + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">下一 ${drillModeLabel(nextMode)}</button>${styleButton}${lossButton}</div>`
       + `<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>仅含本轮时间、失误、Flow 与辅助状态；不会上传。</small></div></details>`
       + `<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>掌握路线图</span><span class="review-more-chevron" aria-hidden="true">›</span></summary>${reviewRoadmapHtml()}</details>`;

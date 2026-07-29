@@ -312,6 +312,12 @@ if (!runtimeSource.includes("let summitChapterResult = null")
   || !runtimeSource.includes("clearSplitPopup();\n    clearMasteryPopup();\n    clearFocusPopup();")) {
   fail("summit reveal must own final-act evidence without overlapping expiring room-result overlays");
 }
+if (!uiPresentationSource.includes("export function postRunReviewData(")
+  || !runtimeSource.includes("function currentRunReviewData(")
+  || !runtimeSource.includes('reviewCardHtml("本轮最大损失"')
+  || !runtimeSource.includes("postRunTrainingAdvice(runPlan)")) {
+  fail("summit review must use current-run evidence before falling back to long-term practice priorities");
+}
 if (!roomDataSource.includes('resolve: "断开的旧路，被你重新连起。"')
   || !runtimeSource.includes("let chapterTransitionFromChapter = -1")
   || !runtimeSource.includes("let chapterTransitionFromResult = null")

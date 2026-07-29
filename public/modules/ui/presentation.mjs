@@ -102,6 +102,57 @@ export function roomSplitFeedbackData(input = {}) {
   };
 }
 
+export function postRunReviewData(input = {}) {
+  const roomTimes = Array.isArray(input.roomTimes) ? input.roomTimes : [];
+  const roomMistakes = Array.isArray(input.roomMistakes) ? input.roomMistakes : [];
+  const targets = Array.isArray(input.targets) ? input.targets : [];
+  const roomCount = Math.max(roomTimes.length, roomMistakes.length, targets.length);
+  const visited = [];
+  for (let index = 0; index < roomCount; index += 1) {
+    const seconds = nonNegativeNumber(roomTimes[index]);
+    if (!(seconds > 0)) continue;
+    const target = nonNegativeNumber(targets[index]);
+    const mistakes = Math.floor(nonNegativeNumber(roomMistakes[index]));
+    visited.push({
+      index,
+      seconds,
+      target,
+      mistakes,
+      loss: target > 0 ? seconds - target : null
+    });
+  }
+  if (!visited.length) return null;
+  const byLoss = (a, b) => {
+    const aLoss = a.loss === null ? -Infinity : a.loss;
+    const bLoss = b.loss === null ? -Infinity : b.loss;
+    return bLoss - aLoss || a.index - b.index;
+  };
+  const largestLoss = visited
+    .filter((room) => room.loss !== null)
+    .sort(byLoss)[0] || null;
+  const mistakeRooms = visited
+    .filter((room) => room.mistakes > 0)
+    .sort((a, b) => b.mistakes - a.mistakes || byLoss(a, b));
+  const paceRooms = visited
+    .filter((room) => room.loss !== null && room.loss > 0)
+    .sort(byLoss);
+  const source = mistakeRooms[0] || paceRooms[0] || null;
+  const recommendation = source
+    ? {
+        ...source,
+        reason: source.mistakes > 0 ? "mistakes" : "pace",
+        mode: source.mistakes > 0 ? "clean" : "pace"
+      }
+    : null;
+  return {
+    visited: visited.length,
+    roomCount,
+    recommendation,
+    largestLoss,
+    allTargetsMet: visited.every((room) => room.loss !== null && room.loss <= 0)
+  };
+}
+
 export function roomReviewPriorityData(input = {}) {
   const entry = input.entry && typeof input.entry === "object" ? input.entry : {};
   const roomCount = Math.max(0, Math.floor(nonNegativeNumber(input.roomCount)));

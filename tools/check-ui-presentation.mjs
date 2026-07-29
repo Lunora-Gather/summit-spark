@@ -5,6 +5,7 @@ import {
   chapterCompletionData,
   chapterGrade,
   chapterTransitionResultData,
+  postRunReviewData,
   rankPracticeLedgerRowsData,
   roomSplitFeedbackData,
   roomReviewPriorityData
@@ -169,6 +170,60 @@ assert.equal(
   "invalid references must fail closed instead of fabricating a PB comparison"
 );
 
+assert.deepEqual(postRunReviewData({
+  roomTimes: [8, 12, 14, 0],
+  roomMistakes: [0, 2, 1, 9],
+  targets: [9, 10, 13, 1]
+}), {
+  visited: 3,
+  roomCount: 4,
+  recommendation: {
+    index: 1,
+    seconds: 12,
+    target: 10,
+    mistakes: 2,
+    loss: 2,
+    reason: "mistakes",
+    mode: "clean"
+  },
+  largestLoss: {
+    index: 1,
+    seconds: 12,
+    target: 10,
+    mistakes: 2,
+    loss: 2
+  },
+  allTargetsMet: false
+});
+assert.deepEqual(postRunReviewData({
+  roomTimes: [8, 11.5, 12],
+  roomMistakes: [0, 0, 0],
+  targets: [9, 10, 13]
+})?.recommendation, {
+  index: 1,
+  seconds: 11.5,
+  target: 10,
+  mistakes: 0,
+  loss: 1.5,
+  reason: "pace",
+  mode: "pace"
+});
+assert.equal(postRunReviewData({
+  roomTimes: [8, 9],
+  roomMistakes: [0, 0],
+  targets: [9, 10]
+})?.recommendation, null, "a clean run under every target should fall back to long-term mastery");
+assert.equal(postRunReviewData({
+  roomTimes: [0, Number.NaN],
+  roomMistakes: [8, 8],
+  targets: [9, 10]
+}), null, "unvisited rooms must not fabricate post-run advice");
+assert.equal(postRunReviewData({
+  roomTimes: [8, 8],
+  roomMistakes: [1, 1],
+  targets: [8, 8]
+})?.recommendation?.index, 0, "post-run tie order must stay deterministic");
+
 const incompletePriority = roomReviewPriorityData({
   roomCount: 10,
   index: 2,
@@ -204,4 +259,4 @@ assert.notEqual(rankedRows[0], sourceRows[1], "presentation ranking must not exp
 assert.deepEqual(sourceRows.map((row) => row.index), [0, 1, 2], "presentation ranking must not reorder caller data");
 assert.deepEqual(rankPracticeLedgerRowsData(null), []);
 
-console.log("UI presentation check passed: chapter completion/grades, transition results, room split feedback and practice priority ranking preserved.");
+console.log("UI presentation check passed: chapter completion/grades, transition results, room split feedback, post-run evidence and practice priority ranking preserved.");

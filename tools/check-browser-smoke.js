@@ -599,9 +599,11 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await waitUntil("debug jump reaches summit room", () => evaluate(cdp, `/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
   await sleep(2100);
   await keyHold(cdp, "KeyD", "D", 180);
+  await waitUntil("summit room timing contributes to current-run evidence", () => evaluate(cdp, `!/0:00\\.00$/.test(document.querySelector("#runTime").textContent)`));
+  await keyTap(cdp, "KeyR", "R");
+  await waitUntil("summit route records a current-run mistake", () => evaluate(cdp, `/快速重开 · R10/.test(document.querySelector("#gameStatus").textContent) && /失 1/.test(document.querySelector("#deathCount").textContent)`));
   const earlyRuntimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
   if (earlyRuntimeErrors.length) throw new Error("runtime error stopped gameplay: " + JSON.stringify(earlyRuntimeErrors));
-  await waitUntil("summit room timing contributes to current-run evidence", () => evaluate(cdp, `!/0:00\\.00$/.test(document.querySelector("#runTime").textContent)`));
   await evaluate(cdp, `window.addEventListener("error", (event) => { window.__summitRevealTestError = event.message || "unknown"; }, { once: true })`);
   await keyTap(cdp, "KeyH", "H");
   await sleep(80);
@@ -635,9 +637,22 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const title = document.querySelector("#finishTitle");
     const more = document.querySelector(".review-more");
     const text = more.textContent || "";
-    return { text, focused: document.activeElement === title };
+    const nextCard = [...document.querySelectorAll(".review-card")].find((card) => card.querySelector("span")?.textContent.trim() === "下一 Drill");
+    const lossCard = [...document.querySelectorAll(".review-card")].find((card) => card.querySelector("span")?.textContent.trim() === "本轮最大损失");
+    return {
+      text,
+      focused: document.activeElement === title,
+      next: nextCard?.querySelector("strong")?.textContent.trim() || "",
+      advice: document.querySelector(".review-advice")?.textContent.trim() || "",
+      lossLabel: lossCard?.querySelector("span")?.textContent.trim() || ""
+    };
   })()`) : { text: "", focused: false };
-  if (finishProbe.hasTitle && (!/本轮分幕/.test(runEvidenceReview.text) || !/已记录 1\/10 房/.test(runEvidenceReview.text) || !runEvidenceReview.focused)) {
+  if (finishProbe.hasTitle && (!/本轮分幕/.test(runEvidenceReview.text)
+    || !/已记录 1\/10 房/.test(runEvidenceReview.text)
+    || runEvidenceReview.next !== "R10 Clean"
+    || !/R10 星顶终线：本轮失误 1/.test(runEvidenceReview.advice)
+    || runEvidenceReview.lossLabel !== "本轮最大损失"
+    || !runEvidenceReview.focused)) {
     errors.push("summit review should expose bounded current-run act evidence without losing modal focus: " + JSON.stringify(runEvidenceReview));
   }
   if (finishProbe.hasTitle) {

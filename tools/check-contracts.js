@@ -539,7 +539,9 @@ if (!js.includes("TOUCH_SIZE_DEFAULT")) errors.push("touch size defaults are mis
 if (!js.includes("clampTouchSize")) errors.push("touch size normalization helper is missing");
 if (!js.includes("lowPerformance")) errors.push("low performance setting is missing");
 if (!js.includes("SETTINGS_SCHEMA_VERSION")) errors.push("settings schema version is missing");
-if (!js.includes("function recordsEligible()") || !js.includes("辅助完成 · 不计 PB")) errors.push("assist mode must isolate PB and long-term records");
+if (!js.includes("function recordsEligible()") || !js.includes("本次不计 PB、Clean 或训练记录")) errors.push("assist mode must isolate PB and long-term records");
+if (js.includes("function showClearPopup(")) errors.push("room completion must not restore a duplicate CLEAR/CLEAN focus popup");
+if (!js.includes("首通 ${formatTime(result.elapsed)}") || !js.includes("PB ${formatTime(result.elapsed)}") || !js.includes("本房 ${formatTime(result.elapsed)}")) errors.push("room completion should report actual time with an explicit first-clear/PB/current-run reference");
 if (!js.includes("function updateAmbientMusic(")
   || !js.includes('import("./modules/game/audio-cues.mjs?v=')
   || !audioCuesModule.includes("export const CHAPTER_AUDIO_PROFILES")

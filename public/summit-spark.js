@@ -142,19 +142,20 @@
       chapterCompletionData: chapterCompletionModelData,
       chapterGrade,
       rankPracticeLedgerRowsData,
+      roomSplitFeedbackData,
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p206"),
-    import("./modules/core/math.mjs?v=20260729-p206"),
-    import("./modules/game/room-data.mjs?v=20260729-p206"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p206"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p206"),
-    import("./modules/systems/storage.mjs?v=20260729-p206"),
-    import("./modules/systems/input.mjs?v=20260729-p206"),
-    import("./modules/training/state.mjs?v=20260729-p206"),
-    import("./modules/training/replay.mjs?v=20260729-p206"),
-    import("./modules/ui/presentation.mjs?v=20260729-p206")
+    import("./modules/core/format.mjs?v=20260729-p207"),
+    import("./modules/core/math.mjs?v=20260729-p207"),
+    import("./modules/game/room-data.mjs?v=20260729-p207"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p207"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p207"),
+    import("./modules/systems/storage.mjs?v=20260729-p207"),
+    import("./modules/systems/input.mjs?v=20260729-p207"),
+    import("./modules/training/state.mjs?v=20260729-p207"),
+    import("./modules/training/replay.mjs?v=20260729-p207"),
+    import("./modules/ui/presentation.mjs?v=20260729-p207")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2539,12 +2540,12 @@
   function completeRun() {
     const clearedClean = roomAttemptClean;
     const masteryBefore = roomMasteryScore(roomIndex);
-    const isNewRoomBest = recordRoomBest(roomIndex);
+    const roomResult = recordRoomBest(roomIndex);
     markRoomClear(roomIndex);
     const drillMode = activeDrill && activeDrill.room === roomIndex ? activeDrill.mode : "";
     const drillResult = completeDrill(roomIndex, clearedClean);
     if (drillResult === false) return { isBest: false, drillResult };
-    showMasteryPopup(roomIndex, masteryBefore, clearedClean, drillResult === true ? drillMode : "", isNewRoomBest);
+    showMasteryPopup(roomIndex, masteryBefore, clearedClean, drillResult === true ? drillMode : "", roomResult);
     addFlow(120, "summit");
     const eligible = recordsEligible();
     if (eligible) recordSummitProfile();
@@ -2763,20 +2764,18 @@
   }
 
   function recordRoomBest(index) {
-    if (roomTime <= 0) return false;
-    if (!recordsEligible()) {
-      splitPopupText = "辅助完成 · 不计 PB";
-      splitPopupAhead = true;
-      splitPopupTimer = SPLIT_POPUP_TIME;
-      return false;
-    }
     const current = bestRoomTimes[index] || 0;
     const target = ROOM_TARGETS[index] || 0;
-    const reference = current || target;
-    const delta = reference > 0 ? roomTime - reference : 0;
-    const isNewBest = current <= 0 || roomTime < current;
-    showSplitPopup(index, roomTime, delta, isNewBest);
-    if (!isNewBest) return false;
+    const result = roomSplitFeedbackData({
+      elapsed: roomTime,
+      previousBest: current,
+      target,
+      eligible: recordsEligible()
+    });
+    if (!result) return null;
+    if (!result.eligible) return result;
+    showSplitPopup(index, result);
+    if (!result.isNewBest) return result;
     bestRoomTimes[index] = roomTime;
     writeRoomBests();
     saveRoomPath(index);
@@ -2784,14 +2783,22 @@
     roomBestFlashTimer = ROOM_BEST_FLASH_TIME;
     addFlow(42, "pb");
     burst(player.x + player.w / 2, player.y + player.h / 2, palette.gold, 14, 210);
-    return true;
+    return result;
   }
 
-  function showSplitPopup(index, time, delta, isNewBest) {
-    const grade = splitGrade(time, ROOM_TARGETS[index]);
-    const label = isNewBest ? "PB" : "SPLIT";
-    splitPopupText = `${label} ${formatDelta(delta)}${grade ? ` ${grade}` : ""}`;
-    splitPopupAhead = delta <= 0 || isNewBest;
+  function showSplitPopup(index, result) {
+    const grade = splitGrade(result.elapsed, ROOM_TARGETS[index]);
+    const suffix = grade ? ` · ${grade}` : "";
+    if (result.kind === "first") {
+      const comparison = result.referenceKind === "target" ? ` · 目标 ${formatDelta(result.delta)}` : "";
+      splitPopupText = `首通 ${formatTime(result.elapsed)}${comparison}${suffix}`;
+    } else if (result.kind === "pb") {
+      splitPopupText = `PB ${formatTime(result.elapsed)} · ${formatDelta(result.delta)}${suffix}`;
+    } else {
+      const comparison = result.referenceKind === "pb" ? ` · PB ${formatDelta(result.delta)}` : "";
+      splitPopupText = `本房 ${formatTime(result.elapsed)}${comparison}${suffix}`;
+    }
+    splitPopupAhead = result.kind === "first" || result.ahead;
     splitPopupTimer = SPLIT_POPUP_TIME;
   }
 
@@ -2980,12 +2987,12 @@
       const clearedRoom = roomIndex;
       const clearedClean = roomAttemptClean;
       const masteryBefore = roomMasteryScore(clearedRoom);
-      const isNewRoomBest = recordRoomBest(clearedRoom);
+      const roomResult = recordRoomBest(clearedRoom);
       markRoomClear(clearedRoom);
       const drillMode = activeDrill && activeDrill.room === clearedRoom ? activeDrill.mode : "";
       const drillResult = completeDrill(clearedRoom, clearedClean);
       if (drillResult === false) return;
-      showMasteryPopup(clearedRoom, masteryBefore, clearedClean, drillResult === true ? drillMode : "", isNewRoomBest);
+      showMasteryPopup(clearedRoom, masteryBefore, clearedClean, drillResult === true ? drillMode : "", roomResult);
       roomIndex += 1;
       beginChapterTransition(clearedRoom, roomIndex);
       roomAttemptClean = true;
@@ -3314,16 +3321,12 @@
   function markRoomClear(index) {
     if (!recordsEligible()) {
       roomAttemptClean = true;
-      focusPopupText = `辅助通过 R${index + 1}`;
-      focusPopupDetail = "本次未写入房间、Clean 或长期训练记录";
-      focusPopupTimer = FOCUS_POPUP_TIME;
       return;
     }
     const entry = roomFocus[index] || createRoomFocusEntry();
     const clean = roomAttemptClean;
     roomFocus[index] = recordRoomClearData(entry, clean);
     roomAttemptClean = true;
-    showClearPopup(index, clean);
     updatePracticeCoach();
     writeRoomFocus();
     syncChallengeWins();
@@ -3351,14 +3354,6 @@
     focusPopupText = `重点 R${index + 1} ${deathReasonLabel(reason)} · 失误 ${count}`;
     focusPopupDetail = roomCoachHint(index, reason);
     focusPopupTimer = FOCUS_POPUP_TIME;
-  }
-
-  function showClearPopup(index, clean) {
-    const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
-    focusPopupText = `${clean ? "CLEAN" : "CLEAR"} R${index + 1}${grade ? ` ${grade}` : ""}`;
-    focusPopupDetail = index < maps.length - 1 ? `next: ${roomSkillLabel(index + 1)}` : "summit review ready";
-    focusPopupTimer = Math.max(focusPopupTimer, FOCUS_POPUP_TIME * 0.72);
-    playSound("clear", clean ? 1 : 0.75);
   }
 
   function clearFocusPopup() {
@@ -3545,14 +3540,23 @@
     })[0] || null;
   }
 
-  function showMasteryPopup(index, beforeScore, clean, drillMode = "", isNewBest = false) {
+  function showMasteryPopup(index, beforeScore, clean, drillMode = "", roomResult = null) {
+    if (roomResult && !roomResult.eligible) {
+      masteryPopupText = `R${index + 1} 辅助通过`;
+      masteryPopupDetail = `${formatTime(roomResult.elapsed)} · 本次不计 PB、Clean 或训练记录`;
+      masteryPopupColor = palette.cyan;
+      masteryPopupTimer = MASTERY_POPUP_TIME;
+      playSound("clear", 0.72);
+      setGameStatus(`${masteryPopupText}：${masteryPopupDetail}`);
+      return;
+    }
     const afterScore = roomMasteryScore(index);
     const delta = Math.max(0, afterScore - beforeScore);
     const level = roomMasteryLevel(afterScore);
     const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
     const nextStep = nextMasteryStepText(index);
     const wins = [];
-    if (isNewBest) wins.push("PB");
+    if (roomResult?.isNewBest) wins.push("PB");
     if (clean) wins.push("CLEAN");
     if (drillMode) wins.push(`${drillModeLabel(drillMode)} Drill`);
     if (!wins.length) wins.push("CLEAR");
@@ -3560,6 +3564,7 @@
     masteryPopupDetail = `${level} ${afterScore}/100 · ${wins.join(" · ")}${grade ? ` · ${grade}` : ""} · ${nextStep}`;
     masteryPopupColor = delta > 0 ? palette.gold : clean ? palette.green : palette.cyan;
     masteryPopupTimer = MASTERY_POPUP_TIME;
+    playSound("clear", clean ? 1 : 0.75);
     setGameStatus(`${masteryPopupText}：${masteryPopupDetail}`);
   }
 

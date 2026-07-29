@@ -5,6 +5,7 @@ import {
   chapterCompletionData,
   chapterGrade,
   rankPracticeLedgerRowsData,
+  roomSplitFeedbackData,
   roomReviewPriorityData
 } from "../public/modules/ui/presentation.mjs";
 
@@ -52,6 +53,79 @@ assert.equal(chapterGrade(78), "S");
 assert.equal(chapterGrade(92), "SS");
 assert.equal(chapterGrade(Number.NaN), "D");
 
+assert.equal(roomSplitFeedbackData({ elapsed: 0 }), null);
+assert.equal(roomSplitFeedbackData({ elapsed: Number.NaN }), null);
+assert.deepEqual(roomSplitFeedbackData({
+  elapsed: 10.5,
+  previousBest: 0,
+  target: 9
+}), {
+  elapsed: 10.5,
+  previousBest: 0,
+  target: 9,
+  eligible: true,
+  kind: "first",
+  reference: 9,
+  referenceKind: "target",
+  delta: 1.5,
+  ahead: false,
+  isNewBest: true
+});
+assert.deepEqual(roomSplitFeedbackData({
+  elapsed: 8.5,
+  previousBest: 9,
+  target: 8.8
+}), {
+  elapsed: 8.5,
+  previousBest: 9,
+  target: 8.8,
+  eligible: true,
+  kind: "pb",
+  reference: 9,
+  referenceKind: "pb",
+  delta: -0.5,
+  ahead: true,
+  isNewBest: true
+});
+assert.deepEqual(roomSplitFeedbackData({
+  elapsed: 9.25,
+  previousBest: 9,
+  target: 8.8
+}), {
+  elapsed: 9.25,
+  previousBest: 9,
+  target: 8.8,
+  eligible: true,
+  kind: "split",
+  reference: 9,
+  referenceKind: "pb",
+  delta: 0.25,
+  ahead: false,
+  isNewBest: false
+});
+assert.deepEqual(roomSplitFeedbackData({
+  elapsed: 12,
+  previousBest: 8,
+  target: 9,
+  eligible: false
+}), {
+  elapsed: 12,
+  previousBest: 8,
+  target: 9,
+  eligible: false,
+  kind: "assist",
+  reference: 8,
+  referenceKind: "pb",
+  delta: 4,
+  ahead: false,
+  isNewBest: false
+});
+assert.equal(
+  roomSplitFeedbackData({ elapsed: 7, previousBest: "bad", target: -4 }).referenceKind,
+  "none",
+  "invalid references must fail closed instead of fabricating a PB comparison"
+);
+
 const incompletePriority = roomReviewPriorityData({
   roomCount: 10,
   index: 2,
@@ -87,4 +161,4 @@ assert.notEqual(rankedRows[0], sourceRows[1], "presentation ranking must not exp
 assert.deepEqual(sourceRows.map((row) => row.index), [0, 1, 2], "presentation ranking must not reorder caller data");
 assert.deepEqual(rankPracticeLedgerRowsData(null), []);
 
-console.log("UI presentation check passed: chapter completion/grades and practice priority ranking preserved.");
+console.log("UI presentation check passed: chapter completion/grades, room split feedback and practice priority ranking preserved.");

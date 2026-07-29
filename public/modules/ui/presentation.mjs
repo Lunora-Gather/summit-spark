@@ -44,6 +44,37 @@ export function chapterGrade(percent) {
   return "D";
 }
 
+export function roomSplitFeedbackData(input = {}) {
+  const elapsed = finiteNumber(input.elapsed);
+  if (!(elapsed > 0)) return null;
+  const previousBest = nonNegativeNumber(input.previousBest);
+  const target = nonNegativeNumber(input.target);
+  const eligible = input.eligible !== false;
+  const reference = previousBest > 0 ? previousBest : target;
+  const referenceKind = previousBest > 0 ? "pb" : target > 0 ? "target" : "none";
+  const delta = reference > 0 ? elapsed - reference : 0;
+  const isNewBest = eligible && (previousBest <= 0 || elapsed < previousBest);
+  const kind = !eligible
+    ? "assist"
+    : previousBest <= 0
+      ? "first"
+      : isNewBest
+        ? "pb"
+        : "split";
+  return {
+    elapsed,
+    previousBest,
+    target,
+    eligible,
+    kind,
+    reference,
+    referenceKind,
+    delta,
+    ahead: reference <= 0 || delta <= 0,
+    isNewBest
+  };
+}
+
 export function roomReviewPriorityData(input = {}) {
   const entry = input.entry && typeof input.entry === "object" ? input.entry : {};
   const roomCount = Math.max(0, Math.floor(nonNegativeNumber(input.roomCount)));

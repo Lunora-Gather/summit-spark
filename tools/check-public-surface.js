@@ -410,12 +410,14 @@ for (const delegation of [
 if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterCompletionData(")
   || !uiPresentationSource.includes("export function chapterGrade(")
+  || !uiPresentationSource.includes("export function roomSplitFeedbackData(")
   || !uiPresentationSource.includes("export function roomReviewPriorityData(")
   || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")) {
   fail("public runtime must consume the versioned UI presentation module");
 }
 for (const delegation of [
   "return chapterCompletionModelData({",
+  "const result = roomSplitFeedbackData({",
   "return roomReviewPriorityData({",
   "return rankPracticeLedgerRowsData(maps.map("
 ]) {

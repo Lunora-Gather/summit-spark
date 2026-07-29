@@ -34,6 +34,7 @@ const roomDataSource = read("public/modules/game/room-data.mjs");
 const storageSource = read("public/modules/systems/storage.mjs");
 const inputSource = read("public/modules/systems/input.mjs");
 const trainingSource = read("public/modules/training/state.mjs");
+const uiPresentationSource = read("public/modules/ui/presentation.mjs");
 
 const buildVersion = extractOne(
   "meta build-version",
@@ -80,6 +81,11 @@ const trainingVersion = extractOne(
   runtimeSource,
   /modules\/training\/state\.mjs\?v=([^"]+)"/
 );
+const uiPresentationVersion = extractOne(
+  "UI presentation module version",
+  runtimeSource,
+  /modules\/ui\/presentation\.mjs\?v=([^"]+)"/
+);
 
 if (buildVersion && cssVersion && buildVersion !== cssVersion) {
   fail(`css version ${cssVersion} does not match build version ${buildVersion}`);
@@ -110,6 +116,9 @@ if (buildVersion && inputVersion && buildVersion !== inputVersion) {
 }
 if (buildVersion && trainingVersion && buildVersion !== trainingVersion) {
   fail(`training version ${trainingVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && uiPresentationVersion && buildVersion !== uiPresentationVersion) {
+  fail(`UI presentation version ${uiPresentationVersion} does not match build version ${buildVersion}`);
 }
 
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js")) {
@@ -280,6 +289,26 @@ for (const delegation of [
   if (!runtimeSource.includes(delegation)) {
     fail(`public runtime must delegate training ownership through ${delegation}`);
   }
+}
+
+if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
+  || !uiPresentationSource.includes("export function chapterCompletionData(")
+  || !uiPresentationSource.includes("export function chapterGrade(")
+  || !uiPresentationSource.includes("export function roomReviewPriorityData(")
+  || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")) {
+  fail("public runtime must consume the versioned UI presentation module");
+}
+for (const delegation of [
+  "return chapterCompletionModelData({",
+  "return roomReviewPriorityData({",
+  "return rankPracticeLedgerRowsData(maps.map("
+]) {
+  if (!runtimeSource.includes(delegation)) {
+    fail(`public runtime must delegate UI presentation ownership through ${delegation}`);
+  }
+}
+if (/\bfunction\s+chapterGrade\s*\(/.test(runtimeSource)) {
+  fail("public runtime must not duplicate the UI-owned chapter grade rule");
 }
 
 if (errors.length > 0) {

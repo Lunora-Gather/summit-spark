@@ -20,6 +20,8 @@ summit-spark/
 │  │  └─ input.mjs          # 三类设备状态、动作缓冲、手柄映射与键位规则
 │  ├─ modules/training/
 │  │  └─ state.mjs          # Drill、Route、Feel、Focus、挑战与转场纯规则
+│  ├─ modules/ui/
+│  │  └─ presentation.mjs   # 章节完成度、评级与练习优先级展示模型
 │  └─ vendor/               # 固定版本 Appwrite SDK 与许可证
 ├─ data/
 │  └─ rooms.generated.json # 房间/训练数据验证快照，不参与运行
@@ -54,6 +56,7 @@ public/index.html
        ├─ public/modules/systems/storage.mjs
        ├─ public/modules/systems/input.mjs
        ├─ public/modules/training/state.mjs
+       ├─ public/modules/ui/presentation.mjs
        ├─ Canvas / DOM / WebAudio / 输入
        ├─ localStorage / sessionStorage
        └─ Appwrite Account + TablesDB
@@ -68,7 +71,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、存档规则、输入状态/缓冲/映射，以及 Drill/Route/Feel/Focus/挑战的纯状态与结果组装规则，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、存档规则、输入状态/缓冲/映射，Drill/Route/Feel/Focus/挑战的纯状态与结果组装规则，以及章节完成度和练习优先级展示模型，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
 
 短期修改遵守：
 
@@ -81,9 +84,9 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`systems/storage.mjs`、`systems/input.mjs` 与 `training/state.mjs` 的首批低风险切片已完成。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成。接下来的顺序是：
 
-1. `ui/`：先迁移无副作用的面板/HUD 文本与展示模型，DOM 事件仍留主运行时。
+1. `ui/`：只在有直接消费者与契约时继续迁移无副作用的面板/HUD 展示模型，DOM 事件仍留主运行时。
 2. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。
 
 首次模块化应采用原生 ES modules，不引入构建器。若以后需要 TypeScript、打包或代码分割，先写独立架构决策并证明部署、源码映射和回滚路径。

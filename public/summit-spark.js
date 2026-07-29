@@ -123,14 +123,21 @@
       roomMasteryScoreData,
       roomReviewModeData,
       trainingTransitionOptionsData
+    },
+    {
+      chapterCompletionData: chapterCompletionModelData,
+      chapterGrade,
+      rankPracticeLedgerRowsData,
+      roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p199"),
-    import("./modules/core/math.mjs?v=20260729-p199"),
-    import("./modules/game/room-data.mjs?v=20260729-p199"),
-    import("./modules/systems/storage.mjs?v=20260729-p199"),
-    import("./modules/systems/input.mjs?v=20260729-p199"),
-    import("./modules/training/state.mjs?v=20260729-p199")
+    import("./modules/core/format.mjs?v=20260729-p200"),
+    import("./modules/core/math.mjs?v=20260729-p200"),
+    import("./modules/game/room-data.mjs?v=20260729-p200"),
+    import("./modules/systems/storage.mjs?v=20260729-p200"),
+    import("./modules/systems/input.mjs?v=20260729-p200"),
+    import("./modules/training/state.mjs?v=20260729-p200"),
+    import("./modules/ui/presentation.mjs?v=20260729-p200")
   ]);
 
   const canvas = document.getElementById("game");
@@ -4185,32 +4192,15 @@
     const style = styleWinRoomCount();
     const expert = expertWinRoomCount();
     const mastery = maps.reduce((sum, _, index) => sum + roomMasteryScore(index), 0) / Math.max(1, roomTotal);
-    const weighted = (
-      (clear / roomTotal) * 18
-      + (clean / roomTotal) * 18
-      + (pace / roomTotal) * 20
-      + (style / roomTotal) * 20
-      + (expert / roomTotal) * 18
-      + (mastery / 100) * 6
-    );
-    return {
+    return chapterCompletionModelData({
+      roomTotal,
       clear,
       clean,
       pace,
       style,
       expert,
-      mastery: Math.round(mastery),
-      percent: Math.max(0, Math.min(100, Math.round(weighted)))
-    };
-  }
-
-  function chapterGrade(percent) {
-    if (percent >= 92) return "SS";
-    if (percent >= 78) return "S";
-    if (percent >= 62) return "A";
-    if (percent >= 42) return "B";
-    if (percent >= 20) return "C";
-    return "D";
+      mastery
+    });
   }
 
   function updateChapterOverview() {
@@ -4932,19 +4922,18 @@
   function roomReviewPriority(index) {
     const entry = roomFocus[index] || createRoomFocusEntry();
     const loss = roomSplitLoss(index);
-    let score = roomFocusScore(index) * 8;
-    if (!(bestRoomTimes[index] > 0)) score += 80;
-    if (entry.clean <= 0) score += 46;
-    if (loss === null) score += 26;
-    else if (loss > 0) score += 24 + Math.min(42, loss * 5);
-    if (entry.paceWins <= 0) score += 12;
-    if (entry.styleWins <= 0) score += 10;
-    if (entry.expertWins <= 0) score += 8;
-    return score + (maps.length - index) * 0.01;
+    return roomReviewPriorityData({
+      roomCount: maps.length,
+      index,
+      entry,
+      best: bestRoomTimes[index],
+      loss,
+      pressure: roomFocusScore(index)
+    });
   }
 
   function practiceLedgerRows() {
-    return maps.map((_, index) => {
+    return rankPracticeLedgerRowsData(maps.map((_, index) => {
       const mode = roomReviewMode(index);
       const score = roomMasteryScore(index);
       return {
@@ -4955,7 +4944,7 @@
         action: `${drillModeLabel(mode)} Drill`,
         level: roomMasteryLevel(score)
       };
-    }).sort((a, b) => b.priority - a.priority);
+    }));
   }
 
   function masteryRoadmapRows(limit = 4) {

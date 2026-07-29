@@ -204,6 +204,14 @@ if (js.includes('data-finish-mode="auto"')) errors.push("finish review primary d
 if (!js.includes("actionVisual")) errors.push("action visual pulse state is missing");
 if (!js.includes("drawPlayerAura")) errors.push("player action aura helper is missing");
 if (!js.includes("ctx.scale(playerVisualScale, playerVisualScale)") || !js.includes("const playerVisualScale = isPortraitViewport() ? 1.38 : 1.09") || js.includes('const spawn = visualRatio("spawn", 0.32)') || js.includes('const spawnPulse = visualRatio("spawn", 0.32)')) errors.push("player should use a modest foot-anchored desktop scale plus a restrained portrait readability boost, without respawn aura rings");
+if (!js.includes("respawn({ preserveInputBuffers: true });")
+  || !js.includes("function respawn(options = {})")
+  || !js.includes('if (hasInputBuffer(player, "jump")) setInputBuffer(player, "jump", JUMP_BUFFER_TIME);')
+  || !js.includes('if (hasInputBuffer(player, "dash")) setInputBuffer(player, "dash", DASH_BUFFER_TIME);')
+  || !js.includes("clearInputBuffers(player);")
+  || !js.includes("dead ${player.deadTimer.toFixed(3)}")) {
+  errors.push("automatic death recovery must retain only late buffered actions while manual retries clear stale input");
+}
 if (!js.includes("ctx.lineWidth = 2.65") || !js.includes("ctx.lineWidth = 2.55") || !js.includes('const handSkin = "#d6aa8f"') || !js.includes("walling ? 1.3 : 1.15") || js.includes("ctx.arc(cx + player.wallDir * 12, y + 15, 2")) errors.push("player arms and muted hands should stay compact and wall grip must not add a duplicate glowing hand dot");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");

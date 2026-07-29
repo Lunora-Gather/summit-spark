@@ -155,16 +155,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p232"),
-    import("./modules/core/math.mjs?v=20260729-p232"),
-    import("./modules/game/room-data.mjs?v=20260729-p232"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p232"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p232"),
-    import("./modules/systems/storage.mjs?v=20260729-p232"),
-    import("./modules/systems/input.mjs?v=20260729-p232"),
-    import("./modules/training/state.mjs?v=20260729-p232"),
-    import("./modules/training/replay.mjs?v=20260729-p232"),
-    import("./modules/ui/presentation.mjs?v=20260729-p232")
+    import("./modules/core/format.mjs?v=20260729-p233"),
+    import("./modules/core/math.mjs?v=20260729-p233"),
+    import("./modules/game/room-data.mjs?v=20260729-p233"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p233"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p233"),
+    import("./modules/systems/storage.mjs?v=20260729-p233"),
+    import("./modules/systems/input.mjs?v=20260729-p233"),
+    import("./modules/training/state.mjs?v=20260729-p233"),
+    import("./modules/training/replay.mjs?v=20260729-p233"),
+    import("./modules/ui/presentation.mjs?v=20260729-p233")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1961,7 +1961,7 @@
       updateParticles(dt);
       updateGhosts(dt);
       if (player.deadTimer <= 0) {
-        respawn();
+        respawn({ preserveInputBuffers: true });
       }
       updateHud();
       return;
@@ -3021,7 +3021,7 @@
     player.vy = 0;
   }
 
-  function respawn() {
+  function respawn(options = {}) {
     roomIndex = player.respawnRoom;
     room = parseRoom(roomIndex);
     resetRoomTech();
@@ -3035,7 +3035,12 @@
     player.wallCoyote = 0;
     player.wallCoyoteDir = 0;
     player.coyote = 0;
-    clearInputBuffers(player);
+    if (options.preserveInputBuffers) {
+      if (hasInputBuffer(player, "jump")) setInputBuffer(player, "jump", JUMP_BUFFER_TIME);
+      if (hasInputBuffer(player, "dash")) setInputBuffer(player, "dash", DASH_BUFFER_TIME);
+    } else {
+      clearInputBuffers(player);
+    }
     restoreDashCharge();
     player.stamina = MAX_STAMINA;
     player.dashTimer = 0;
@@ -10510,7 +10515,7 @@
       `vel ${player.vx.toFixed(1)}, ${player.vy.toFixed(1)}`,
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}  wc ${player.wallCoyote.toFixed(3)}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
-      `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}`,
+      `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,

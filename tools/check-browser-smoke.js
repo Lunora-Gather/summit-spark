@@ -593,6 +593,54 @@ async function runDesktopSmoke(cdp, baseUrl) {
       : null;
   })()`));
   if (!/失 1/.test(retryState.deaths)) errors.push("quick retry should increment the visible mistake count once: " + JSON.stringify({ retryDeathsBefore, retryState }));
+  const manualRetryBuffers = await debugPosition(cdp);
+  if (!/jbuf 0\.000/.test(manualRetryBuffers.text) || !/dbuf 0\.000/.test(manualRetryBuffers.text)) {
+    errors.push("manual Quick Retry should clear stale Jump/Dash buffers: " + manualRetryBuffers.text);
+  }
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", code: "KeyD", key: "D", windowsVirtualKeyCode: 68 });
+  const earlyDeathWindow = await waitUntil("automatic death exposes an early stale-input window", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const match = text.match(/dead ([\\d.]+)/);
+    const remaining = match ? Number(match[1]) : 0;
+    return remaining >= 0.15 ? { remaining } : null;
+  })()`), 5000);
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "KeyD", key: "d", windowsVirtualKeyCode: 68 });
+  await keyTap(cdp, "Space", " ");
+  await sleep(420);
+  const staleRespawnProbe = await debugPosition(cdp);
+  const staleJump = staleRespawnProbe.text.match(/jbuf ([\d.]+)/);
+  const staleDead = staleRespawnProbe.text.match(/dead ([\d.]+)/);
+  if (!(earlyDeathWindow.remaining >= 0.15)
+    || (staleDead ? Number(staleDead[1]) : -1) !== 0
+    || (staleJump ? Number(staleJump[1]) : -1) !== 0
+    || Math.abs(staleRespawnProbe.y - manualRetryBuffers.y) > 2) {
+    errors.push("an action pressed before the final death buffer window must expire instead of launching the respawn: " + JSON.stringify({ earlyDeathWindow, staleRespawnProbe }));
+  }
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", code: "KeyD", key: "D", windowsVirtualKeyCode: 68 });
+  const lateDeathWindow = await waitUntil("automatic death reaches the late input-buffer window", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const match = text.match(/dead ([\\d.]+)/);
+    const remaining = match ? Number(match[1]) : 0;
+    return remaining >= 0.04 && remaining <= 0.10 ? { remaining, text } : null;
+  })()`), 5000);
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "KeyD", key: "d", windowsVirtualKeyCode: 68 });
+  await keyTap(cdp, "Space", " ");
+  await sleep(260);
+  const bufferedRespawnProbe = await debugPosition(cdp);
+  const bufferedVelocity = bufferedRespawnProbe.text.match(/vel ([\d.-]+), ([\d.-]+)/);
+  const bufferedDead = bufferedRespawnProbe.text.match(/dead ([\d.]+)/);
+  const bufferedRespawnJump = {
+    x: bufferedRespawnProbe.x,
+    y: bufferedRespawnProbe.y,
+    vx: bufferedVelocity ? Number(bufferedVelocity[1]) : 0,
+    vy: bufferedVelocity ? Number(bufferedVelocity[2]) : 0,
+    dead: bufferedDead ? Number(bufferedDead[1]) : -1
+  };
+  if (!(lateDeathWindow.remaining > 0)
+    || bufferedRespawnJump.dead !== 0
+    || bufferedRespawnJump.y >= manualRetryBuffers.y - 4) {
+    errors.push("automatic respawn should preserve a Jump pressed inside the final input-buffer window: " + JSON.stringify({ lateDeathWindow, bufferedRespawnJump }));
+  }
   const gameplayCanvas = await canvasInkSummary(cdp);
   if (gameplayCanvas.varied < 20 || gameplayCanvas.bright < 20) errors.push("canvas appears blank during gameplay: " + JSON.stringify(gameplayCanvas));
   await keyTap(cdp, "Digit0", "0");
@@ -3892,7 +3940,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

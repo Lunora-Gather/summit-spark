@@ -580,7 +580,13 @@ if (!js.includes("summitChapterResult = chapterResultForTransition(") || !js.inc
 if (!uiPresentationModule.includes("export function postRunReviewData(") || !js.includes("function currentRunReviewData(") || !js.includes('reviewCardHtml("本轮最大损失"') || !js.includes("postRunTrainingAdvice(runPlan)")) errors.push("summit review should derive its next Drill and largest loss from current-run evidence");
 if (!js.includes("player.inUpdraft = true") || !js.includes("const windborne = Boolean(player.inUpdraft)") || !js.includes("windborne,")) errors.push("the fixed-hair climber needs a restrained body-level updraft response without recoloring the hair");
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
-if ((maps[2]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match(/T/g) || []).length < 2 || (maps[5]?.join("").match(/A/g) || []).length < 2) errors.push("R3 and R6 capstones must retain their two-stage spring and relay exams");
+if ((maps[2]?.join("").match(/T/g) || []).length !== 2
+  || (maps[5]?.join("").match(/T/g) || []).length !== 2
+  || (maps[5]?.join("").match(/A/g) || []).length !== 4
+  || !/四枚光继.*两级弹簧/.test(String(guides[5] || ""))
+  || !/四枚光继.*两级弹簧/.test(String(purposes[5] || ""))
+  || !/四枚光继.*两级弹簧/.test(String(routeLines[5]?.[2] || ""))
+  || !/四枚光继.*两级弹簧/.test(String(styleTrials[5]?.goal || ""))) errors.push("R3/R6 capstones and R6 copy must preserve their exact authored mechanic counts");
 if (!js.includes("PROFILE_SCHEMA_VERSION")) errors.push("profile schema version is missing");
 if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("room focus schema version is missing");
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay direct resume helper is missing");

@@ -49,7 +49,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 | R3 | full-route entry, offset two-spring capstone and late dash | Direct Practice and continuous play should both begin on the left recovery platform; both spring landings should be visible before committing. |
 | R4 | relay chain under hazard pressure | Safe line and faster chain should both be understandable. |
 | R5 | foldback route memory | Wall Spark line should look optional, not mandatory. |
-| R6 | paired relays plus two-spring exit rhythm | The second relay/spring choice should complete the Old Peak sentence, not surprise the player. |
+| R6 | four-relay sequence plus two-stage spring exit rhythm | Four relay nodes should read as deliberate route beats before the two springs complete the Old Peak sentence, not as two unmentioned extras. |
 | R7 | grounded Wind Gorge entry, then wind plus crumble introduction | Direct Practice must begin on the left-bottom checkpoint; crumble warning and wind lift must be readable together, and with audio on wind should sound once before ice cracks and breaks. |
 | R8 | prism/crumble route into a final updraft | Overdrive should not obscure hazards, and the late wind should feel like a deliberate Wind Gorge exam. |
 | R9 | safe entry anchor, recall, wind, recovery shelf, prism | The anchor should activate beside the checkpoint before pressure begins; the first wind should resolve onto stable middle ground before crumble pressure returns, and recall should return cleanly. |

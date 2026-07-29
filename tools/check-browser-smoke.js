@@ -1198,6 +1198,29 @@ async function runDesktopSmoke(cdp, baseUrl) {
     };
   })()`);
   if (selectedRoomAction.selected !== "1" || !/^开始 R2 /.test(selectedRoomAction.label) || !/R2 光继横桥/.test(selectedRoomAction.roomBrief) || /R10 星顶终线/.test(selectedRoomAction.roomBrief) || !selectedRoomAction.singleDockAction || !selectedRoomAction.launchInsidePanel || selectedRoomAction.launchHeight < 42 || !selectedRoomAction.bodyScrolls) errors.push("room selection should preview R2 while the fixed dock keeps one clear launch action: " + JSON.stringify(selectedRoomAction));
+  await evaluate(cdp, `(() => {
+    const select = document.querySelector("#roomSelect");
+    select.value = "5";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  const r6AuthoredBrief = await waitUntil("R6 brief names its authored mechanic counts", () => evaluate(cdp, `(() => {
+    const brief = document.querySelector("#roomBrief").textContent.trim();
+    const launch = document.querySelector("#focusRoomButton").textContent.trim();
+    if (document.querySelector("#roomSelect").value !== "5" || !/^开始 R6 /.test(launch)) return null;
+    return { brief, launch };
+  })()`));
+  if (!/R6 旧峰出口/.test(r6AuthoredBrief.brief)
+    || !/四枚光继/.test(r6AuthoredBrief.brief)
+    || !/两级弹簧/.test(r6AuthoredBrief.brief)
+    || /双光继|双弹簧/.test(r6AuthoredBrief.brief)) {
+    errors.push("R6 Practice brief should describe its actual four-relay, two-stage-spring route without stale double-mechanic copy: " + JSON.stringify(r6AuthoredBrief));
+  }
+  await evaluate(cdp, `(() => {
+    const select = document.querySelector("#roomSelect");
+    select.value = "1";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitUntil("room selector returns to R2 before launch", () => evaluate(cdp, `document.querySelector("#roomSelect").value === "1" && /^开始 R2 /.test(document.querySelector("#focusRoomButton").textContent.trim())`));
   await clickSelector(cdp, "#focusRoomButton");
   await waitUntil("selected room action starts R2 Drill", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R2/.test(document.querySelector("#gameStatus").textContent)`));
 
@@ -3744,7 +3767,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

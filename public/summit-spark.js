@@ -146,16 +146,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p212"),
-    import("./modules/core/math.mjs?v=20260729-p212"),
-    import("./modules/game/room-data.mjs?v=20260729-p212"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p212"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p212"),
-    import("./modules/systems/storage.mjs?v=20260729-p212"),
-    import("./modules/systems/input.mjs?v=20260729-p212"),
-    import("./modules/training/state.mjs?v=20260729-p212"),
-    import("./modules/training/replay.mjs?v=20260729-p212"),
-    import("./modules/ui/presentation.mjs?v=20260729-p212")
+    import("./modules/core/format.mjs?v=20260729-p213"),
+    import("./modules/core/math.mjs?v=20260729-p213"),
+    import("./modules/game/room-data.mjs?v=20260729-p213"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p213"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p213"),
+    import("./modules/systems/storage.mjs?v=20260729-p213"),
+    import("./modules/systems/input.mjs?v=20260729-p213"),
+    import("./modules/training/state.mjs?v=20260729-p213"),
+    import("./modules/training/replay.mjs?v=20260729-p213"),
+    import("./modules/ui/presentation.mjs?v=20260729-p213")
   ]);
 
   const canvas = document.getElementById("game");
@@ -194,14 +194,12 @@
   const gameTip = document.getElementById("gameTip");
   const gameTipTitle = document.getElementById("gameTipTitle");
   const gameTipDetail = document.getElementById("gameTipDetail");
-  const controlHint = document.getElementById("controlHint");
   const settingsButton = document.getElementById("settingsButton");
   const practiceButton = document.getElementById("practiceButton");
   const settingsBackdrop = document.getElementById("settingsBackdrop");
   const settingsPanel = document.getElementById("settingsPanel");
   const settingsCloseButton = document.getElementById("settingsClose");
   const panelTitle = document.getElementById("panelTitle");
-  const panelSubtitle = document.getElementById("panelSubtitle");
   const shakeSlider = document.getElementById("shakeSlider");
   const debugToggle = document.getElementById("debugToggle");
   const calmEffectsToggle = document.getElementById("calmEffectsToggle");
@@ -261,14 +259,12 @@
   const saveBackupStatus = document.getElementById("saveBackupStatus");
   const roomSelect = document.getElementById("roomSelect");
   const roomBrief = document.getElementById("roomBrief");
-  const practicePriority = document.getElementById("practicePriority");
   const chapterOverview = document.getElementById("chapterOverview");
   const practicePlan = document.getElementById("practicePlan");
   const routeContracts = document.getElementById("routeContracts");
   const feelLab = document.getElementById("feelLab");
   const focusRoomButton = document.getElementById("focusRoomButton");
   const focusResetButton = document.getElementById("focusResetButton");
-  const coachSummary = document.getElementById("coachSummary");
   const practiceReport = document.getElementById("practiceReport");
   const practiceQueue = document.getElementById("practiceQueue");
   const challengeBoard = document.getElementById("challengeBoard");
@@ -681,11 +677,9 @@
   let gameTipKind = "";
   let gameTipPriority = 0;
   let lumenReserveExplained = false;
-  let onboardingStep = 0;
   let focusResetConfirmUntil = 0;
   let focusResetExpiryTimer = 0;
   let lastGameStatus = "";
-  let lastCoachSummary = "";
   let lastChapterOverviewHtml = "";
   let lastPracticePlanHtml = "";
   let lastRouteContractsHtml = "";
@@ -1297,14 +1291,6 @@
       startRoomDrill(target, mode);
     }
   });
-  practicePriority?.addEventListener("click", () => {
-    const target = recommendedPracticeRoom();
-    const mode = resolveDrillMode(target);
-    if (target >= 0) {
-      closeSettings();
-      startRoomDrill(target, mode);
-    }
-  });
   practicePlan?.addEventListener("click", (event) => {
     const button = event.target instanceof Element ? event.target.closest("[data-plan-room]") : null;
     if (!button) return;
@@ -1696,7 +1682,6 @@
     panelMode = mode === "practice" ? "practice" : "settings";
     if (panelMode === "practice" && roomSelect) roomSelect.value = String(roomIndex);
     settingsVisible = true;
-    hideControlHint();
     releaseAllInputs();
     syncSettingsVisibility();
     settingsPanel.scrollTop = 0;
@@ -1759,65 +1744,6 @@
     gameTip.style.setProperty("--tip-progress", progress);
   }
 
-  function beginnerFlowActive() {
-    const entry = roomFocus[0] || createRoomFocusEntry();
-    return started
-      && !won
-      && roomIndex === 0
-      && !activeDrill
-      && (bestRoomTimes[0] || 0) <= 0
-      && (entry.clears || 0) <= 0;
-  }
-
-  function maybeStartBeginnerFlow() {
-    onboardingStep = 0;
-    clearGameTip("onboarding");
-  }
-
-  function showBeginnerCue(step) {
-    onboardingStep = Math.max(onboardingStep, step + 1);
-  }
-
-  function hideControlHint() {
-    if (!controlHint) return;
-    controlHint.classList.add("hidden");
-    controlHint.setAttribute("aria-hidden", "true");
-  }
-
-  function currentControlHint() {
-    const gamepad = lastGamepadStatus.connected;
-    const bindings = effectiveBindings();
-    if (onboardingStep === 0) return gamepad ? "左摇杆移动" : `${keyCodeLabel(bindings.left)} ${keyCodeLabel(bindings.right)}  移动`;
-    if (onboardingStep === 1) {
-      if (gamepad) return "A  跳跃";
-      return `${keyCodeLabel(bindings.jump)}  跳跃`;
-    }
-    if (onboardingStep === 2) return gamepad ? "X  冲刺" : `${keyCodeLabel(bindings.dash)}  冲刺`;
-    return "";
-  }
-
-  function updateOnboardingCues() {
-    const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches;
-    const touchUiVisible = touchControls
-      && !touchControls.hidden
-      && getComputedStyle(touchControls).display !== "none";
-    if (coarsePointer || touchUiVisible || !beginnerFlowActive() || settingsVisible || onboardingStep >= 3) {
-      hideControlHint();
-      return;
-    }
-    if (onboardingStep === 0 && Math.abs(player.vx) > 24) showBeginnerCue(0);
-    if (onboardingStep === 1 && actionPulse.jump > 0) showBeginnerCue(1);
-    if (onboardingStep === 2 && actionPulse.dash > 0) showBeginnerCue(2);
-    const text = currentControlHint();
-    if (!text) {
-      hideControlHint();
-      return;
-    }
-    if (controlHint && controlHint.textContent !== text) controlHint.textContent = text;
-    controlHint?.classList.remove("hidden");
-    controlHint?.setAttribute("aria-hidden", "false");
-  }
-
   function hardReset(options = {}) {
     collected = new Set();
     deathCount = 0;
@@ -1864,7 +1790,6 @@
     recallPulseTimer = 0;
     nearMissCooldown = 0;
     clearGameTip();
-    onboardingStep = 0;
     applyTrainingTransition("hardReset", {
       keepChallenge: Boolean(options.keepChallenge) && !assistActive(),
       keepRoute: Boolean(options.keepRoute),
@@ -1881,7 +1806,6 @@
     resetToStart(0);
     refreshRoomSelectOptions();
     updateHud();
-    maybeStartBeginnerFlow();
     focusGame();
   }
 
@@ -1928,7 +1852,6 @@
     recallPulseTimer = 0;
     nearMissCooldown = 0;
     clearGameTip();
-    onboardingStep = index === 0 ? 0 : 4;
     applyTrainingTransition("jumpRoom", {
       keepDrill: Boolean(options.keepDrill),
       keepChallenge: Boolean(options.keepChallenge),
@@ -1946,7 +1869,6 @@
     refreshRoomSelectOptions();
     updateHud();
     focusGame();
-    maybeStartBeginnerFlow();
   }
 
   function clearTrainingTransitionState(options = {}) {
@@ -2117,7 +2039,6 @@
     updateGhosts(dt);
     updateLightTrails(dt);
     samplePlayerPath(dt);
-    updateOnboardingCues();
     updateHud();
   }
 
@@ -3040,7 +2961,6 @@
   }
 
   function die(reason = "fall") {
-    hideControlHint();
     if (player.deadTimer > 0 || won) return;
     const deathReason = registerDeath(reason);
     setGameStatus(`${deathReasonLabel(deathReason)} · R${roomIndex + 1}，自动复位`);
@@ -3931,11 +3851,6 @@
   }
 
   function updatePracticeCoach() {
-    const text = practiceCoachText();
-    if (coachSummary && text !== lastCoachSummary) {
-      coachSummary.textContent = text;
-      lastCoachSummary = text;
-    }
     if (focusRoomButton) {
       const target = practiceTargetRoom();
       const mode = resolveDrillMode(target);
@@ -3943,7 +3858,6 @@
       if (focusRoomButton.textContent !== label) focusRoomButton.textContent = label;
       focusRoomButton.title = drillBriefText(target, mode);
     }
-    updatePracticePriority();
     updatePracticePlan();
     updateRouteContracts();
     updateFeelLab();
@@ -3957,24 +3871,6 @@
     updateChallengeBoard();
     updateProfileSummary();
     updatePracticeLedger();
-  }
-
-  function updatePracticePriority() {
-    if (!practicePriority || !settingsVisible) return;
-    const target = recommendedPracticeRoom();
-    const mode = resolveDrillMode(target);
-    const stats = drillContractStats(target, mode);
-    const progress = drillContractProgress(stats);
-    const title = `R${target + 1} ${ROOM_NAMES[target] || "Summit"} · ${drillModeLabel(mode)}`;
-    const detail = drillBriefText(target, mode);
-    practicePriority.classList.remove("clean", "pace", "style", "expert");
-    practicePriority.classList.add(mode);
-    practicePriority.style.setProperty("--priority-progress", `${progress}%`);
-    practicePriority.title = detail;
-    practicePriority.innerHTML = `<span>下一步 · ${escapeHtml(drillContractStatus(stats))}</span>`
-      + `<strong>${escapeHtml(title)}</strong>`
-      + `<em>${escapeHtml(detail)}</em>`
-      + `<i class="priority-meter" aria-hidden="true"></i>`;
   }
 
   function countRoomsWhere(predicate) {
@@ -6647,7 +6543,6 @@
     const practiceMode = panelMode === "practice";
     const recoveryMode = Boolean(accountFocused && recoveryUserId && recoverySecret);
     if (panelTitle) panelTitle.textContent = practiceMode ? "练习" : recoveryMode ? "设置新密码" : accountFocused ? "账号" : "设置";
-    if (panelSubtitle) panelSubtitle.textContent = practiceMode ? "房间 · 档案 · 路线" : "操作 · 声音 · 显示";
     settingsCloseButton?.setAttribute("aria-label", practiceMode ? "关闭练习" : recoveryMode ? "关闭改密" : accountFocused ? "关闭账号" : "关闭设置");
     settingsButton?.setAttribute("aria-expanded", String(settingsVisible && panelMode === "settings"));
     practiceButton?.setAttribute("aria-expanded", String(settingsVisible && panelMode === "practice"));
@@ -10632,7 +10527,7 @@
       `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,
-      `tip ${gameTipKind || "none"} ${gameTipTimer.toFixed(2)}  onboarding ${onboardingStep}`,
+      `tip ${gameTipKind || "none"} ${gameTipTimer.toFixed(2)}`,
       `relay chain ${relayChain}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,

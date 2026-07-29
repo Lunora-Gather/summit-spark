@@ -473,8 +473,7 @@ canvas:focus {
 }
 
 .settings-head,
-.control-row,
-.coach-row {
+.control-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -689,19 +688,6 @@ canvas:focus {
   padding: 10px;
 }
 
-.pause-badge {
-  display: inline-grid;
-  place-items: center;
-  height: 20px;
-  margin-left: 8px;
-  padding: 0 7px;
-  border: 1px solid rgba(143, 227, 155, 0.32);
-  border-radius: 4px;
-  background: rgba(143, 227, 155, 0.12);
-  color: rgba(190, 255, 203, 0.92);
-  font-size: 11px;
-}
-
 .settings-section-title {
   margin-top: 12px;
   padding: 8px 0 6px;
@@ -709,97 +695,6 @@ canvas:focus {
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
-}
-
-.practice-priority {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
-  width: 100%;
-  min-height: 96px;
-  margin: 0 0 10px;
-  padding: 14px 15px 17px;
-  overflow: hidden;
-  border: 1px solid rgba(247, 198, 93, 0.28);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(247, 198, 93, 0.16), rgba(118, 215, 255, 0.08)),
-    rgba(255, 255, 255, 0.045);
-  color: rgba(248, 251, 255, 0.9);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.practice-priority:hover {
-  border-color: rgba(247, 198, 93, 0.46);
-  background:
-    linear-gradient(135deg, rgba(247, 198, 93, 0.22), rgba(118, 215, 255, 0.12)),
-    rgba(255, 255, 255, 0.06);
-}
-
-.practice-priority span,
-.practice-priority strong,
-.practice-priority em {
-  display: block;
-  min-width: 0;
-}
-
-.practice-priority span {
-  color: rgba(255, 240, 160, 0.9);
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.practice-priority strong {
-  color: #f8fbff;
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.practice-priority em {
-  color: rgba(248, 251, 255, 0.72);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
-  line-height: 1.32;
-}
-
-.practice-priority.clean {
-  border-color: rgba(143, 227, 155, 0.28);
-}
-
-.practice-priority.pace {
-  border-color: rgba(118, 215, 255, 0.3);
-}
-
-.practice-priority.style {
-  border-color: rgba(143, 227, 155, 0.34);
-}
-
-.practice-priority.expert {
-  border-color: rgba(247, 198, 93, 0.42);
-}
-
-.priority-meter {
-  position: absolute;
-  right: 12px;
-  bottom: 8px;
-  left: 12px;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.priority-meter::after {
-  display: block;
-  width: var(--priority-progress, 0%);
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, rgba(143, 227, 155, 0.95), rgba(247, 198, 93, 0.95));
-  content: "";
 }
 
 .chapter-overview,
@@ -1289,8 +1184,7 @@ canvas:focus {
 }
 
 .settings-head strong,
-.control-row span,
-.coach-row span {
+.control-row span {
   font-size: 13px;
   letter-spacing: 0;
 }
@@ -1310,13 +1204,6 @@ canvas:focus {
 
 .control-row-room {
   border-top: 0;
-}
-
-.coach-row {
-  align-items: flex-start;
-  min-height: 42px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .room-brief {
@@ -1803,15 +1690,6 @@ canvas:focus {
   content: "";
 }
 
-.coach-row span {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: visible;
-  color: rgba(248, 251, 255, 0.82);
-  line-height: 1.35;
-  white-space: normal;
-}
-
 .drill-variants {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1994,38 +1872,6 @@ canvas:focus {
   line-height: 1.35;
   letter-spacing: 0;
   text-align: center;
-}
-
-.start-copy {
-  max-width: min(600px, 100%);
-  margin: 0;
-  font-size: 14px;
-}
-
-.start-guide {
-  display: grid;
-  width: min(560px, 100%);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.start-guide span {
-  min-width: 0;
-  padding: 8px 9px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.055);
-  color: rgba(248, 251, 255, 0.76);
-  font-size: 11px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.start-guide b {
-  display: block;
-  margin-bottom: 3px;
-  color: rgba(255, 240, 160, 0.9);
-  font-size: 10px;
 }
 
 .start-actions {
@@ -2462,8 +2308,7 @@ canvas:focus {
 .settings-panel .plan-step,
 .settings-panel .route-contract-card,
 .settings-panel .feel-card,
-.settings-panel .room-brief,
-.settings-panel .coach-row {
+.settings-panel .room-brief {
   border-color: rgba(255, 255, 255, 0.09);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.032)),
@@ -2523,29 +2368,6 @@ canvas:focus {
   font-size: 10.5px;
 }
 
-.practice-priority {
-  min-height: 78px;
-  margin-bottom: 9px;
-  padding: 12px 13px 15px;
-  border-color: rgba(232, 196, 106, 0.24);
-  background:
-    linear-gradient(135deg, rgba(232, 196, 106, 0.12), rgba(143, 209, 154, 0.06)),
-    rgba(255, 255, 255, 0.05);
-  box-shadow: none;
-}
-
-.practice-priority:hover {
-  border-color: rgba(232, 196, 106, 0.38);
-  background:
-    linear-gradient(135deg, rgba(232, 196, 106, 0.16), rgba(143, 209, 154, 0.08)),
-    rgba(255, 255, 255, 0.065);
-}
-
-.practice-priority strong {
-  color: var(--ink);
-  font-size: 16px;
-}
-
 .start-panel {
   gap: 12px;
   border-color: rgba(255, 255, 255, 0.12);
@@ -2554,23 +2376,6 @@ canvas:focus {
     rgba(18, 18, 19, 0.7);
   backdrop-filter: blur(16px) saturate(1.08);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
-}
-
-.start-copy {
-  max-width: 420px;
-  color: rgba(247, 245, 240, 0.72);
-}
-
-.start-guide {
-  grid-template-columns: repeat(4, minmax(0, auto));
-  gap: 7px;
-}
-
-.start-guide span {
-  min-height: 32px;
-  padding: 7px 9px;
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.055);
 }
 
 .game-tip {
@@ -2704,15 +2509,6 @@ canvas:focus {
     height: 34px;
   }
 
-  .practice-priority {
-    min-height: 80px;
-    padding: 10px 11px 14px;
-  }
-
-  .practice-priority strong {
-    font-size: 14px;
-  }
-
   .practice-plan {
     gap: 5px;
   }
@@ -2764,12 +2560,6 @@ canvas:focus {
   .variant-button,
   .focus-button {
     font-size: 11px;
-  }
-
-  .coach-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
   }
 
   .coach-actions {
@@ -2850,9 +2640,6 @@ canvas:focus {
     padding: 18px;
   }
 
-  .start-guide {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 .stage.low-performance .touch button {
@@ -2891,20 +2678,6 @@ canvas:focus {
 
   .overlay:not(.hidden) h1 {
     font-size: clamp(34px, 13vw, 54px);
-  }
-
-  .overlay:not(.hidden) .start-copy {
-    font-size: 12px;
-    line-height: 1.28;
-  }
-
-  .overlay:not(.hidden) .start-guide {
-    gap: 6px;
-  }
-
-  .overlay:not(.hidden) .start-guide span {
-    padding: 7px 8px;
-    font-size: 10px;
   }
 
   .overlay:not(.hidden) .primary,
@@ -3107,11 +2880,8 @@ body {
 .hud strong,
 .brand span,
 .counter,
-.room-label,
 .settings-head strong,
 .settings-group summary span,
-.practice-priority strong,
-.coach-row span,
 .review-card strong {
   font-weight: 600;
 }
@@ -3157,9 +2927,7 @@ body {
 }
 
 .start-eyebrow,
-.load-strip,
-.start-copy,
-.start-guide {
+.load-strip {
   display: none;
 }
 
@@ -3240,10 +3008,6 @@ body {
   font-size: 14px;
 }
 
-.practice-priority {
-  display: none;
-}
-
 .settings-body {
   grid-template-columns: 1fr;
   gap: 8px;
@@ -3297,8 +3061,7 @@ body {
 .settings-panel .plan-step,
 .settings-panel .route-contract-card,
 .settings-panel .feel-card,
-.settings-panel .room-brief,
-.settings-panel .coach-row {
+.settings-panel .room-brief {
   border-color: rgba(255, 255, 255, 0.075);
   background: rgba(255, 255, 255, 0.04);
 }
@@ -3385,15 +3148,6 @@ output {
   font-weight: 500;
 }
 
-.pause-badge {
-  height: 18px;
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(247, 245, 240, 0.68);
-  font-size: 10.5px;
-  font-weight: 500;
-}
-
 .settings-body {
   display: grid;
   grid-template-columns: 1fr;
@@ -3417,9 +3171,7 @@ output {
 .settings-group-display { order: 3; }
 .settings-group-room { order: 4; }
 .settings-group-feedback { order: 5; }
-.settings-group-profile { order: 6; }
 .settings-group-training { order: 7; }
-.settings-group-advanced { order: 8; }
 
 .settings-group summary {
   min-height: 38px;
@@ -3451,8 +3203,7 @@ output {
   padding: 0 12px 6px;
 }
 
-.settings-panel .control-row,
-.settings-panel .coach-row {
+.settings-panel .control-row {
   min-height: 40px;
   padding: 6px 0;
   border-top: 0;
@@ -3462,7 +3213,6 @@ output {
 }
 
 .settings-panel .control-row span,
-.settings-panel .coach-row span,
 .feedback-box span {
   color: rgba(247, 245, 240, 0.74);
   font-size: 13px;
@@ -3507,7 +3257,6 @@ output {
 }
 
 .settings-panel .room-brief,
-.settings-panel .coach-row,
 .settings-panel .practice-report,
 .settings-panel .profile-summary,
 .settings-panel .ledger-row,
@@ -3868,15 +3617,6 @@ body {
   font-weight: 650;
 }
 
-.pause-badge {
-  height: 18px;
-  border-color: rgba(143, 209, 154, 0.24);
-  background: rgba(143, 209, 154, 0.09);
-  color: rgba(210, 244, 216, 0.86);
-  font-size: 10px;
-  font-weight: 600;
-}
-
 .settings-body {
   display: block;
   padding: 10px 12px 12px;
@@ -3938,8 +3678,7 @@ body {
 }
 
 .control-row span,
-.feedback-box span,
-.coach-row span {
+.feedback-box span {
   color: rgba(247, 245, 240, 0.72);
   font-size: 12px;
   font-weight: 560;
@@ -4027,23 +3766,6 @@ body {
   background: rgba(255, 255, 255, 0.065);
 }
 
-.practice-priority {
-  min-height: 70px;
-  border-color: rgba(232, 196, 106, 0.2);
-  background: rgba(255, 255, 255, 0.052);
-}
-
-.practice-priority span {
-  color: rgba(232, 196, 106, 0.8);
-  font-weight: 560;
-}
-
-.practice-priority strong {
-  font-size: 15px;
-  font-weight: 660;
-}
-
-.practice-priority em,
 .room-brief,
 .practice-report,
 .route-contract-card small,
@@ -4063,8 +3785,7 @@ body {
 .settings-panel .plan-step,
 .settings-panel .route-contract-card,
 .settings-panel .feel-card,
-.settings-panel .room-brief,
-.settings-panel .coach-row {
+.settings-panel .room-brief {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.045);
 }
@@ -4212,8 +3933,7 @@ body {
   .settings-panel .settings-group-body > *,
   .settings-panel .control-row,
   .settings-panel .room-brief,
-  .settings-panel .drill-variants,
-  .settings-panel .coach-row {
+  .settings-panel .drill-variants {
     box-sizing: border-box;
     min-width: 0;
     max-width: 100%;
@@ -4225,8 +3945,7 @@ body {
     max-width: 100%;
   }
 
-  .settings-panel .room-brief,
-  .settings-panel .coach-row span {
+  .settings-panel .room-brief {
     overflow-wrap: anywhere;
   }
 
@@ -4246,11 +3965,6 @@ body {
 /* P23 panel split: settings stay quiet, practice owns drill/route/feel. */
 .settings-panel.mode-settings .settings-body {
   gap: 8px;
-}
-
-.settings-panel.mode-practice .practice-priority {
-  display: grid;
-  margin-bottom: 8px;
 }
 
 .settings-panel button:disabled {
@@ -4414,20 +4128,13 @@ body {
 }
 
 .settings-head strong,
-.settings-group summary span,
-.practice-priority strong {
+.settings-group summary span {
   color: #263744;
 }
 
 .settings-head strong {
   align-self: start;
   font-size: 15px;
-}
-
-.pause-badge {
-  border-color: rgba(67, 125, 102, 0.2);
-  background: rgba(93, 159, 125, 0.12);
-  color: #47745e;
 }
 
 .settings-panel .mini-button {
@@ -4491,8 +4198,7 @@ body {
   content: "";
 }
 
-.settings-group-audio summary span::before,
-.settings-group-advanced summary span::before {
+.settings-group-audio summary span::before {
   background: #d59a70;
 }
 
@@ -4501,8 +4207,7 @@ body {
   background: #77a98c;
 }
 
-.settings-group-feedback summary span::before,
-.settings-group-profile summary span::before {
+.settings-group-feedback summary span::before {
   background: #b08aaa;
 }
 
@@ -4559,7 +4264,6 @@ body {
 
 .control-row span,
 .feedback-box span,
-.coach-row span,
 .settings-panel em,
 .settings-panel output,
 .settings-panel .practice-report {
@@ -4614,22 +4318,6 @@ body {
   color: #5c4824;
 }
 
-.practice-priority,
-.settings-panel.mode-practice .practice-priority {
-  min-height: 78px;
-  margin-bottom: 9px;
-  border: 1px solid rgba(176, 132, 51, 0.24);
-  background:
-    linear-gradient(135deg, rgba(249, 218, 133, 0.48), rgba(174, 213, 185, 0.4)),
-    rgba(255, 255, 255, 0.68);
-  color: #263744;
-  box-shadow: 0 5px 16px rgba(90, 102, 78, 0.08);
-}
-
-.practice-priority span {
-  color: #8a682c;
-}
-
 .settings-panel .chapter-overview,
 .settings-panel .practice-report,
 .settings-panel .profile-summary,
@@ -4639,8 +4327,7 @@ body {
 .settings-panel .plan-step,
 .settings-panel .route-contract-card,
 .settings-panel .feel-card,
-.settings-panel .room-brief,
-.settings-panel .coach-row {
+.settings-panel .room-brief {
   border-color: rgba(57, 84, 94, 0.13);
   background: rgba(255, 255, 255, 0.58);
   color: #2b404c;
@@ -4672,17 +4359,6 @@ body {
 /* P30 final dialog semantics. */
 .settings-head::after {
   content: none;
-}
-
-.panel-subtitle {
-  position: absolute;
-  left: 16px;
-  bottom: 6px;
-  color: rgba(56, 79, 88, 0.62);
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  pointer-events: none;
 }
 
 .hud[hidden],
@@ -4977,27 +4653,6 @@ body {
   display: grid;
 }
 
-.practice-launch-copy {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.practice-launch-copy b {
-  color: #8a6a2e;
-  font-size: 9.5px;
-  letter-spacing: 0.08em;
-}
-
-.practice-launch-copy span {
-  overflow: hidden;
-  color: rgba(48, 69, 80, 0.72);
-  font-size: 10.5px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .practice-launch-dock .coach-actions {
   display: grid;
   grid-template-columns: minmax(140px, auto) auto;
@@ -5015,10 +4670,6 @@ body {
     padding: 8px 9px calc(9px + env(safe-area-inset-bottom, 0px));
   }
 
-  .practice-launch-copy {
-    display: none;
-  }
-
   .practice-launch-dock .coach-actions {
     grid-template-columns: minmax(0, 1fr) auto;
   }
@@ -5034,70 +4685,12 @@ body {
     padding: 7px 9px 8px;
   }
 
-  .practice-launch-copy {
-    display: block;
-  }
-
-  .practice-launch-copy b {
-    display: none;
-  }
-
-  .practice-launch-copy span {
-    display: block;
-    font-size: 10px;
-  }
-
   .practice-launch-dock .coach-actions {
     grid-template-columns: minmax(124px, auto) auto;
   }
 
   .practice-launch-dock .focus-button {
     min-height: 38px;
-  }
-}
-
-/* P67: a quiet first-run keyboard strip replaces the removed tutorial cards.
-   Touch controls are already self-labelled, so coarse pointers never duplicate it. */
-.control-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 12px;
-  z-index: 6;
-  min-height: 30px;
-  display: grid;
-  place-items: center;
-  padding: 6px 12px;
-  transform: translateX(-50%);
-  border: 1px solid rgba(63, 89, 99, 0.16);
-  border-radius: 8px;
-  background: rgba(246, 249, 242, 0.84);
-  box-shadow: 0 8px 20px rgba(35, 53, 63, 0.1);
-  color: rgba(41, 61, 71, 0.84);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.control-hint.hidden,
-.stage.settings-open .control-hint {
-  display: none;
-}
-
-@media (pointer: coarse) {
-  .control-hint {
-    display: none !important;
-  }
-}
-
-@media (max-height: 520px) and (pointer: fine) {
-  .control-hint {
-    bottom: 8px;
-    min-height: 26px;
-    padding: 5px 9px;
-    font-size: 10px;
   }
 }
 
@@ -5145,14 +4738,6 @@ body {
 .icon-button[aria-expanded="true"] {
   border-color: rgba(232, 196, 106, 0.32);
   background: rgba(184, 157, 96, 0.22);
-}
-
-/* P73: keyboard and touch input surfaces share the same quiet mist language. */
-.control-hint {
-  border-color: rgba(67, 94, 102, 0.14);
-  background: rgba(203, 217, 211, 0.62);
-  box-shadow: 0 6px 14px rgba(35, 53, 63, 0.08);
-  color: rgba(39, 59, 68, 0.82);
 }
 
 .touch button,
@@ -5431,12 +5016,6 @@ body {
   letter-spacing: 0.02em;
 }
 
-.panel-subtitle {
-  left: 17px;
-  bottom: 7px;
-  color: rgba(49, 73, 82, 0.56);
-}
-
 .settings-panel .settings-head .mini-button {
   position: absolute;
   top: 10px;
@@ -5488,14 +5067,12 @@ body {
   box-shadow: 0 0 0 3px rgba(113, 157, 130, 0.09);
 }
 
-.settings-group-audio summary span::before,
-.settings-group-advanced summary span::before {
+.settings-group-audio summary span::before {
   background: #ba8e70;
   box-shadow: 0 0 0 3px rgba(186, 142, 112, 0.08);
 }
 
-.settings-group-feedback summary span::before,
-.settings-group-profile summary span::before {
+.settings-group-feedback summary span::before {
   background: #8f879d;
   box-shadow: 0 0 0 3px rgba(143, 135, 157, 0.08);
 }
@@ -5509,43 +5086,12 @@ body {
   background: rgba(207, 222, 217, 0.46);
 }
 
-.practice-priority,
-.settings-panel.mode-practice .practice-priority {
-  min-height: 70px;
-  margin-bottom: 10px;
-  border-color: rgba(176, 137, 62, 0.25);
-  background:
-    linear-gradient(130deg, rgba(242, 211, 127, 0.38), rgba(178, 205, 181, 0.26)),
-    rgba(239, 242, 231, 0.72);
-  box-shadow: none;
-}
-
 .practice-launch-dock {
   gap: 14px;
   padding: 10px 12px 12px;
   border-top-color: rgba(59, 87, 96, 0.14);
   background: rgba(205, 219, 214, 0.96);
   box-shadow: 0 -8px 20px rgba(45, 67, 75, 0.055);
-}
-
-.practice-launch-copy {
-  gap: 3px;
-  padding-left: 2px;
-}
-
-.practice-launch-copy b {
-  color: #81652f;
-}
-
-.practice-launch-copy span {
-  display: -webkit-box;
-  overflow: hidden;
-  color: rgba(43, 66, 75, 0.7);
-  line-height: 1.35;
-  text-overflow: clip;
-  white-space: normal;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .practice-launch-dock .coach-actions {
@@ -5813,8 +5359,7 @@ body {
   background-clip: padding-box;
 }
 
-.settings-panel .control-row,
-.settings-panel .coach-row {
+.settings-panel .control-row {
   margin: 0;
   padding: 7px 5px;
   border-bottom: 1px solid rgba(174, 205, 214, 0.08);
@@ -5822,13 +5367,11 @@ body {
   background: transparent;
 }
 
-.settings-panel .control-row:last-child,
-.settings-panel .coach-row:last-child {
+.settings-panel .control-row:last-child {
   border-bottom: 0;
 }
 
 .settings-panel .control-row > span,
-.settings-panel .coach-row > span,
 .settings-panel .feedback-box > span {
   color: var(--panel-muted);
 }
@@ -5913,8 +5456,7 @@ body {
 .settings-panel .ledger-row,
 .settings-panel .plan-step,
 .settings-panel .route-contract-card,
-.settings-panel .feel-card,
-.settings-panel .coach-row {
+.settings-panel .feel-card {
   border-color: var(--panel-line);
   background: rgba(6, 19, 27, 0.2);
   color: rgba(220, 233, 237, 0.78);
@@ -6434,8 +5976,7 @@ textarea {
   display: block;
 }
 
-.settings-panel .control-row,
-.settings-panel .coach-row {
+.settings-panel .control-row {
   min-height: 48px;
   padding: 8px 4px;
   border-bottom: 1px solid rgba(48, 77, 88, 0.09);
@@ -6443,7 +5984,6 @@ textarea {
 }
 
 .settings-panel .control-row > span,
-.settings-panel .coach-row > span,
 .settings-panel .feedback-box > span {
   color: #6b7e87;
   font-size: 12px;
@@ -6651,7 +6191,6 @@ textarea {
 .settings-panel .plan-step,
 .settings-panel .route-contract-card,
 .settings-panel .feel-card,
-.settings-panel .coach-row,
 .settings-panel .chapter-overview {
   border-color: rgba(47, 77, 88, 0.12);
   background: rgba(255, 255, 255, 0.42);
@@ -6779,17 +6318,6 @@ textarea {
   padding: 13px 16px 16px;
 }
 
-.account-intro {
-  display: grid;
-  gap: 3px;
-}
-
-.account-intro strong {
-  color: #2a4651;
-  font-size: 14px;
-}
-
-.account-intro span,
 .account-note {
   margin: 0;
   color: #71838a;
@@ -7844,7 +7372,6 @@ textarea,
 
 .settings-group summary > small,
 .settings-panel .control-row > span,
-.settings-panel .coach-row > span,
 .settings-panel .feedback-box > span,
 .settings-panel .binding-tools output,
 .settings-panel output,

@@ -28,6 +28,7 @@ const gameHtml = read("public/index.html");
 const playtestChecklist = read("PLAYTEST_CHECKLIST.md");
 const pagesWorkflow = read(".github/workflows/pages.yml");
 const runtimeSource = read("public/summit-spark.js");
+const stylesheetSource = read("public/summit-spark.css");
 const coreFormatSource = read("public/modules/core/format.mjs");
 const coreMathSource = read("public/modules/core/math.mjs");
 const roomDataSource = read("public/modules/game/room-data.mjs");
@@ -313,6 +314,16 @@ for (const match of runtimeSource.matchAll(/^  function\s+([A-Za-z_$][\w$]*)\s*\
   const name = match[1];
   const references = runtimeSource.match(new RegExp(`\\b${name}\\b`, "g"))?.length || 0;
   if (references <= 1) fail(`public runtime function ${name} has no consumer`);
+}
+const surfaceConsumerSource = `${gameHtml}\n${runtimeSource}`;
+const stylesheetClasses = new Set(
+  [...stylesheetSource.matchAll(/\.([A-Za-z_][\w-]*)/g)].map((match) => match[1])
+);
+for (const name of stylesheetClasses) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!new RegExp(`(^|[^\\w-])${escaped}([^\\w-]|$)`).test(surfaceConsumerSource)) {
+    fail(`public stylesheet class ${name} has no HTML or runtime consumer`);
+  }
 }
 if (!runtimeSource.includes('showFeelCue("回声召回", "冲刺与体力已恢复"')
   || !runtimeSource.includes('setGameStatus("回声锚点已激活，可随时召回")')

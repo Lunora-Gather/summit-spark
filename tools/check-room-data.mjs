@@ -10,6 +10,7 @@ import {
   ROOM_ATMOSPHERES,
   ROOM_CHAPTER_LABELS,
   ROOM_GUIDES,
+  ROOM_LANDMARKS,
   ROOM_NAMES,
   ROOM_PURPOSES,
   ROOM_ROUTE_LINES,
@@ -33,7 +34,8 @@ const roomCollections = [
   ROOM_ROUTE_LINES,
   ROOM_STYLE_TRIALS,
   EXPERT_REQUIREMENTS,
-  ROOM_ATMOSPHERES
+  ROOM_ATMOSPHERES,
+  ROOM_LANDMARKS
 ];
 
 function assertDeepFrozen(value, label) {
@@ -57,6 +59,13 @@ assert.ok(Object.isFrozen(CHAPTER_EXPERIENCE[0]), "nested chapter records should
 assert.ok(Object.isFrozen(ROOM_STYLE_TRIALS[0].tech), "nested trial requirements should be read-only");
 assert.ok(Object.isFrozen(SKILL_LABELS), "skill labels should be read-only");
 assert.ok(Object.isFrozen(EXPERT_REQUIREMENT_LABELS), "expert labels should be read-only");
+assert.equal(new Set(ROOM_LANDMARKS.map((landmark) => landmark.kind)).size, maps.length, "every room should have a distinct landmark kind");
+ROOM_LANDMARKS.forEach((landmark, index) => {
+  assert.equal(typeof landmark.kind, "string", `room ${index + 1} landmark should have a kind`);
+  assert.ok(landmark.x > 0 && landmark.x < 1, `room ${index + 1} landmark x should be normalized`);
+  assert.ok(landmark.y > 0 && landmark.y < 1, `room ${index + 1} landmark y should be normalized`);
+  assert.ok(landmark.scale > 0.5 && landmark.scale < 1.5, `room ${index + 1} landmark scale should stay restrained`);
+});
 assertDeepFrozen(CHAPTER_EXPERIENCE, "chapter experience");
 assertDeepFrozen(SKILL_LABELS, "skill labels");
 assertDeepFrozen(EXPERT_REQUIREMENT_LABELS, "expert labels");

@@ -13,6 +13,7 @@ function validateRoomDataSnapshot(snapshot) {
     roomTargets: targets,
     roomNames: names,
     roomTiers: tiers,
+    roomLandmarks: landmarks,
     roomSkills: skills,
     skillLabels,
     roomGuides: guides,
@@ -35,6 +36,7 @@ function validateRoomDataSnapshot(snapshot) {
     ROOM_TARGETS: targets,
     ROOM_NAMES: names,
     ROOM_TIERS: tiers,
+    ROOM_LANDMARKS: landmarks,
     ROOM_SKILLS: skills,
     ROOM_GUIDES: guides,
     ROOM_PURPOSES: purposes,
@@ -77,6 +79,27 @@ function validateRoomDataSnapshot(snapshot) {
   if (Array.isArray(tiers)) {
     tiers.forEach((tier, index) => {
       if (!allowedTiers.has(tier)) push(`ROOM_TIERS ${index + 1} has unknown tier ${tier}`);
+    });
+  }
+
+  if (Array.isArray(landmarks)) {
+    const kinds = new Set();
+    landmarks.forEach((landmark, index) => {
+      if (!landmark || typeof landmark !== "object") {
+        push(`ROOM_LANDMARKS ${index + 1} must be an object`);
+        return;
+      }
+      if (!isNonEmptyString(landmark.kind)) push(`ROOM_LANDMARKS ${index + 1} missing kind`);
+      if (kinds.has(landmark.kind)) push(`ROOM_LANDMARKS ${index + 1} repeats kind ${landmark.kind}`);
+      kinds.add(landmark.kind);
+      for (const key of ["x", "y"]) {
+        if (!(Number(landmark[key]) > 0 && Number(landmark[key]) < 1)) {
+          push(`ROOM_LANDMARKS ${index + 1} ${key} must be normalized`);
+        }
+      }
+      if (!(Number(landmark.scale) > 0.5 && Number(landmark.scale) < 1.5)) {
+        push(`ROOM_LANDMARKS ${index + 1} scale must stay restrained`);
+      }
     });
   }
 

@@ -345,6 +345,21 @@ export const ROOM_ATMOSPHERES = [
   { top: "#40304d", mid: "#795972", low: "#c1787a", back: "#956e7d", midPeak: "#725167", front: "#4d394f", haze: "#dc9baa", rim: "#ebbd67", moon: "#fae6cd" }
 ];
 
+// Non-colliding world-space silhouettes give every room a readable identity
+// without adding HUD or menu noise. Coordinates are normalized to the canvas.
+export const ROOM_LANDMARKS = [
+  { kind: "gate-steps", x: 0.73, y: 0.5, scale: 0.92 },
+  { kind: "relay-bridge", x: 0.61, y: 0.47, scale: 0.96 },
+  { kind: "mist-springs", x: 0.69, y: 0.44, scale: 0.94 },
+  { kind: "triple-link", x: 0.58, y: 0.49, scale: 0.9 },
+  { kind: "switchback", x: 0.57, y: 0.47, scale: 1 },
+  { kind: "broken-gate", x: 0.66, y: 0.47, scale: 0.98 },
+  { kind: "wind-notch", x: 0.57, y: 0.44, scale: 1 },
+  { kind: "prism-hall", x: 0.58, y: 0.44, scale: 0.96 },
+  { kind: "echo-rings", x: 0.61, y: 0.43, scale: 1 },
+  { kind: "summit-mark", x: 0.7, y: 0.4, scale: 1.02 }
+];
+
 function deepFreeze(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
   Object.values(value).forEach(deepFreeze);
@@ -367,5 +382,6 @@ function deepFreeze(value) {
   EXPERT_REQUIREMENTS,
   EXPERT_REQUIREMENT_LABELS,
   maps,
-  ROOM_ATMOSPHERES
+  ROOM_ATMOSPHERES,
+  ROOM_LANDMARKS
 ].forEach(deepFreeze);

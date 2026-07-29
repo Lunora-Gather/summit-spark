@@ -160,10 +160,12 @@ if (!runtimeSource.includes('import("./modules/core/math.mjs?v=') || !coreMathSo
 }
 if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
   || !roomDataSource.includes("export const maps = [")
+  || !roomDataSource.includes("export const ROOM_LANDMARKS = [")
+  || !runtimeSource.includes("drawRoomLandmark(ambientTime, atmosphere)")
   || !roomDataSource.includes("].forEach(deepFreeze);")) {
-  fail("public runtime must consume the versioned immutable room data module");
+  fail("public runtime must consume the versioned immutable room data and landmark module");
 }
-for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_REQUIREMENTS", "maps", "ROOM_ATMOSPHERES"]) {
+for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_REQUIREMENTS", "maps", "ROOM_ATMOSPHERES", "ROOM_LANDMARKS"]) {
   if (new RegExp(`\\bconst\\s+${name}\\s*=`).test(runtimeSource)) {
     fail(`public runtime must not duplicate room-data ownership for ${name}`);
   }

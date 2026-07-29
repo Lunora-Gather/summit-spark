@@ -34,6 +34,7 @@
       ROOM_ATMOSPHERES,
       ROOM_CHAPTER_LABELS,
       ROOM_GUIDES,
+      ROOM_LANDMARKS,
       ROOM_NAMES,
       ROOM_PURPOSES,
       ROOM_ROUTE_LINES,
@@ -123,12 +124,12 @@
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p193"),
-    import("./modules/core/math.mjs?v=20260729-p193"),
-    import("./modules/game/room-data.mjs?v=20260729-p193"),
-    import("./modules/systems/storage.mjs?v=20260729-p193"),
-    import("./modules/systems/input.mjs?v=20260729-p193"),
-    import("./modules/training/state.mjs?v=20260729-p193")
+    import("./modules/core/format.mjs?v=20260729-p194"),
+    import("./modules/core/math.mjs?v=20260729-p194"),
+    import("./modules/game/room-data.mjs?v=20260729-p194"),
+    import("./modules/systems/storage.mjs?v=20260729-p194"),
+    import("./modules/systems/input.mjs?v=20260729-p194"),
+    import("./modules/training/state.mjs?v=20260729-p194")
   ]);
 
   const canvas = document.getElementById("game");
@@ -8852,6 +8853,7 @@
     drawMountainLayer(atmosphere.back, 0.35, 80 + roomIndex * 18, 0.18);
     drawMountainLayer(atmosphere.midPeak, 0.48, 150 + roomIndex * 9, 0.12);
     drawChapterLandmarks(ambientTime, atmosphere);
+    drawRoomLandmark(ambientTime, atmosphere);
     drawChapterWeather(ambientTime, atmosphere);
     drawMountainLayer(atmosphere.front, 0.72, 220, 0.08);
 
@@ -9037,6 +9039,177 @@
       });
       ctx.stroke();
       stars.forEach(([x, y], index) => ctx.fillRect(x - 2, y - 2, index === 3 ? 5 : 4, index === 3 ? 5 : 4));
+    }
+    ctx.restore();
+  }
+
+  function drawRoomLandmark(time, atmosphere) {
+    const landmark = ROOM_LANDMARKS[roomIndex];
+    if (!landmark) return;
+    const pulse = prefersReducedMotion ? 0 : Math.sin(time * 0.55 + roomIndex) * 0.035;
+    const scale = Number(landmark.scale) || 1;
+    ctx.save();
+    ctx.translate(W * landmark.x, H * landmark.y);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = (settings.lowPerformance ? 0.11 : settings.calmEffects ? 0.15 : 0.18) + pulse;
+    ctx.strokeStyle = atmosphere.rim;
+    ctx.fillStyle = atmosphere.haze;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowColor = atmosphere.haze;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 2 : 7);
+
+    if (landmark.kind === "gate-steps") {
+      ctx.beginPath();
+      ctx.moveTo(-82, 54);
+      ctx.lineTo(-42, 54);
+      ctx.lineTo(-42, 34);
+      ctx.lineTo(-4, 34);
+      ctx.lineTo(-4, 14);
+      ctx.lineTo(35, 14);
+      ctx.lineTo(35, -8);
+      ctx.lineTo(78, -8);
+      ctx.stroke();
+      ctx.fillRect(48, -80, 6, 72);
+      ctx.fillRect(92, -80, 6, 72);
+      ctx.fillRect(42, -84, 62, 6);
+    } else if (landmark.kind === "relay-bridge") {
+      ctx.beginPath();
+      ctx.moveTo(-100, 22);
+      ctx.quadraticCurveTo(-48, 76, 0, 12);
+      ctx.quadraticCurveTo(50, -46, 104, 10);
+      ctx.stroke();
+      [-100, 0, 104].forEach((x, index) => {
+        const y = index === 1 ? 12 : index === 2 ? 10 : 22;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeRect(-8, -8, 16, 16);
+        ctx.restore();
+      });
+    } else if (landmark.kind === "mist-springs") {
+      for (let i = 0; i < 3; i += 1) {
+        ctx.beginPath();
+        ctx.ellipse(0, 34 - i * 35, 74 - i * 12, 18, 0, Math.PI * 0.08, Math.PI * 0.92);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(-58, 52);
+      ctx.lineTo(-34, 30);
+      ctx.lineTo(-10, 52);
+      ctx.lineTo(14, 30);
+      ctx.lineTo(38, 52);
+      ctx.lineTo(62, 30);
+      ctx.stroke();
+    } else if (landmark.kind === "triple-link") {
+      [-62, 0, 62].forEach((x, index) => {
+        ctx.save();
+        ctx.translate(x, index === 1 ? -22 : 16);
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeRect(-18, -18, 36, 36);
+        ctx.restore();
+      });
+      ctx.beginPath();
+      ctx.moveTo(-43, 3);
+      ctx.lineTo(-18, -15);
+      ctx.moveTo(18, -15);
+      ctx.lineTo(43, 3);
+      ctx.stroke();
+    } else if (landmark.kind === "switchback") {
+      ctx.beginPath();
+      ctx.moveTo(-92, 66);
+      ctx.lineTo(72, 66);
+      ctx.lineTo(72, 28);
+      ctx.lineTo(-52, 28);
+      ctx.lineTo(-52, -10);
+      ctx.lineTo(52, -10);
+      ctx.lineTo(52, -50);
+      ctx.lineTo(-18, -50);
+      ctx.stroke();
+      [[-92, 66], [72, 28], [-52, -10], [52, -50]].forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else if (landmark.kind === "broken-gate") {
+      ctx.fillRect(-76, -52, 9, 116);
+      ctx.fillRect(68, -52, 9, 116);
+      ctx.beginPath();
+      ctx.moveTo(-72, -50);
+      ctx.lineTo(-38, -78);
+      ctx.lineTo(-5, -54);
+      ctx.moveTo(18, -62);
+      ctx.lineTo(42, -80);
+      ctx.lineTo(72, -50);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-48, 66);
+      ctx.lineTo(-18, 38);
+      ctx.lineTo(10, 66);
+      ctx.lineTo(38, 38);
+      ctx.stroke();
+    } else if (landmark.kind === "wind-notch") {
+      ctx.beginPath();
+      ctx.moveTo(-112, 70);
+      ctx.lineTo(-52, -48);
+      ctx.lineTo(-18, 18);
+      ctx.lineTo(20, -58);
+      ctx.lineTo(104, 70);
+      ctx.stroke();
+      for (let i = 0; i < 3; i += 1) {
+        const y = -28 + i * 34;
+        ctx.beginPath();
+        ctx.moveTo(-18, y);
+        ctx.quadraticCurveTo(16, y - 16, 58, y - 2);
+        ctx.stroke();
+      }
+    } else if (landmark.kind === "prism-hall") {
+      for (let i = 0; i < 3; i += 1) {
+        const size = 34 + i * 28;
+        ctx.save();
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeRect(-size / 2, -size / 2, size, size);
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.moveTo(-112, 0);
+      ctx.lineTo(-64, 0);
+      ctx.moveTo(64, 0);
+      ctx.lineTo(112, 0);
+      ctx.stroke();
+    } else if (landmark.kind === "echo-rings") {
+      for (let i = 0; i < 3; i += 1) {
+        ctx.beginPath();
+        ctx.arc(0, 0, 30 + i * 27, Math.PI * 0.18, Math.PI * 1.82);
+        ctx.stroke();
+      }
+      ctx.save();
+      ctx.rotate(Math.PI / 4);
+      ctx.strokeRect(-13, -13, 26, 26);
+      ctx.restore();
+      ctx.fillRect(-2, -104, 4, 28);
+    } else if (landmark.kind === "summit-mark") {
+      ctx.beginPath();
+      ctx.moveTo(-92, 66);
+      ctx.lineTo(0, -74);
+      ctx.lineTo(92, 66);
+      ctx.moveTo(-46, -4);
+      ctx.lineTo(-18, -30);
+      ctx.lineTo(4, -8);
+      ctx.lineTo(24, -34);
+      ctx.lineTo(52, 4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -74, 12, 0, Math.PI * 2);
+      ctx.fill();
+      for (let i = 0; i < 5; i += 1) {
+        const angle = -Math.PI * 0.8 + i * Math.PI * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 22, -74 + Math.sin(angle) * 22);
+        ctx.lineTo(Math.cos(angle) * 36, -74 + Math.sin(angle) * 36);
+        ctx.stroke();
+      }
     }
     ctx.restore();
   }

@@ -14,7 +14,7 @@ summit-spark/
 │  │  ├─ format.mjs         # 无 DOM 的时间、评级与安全文本纯函数
 │  │  └─ math.mjs           # 无状态的矩形判定、距离与数值逼近
 │  ├─ modules/game/
-│  │  └─ room-data.mjs      # 递归冻结的地图、章节、路线与氛围内容
+│  │  └─ room-data.mjs      # 递归冻结的地图、章节、路线、氛围与逐房地标
 │  ├─ modules/systems/
 │  │  ├─ storage.mjs        # 设置/存档迁移、读修复、档案/备份与事务回滚
 │  │  └─ input.mjs          # 三类设备状态、动作缓冲、手柄映射与键位规则

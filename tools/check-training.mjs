@@ -274,7 +274,7 @@ assert.deepEqual(activeChallengeReviewData(failedChallenge), {
   value: "已破 · 零失误登顶",
   detail: "已有失误 2，继续完成可保留复盘；下一轮从 R1 重开"
 });
-const flowChallenge = { id: "flow", kind: "flow", label: "Flow 峰值", goal: "本轮 Flow 达到 180" };
+const flowChallenge = { id: "flow", kind: "flow", label: "整局 Flow", goal: "完整路线 Flow 达到 180" };
 const flowState = activeChallengeStateData(
   createActiveChallengeData(flowChallenge, 170),
   flowChallenge,
@@ -326,7 +326,7 @@ assert.deepEqual(challengeProgressData({ kind: "flow", goal: "" }, progressMetri
   target: 180,
   progress: 100,
   done: true,
-  detail: "Flow Best 220/180"
+  detail: "整局 Flow 220/180"
 });
 const reconciled = reconcileChallengeWinsData(
   { clear: true, unknown: true },

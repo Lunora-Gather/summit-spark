@@ -323,7 +323,7 @@ export function activeChallengeStateData(active, challenge, {
     current = Math.floor(Math.max(0, Number(flowPeak) || 0));
     target = Math.max(1, Math.floor(Number(flowTarget) || 0));
     done = current >= target;
-    detail = `本轮 ${current}/${target} · 历史 Best ${Math.floor(Math.max(0, Number(bestFlow) || 0))}`;
+    detail = `本轮 ${current}/${target} · 历史整局 ${Math.floor(Math.max(0, Number(bestFlow) || 0))}`;
   }
 
   return {
@@ -396,7 +396,7 @@ export function challengeProgressData(challenge, {
   } else if (challenge?.kind === "flow") {
     target = Math.max(1, Math.floor(Number(flowTarget) || 0));
     current = Math.min(target, Math.max(0, Number(bestFlow) || 0));
-    detail = `Flow Best ${Math.floor(Math.max(0, Number(bestFlow) || 0))}/${target}`;
+    detail = `整局 Flow ${Math.floor(Math.max(0, Number(bestFlow) || 0))}/${target}`;
   }
 
   const progress = boundedProgress(current, target);

@@ -2674,7 +2674,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
         }]
       },
       bestTime: 55.25,
-      bestFlow: 321
+      bestFlow: 999
     }
   };
   await evaluate(cdp, `(() => {
@@ -2779,7 +2779,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     || imported.focusCleanWins !== 0
     || imported.focusPaceDrills !== 1
     || imported.focusPaceWins !== 1
-    || imported.bestFlow !== 321
+    || imported.bestFlow !== 999
     || imported.backupKind !== "summit-spark-save-backup"
     || imported.backupReason !== "before-import"
     || imported.backupArchiveKind !== "summit-spark-save"
@@ -2787,6 +2787,33 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     || imported.stageTouchSize !== "62px") {
     errors.push("save archive import did not normalize and apply storage: " + JSON.stringify(imported));
   }
+  await clickSelector(cdp, "#openTrainingButton");
+  await waitUntil("Practice opens for full-route Flow evidence", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(cdp, ".settings-group-training");
+  await openSettingsGroup(cdp, ".practice-subgroup-profile");
+  await openSettingsGroup(cdp, ".practice-subgroup-advanced");
+  const fullRouteFlowEvidence = await evaluate(cdp, `(() => {
+    const card = document.querySelector(".challenge-card.flow");
+    const profile = document.querySelector("#profileSummary");
+    return {
+      cardText: card?.textContent.replace(/\\s+/g, " ").trim() || "",
+      cardDone: card?.classList.contains("done") || false,
+      profileText: profile?.textContent.replace(/\\s+/g, " ").trim() || "",
+      practiceBest: Number(localStorage.getItem("summit-spark-best-flow") || 0),
+      fullRouteBest: JSON.parse(localStorage.getItem("summit-spark-profile") || "{}").bestFlowPeak || 0
+    };
+  })()`);
+  if (fullRouteFlowEvidence.practiceBest !== 999
+    || fullRouteFlowEvidence.fullRouteBest !== 210
+    || fullRouteFlowEvidence.cardDone
+    || !/整局 Flow 210\/900/.test(fullRouteFlowEvidence.cardText)
+    || !/210整局 Flow/.test(fullRouteFlowEvidence.profileText)
+    || /999/.test(fullRouteFlowEvidence.cardText)
+    || /999/.test(fullRouteFlowEvidence.profileText)) {
+    errors.push("Practice Flow best must not complete or replace the full-route Flow challenge/profile evidence: " + JSON.stringify(fullRouteFlowEvidence));
+  }
+  await clickSelector(cdp, "#settingsClose");
+  await waitUntil("Practice closes after full-route Flow evidence check", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await clickSelector(cdp, "#startSettingsButton");
   await waitUntil("settings opens for backup restore", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
   await openSettingsGroup(cdp, ".settings-group-feedback");
@@ -3853,7 +3880,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

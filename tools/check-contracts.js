@@ -242,6 +242,15 @@ if (!js.includes("practiceLedgerSummary")) errors.push("practice ledger summary 
 if (!js.includes("PROFILE_KEY")) errors.push("long-term profile storage key is missing");
 if (!js.includes("LONG_TERM_CHALLENGES")) errors.push("long-term challenge definitions are missing");
 if (!js.includes("FLOW_CHALLENGE_TARGET = 900")) errors.push("Flow challenge target must stay reachable under the 999 flow cap");
+if (!js.includes('label: "整局 Flow"')
+  || !js.includes("profile.bestFlowPeak = Math.max(profile.bestFlowPeak, Math.floor(flowPeak));")
+  || js.includes("Math.max(profile.bestFlowPeak, Math.floor(flowPeak), bestFlow)")
+  || !js.includes("createActiveChallengeData(challenge, profile.bestFlowPeak || 0)")
+  || !js.includes("bestFlow: profile.bestFlowPeak || 0")
+  || !trainingModule.includes("历史整局")
+  || !trainingModule.includes("整局 Flow")) {
+  errors.push("the full-route Flow challenge must use only summit-earned profile Flow, never Practice bestFlow");
+}
 if (!js.includes("readProfile")) errors.push("long-term profile read helper is missing");
 if (!storageModule.includes("profile.summitClears <= 0")) errors.push("profile normalization must not turn missing death data into zero-death completion");
 if (!js.includes("recordSummitProfile")) errors.push("summit clear should update the long-term profile");

@@ -152,16 +152,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p228"),
-    import("./modules/core/math.mjs?v=20260729-p228"),
-    import("./modules/game/room-data.mjs?v=20260729-p228"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p228"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p228"),
-    import("./modules/systems/storage.mjs?v=20260729-p228"),
-    import("./modules/systems/input.mjs?v=20260729-p228"),
-    import("./modules/training/state.mjs?v=20260729-p228"),
-    import("./modules/training/replay.mjs?v=20260729-p228"),
-    import("./modules/ui/presentation.mjs?v=20260729-p228")
+    import("./modules/core/format.mjs?v=20260729-p229"),
+    import("./modules/core/math.mjs?v=20260729-p229"),
+    import("./modules/game/room-data.mjs?v=20260729-p229"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p229"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p229"),
+    import("./modules/systems/storage.mjs?v=20260729-p229"),
+    import("./modules/systems/input.mjs?v=20260729-p229"),
+    import("./modules/training/state.mjs?v=20260729-p229"),
+    import("./modules/training/replay.mjs?v=20260729-p229"),
+    import("./modules/ui/presentation.mjs?v=20260729-p229")
   ]);
 
   const canvas = document.getElementById("game");
@@ -505,7 +505,7 @@
     { id: "style", label: "全 Style", goal: "每房完成类型挑战", kind: "style", mode: "style" },
     { id: "expert", label: "全 Expert", goal: "每房证明高手线", kind: "expert", mode: "expert" },
     { id: "nodeath", label: "零失误登顶", goal: "完整通关且失误数为 0", kind: "nodeath", mode: "clean" },
-    { id: "flow", label: "Flow 峰值", goal: `本轮 Flow 达到 ${FLOW_CHALLENGE_TARGET}`, kind: "flow", mode: "pace" }
+    { id: "flow", label: "整局 Flow", goal: `完整路线 Flow 达到 ${FLOW_CHALLENGE_TARGET}`, kind: "flow", mode: "pace" }
   ];
   const ROUTE_CONTRACTS = [
     {
@@ -2561,7 +2561,7 @@
       profile.bestDeathCount = deathCount;
     }
     profile.bestRelayChain = Math.max(profile.bestRelayChain, bestRelayChain);
-    profile.bestFlowPeak = Math.max(profile.bestFlowPeak, Math.floor(flowPeak), bestFlow);
+    profile.bestFlowPeak = Math.max(profile.bestFlowPeak, Math.floor(flowPeak));
     syncChallengeWins({ persist: false });
     writeProfile();
   }
@@ -4515,7 +4515,7 @@
 
   function createActiveChallenge(id = "clear") {
     const challenge = challengeById(id);
-    return createActiveChallengeData(challenge, Math.max(bestFlow, profile.bestFlowPeak || 0));
+    return createActiveChallengeData(challenge, profile.bestFlowPeak || 0);
   }
 
   function activeChallengeState() {
@@ -4528,7 +4528,7 @@
       deathCount,
       flowPeak,
       flowTarget: FLOW_CHALLENGE_TARGET,
-      bestFlow: Math.max(bestFlow, profile.bestFlowPeak || 0)
+      bestFlow: profile.bestFlowPeak || 0
     });
   }
 
@@ -4554,7 +4554,7 @@
       styleRooms: styleWinRoomCount(),
       expertRooms: expertWinRoomCount(),
       bestDeathCount: profile.bestDeathCount,
-      bestFlow: Math.max(bestFlow, profile.bestFlowPeak || 0),
+      bestFlow: profile.bestFlowPeak || 0,
       flowTarget: FLOW_CHALLENGE_TARGET
     });
     return {
@@ -4615,7 +4615,7 @@
       + `<div class="profile-grid">`
       + `<span><b>${profile.summitClears}</b><em>登顶</em></span>`
       + `<span><b>${escapeHtml(bestDeath)}</b><em>最佳失误</em></span>`
-      + `<span><b>${Math.floor(Math.max(bestFlow, profile.bestFlowPeak || 0))}</b><em>Flow</em></span>`
+      + `<span><b>${Math.floor(profile.bestFlowPeak || 0)}</b><em>整局 Flow</em></span>`
       + `<span><b>${contractWinCount()}</b><em>合约完成</em></span>`
       + `<span><b>${challengeWins}/${LONG_TERM_CHALLENGES.length}</b><em>挑战</em></span>`
       + `<span><b>${profile.bestRelayChain}</b><em>Relay</em></span>`

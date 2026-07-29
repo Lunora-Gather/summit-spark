@@ -294,8 +294,8 @@ if (!js.includes("feelFixtureMatchesDrill")) errors.push("feel retry should vali
 if (!js.includes("normalizeRoomBests")) errors.push("room best storage normalization is missing");
 if (!js.includes("normalizeRoomPaths")) errors.push("room path storage normalization is missing");
 if (!js.includes("readStoredJson")) errors.push("storage read/repair helper is missing");
-if (!js.includes("finiteNonNegativeInt")) errors.push("finite storage integer normalizer is missing");
-if (!js.includes("strictBoolean")) errors.push("strict storage boolean normalizer is missing");
+if (!storageModule.includes("finiteNonNegativeInt")) errors.push("finite storage integer normalizer is missing");
+if (!storageModule.includes("strictBoolean")) errors.push("strict storage boolean normalizer is missing");
 if (!js.includes("storageHealthMessage")) errors.push("storage health feedback state is missing");
 if (!js.includes("maybeShowStorageRepairToast")) errors.push("storage repair should show a one-shot toast");
 if (!js.includes("wallSpark") || !js.includes("prismSpark")) errors.push("Spark variants are missing");

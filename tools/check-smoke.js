@@ -194,7 +194,7 @@ async function main() {
       .forEach((marker) => expectIncludes("core math", coreMath, marker));
     ["export const ROOM_TARGETS = [", "export const maps = [", "export const ROOM_ATMOSPHERES = [", "].forEach(deepFreeze);"]
       .forEach((marker) => expectIncludes("room data", roomData, marker));
-    ["export function finiteNonNegativeNumber(", "export function normalizeRoomFocusData(", "export function parseSaveArchiveText(", "export function writeStorageTransaction("]
+    ["export function finiteNonNegativeNumber(", "export function normalizeSettingsData(", "export function readStoredJson(", "export function normalizeRoomFocusData(", "export function parseSaveArchiveText(", "export function createSaveArchiveData(", "export function createSaveBackupData(", "export function writeStorageTransaction("]
       .forEach((marker) => expectIncludes("storage module", storageModule, marker));
 
     [

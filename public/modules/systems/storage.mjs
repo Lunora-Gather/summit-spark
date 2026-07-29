@@ -14,6 +14,93 @@ export function strictBoolean(value, fallback = false) {
   return fallback;
 }
 
+export function readStoredJson(storage, key, fallback, normalize, onIssue = () => {}) {
+  let parsed = fallback;
+  let repaired = false;
+  try {
+    parsed = JSON.parse(storage.getItem(key) || JSON.stringify(fallback));
+  } catch {
+    onIssue("本地存档已修复");
+    repaired = true;
+    parsed = fallback;
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Storage repair is best-effort.
+    }
+  }
+  const normalized = normalize(parsed);
+  if (repaired || JSON.stringify(normalized) !== JSON.stringify(parsed)) {
+    try {
+      storage.setItem(key, JSON.stringify(normalized));
+    } catch {
+      onIssue("本地存档不可写");
+    }
+  }
+  return normalized;
+}
+
+export function clampGamepadDeadzoneData(value, {
+  min,
+  max,
+  fallback
+}) {
+  return Math.max(min, Math.min(max, finiteNonNegativeNumber(value, fallback, max)));
+}
+
+export function clampTouchSizeData(value, {
+  min,
+  max,
+  fallback
+}) {
+  return Math.max(min, Math.min(max, finiteNonNegativeInt(value, fallback, max)));
+}
+
+export function normalizeSettingsData(saved, defaults, {
+  schemaVersion,
+  bindingActions,
+  defaultBindingsForLayout,
+  validBindingCode,
+  controlPresets,
+  gamepadDeadzone,
+  touchSize
+}) {
+  const source = saved && typeof saved === "object" ? saved : {};
+  const keyboardLayout = source.keyboardLayout === "mac" ? "mac" : defaults.keyboardLayout;
+  const bindingDefaults = defaultBindingsForLayout(keyboardLayout);
+  const customBindings = {};
+  for (const action of bindingActions) {
+    const savedCode = source.customBindings?.[action];
+    customBindings[action] = validBindingCode(savedCode) ? savedCode : bindingDefaults[action];
+  }
+  return {
+    schemaVersion,
+    shake: finiteNonNegativeNumber(source.shake, defaults.shake, 1),
+    calmEffects: strictBoolean(source.calmEffects, defaults.calmEffects),
+    lowPerformance: strictBoolean(source.lowPerformance, defaults.lowPerformance),
+    controlsPreset: source.controlsPreset === "custom"
+      || (typeof source.controlsPreset === "string" && Object.hasOwn(controlPresets, source.controlsPreset))
+      ? source.controlsPreset
+      : defaults.controlsPreset,
+    keyboardLayout,
+    customBindings,
+    grabMode: source.grabMode === "toggle" ? "toggle" : defaults.grabMode,
+    gamepadDeadzone: clampGamepadDeadzoneData(
+      source.gamepadDeadzone ?? defaults.gamepadDeadzone,
+      gamepadDeadzone
+    ),
+    touchSize: clampTouchSizeData(source.touchSize ?? defaults.touchSize, touchSize),
+    practiceLines: strictBoolean(source.practiceLines, defaults.practiceLines),
+    ghostOpacity: Math.max(0.2, Math.min(
+      1,
+      finiteNonNegativeNumber(source.ghostOpacity, defaults.ghostOpacity, 1)
+    )),
+    assistMode: source.assistMode === "gentle" ? "gentle" : defaults.assistMode,
+    audioEnabled: strictBoolean(source.audioEnabled, defaults.audioEnabled),
+    audioVolume: finiteNonNegativeNumber(source.audioVolume, defaults.audioVolume, 1)
+  };
+}
+
 export function createProfileData(schemaVersion) {
   return {
     version: schemaVersion,
@@ -172,6 +259,71 @@ export function parseSaveArchiveText(text, { maxChars, kind }) {
     sourceBuild: typeof parsed.build === "string" && parsed.build ? parsed.build.slice(0, 40) : "",
     storage: parsed.storage
   };
+}
+
+export function createSaveArchiveData({
+  kind,
+  schemaVersion,
+  build,
+  exportedAt,
+  settings,
+  profile,
+  roomBests,
+  roomPaths,
+  roomFocusSchemaVersion,
+  roomFocus,
+  bestTime,
+  bestFlow
+}) {
+  return {
+    kind,
+    schemaVersion,
+    build,
+    exportedAt,
+    storage: {
+      settings,
+      profile,
+      roomBests,
+      roomPaths,
+      roomFocus: {
+        schemaVersion: roomFocusSchemaVersion,
+        rooms: roomFocus
+      },
+      bestTime,
+      bestFlow
+    }
+  };
+}
+
+export function createSaveBackupData({
+  sourceBuild = "",
+  archive,
+  savedAt
+}) {
+  return {
+    kind: "summit-spark-save-backup",
+    schemaVersion: 1,
+    savedAt,
+    reason: "before-import",
+    sourceBuild: sourceBuild || "",
+    archive
+  };
+}
+
+export function parseSaveBackupValue(value, validateArchive) {
+  if (!value
+    || typeof value !== "object"
+    || Array.isArray(value)
+    || value.kind !== "summit-spark-save-backup"
+    || value.schemaVersion !== 1
+    || value.reason !== "before-import"
+    || !value.archive) return null;
+  try {
+    validateArchive(value.archive);
+    return value;
+  } catch {
+    return null;
+  }
 }
 
 export function writeStorageTransaction(storage, entries) {

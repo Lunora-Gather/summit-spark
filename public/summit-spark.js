@@ -45,24 +45,29 @@
       SKILL_LABELS
     },
     {
+      clampGamepadDeadzoneData,
+      clampTouchSizeData,
       createProfileData,
       createRoomFocusEntryData,
-      finiteNonNegativeInt,
+      createSaveArchiveData,
+      createSaveBackupData,
       finiteNonNegativeNumber,
       normalizeProfileData,
       normalizeRoomBestsData,
       normalizeRoomFocusData,
       normalizeRoomPathPointData,
       normalizeRoomPathsData,
+      normalizeSettingsData,
       parseSaveArchiveText,
-      strictBoolean,
+      parseSaveBackupValue,
+      readStoredJson: readStoredJsonData,
       writeStorageTransaction: writeStorageTransactionData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260728-p185"),
-    import("./modules/core/math.mjs?v=20260728-p185"),
-    import("./modules/game/room-data.mjs?v=20260728-p185"),
-    import("./modules/systems/storage.mjs?v=20260728-p185")
+    import("./modules/core/format.mjs?v=20260728-p186"),
+    import("./modules/core/math.mjs?v=20260728-p186"),
+    import("./modules/game/room-data.mjs?v=20260728-p186"),
+    import("./modules/systems/storage.mjs?v=20260728-p186")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2668,29 +2673,7 @@
   }
 
   function readStoredJson(key, fallback, normalize) {
-    let parsed = fallback;
-    let repaired = false;
-    try {
-      parsed = JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
-    } catch {
-      markStorageIssue("本地存档已修复");
-      repaired = true;
-      parsed = fallback;
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        // Storage repair is best-effort.
-      }
-    }
-    const normalized = normalize(parsed);
-    if (repaired || JSON.stringify(normalized) !== JSON.stringify(parsed)) {
-      try {
-        localStorage.setItem(key, JSON.stringify(normalized));
-      } catch {
-        markStorageIssue("本地存档不可写");
-      }
-    }
-    return normalized;
+    return readStoredJsonData(localStorage, key, fallback, normalize, markStorageIssue);
   }
 
   function createProfile() {
@@ -5839,24 +5822,20 @@
   }
 
   function buildSaveArchive() {
-    const archive = {
+    const archive = createSaveArchiveData({
       kind: SAVE_ARCHIVE_KIND,
       schemaVersion: SAVE_ARCHIVE_SCHEMA_VERSION,
       build: document.querySelector('meta[name="build-version"]')?.content || "dev",
       exportedAt: new Date().toISOString(),
-      storage: {
-        settings,
-        profile,
-        roomBests: bestRoomTimes,
-        roomPaths: bestRoomPaths,
-        roomFocus: {
-          schemaVersion: ROOM_FOCUS_SCHEMA_VERSION,
-          rooms: roomFocus
-        },
-        bestTime: readBestTime(),
-        bestFlow: readBestFlow()
-      }
-    };
+      settings,
+      profile,
+      roomBests: bestRoomTimes,
+      roomPaths: bestRoomPaths,
+      roomFocusSchemaVersion: ROOM_FOCUS_SCHEMA_VERSION,
+      roomFocus,
+      bestTime: readBestTime(),
+      bestFlow: readBestFlow()
+    });
     window.__summitLastSaveArchive = archive;
     return archive;
   }
@@ -6692,9 +6671,9 @@
   function readSaveBackup() {
     try {
       const backup = JSON.parse(localStorage.getItem(SAVE_BACKUP_KEY) || "null");
-      if (!backup || typeof backup !== "object" || backup.kind !== "summit-spark-save-backup" || !backup.archive) return null;
-      normalizeSaveArchiveText(JSON.stringify(backup.archive));
-      return backup;
+      return parseSaveBackupValue(backup, (archive) => {
+        normalizeSaveArchiveText(JSON.stringify(archive));
+      });
     } catch {
       return null;
     }
@@ -6888,14 +6867,11 @@
   }
 
   function createCurrentSaveBackup(sourceBuild = "") {
-    return {
-      kind: "summit-spark-save-backup",
-      schemaVersion: 1,
+    return createSaveBackupData({
+      sourceBuild,
+      archive: buildSaveArchive(),
       savedAt: new Date().toISOString(),
-      reason: "before-import",
-      sourceBuild: sourceBuild || "",
-      archive: buildSaveArchive()
-    };
+    });
   }
 
   function focusGame() {
@@ -7168,39 +7144,39 @@
   }
 
   function clampGamepadDeadzone(value) {
-    return Math.max(GAMEPAD_DEADZONE_MIN, Math.min(GAMEPAD_DEADZONE_MAX, finiteNonNegativeNumber(value, GAMEPAD_DEADZONE_DEFAULT, GAMEPAD_DEADZONE_MAX)));
+    return clampGamepadDeadzoneData(value, {
+      min: GAMEPAD_DEADZONE_MIN,
+      max: GAMEPAD_DEADZONE_MAX,
+      fallback: GAMEPAD_DEADZONE_DEFAULT
+    });
   }
 
   function clampTouchSize(value) {
-    return Math.max(TOUCH_SIZE_MIN, Math.min(TOUCH_SIZE_MAX, finiteNonNegativeInt(value, TOUCH_SIZE_DEFAULT, TOUCH_SIZE_MAX)));
+    return clampTouchSizeData(value, {
+      min: TOUCH_SIZE_MIN,
+      max: TOUCH_SIZE_MAX,
+      fallback: TOUCH_SIZE_DEFAULT
+    });
   }
 
   function normalizeSettings(saved, defaults) {
-    const source = saved && typeof saved === "object" ? saved : {};
-    const keyboardLayout = source.keyboardLayout === "mac" ? "mac" : defaults.keyboardLayout;
-    const bindingDefaults = defaultBindingsForLayout(keyboardLayout);
-    const customBindings = {};
-    for (const action of BINDING_ACTIONS) {
-      const savedCode = source.customBindings?.[action];
-      customBindings[action] = validBindingCode(savedCode) ? savedCode : bindingDefaults[action];
-    }
-    return {
+    return normalizeSettingsData(saved, defaults, {
       schemaVersion: SETTINGS_SCHEMA_VERSION,
-      shake: finiteNonNegativeNumber(source.shake, defaults.shake, 1),
-      calmEffects: strictBoolean(source.calmEffects, defaults.calmEffects),
-      lowPerformance: strictBoolean(source.lowPerformance, defaults.lowPerformance),
-      controlsPreset: source.controlsPreset === "custom" || CONTROL_PRESETS[source.controlsPreset] ? source.controlsPreset : defaults.controlsPreset,
-      keyboardLayout,
-      customBindings,
-      grabMode: source.grabMode === "toggle" ? "toggle" : defaults.grabMode,
-      gamepadDeadzone: clampGamepadDeadzone(source.gamepadDeadzone ?? defaults.gamepadDeadzone),
-      touchSize: clampTouchSize(source.touchSize ?? defaults.touchSize),
-      practiceLines: strictBoolean(source.practiceLines, defaults.practiceLines),
-      ghostOpacity: Math.max(0.2, Math.min(1, finiteNonNegativeNumber(source.ghostOpacity, defaults.ghostOpacity, 1))),
-      assistMode: source.assistMode === "gentle" ? "gentle" : defaults.assistMode,
-      audioEnabled: strictBoolean(source.audioEnabled, defaults.audioEnabled),
-      audioVolume: finiteNonNegativeNumber(source.audioVolume, defaults.audioVolume, 1)
-    };
+      bindingActions: BINDING_ACTIONS,
+      defaultBindingsForLayout,
+      validBindingCode,
+      controlPresets: CONTROL_PRESETS,
+      gamepadDeadzone: {
+        min: GAMEPAD_DEADZONE_MIN,
+        max: GAMEPAD_DEADZONE_MAX,
+        fallback: GAMEPAD_DEADZONE_DEFAULT
+      },
+      touchSize: {
+        min: TOUCH_SIZE_MIN,
+        max: TOUCH_SIZE_MAX,
+        fallback: TOUCH_SIZE_DEFAULT
+      }
+    });
   }
 
   function writeSettings() {

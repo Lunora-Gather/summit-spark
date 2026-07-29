@@ -3,8 +3,12 @@
 
 import assert from "node:assert/strict";
 import {
+  clampGamepadDeadzoneData,
+  clampTouchSizeData,
   createProfileData,
   createRoomFocusEntryData,
+  createSaveArchiveData,
+  createSaveBackupData,
   finiteNonNegativeInt,
   finiteNonNegativeNumber,
   normalizeProfileData,
@@ -12,7 +16,10 @@ import {
   normalizeRoomFocusData,
   normalizeRoomPathPointData,
   normalizeRoomPathsData,
+  normalizeSettingsData,
   parseSaveArchiveText,
+  parseSaveBackupValue,
+  readStoredJson,
   strictBoolean,
   writeStorageTransaction
 } from "../public/modules/systems/storage.mjs";
@@ -25,6 +32,69 @@ assert.equal(finiteNonNegativeInt(4.99), 4);
 assert.equal(strictBoolean("true", false), true);
 assert.equal(strictBoolean("false", true), false);
 assert.equal(strictBoolean(1, false), false, "truthy non-booleans must not bypass storage guards");
+assert.equal(clampGamepadDeadzoneData(0.01, { min: 0.12, max: 0.45, fallback: 0.28 }), 0.12);
+assert.equal(clampTouchSizeData(900, { min: 44, max: 64, fallback: 48 }), 64);
+
+const defaultSettings = {
+  schemaVersion: 4,
+  shake: 0.65,
+  calmEffects: true,
+  lowPerformance: false,
+  controlsPreset: "comfort",
+  keyboardLayout: "pc",
+  customBindings: { jump: "Space", dash: "ShiftLeft" },
+  grabMode: "hold",
+  gamepadDeadzone: 0.28,
+  touchSize: 48,
+  practiceLines: true,
+  ghostOpacity: 0.75,
+  assistMode: "off",
+  audioEnabled: true,
+  audioVolume: 0.35
+};
+const settings = normalizeSettingsData({
+  shake: 9,
+  calmEffects: "false",
+  lowPerformance: 1,
+  controlsPreset: "__proto__",
+  keyboardLayout: "mac",
+  customBindings: { jump: "KeyJ", dash: "not-valid" },
+  grabMode: "toggle",
+  gamepadDeadzone: 0.01,
+  touchSize: 900,
+  practiceLines: false,
+  ghostOpacity: 0,
+  assistMode: "gentle",
+  audioEnabled: "true",
+  audioVolume: -1
+}, defaultSettings, {
+  schemaVersion: 4,
+  bindingActions: ["jump", "dash"],
+  defaultBindingsForLayout: (layout) => layout === "mac"
+    ? { jump: "Space", dash: "MetaLeft" }
+    : { jump: "Space", dash: "ShiftLeft" },
+  validBindingCode: (code) => code === "KeyJ" || code === "Space" || code === "MetaLeft",
+  controlPresets: { comfort: {} },
+  gamepadDeadzone: { min: 0.12, max: 0.45, fallback: 0.28 },
+  touchSize: { min: 44, max: 64, fallback: 48 }
+});
+assert.deepEqual(settings, {
+  schemaVersion: 4,
+  shake: 1,
+  calmEffects: false,
+  lowPerformance: false,
+  controlsPreset: "comfort",
+  keyboardLayout: "mac",
+  customBindings: { jump: "KeyJ", dash: "MetaLeft" },
+  grabMode: "toggle",
+  gamepadDeadzone: 0.12,
+  touchSize: 64,
+  practiceLines: false,
+  ghostOpacity: 0.2,
+  assistMode: "gentle",
+  audioEnabled: true,
+  audioVolume: 0
+});
 
 assert.deepEqual(createProfileData(2), {
   version: 2,
@@ -150,6 +220,54 @@ const parsed = parseSaveArchiveText(JSON.stringify({
 assert.equal(parsed.sourceBuild.length, 40);
 assert.deepEqual(parsed.storage, { settings: {} });
 
+const archive = createSaveArchiveData({
+  kind: "summit-spark-save",
+  schemaVersion: 1,
+  build: "p186",
+  exportedAt: "2026-07-29T00:00:00.000Z",
+  settings: { touchSize: 48 },
+  profile: { summitClears: 2 },
+  roomBests: [4],
+  roomPaths: [[]],
+  roomFocusSchemaVersion: 2,
+  roomFocus: [{ faults: 0 }],
+  bestTime: 80,
+  bestFlow: 120
+});
+assert.deepEqual(Object.keys(archive), ["kind", "schemaVersion", "build", "exportedAt", "storage"]);
+assert.deepEqual(Object.keys(archive.storage), [
+  "settings",
+  "profile",
+  "roomBests",
+  "roomPaths",
+  "roomFocus",
+  "bestTime",
+  "bestFlow"
+]);
+assert.deepEqual(archive.storage.roomFocus, {
+  schemaVersion: 2,
+  rooms: [{ faults: 0 }]
+});
+const backup = createSaveBackupData({
+  sourceBuild: "incoming",
+  archive,
+  savedAt: "2026-07-29T00:00:01.000Z"
+});
+assert.equal(backup.kind, "summit-spark-save-backup");
+assert.equal(backup.schemaVersion, 1);
+assert.equal(backup.reason, "before-import");
+assert.equal(backup.sourceBuild, "incoming");
+assert.equal(backup.archive, archive);
+assert.equal(parseSaveBackupValue(backup, (value) => {
+  assert.equal(value.kind, "summit-spark-save");
+}), backup);
+assert.equal(parseSaveBackupValue({ ...backup, archive: { kind: "bad" } }, () => {
+  throw new Error("invalid");
+}), null);
+assert.equal(parseSaveBackupValue({ ...backup, schemaVersion: 99 }, () => {}), null);
+assert.equal(parseSaveBackupValue({ ...backup, reason: "other" }, () => {}), null);
+assert.equal(parseSaveBackupValue([], () => {}), null);
+
 class MemoryStorage {
   constructor(values = {}, failKey = "") {
     this.values = new Map(Object.entries(values));
@@ -174,6 +292,38 @@ class MemoryStorage {
   }
 }
 
+const repairIssues = [];
+const corruptedStorage = new MemoryStorage({ profile: "{" });
+assert.deepEqual(readStoredJson(
+  corruptedStorage,
+  "profile",
+  {},
+  (value) => ({ version: 2, value: value.value || 0 }),
+  (message) => repairIssues.push(message)
+), { version: 2, value: 0 });
+assert.deepEqual(repairIssues, ["本地存档已修复"]);
+assert.equal(corruptedStorage.getItem("profile"), JSON.stringify({ version: 2, value: 0 }));
+
+const normalizedStorage = new MemoryStorage({ settings: JSON.stringify({ touchSize: 20 }) });
+assert.deepEqual(readStoredJson(
+  normalizedStorage,
+  "settings",
+  {},
+  () => ({ touchSize: 44 })
+), { touchSize: 44 });
+assert.equal(normalizedStorage.getItem("settings"), JSON.stringify({ touchSize: 44 }));
+
+const writeIssues = [];
+const unwritableStorage = new MemoryStorage({ profile: "{" }, "profile");
+readStoredJson(
+  unwritableStorage,
+  "profile",
+  {},
+  () => ({ version: 2 }),
+  (message) => writeIssues.push(message)
+);
+assert.deepEqual(writeIssues, ["本地存档已修复", "本地存档不可写"]);
+
 const successfulStorage = new MemoryStorage({ a: "old" });
 writeStorageTransaction(successfulStorage, [["a", "new"], ["b", "added"]]);
 assert.equal(successfulStorage.getItem("a"), "new");
@@ -188,4 +338,4 @@ assert.equal(failingStorage.getItem("a"), "old");
 assert.equal(failingStorage.getItem("b"), null);
 assert.equal(failingStorage.getItem("c"), "keep");
 
-console.log("Storage module check passed: bounds, legacy focus, archive guards and exact rollback.");
+console.log("Storage module check passed: settings, repair, archive/backup, bounds, legacy focus and exact rollback.");

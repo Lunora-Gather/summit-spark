@@ -151,12 +151,26 @@ for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_R
 }
 if (!runtimeSource.includes('import("./modules/systems/storage.mjs?v=')
   || !storageSource.includes("export function finiteNonNegativeNumber(")
+  || !storageSource.includes("export function normalizeSettingsData(")
+  || !storageSource.includes("export function readStoredJson(")
+  || !storageSource.includes("export function createSaveArchiveData(")
+  || !storageSource.includes("export function createSaveBackupData(")
   || !storageSource.includes("export function writeStorageTransaction(")) {
   fail("public runtime must consume the versioned storage foundation module");
 }
 for (const name of ["finiteNonNegativeNumber", "finiteNonNegativeInt", "strictBoolean"]) {
   if (new RegExp(`\\bfunction\\s+${name}\\s*\\(`).test(runtimeSource)) {
     fail(`public runtime must not duplicate storage ownership for ${name}`);
+  }
+}
+for (const delegation of [
+  "return readStoredJsonData(localStorage, key, fallback, normalize, markStorageIssue)",
+  "return normalizeSettingsData(saved, defaults, {",
+  "const archive = createSaveArchiveData({",
+  "return createSaveBackupData({"
+]) {
+  if (!runtimeSource.includes(delegation)) {
+    fail(`public runtime must delegate storage ownership through ${delegation}`);
   }
 }
 

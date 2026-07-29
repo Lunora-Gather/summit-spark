@@ -51,7 +51,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 | R7 | wind plus crumble introduction | Crumble warning and wind lift must be readable together; with audio on, wind entry should sound once and ice should crack before it breaks. |
 | R8 | prism/crumble route into a final updraft | Overdrive should not obscure hazards, and the late wind should feel like a deliberate Wind Gorge exam. |
 | R9 | safe entry anchor, recall, wind, prism | The anchor should activate beside the checkpoint before pressure begins; leave it once and confirm recall returns cleanly. |
-| R10 | full-kit finale | Finale should feel pressured but fair after R1-R9. |
+| R10 | whole-run synthesis | The grounded spring should feed the low relay as a readable Act I callback before Echo, wind, prism and crumble pressure; the finale should feel varied and fair after R1-R9. |
 
 ## Training And Recovery
 

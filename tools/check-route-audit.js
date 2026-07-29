@@ -124,8 +124,17 @@ const finaleEchoDistance = finaleCheckpointRow >= 0 && finaleAnchorRow >= 0
 if (finaleEchoDistance !== 1 || finaleCheckpointRow !== finaleAnchorRow || finaleRoom[finaleAnchorRow + 1]?.[finaleAnchorColumn] !== "#") {
   errors.push("R10 should reuse Echo from a stable entry checkpoint pocket");
 }
-if (!snapshot.expertRequirements?.[9]?.includes("echo") || !snapshot.roomStyleTrials?.[9]?.tech?.includes("echo")) {
-  errors.push("R10 Style and Expert routes should require establishing Echo without forcing recall");
+if (finaleRoom[15]?.[9] !== "T" || finaleRoom[14]?.[9] !== "A" || finaleRoom[16]?.[9] !== "#") {
+  errors.push("R10 should recall the opening act through a grounded spring-to-relay launch");
+}
+const finaleSynthesis = ["echo", "spring", "relay", "updraft", "prism", "crumble"];
+for (const requirement of finaleSynthesis) {
+  if (!snapshot.expertRequirements?.[9]?.includes(requirement) || !snapshot.roomStyleTrials?.[9]?.tech?.includes(requirement)) {
+    errors.push("R10 Style and Expert routes should synthesize " + requirement);
+  }
+}
+if (!snapshot.roomSkills?.[9]?.includes("spring") || !snapshot.roomSkills?.[9]?.includes("wind")) {
+  errors.push("R10 skill identity should expose its spring callback and existing wind segment");
 }
 
 routeLines.forEach((lines, index) => {

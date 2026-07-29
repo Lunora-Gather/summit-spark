@@ -177,6 +177,9 @@ if (finaleCheckpoints.length !== 1 || finaleAnchors.length !== 1) {
     errors.push("room 10 Echo anchor should sit over stable entry ground");
   }
 }
+if (finaleRoom?.[15]?.[9] !== "T" || finaleRoom?.[14]?.[9] !== "A" || finaleRoom?.[16]?.[9] !== "#") {
+  errors.push("room 10 should recall the opening act with a stable spring-to-relay launch before its final combinations");
+}
 const finalGoalRow = maps[maps.length - 1]?.findIndex((line) => line.includes("H")) ?? -1;
 if (finalGoalRow < 0 || finalGoalRow >= Math.floor(rows / 2)) errors.push("final summit goal H should resolve in the upper half of room 10");
 for (let i = 6; i < maps.length; i += 1) {
@@ -225,8 +228,10 @@ expertRequirements.forEach((requirements, roomIndex) => {
     }
   }
 });
-if (!expertRequirements[9]?.includes("echo")) errors.push("room 10 expert route should reuse the Echo anchor");
-if (!styleTrials[9]?.tech?.includes("echo")) errors.push("room 10 style route should reuse the Echo anchor");
+for (const requirement of ["echo", "spring", "relay", "updraft", "prism", "crumble"]) {
+  if (!expertRequirements[9]?.includes(requirement)) errors.push("room 10 expert route should synthesize " + requirement);
+  if (!styleTrials[9]?.tech?.includes(requirement)) errors.push("room 10 style route should synthesize " + requirement);
+}
 
 const styleKinds = new Set();
 styleTrials.forEach((trial, roomIndex) => {

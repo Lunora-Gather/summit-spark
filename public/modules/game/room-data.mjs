@@ -45,7 +45,7 @@ export const ROOM_SKILLS = [
     ["wind", "crumble", "landing"],
     ["overdrive", "relay", "crumble", "wind"],
     ["echo", "overdrive", "crumble", "wind"],
-    ["finale", "echo", "relay", "overdrive", "crumble"]
+    ["finale", "echo", "spring", "wind", "overdrive"]
   ];
 
 export const SKILL_LABELS = {
@@ -77,7 +77,7 @@ export const ROOM_GUIDES = [
     "踩上脆冰就离开，让风把高度补回来。",
     "干净进入棱镜，穿过脆冰后借最后一股风收住。",
     "先点亮本章第一枚回声锚点，再把风接进棱镜。",
-    "先在起步台建立回声保底，再把完整工具组带到高位终点。"
+    "先在起步台建立回声保底，用弹簧接回第一幕的光继节拍，再把风与棱镜带到高位终点。"
   ];
 
 export const ROOM_PURPOSES = [
@@ -90,7 +90,7 @@ export const ROOM_PURPOSES = [
     "脆冰上果断离开，借风回高度",
     "用棱镜穿越脆冰，再借风完成风峡终考",
     "正式掌握回声锚点，再把风接进棱镜",
-    "先建立回声保底，再组合全部工具完成高位收束"
+    "用回声保底，以弹簧接光继重现山门节拍，再组合风、棱镜与脆冰完成高位收束"
   ];
 
 export const ROOM_ROUTE_LINES = [
@@ -103,7 +103,7 @@ export const ROOM_ROUTE_LINES = [
     ["安全线：脆冰只踩一下就走", "进阶线：用风代替中段落地", "高手线：风中不停顿接光继点"],
     ["安全线：站稳后吃棱镜，末段借风收住", "进阶线：过载穿过脆冰后不停顿进风", "高手线：Prism Spark 串脆冰与末段风场"],
     ["安全线：连段前先点亮回声", "进阶线：风接棱镜再接光继点", "高手线：只在保 PB 时召回"],
-    ["安全线：起步先立回声，再逐段向上", "进阶线：棱镜穿中线接高位平台，失手再召回", "高手线：保留召回作为保险，完整工具组连到星顶"]
+    ["安全线：立回声后借弹簧接光继，再逐段向上", "进阶线：弹簧光继不停顿，借风进棱镜高线", "高手线：保留召回作保险，把全套机制连到星顶"]
   ];
 
 export const ROOM_STYLE_TRIALS = [
@@ -116,7 +116,7 @@ export const ROOM_STYLE_TRIALS = [
     { kind: "terrain", label: "地形风险", goal: "脆冰只借一步，立刻进风场", clean: false, tech: ["crumble", "updraft"], timeScale: 1.35 },
     { kind: "risk", label: "过载风险", goal: "棱镜过载后接 Prism Spark 穿过脆冰排", clean: false, tech: ["prism", "prismSpark", "crumble"], timeScale: 1.35 },
     { kind: "reading", label: "回声读图", goal: "先建回声锚点，再召回重接路线", clean: false, tech: ["echo", "recall"], timeScale: 1.55 },
-    { kind: "endurance", label: "终盘耐压", goal: "先立回声，再用光继、棱镜与脆冰连续收束", clean: false, tech: ["echo", "relay", "prism", "crumble"], timeScale: 1.35 }
+    { kind: "endurance", label: "终盘回响", goal: "先立回声，再以弹簧接光继，把风、棱镜与脆冰连续收束", clean: false, tech: ["echo", "spring", "relay", "updraft", "prism", "crumble"], timeScale: 1.35 }
   ];
 
 export const EXPERT_REQUIREMENTS = [
@@ -129,7 +129,7 @@ export const EXPERT_REQUIREMENTS = [
     ["updraft", "crumble"],
     ["prism", "prismSpark", "crumble", "updraft"],
     ["echo", "updraft", "prism"],
-    ["echo", "relay", "prism", "crumble"]
+    ["echo", "spring", "relay", "updraft", "prism", "crumble"]
   ];
 
 export const EXPERT_REQUIREMENT_LABELS = {
@@ -357,7 +357,7 @@ export const maps = [
       "............####.......B......",
       "............####....CCCCC.....",
       ".........A........#####.......",
-      "..............................",
+      ".........T....................",
       "##############################"
     ]
   ];

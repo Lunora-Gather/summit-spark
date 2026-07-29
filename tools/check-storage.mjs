@@ -17,6 +17,7 @@ import {
   normalizeRoomFocusData,
   normalizeRoomPathPointData,
   normalizeRoomPathsData,
+  normalizedSaveArchiveSyncKeyData,
   normalizeSettingsData,
   parseSaveArchiveText,
   parseSaveBackupValue,
@@ -304,6 +305,44 @@ assert.notEqual(
   saveArchiveSyncKeyData(legacyCollisionB),
   "different archives that collided under the retired fingerprint must never compare equal"
 );
+const normalizedSyncOptions = {
+  kind: "summit-spark-save",
+  schemaVersion: 1,
+  roomFocusSchemaVersion: 2
+};
+const normalizedSyncData = {
+  settings: defaultSettings,
+  profile: createProfileData(2),
+  roomBests: [8.8, 0],
+  roomPaths: [[], [{ x: 1, y: 2 }]],
+  roomFocus: [createRoomFocusEntryData(2, deathKeys)],
+  bestTime: 88,
+  bestFlow: 42
+};
+const deepUnknown = {};
+let deepCursor = deepUnknown;
+for (let depth = 0; depth < 2000; depth += 1) {
+  deepCursor.next = {};
+  deepCursor = deepCursor.next;
+}
+assert.equal(
+  normalizedSaveArchiveSyncKeyData(normalizedSyncData, normalizedSyncOptions),
+  normalizedSaveArchiveSyncKeyData({
+    ...normalizedSyncData,
+    sourceBuild: "ignored",
+    unknown: deepUnknown,
+    settings: { ...defaultSettings }
+  }, normalizedSyncOptions),
+  "unknown and deeply nested non-storage fields must not enter normalized cloud comparison"
+);
+assert.notEqual(
+  normalizedSaveArchiveSyncKeyData(normalizedSyncData, normalizedSyncOptions),
+  normalizedSaveArchiveSyncKeyData({
+    ...normalizedSyncData,
+    roomFocus: [{ ...createRoomFocusEntryData(2, deathKeys), paceDrills: 1 }]
+  }, normalizedSyncOptions),
+  "normalized Focus differences must remain sync-significant"
+);
 const cyclicArchive = { kind: "summit-spark-save", storage: {} };
 cyclicArchive.storage.self = cyclicArchive.storage;
 assert.throws(
@@ -461,4 +500,4 @@ assert.equal(failingStorage.getItem("a"), "old");
 assert.equal(failingStorage.getItem("b"), null);
 assert.equal(failingStorage.getItem("c"), "keep");
 
-console.log("Storage module check passed: settings, meaningful-progress conflict protection, collision-free sync comparison, repair, archive/backup, bounds, legacy focus and exact rollback.");
+console.log("Storage module check passed: settings, meaningful-progress conflict protection, normalized collision-free sync comparison, repair, archive/backup, bounds, legacy focus and exact rollback.");

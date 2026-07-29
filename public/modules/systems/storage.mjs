@@ -308,6 +308,27 @@ export function saveArchiveSyncKeyData(archive) {
   });
 }
 
+export function normalizedSaveArchiveSyncKeyData(input = {}, {
+  kind,
+  schemaVersion,
+  roomFocusSchemaVersion
+}) {
+  return saveArchiveSyncKeyData(createSaveArchiveData({
+    kind,
+    schemaVersion,
+    build: "",
+    exportedAt: "",
+    settings: input.settings,
+    profile: input.profile,
+    roomBests: input.roomBests,
+    roomPaths: input.roomPaths,
+    roomFocusSchemaVersion,
+    roomFocus: input.roomFocus,
+    bestTime: input.bestTime,
+    bestFlow: input.bestFlow
+  }));
+}
+
 export function parseSaveArchiveText(text, { maxChars, kind }) {
   if (text.length > maxChars) throw new Error("导入内容过大");
   let parsed;

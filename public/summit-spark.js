@@ -68,6 +68,7 @@
       normalizeRoomBestsData,
       normalizeRoomFocusData,
       normalizeRoomPathsData,
+      normalizedSaveArchiveSyncKeyData,
       normalizeSettingsData,
       parseSaveArchiveText,
       parseSaveBackupValue,
@@ -150,16 +151,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p222"),
-    import("./modules/core/math.mjs?v=20260729-p222"),
-    import("./modules/game/room-data.mjs?v=20260729-p222"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p222"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p222"),
-    import("./modules/systems/storage.mjs?v=20260729-p222"),
-    import("./modules/systems/input.mjs?v=20260729-p222"),
-    import("./modules/training/state.mjs?v=20260729-p222"),
-    import("./modules/training/replay.mjs?v=20260729-p222"),
-    import("./modules/ui/presentation.mjs?v=20260729-p222")
+    import("./modules/core/format.mjs?v=20260729-p223"),
+    import("./modules/core/math.mjs?v=20260729-p223"),
+    import("./modules/game/room-data.mjs?v=20260729-p223"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p223"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p223"),
+    import("./modules/systems/storage.mjs?v=20260729-p223"),
+    import("./modules/systems/input.mjs?v=20260729-p223"),
+    import("./modules/training/state.mjs?v=20260729-p223"),
+    import("./modules/training/replay.mjs?v=20260729-p223"),
+    import("./modules/ui/presentation.mjs?v=20260729-p223")
   ]);
 
   const canvas = document.getElementById("game");
@@ -5850,7 +5851,11 @@
     cloudUploadPermitted = true;
     syncCloudActionAvailability();
     const localArchive = buildSaveArchive();
-    const remoteSyncKey = saveArchiveSyncKeyData(JSON.parse(cloudRow.archive));
+    const remoteSyncKey = normalizedSaveArchiveSyncKeyData(remote, {
+      kind: SAVE_ARCHIVE_KIND,
+      schemaVersion: SAVE_ARCHIVE_SCHEMA_VERSION,
+      roomFocusSchemaVersion: ROOM_FOCUS_SCHEMA_VERSION
+    });
     const localSyncKey = saveArchiveSyncKeyData(localArchive);
     if (remoteSyncKey === localSyncKey) {
       lastCloudArchiveSyncKey = localSyncKey;

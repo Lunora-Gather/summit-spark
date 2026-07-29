@@ -468,9 +468,11 @@ if (!storageModule.includes("export function hasMeaningfulSaveData(")
   || js.includes("entry?.attempts")
   || !browserSmoke.includes("cloud conflict must preserve ${conflictCase.name} local data")) errors.push("cloud conflict detection must be storage-owned and cover real settings, profile, path, focus, PB and Flow fields instead of a nonexistent attempts field");
 if (!storageModule.includes("export function saveArchiveSyncKeyData(")
-  || !js.includes("saveArchiveSyncKeyData(JSON.parse(cloudRow.archive))")
+  || !storageModule.includes("export function normalizedSaveArchiveSyncKeyData(")
+  || !js.includes("const remoteSyncKey = normalizedSaveArchiveSyncKeyData(remote, {")
   || !js.includes("const syncKey = saveArchiveSyncKeyData(archive)")
   || !js.includes("let lastCloudArchiveSyncKey = \"\";")
+  || js.includes("saveArchiveSyncKeyData(JSON.parse(cloudRow.archive))")
   || js.includes("archiveFingerprint(")
   || js.includes("Math.imul(hash, 16777619)")) errors.push("cloud equality and upload deduplication must use exact canonical save content instead of a collision-prone 32-bit fingerprint");
 if (!indexHtml.includes('id="accountAuthTabs" role="group" aria-label="登录方式"') || indexHtml.includes('role="tablist"') || indexHtml.includes('role="tab"') || !indexHtml.includes('data-auth-mode="code" aria-pressed="true"') || !indexHtml.includes('id="accountEmail" name="email"') || !indexHtml.includes('id="accountNewPassword" name="new-password" type="password" autocomplete="new-password" minlength="8" aria-label="新密码"') || !indexHtml.includes('id="accountOldPassword" name="old-password" type="password" autocomplete="current-password" aria-label="原密码（已有密码时填写）"') || !indexHtml.includes('aria-describedby="accountStatus"') || !js.includes('button.setAttribute("aria-pressed", String(active));') || js.includes('button.setAttribute("aria-selected", String(active));') || !browserSmoke.includes("account login mode should expose segmented-button semantics and autofill-ready described fields") || !browserSmoke.includes("accessibleName")) errors.push("account login choices and all five fields must expose unique real labels, autofill purposes and live status descriptions");

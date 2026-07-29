@@ -12,7 +12,7 @@
 | `npm run state-check` | Route、Feel、Drill、Challenge 和存档状态迁移矩阵 |
 | `npm run smoke` | 本地服务器、安全响应头、公开文件白名单和关键资源检查 |
 
-`check-core-format.mjs`、`check-core-math.mjs`、`check-room-data.mjs`、`check-storage.mjs`、`check-input.mjs`、`check-training.mjs` 和 `check-ui-presentation.mjs` 直接导入公开模块，固定纯函数、十房只读边界、存档规则、输入映射、训练状态，以及章节完成度与练习优先级展示模型；它们由 `npm run check` 自动执行。
+`check-core-format.mjs`、`check-core-math.mjs`、`check-room-data.mjs`、`check-effect-budget.mjs`、`check-storage.mjs`、`check-input.mjs`、`check-training.mjs` 和 `check-ui-presentation.mjs` 直接导入公开模块，固定纯函数、十房只读边界、长局视觉效果预算、存档规则、输入映射、训练状态，以及章节完成度与练习优先级展示模型；它们由 `npm run check` 自动执行。
 
 ## 房间数据
 

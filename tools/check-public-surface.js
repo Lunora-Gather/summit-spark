@@ -31,6 +31,7 @@ const runtimeSource = read("public/summit-spark.js");
 const coreFormatSource = read("public/modules/core/format.mjs");
 const coreMathSource = read("public/modules/core/math.mjs");
 const roomDataSource = read("public/modules/game/room-data.mjs");
+const effectBudgetSource = read("public/modules/game/effect-budget.mjs");
 const storageSource = read("public/modules/systems/storage.mjs");
 const inputSource = read("public/modules/systems/input.mjs");
 const trainingSource = read("public/modules/training/state.mjs");
@@ -65,6 +66,11 @@ const roomDataVersion = extractOne(
   "room data module version",
   runtimeSource,
   /modules\/game\/room-data\.mjs\?v=([^"]+)"/
+);
+const effectBudgetVersion = extractOne(
+  "effect budget module version",
+  runtimeSource,
+  /modules\/game\/effect-budget\.mjs\?v=([^"]+)"/
 );
 const storageVersion = extractOne(
   "storage module version",
@@ -105,6 +111,9 @@ if (buildVersion && coreMathVersion && buildVersion !== coreMathVersion) {
 
 if (buildVersion && roomDataVersion && buildVersion !== roomDataVersion) {
   fail(`room data version ${roomDataVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && effectBudgetVersion && buildVersion !== effectBudgetVersion) {
+  fail(`effect budget version ${effectBudgetVersion} does not match build version ${buildVersion}`);
 }
 
 if (buildVersion && storageVersion && buildVersion !== storageVersion) {
@@ -176,6 +185,18 @@ if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
   || !runtimeSource.includes("drawRoomLandmark(ambientTime, atmosphere)")
   || !roomDataSource.includes("].forEach(deepFreeze);")) {
   fail("public runtime must consume the versioned immutable room data and landmark module");
+}
+if (!runtimeSource.includes('import("./modules/game/effect-budget.mjs?v=')
+  || !effectBudgetSource.includes("export function effectQueueLimit(")
+  || !effectBudgetSource.includes("export function enforceEffectQueueBudget(")
+  || !runtimeSource.includes('budgetEffectQueue("particles", particles)')
+  || !runtimeSource.includes('budgetEffectQueue("ghosts", ghosts)')
+  || !runtimeSource.includes('budgetEffectQueue("shards", shards)')
+  || !runtimeSource.includes('budgetEffectQueue("lightTrails", lightTrails)')) {
+  fail("public runtime must consume and enforce the shared effect queue budgets");
+}
+if (runtimeSource.includes("while (lightTrails.length > 18)")) {
+  fail("public runtime must not retain an independent light-trail queue limit");
 }
 if (!runtimeSource.includes("CHAPTER_SURFACE_KINDS[chapterIndexForRoom(roomIndex)]")
   || !runtimeSource.includes("const material = CHAPTER_SURFACE_KINDS.includes(surfaceKind)")

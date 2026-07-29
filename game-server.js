@@ -34,6 +34,7 @@ const publicFiles = new Map([
   ["/modules/core/format.mjs", path.join("public", "modules", "core", "format.mjs")],
   ["/modules/core/math.mjs", path.join("public", "modules", "core", "math.mjs")],
   ["/modules/game/room-data.mjs", path.join("public", "modules", "game", "room-data.mjs")],
+  ["/modules/game/effect-budget.mjs", path.join("public", "modules", "game", "effect-budget.mjs")],
   ["/modules/systems/storage.mjs", path.join("public", "modules", "systems", "storage.mjs")],
   ["/modules/systems/input.mjs", path.join("public", "modules", "systems", "input.mjs")],
   ["/modules/training/state.mjs", path.join("public", "modules", "training", "state.mjs")],

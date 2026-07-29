@@ -87,6 +87,10 @@ async function verifyServerBoundary(baseUrl) {
   if (roomDataResponse.status !== 200 || roomDataResponse.body !== "" || !/text\/javascript/.test(roomDataResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the room data module as JavaScript without a response body");
   }
+  const effectBudgetResponse = await request(baseUrl + "/modules/game/effect-budget.mjs", { method: "HEAD" });
+  if (effectBudgetResponse.status !== 200 || effectBudgetResponse.body !== "" || !/text\/javascript/.test(effectBudgetResponse.headers["content-type"] || "")) {
+    errors.push("server HEAD must expose the effect budget module as JavaScript without a response body");
+  }
   const storageModuleResponse = await request(baseUrl + "/modules/systems/storage.mjs", { method: "HEAD" });
   if (storageModuleResponse.status !== 200 || storageModuleResponse.body !== "" || !/text\/javascript/.test(storageModuleResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the storage module as JavaScript without a response body");
@@ -158,6 +162,7 @@ async function main() {
     const coreFormat = await requestText(baseUrl + "/modules/core/format.mjs?v=" + encodeURIComponent(buildVersion));
     const coreMath = await requestText(baseUrl + "/modules/core/math.mjs?v=" + encodeURIComponent(buildVersion));
     const roomData = await requestText(baseUrl + "/modules/game/room-data.mjs?v=" + encodeURIComponent(buildVersion));
+    const effectBudget = await requestText(baseUrl + "/modules/game/effect-budget.mjs?v=" + encodeURIComponent(buildVersion));
     const storageModule = await requestText(baseUrl + "/modules/systems/storage.mjs?v=" + encodeURIComponent(buildVersion));
     const inputModule = await requestText(baseUrl + "/modules/systems/input.mjs?v=" + encodeURIComponent(buildVersion));
     const trainingModule = await requestText(baseUrl + "/modules/training/state.mjs?v=" + encodeURIComponent(buildVersion));
@@ -202,6 +207,7 @@ async function main() {
     expectIncludes("js", js, `modules/core/format.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/core/math.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/game/room-data.mjs?v=${buildVersion}`);
+    expectIncludes("js", js, `modules/game/effect-budget.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/systems/storage.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/systems/input.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/training/state.mjs?v=${buildVersion}`);
@@ -212,6 +218,8 @@ async function main() {
       .forEach((marker) => expectIncludes("core math", coreMath, marker));
     ["export const ROOM_TARGETS = [", "export const maps = [", "export const ROOM_ATMOSPHERES = [", "export const ROOM_LANDMARKS = [", "export const CHAPTER_SURFACE_KINDS = [", "export const MECHANIC_FIRST_TOUCH_CUES = {", "export function mechanicFirstTouchCueData(", "].forEach(deepFreeze);"]
       .forEach((marker) => expectIncludes("room data", roomData, marker));
+    ["export const EFFECT_BUDGETS =", "export function effectQueueLimit(", "export function enforceEffectQueueBudget("]
+      .forEach((marker) => expectIncludes("effect budget", effectBudget, marker));
     ["export function finiteNonNegativeNumber(", "export function normalizeSettingsData(", "export function readStoredJson(", "export function normalizeRoomFocusData(", "export function parseSaveArchiveText(", "export function createSaveArchiveData(", "export function createSaveBackupData(", "export function writeStorageTransaction("]
       .forEach((marker) => expectIncludes("storage module", storageModule, marker));
     ["export function resolveGamepadState(", "export function newlyPressedActions(", "export function effectiveBindingsData(", "export function rebindActionData(", "export function setInputBuffer(", "export function tickInputBuffers(", "export function consumeInputBuffer(", "export function clearInputBuffers("]

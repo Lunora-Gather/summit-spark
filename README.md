@@ -4,7 +4,7 @@
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260729-p202`
+当前公开构建：`20260729-p203`
 
 ## 快速开始
 
@@ -68,6 +68,7 @@ public/                 可直接部署的唯一运行目录
   summit-spark.js       当前游戏运行时
   modules/core/         已迁移且有独立契约的格式与数学纯函数
   modules/game/         十房地图、章节文案、路线、氛围、材质与地标数据
+  modules/game/         十房内容与长局视觉效果预算
   modules/systems/      存档规则，以及手柄/键位输入映射
   modules/training/     Drill、Route、Feel、Focus 与挑战状态规则
   modules/ui/           章节完成度与练习优先级展示模型
@@ -80,7 +81,7 @@ appwrite.config.json    云端资源和最小权限策略
 game-server.js          public 白名单本地服务器
 ```
 
-当前运行时主体仍是单体脚本；格式、安全文本、数学、只读房间内容、存档规则、设备无关的输入规则、训练状态，以及第一组 UI 展示模型已迁入独立模块。后续只迁移有直接消费者和回归契约的 UI 纯模型；物理与渲染等十房人工基线完成后再动。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+当前运行时主体仍是单体脚本；格式、安全文本、数学、只读房间内容、长局视觉效果预算、存档规则、设备无关的输入规则、训练状态，以及第一组 UI 展示模型已迁入独立模块。后续只迁移有直接消费者和回归契约的 UI 纯模型；物理与渲染等十房人工基线完成后再动。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 质量检查
 
@@ -106,7 +107,7 @@ node tools/export-room-data.js --check
 node tools/report-room-data.js
 ```
 
-`npm run check` 覆盖语法、目录结构、CSP、Pages 发布边界、Appwrite 策略、GitHub Actions SHA 固定与原生 Node 24 发布链、地图、路线、训练状态、存档契约和本地 HTTP 安全边界。浏览器回归覆盖真实 UI、账号 mock、云冲突、1MB 存档、原子回滚、移动端、Canvas 和手柄死区。
+`npm run check` 覆盖语法、目录结构、CSP、Pages 发布边界、Appwrite 策略、GitHub Actions SHA 固定与原生 Node 24 发布链、地图、路线、训练状态、视觉效果压力预算、存档契约和本地 HTTP 安全边界。浏览器回归覆盖真实 UI、账号 mock、云冲突、1MB 存档、原子回滚、移动端、Canvas 和手柄死区。
 
 详细说明见 [docs/QUALITY_GATES.md](docs/QUALITY_GATES.md)。
 发布前人工路径见 [PLAYTEST_CHECKLIST.md](PLAYTEST_CHECKLIST.md)。

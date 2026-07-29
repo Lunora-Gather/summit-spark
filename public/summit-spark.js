@@ -48,6 +48,10 @@
       mechanicFirstTouchCueData
     },
     {
+      effectQueueLimit,
+      enforceEffectQueueBudget
+    },
+    {
       clampGamepadDeadzoneData,
       clampTouchSizeData,
       createProfileData,
@@ -132,13 +136,14 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p202"),
-    import("./modules/core/math.mjs?v=20260729-p202"),
-    import("./modules/game/room-data.mjs?v=20260729-p202"),
-    import("./modules/systems/storage.mjs?v=20260729-p202"),
-    import("./modules/systems/input.mjs?v=20260729-p202"),
-    import("./modules/training/state.mjs?v=20260729-p202"),
-    import("./modules/ui/presentation.mjs?v=20260729-p202")
+    import("./modules/core/format.mjs?v=20260729-p203"),
+    import("./modules/core/math.mjs?v=20260729-p203"),
+    import("./modules/game/room-data.mjs?v=20260729-p203"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p203"),
+    import("./modules/systems/storage.mjs?v=20260729-p203"),
+    import("./modules/systems/input.mjs?v=20260729-p203"),
+    import("./modules/training/state.mjs?v=20260729-p203"),
+    import("./modules/ui/presentation.mjs?v=20260729-p203")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1855,8 +1860,10 @@
     shakeTimer = 0;
     shakeDuration = 0;
     shakePower = 0;
+    particles.length = 0;
     ghosts.length = 0;
     lightTrails.length = 0;
+    shards.length = 0;
     deathMarks.length = 0;
     deathReplays.length = 0;
     recentPath.length = 0;
@@ -1918,8 +1925,10 @@
     summitRevealTimer = 0;
     pendingSummitResult = null;
     hitStopTimer = 0;
+    particles.length = 0;
     ghosts.length = 0;
     lightTrails.length = 0;
+    shards.length = 0;
     deathMarks.length = 0;
     deathReplays.length = 0;
     recentPath.length = 0;
@@ -2322,6 +2331,7 @@
         r: 8 - i * 0.55
       });
     }
+    budgetEffectQueue("shards", shards);
   }
 
   function restoreDashCharge() {
@@ -3177,6 +3187,7 @@
     hitStopTimer = 0;
     ghosts.length = 0;
     lightTrails.length = 0;
+    particles.length = 0;
     shards.length = 0;
     clearRecentPath();
     clearRoomPath();
@@ -7197,7 +7208,7 @@
         pulse: 0.08
       });
     }
-    while (lightTrails.length > 18) lightTrails.shift();
+    budgetEffectQueue("lightTrails", lightTrails);
   }
 
   function updateLightTrails(dt) {
@@ -7463,6 +7474,20 @@
         spin: 0
       });
     }
+    budgetEffectQueue("particles", particles);
+    budgetEffectQueue("shards", shards);
+  }
+
+  function currentEffectLimit(kind) {
+    return effectQueueLimit(kind, {
+      lowPerformance: settings.lowPerformance,
+      reducedMotion: prefersReducedMotion,
+      calmEffects: settings.calmEffects
+    });
+  }
+
+  function budgetEffectQueue(kind, queue) {
+    return enforceEffectQueueBudget(queue, currentEffectLimit(kind));
   }
 
   function addGhost(alpha) {
@@ -7476,6 +7501,7 @@
       max: life,
       alpha: resolvedAlpha
     });
+    budgetEffectQueue("ghosts", ghosts);
   }
 
   function updateGhosts(dt) {
@@ -7551,6 +7577,7 @@
         spin: (Math.random() - 0.5) * 8
       });
     }
+    budgetEffectQueue("particles", particles);
   }
 
   function addSnow(x, y, count) {
@@ -7569,6 +7596,7 @@
         spin: 0
       });
     }
+    budgetEffectQueue("particles", particles);
   }
 
   function glow(x, y, color) {
@@ -10860,8 +10888,9 @@
       `room focus ${roomFocusDetails(roomIndex)}`,
       `coach ${practiceCoachText()}`,
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}`,
-      `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}`,
-      `trails ${lightTrails.length}  relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}`,
+      `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
+      `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
+      `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,
       `audio ${settings.audioEnabled ? settings.audioVolume.toFixed(2) : "off"}  route ${activeRouteContract ? `${activeRouteContract.id}:${activeRouteContract.step + 1}` : "none"}`

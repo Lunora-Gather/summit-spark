@@ -145,16 +145,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p205"),
-    import("./modules/core/math.mjs?v=20260729-p205"),
-    import("./modules/game/room-data.mjs?v=20260729-p205"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p205"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p205"),
-    import("./modules/systems/storage.mjs?v=20260729-p205"),
-    import("./modules/systems/input.mjs?v=20260729-p205"),
-    import("./modules/training/state.mjs?v=20260729-p205"),
-    import("./modules/training/replay.mjs?v=20260729-p205"),
-    import("./modules/ui/presentation.mjs?v=20260729-p205")
+    import("./modules/core/format.mjs?v=20260729-p206"),
+    import("./modules/core/math.mjs?v=20260729-p206"),
+    import("./modules/game/room-data.mjs?v=20260729-p206"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p206"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p206"),
+    import("./modules/systems/storage.mjs?v=20260729-p206"),
+    import("./modules/systems/input.mjs?v=20260729-p206"),
+    import("./modules/training/state.mjs?v=20260729-p206"),
+    import("./modules/training/replay.mjs?v=20260729-p206"),
+    import("./modules/ui/presentation.mjs?v=20260729-p206")
   ]);
 
   const canvas = document.getElementById("game");
@@ -338,7 +338,6 @@
   const LIGHT_TRAIL_WIDTH = 24;
   const LIGHT_TRAIL_HEIGHT = 2;
   const LIGHT_TRAIL_STEP = 11;
-  const DEATH_MARK_LIFE = 4.5;
   const RELAY_RESET_TIME = 4.2;
   const RELAY_TRIGGER_SPEED = 390;
   const RELAY_CHAIN_TIME = 1.35;
@@ -349,13 +348,10 @@
   const PROFILE_KEY = "summit-spark-profile";
   const PATH_SAMPLE_INTERVAL = 0.045;
   const RECENT_PATH_SECONDS = 1.55;
-  const DEATH_REPLAY_LIFE = 5.2;
   const MAX_ROOM_PATH_POINTS = 420;
   const ROOM_BEST_FLASH_TIME = 1.15;
   const SPLIT_POPUP_TIME = 1.25;
   const FOCUS_POPUP_TIME = 1.35;
-  const DEATH_COACH_TIME = 2.35;
-  const FAILURE_REHEARSAL_TIME = 4.6;
   const GAME_TIP_TIME = 4.8;
   const FOCUS_RESET_CONFIRM_MS = 2200;
   const FEEL_CUE_TIME = 0.72;
@@ -616,8 +612,6 @@
   const shards = [];
   const ghosts = [];
   const lightTrails = [];
-  const deathMarks = [];
-  const deathReplays = [];
   const recentPath = [];
   const roomPath = [];
   let roomIndex = 0;
@@ -684,22 +678,6 @@
   let focusPopupTimer = 0;
   let focusPopupText = "";
   let focusPopupDetail = "";
-  let deathCoachTimer = 0;
-  let deathCoachText = "";
-  let deathCoachDetail = "";
-  let deathCoachAction = "";
-  let deathCoachPlan = "";
-  let deathCoachReason = "fall";
-  let failureCueTimer = 0;
-  let failureCueMax = FAILURE_REHEARSAL_TIME;
-  let failureCueText = "";
-  let failureCueDetail = "";
-  let failureCueRoom = 0;
-  let failureCueX = 0;
-  let failureCueY = 0;
-  let failureCueReason = "fall";
-  let failureCueMode = "clean";
-  let failureCuePath = [];
   let gameTipTimer = 0;
   let gameTipMax = GAME_TIP_TIME;
   let gameTipKind = "";
@@ -1843,10 +1821,6 @@
     controlHint?.setAttribute("aria-hidden", "false");
   }
 
-  function showBeginnerDeathTip(reason) {
-    return reason;
-  }
-
   function hardReset(options = {}) {
     collected = new Set();
     deathCount = 0;
@@ -1879,8 +1853,6 @@
     ghosts.length = 0;
     lightTrails.length = 0;
     shards.length = 0;
-    deathMarks.length = 0;
-    deathReplays.length = 0;
     recentPath.length = 0;
     roomPath.length = 0;
     pathSampleTimer = 0;
@@ -1894,8 +1866,6 @@
     recallCooldown = 0;
     recallPulseTimer = 0;
     nearMissCooldown = 0;
-    clearDeathCoach();
-    clearFailureRehearsal();
     clearGameTip();
     onboardingStep = 0;
     applyTrainingTransition("hardReset", {
@@ -1947,8 +1917,6 @@
     ghosts.length = 0;
     lightTrails.length = 0;
     shards.length = 0;
-    deathMarks.length = 0;
-    deathReplays.length = 0;
     recentPath.length = 0;
     roomPath.length = 0;
     pathSampleTimer = 0;
@@ -1962,7 +1930,6 @@
     recallCooldown = 0;
     recallPulseTimer = 0;
     nearMissCooldown = 0;
-    clearDeathCoach();
     clearGameTip();
     onboardingStep = index === 0 ? 0 : 4;
     applyTrainingTransition("jumpRoom", {
@@ -1971,9 +1938,6 @@
       keepRoute: Boolean(options.keepRoute),
       keepFeel: Boolean(options.keepFeel)
     });
-    if (!options.keepDrill) {
-      clearFailureRehearsal();
-    }
     resetActionPulses();
     overlay.classList.add("hidden");
     started = true;
@@ -2031,7 +1995,6 @@
     } else {
       updateParticles(paused ? dt * 0.25 : dt);
       updateGhosts(paused ? 0 : dt);
-      updateDeathMarks(paused ? 0 : dt);
       updateRelayChain(paused ? 0 : dt);
       if (paused) updateHud();
     }
@@ -2043,7 +2006,6 @@
 
   function update(dt, clockDt = dt) {
     if (assistActive()) runUsedAssist = true;
-    updateDeathMarks(dt);
     updateRelayChain(dt);
     updateActionVisuals(dt);
 
@@ -3073,8 +3035,8 @@
     if (player.deadTimer > 0 || won) return;
     const deathReason = registerDeath(reason);
     setGameStatus(`${deathReasonLabel(deathReason)} · R${roomIndex + 1}，自动复位`);
-    addDeathMark(deathReason);
-    showDeathCoach(deathReason);
+    clearRecentPath();
+    clearFocusPopup();
     resetRelayChain();
     breakFlow();
     clearSplitPopup();
@@ -3142,8 +3104,7 @@
     if (player.deadTimer > 0) return;
     const deathReason = registerDeath("retry");
     setGameStatus(`快速重开 · R${roomIndex + 1}`);
-    addDeathMark(deathReason);
-    showDeathCoach(deathReason, "手动重开");
+    clearFocusPopup();
     resetRelayChain();
     breakFlow();
     hitStopTimer = 0;
@@ -3156,8 +3117,7 @@
     if (player.deadTimer > 0) return;
     const deathReason = registerDeath("room");
     setGameStatus(`房间重开 · R${roomIndex + 1}`);
-    addDeathMark(deathReason);
-    showDeathCoach(deathReason, "房间重开");
+    clearFocusPopup();
     resetRelayChain();
     breakFlow();
     room = parseRoom(roomIndex);
@@ -3246,40 +3206,11 @@
     return DEATH_REASON_LABELS[normalizeDeathReason(reason)] || "坠落";
   }
 
-  function deathReasonColor(reason) {
-    const normalized = normalizeDeathReason(reason);
-    if (normalized === "crumble") return palette.cyan;
-    if (normalized === "retry" || normalized === "room") return palette.gold;
-    return palette.hot;
-  }
-
   function deathReasonSummary() {
     const parts = DEATH_REASON_KEYS
       .filter((key) => deathReasons[key] > 0)
       .map((key) => `${deathReasonLabel(key)} ${deathReasons[key]}`);
     return parts.length ? parts.join(" / ") : "clean";
-  }
-
-  function showDeathCoach(reason, title = "") {
-    const normalized = normalizeDeathReason(reason);
-    void title;
-    deathCoachReason = normalized;
-    deathCoachText = "";
-    deathCoachDetail = "";
-    deathCoachAction = "";
-    deathCoachPlan = "";
-    deathCoachTimer = 0;
-    clearFailureRehearsal();
-    clearFocusPopup();
-  }
-
-  function clearDeathCoach() {
-    deathCoachTimer = 0;
-    deathCoachText = "";
-    deathCoachDetail = "";
-    deathCoachAction = "";
-    deathCoachPlan = "";
-    deathCoachReason = "fall";
   }
 
   function createRoomCounters() {
@@ -3707,93 +3638,6 @@
     return `稳定落点；${guide}`;
   }
 
-  function deathPrescription(index, reason = "fall") {
-    const normalized = normalizeDeathReason(reason);
-    if (normalized === "spike") return `下一次：先停在安全格，冲刺方向避开危险线；${routeLineCore(index, 0)}`;
-    if (normalized === "crumble") return `下一次：触冰只借一步，离开后再校正；${routeLineCore(index, 1)}`;
-    if (normalized === "retry" || normalized === "room") return `下一次：只练开局第一句，确认输入后再提速；${routeLineCore(index, 0)}`;
-    return `下一次：晚一点花冲刺，把落点留在视线中央；${routeLineCore(index, 0)}`;
-  }
-
-  function deathCoachPlanText(index, reason = "fall") {
-    const normalized = normalizeDeathReason(reason);
-    const mode = normalized === "spike" || normalized === "crumble" ? "clean" : resolveDrillMode(index);
-    const target = `R${index + 1} ${drillModeLabel(mode)}`;
-    return `建议 ${target}：${drillObjectiveForRoom(index, mode)}`;
-  }
-
-  function failureModeForReason(index, reason = "fall", mode = "") {
-    if (mode) return resolveDrillMode(index, mode);
-    const normalized = normalizeDeathReason(reason);
-    if (normalized === "spike" || normalized === "fall" || normalized === "crumble") return "clean";
-    return resolveDrillMode(index);
-  }
-
-  function failureRehearsalText(index, reason = "fall", mode = "") {
-    const normalized = normalizeDeathReason(reason);
-    const resolvedMode = failureModeForReason(index, normalized, mode);
-    if (resolvedMode === "style") return `类型动作：${styleTrialObjective(index)}`;
-    if (resolvedMode === "expert") return `高手动作：${expertRequirementText(index)} / ${routeLineCore(index, 2)}`;
-    if (normalized === "spike") return `先停安全格 -> 再冲刺避线 / ${routeLineCore(index, 0)}`;
-    if (normalized === "crumble") return `触冰只借一步 -> 离开后校正 / ${routeLineCore(index, 1)}`;
-    if (normalized === "retry" || normalized === "room") return `只练开局第一句 -> 稳住后再提速 / ${routeLineCore(index, 0)}`;
-    if (resolvedMode === "pace") return `晚半拍冲刺换落点 / ${routeLineCore(index, 1)}`;
-    return `先确认落点 -> 冲刺留到危险线后 / ${routeLineCore(index, 0)}`;
-  }
-
-  function failureRehearsalPlanText(index, mode = "auto") {
-    const resolvedMode = resolveDrillMode(index, mode);
-    return `演练 ${drillModeLabel(resolvedMode)} Drill · ${routeSlotShort(routeSlotForMode(resolvedMode))}`;
-  }
-
-  function showFailureRehearsal(index, reason = "fall", options = {}) {
-    void index;
-    void reason;
-    void options;
-    clearFailureRehearsal();
-  }
-
-  function captureFailureCuePath(index) {
-    const points = recentPath
-      .filter((point) => point.room === index)
-      .slice(-34)
-      .map((point) => ({
-        x: point.x,
-        y: point.y,
-        dash: Boolean(point.dash),
-        spark: Boolean(point.spark),
-        over: Boolean(point.over)
-      }));
-    if (points.length >= 2) return points;
-    return [
-      { x: player.x + player.w / 2, y: player.y + player.h / 2 },
-      { x: failureCueX, y: failureCueY }
-    ];
-  }
-
-  function showDrillFailureRehearsal(drill, reason) {
-    void drill;
-    void reason;
-    clearFailureRehearsal();
-  }
-
-  function clearFailureRehearsal() {
-    failureCueTimer = 0;
-    failureCueMax = FAILURE_REHEARSAL_TIME;
-    failureCueText = "";
-    failureCueDetail = "";
-    failureCueRoom = roomIndex;
-    failureCueX = 0;
-    failureCueY = 0;
-    failureCueReason = "fall";
-    failureCueMode = "clean";
-    failureCuePath = [];
-  }
-
-  function failureCueActive() {
-    return false;
-  }
-
   function roomSplitLoss(index) {
     const best = bestRoomTimes[index] || 0;
     const target = ROOM_TARGETS[index] || 0;
@@ -4021,7 +3865,6 @@
       keepFeel: Boolean(options.keepFeel || options.feelFixture),
       chapterEntry: true
     });
-    clearFailureRehearsal();
     activeDrill = createDrillData(index, resolvedMode, objective, ROOM_TARGETS[index] || 0);
     if (options.feelFixture) activeFeelFixture = { id: options.feelFixture, room: index, mode: resolvedMode };
     armRouteCue("Drill", routeSlotForMode(resolvedMode), ROUTE_CUE_TIME + 1.2);
@@ -4053,7 +3896,6 @@
       focusPopupDetail = `${drillContractStatus(stats)} / ${roomMasteryLevel(roomMasteryScore(index))} ${roomMasteryScore(index)} / ${nextMasteryStepText(index)}`;
       focusPopupTimer = FOCUS_POPUP_TIME;
       armRouteCue("完成", routeSlotForMode(mode), ROUTE_CUE_TIME * 0.72);
-      clearFailureRehearsal();
       const routeAdvanced = advanceRouteContract(index, mode);
       completeActiveFeelFixture(index, mode, clean, roomTime);
       activeDrill = null;
@@ -4077,7 +3919,6 @@
     focusPopupText = `${drillModeLabel(drill.mode)} 重练 R${drill.room + 1}`;
     focusPopupDetail = reason;
     focusPopupTimer = FOCUS_POPUP_TIME;
-    showDrillFailureRehearsal(drill, reason);
     playSound("ui", 0.8);
     setGameStatus(`${drillModeLabel(drill.mode)} Drill 重练：${reason}`);
     updatePracticeCoach();
@@ -5041,36 +4882,9 @@
     roomAttemptClean = true;
     clearFocusResetConfirm();
     clearFocusPopup();
-    clearFailureRehearsal();
     writeRoomFocus();
     refreshRoomSelectOptions();
     updatePracticeCoach();
-  }
-
-  function addDeathMark(reason = lastDeathReason) {
-    const points = recentPath
-      .filter((point) => point.room === roomIndex)
-      .map((point) => ({ ...point }));
-    if (points.length > 2) {
-      deathReplays.push({
-        room: roomIndex,
-        points,
-        life: DEATH_REPLAY_LIFE,
-        max: DEATH_REPLAY_LIFE,
-        reason: normalizeDeathReason(reason)
-      });
-      while (deathReplays.length > 4) deathReplays.shift();
-    }
-    deathMarks.push({
-      room: roomIndex,
-      x: player.x + player.w / 2,
-      y: player.y + player.h / 2,
-      life: DEATH_MARK_LIFE,
-      max: DEATH_MARK_LIFE,
-      reason: normalizeDeathReason(reason)
-    });
-    while (deathMarks.length > 12) deathMarks.shift();
-    clearRecentPath();
   }
 
   function getInput() {
@@ -7339,8 +7153,6 @@
     routeCueTimer = Math.max(0, routeCueTimer - (chapterBreathing ? 0 : dt));
     masteryPopupTimer = Math.max(0, masteryPopupTimer - (chapterBreathing ? 0 : dt));
     focusPopupTimer = Math.max(0, focusPopupTimer - (chapterBreathing ? 0 : dt));
-    deathCoachTimer = Math.max(0, deathCoachTimer - dt);
-    failureCueTimer = Math.max(0, failureCueTimer - dt);
     crumbleSlipTimer = Math.max(0, crumbleSlipTimer - dt);
     updateGameTip(dt);
     updateFlow(chapterBreathing ? 0 : dt);
@@ -7558,17 +7370,6 @@
     }
   }
 
-  function updateDeathMarks(dt) {
-    for (let i = deathMarks.length - 1; i >= 0; i--) {
-      deathMarks[i].life -= dt;
-      if (deathMarks[i].life <= 0) deathMarks.splice(i, 1);
-    }
-    for (let i = deathReplays.length - 1; i >= 0; i--) {
-      deathReplays[i].life -= dt;
-      if (deathReplays[i].life <= 0) deathReplays.splice(i, 1);
-    }
-  }
-
   function samplePlayerPath(dt) {
     if (player.deadTimer > 0 || won) return;
     pathSampleTimer -= dt;
@@ -7666,9 +7467,6 @@
     drawEntities(time);
     drawRequirementBeacons(time);
     drawRouteCompass(time);
-    drawDeathReplays();
-    drawDeathMarks(time);
-    drawFailureGhostLine(time);
     drawParticles();
     drawGhosts();
     drawSparkCue(time);
@@ -7676,7 +7474,6 @@
     drawInputCues(time);
     drawPlayerAura(time);
     if (player.deadTimer <= 0) drawPlayer(time);
-    drawFailureRehearsalCue(time);
     ctx.restore();
     drawFlowAtmosphere(time);
     drawTimingGateCue(time);
@@ -7685,7 +7482,6 @@
     drawMasteryPopup(time);
     drawSplitPopup(time);
     drawFocusPopup(time);
-    drawDeathCoach(time);
     drawDrillHud(time);
     drawActiveChallengeHud(time);
     drawPaceRibbon(time);
@@ -7977,7 +7773,6 @@
     if (!started || won || player.deadTimer > 0 || !routeCueActive()) return;
     if (activeDrill && activeDrill.room === roomIndex) return;
     if (gameTipVisible("onboarding") || gameTipVisible("death")) return;
-    if (failureCueActive()) return;
     const active = activeDrill && activeDrill.room === roomIndex;
     if (!active && roomIntroTimer > 0.18) return;
     const data = routeFocusData(roomIndex);
@@ -8402,7 +8197,6 @@
     if (chapterTransitionTimer > 0) return;
     if (!started || (overlay && !overlay.classList.contains("hidden"))) return;
     if (gameTipVisible("onboarding") || gameTipVisible("death")) return;
-    if (failureCueActive()) return;
     const t = roomIntroTimer / ROOM_INTRO_TIME;
     const introAlpha = Math.min(1, t * 2.4);
     const introTarget = ROOM_TARGETS[roomIndex] || 0;
@@ -8732,10 +8526,6 @@
       ctx.fillText(fitText(focusPopupDetail, isCompactCanvas() ? 690 : 600), W / 2, y + 18);
     }
     ctx.restore();
-  }
-
-  function drawDeathCoach(time) {
-    void time;
   }
 
   function drawDrillHud(time) {
@@ -10432,34 +10222,6 @@
     ctx.restore();
   }
 
-  function drawDeathMarks(time) {
-    void time;
-  }
-
-  function drawFailureGhostLine(time) {
-    void time;
-  }
-
-  function drawFailureGhostArrow(path, color, alpha, time) {
-    void path;
-    void color;
-    void alpha;
-    void time;
-  }
-
-  function drawFailureRehearsalCue(time) {
-    void time;
-  }
-
-  function drawFailureRouteArrow(time, color, alpha) {
-    void time;
-    void color;
-    void alpha;
-  }
-
-  function drawDeathReplays() {
-  }
-
   function drawDiamond(x, y, radius, color, time) {
     ctx.save();
     ctx.translate(x, y);
@@ -11022,7 +10784,6 @@
       `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,
-      `failure ${failureCueText || "none"} ${failureCueTimer.toFixed(2)}  mode ${failureCueMode}  room ${failureCueRoom + 1}`,
       `tip ${gameTipKind || "none"} ${gameTipTimer.toFixed(2)}  onboarding ${onboardingStep}`,
       `relay chain ${relayChain}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,

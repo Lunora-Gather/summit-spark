@@ -302,8 +302,6 @@ if (!storageModule.includes("strictBoolean")) errors.push("strict storage boolea
 if (!js.includes("storageHealthMessage")) errors.push("storage health feedback state is missing");
 if (!js.includes("maybeShowStorageRepairToast")) errors.push("storage repair should show a one-shot toast");
 if (!js.includes("wallSpark") || !js.includes("prismSpark")) errors.push("Spark variants are missing");
-if (!js.includes("drawFailureGhostLine")) errors.push("quiet failure ghost hook is missing");
-if (!js.includes("drawFailureGhostArrow")) errors.push("quiet failure direction hook is missing");
 if (!js.includes("triggerSparkVariantVisual")) errors.push("Wall/Prism Spark should keep distinct visual pulses");
 if (!js.includes("drawChapterResonance")) errors.push("chapter resonance environment feedback is missing");
 if (!js.includes("roomBriefText")) errors.push("room brief helper is missing");
@@ -339,10 +337,6 @@ if (!js.includes("masteryContractPillsHtml")) errors.push("mastery contract pill
 if (!js.includes("masteryRoadmapRows")) errors.push("mastery roadmap rows helper is missing");
 if (!js.includes("reviewRoadmapHtml")) errors.push("finish review should expose a mastery roadmap");
 if (!js.includes("drawContractStrip")) errors.push("Drill HUD should show contract ladder status");
-if (!js.includes("failureCueActive")) errors.push("quiet failure state helper is missing");
-if (!js.includes("showFailureRehearsal")) errors.push("quiet failure hook is missing");
-if (!js.includes("showDrillFailureRehearsal")) errors.push("quiet Drill failure hook is missing");
-if (!js.includes("drawFailureRehearsalCue")) errors.push("quiet failure renderer hook is missing");
 ["首次输入开始计时", "松开按键后待命", "修正路线", "REHEARSE"].forEach((marker) => {
   if (js.includes(marker)) errors.push("quiet play mode must not expose prompt text: " + marker);
 });
@@ -350,7 +344,6 @@ if (!js.includes("GAME_TIP_TIME")) errors.push("game tip timing constant is miss
 if (!js.includes("showGameTip")) errors.push("game tip helper is missing");
 if (!js.includes("beginnerFlowActive")) errors.push("beginner flow activation guard is missing");
 if (!js.includes("updateOnboardingCues")) errors.push("beginner onboarding progression is missing");
-if (!js.includes("showBeginnerDeathTip")) errors.push("beginner death tip helper is missing");
 if (!js.includes("configureCanvasBuffer")) errors.push("canvas clarity buffer helper is missing");
 if (!js.includes("function canvasBufferScale()") || !js.includes("const cssScale = Math.max(rect.width / W, rect.height / H);") || !js.includes("Math.min(CANVAS_BUFFER_SCALE_MAX, roundedUp)")) errors.push("normal canvas density should follow the responsive physical display size without unbounded buffers");
 if (!js.includes("if (settings.lowPerformance) return 1;") || !js.includes('syncComfortSettings();\n    configureCanvasBuffer();')) errors.push("low-performance changes must immediately rebuild the canvas at 1x density");

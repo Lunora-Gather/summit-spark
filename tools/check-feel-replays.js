@@ -90,7 +90,6 @@ if (!source.includes("player.sparkHopVariant")) errors.push("Spark variant state
 if (!source.includes("playSound")) errors.push("audio feedback helper is missing");
 if (!source.includes("SOUND_PRESETS")) errors.push("sound presets are missing");
 if (!source.includes("playAudioTestPattern")) errors.push("audio test pattern is missing");
-if (!source.includes("drawFailureGhostLine")) errors.push("quiet failure ghost hook is missing");
 if (!source.includes("updateFeelLab")) errors.push("feel lab UI helper is missing");
 if (!source.includes("startFeelFixture")) errors.push("feel fixture launch helper is missing");
 if (!source.includes("activeFeelFixture")) errors.push("active feel fixture state is missing");

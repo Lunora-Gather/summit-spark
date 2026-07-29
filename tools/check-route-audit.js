@@ -173,7 +173,6 @@ if (!js.includes("gamepadDeadzone")) errors.push("gamepad deadzone setting must 
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay should keep a direct resume-training action");
 if (!js.includes("SETTINGS_SCHEMA_VERSION") || !js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("storage schema versions should stay explicit");
 if (!js.includes("lowPerformance")) errors.push("low-performance mode should stay wired into settings and rendering");
-if (!js.includes("drawFailureGhostArrow")) errors.push("quiet failure direction hook should stay explicit");
 if (!js.includes("triggerSparkVariantVisual")) errors.push("Spark variants should keep distinct visual pulses");
 
 if (errors.length > 0) {

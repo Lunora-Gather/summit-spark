@@ -216,6 +216,37 @@ if (!runtimeSource.includes('import("./modules/game/effect-budget.mjs?v=')
 if (runtimeSource.includes("while (lightTrails.length > 18)")) {
   fail("public runtime must not retain an independent light-trail queue limit");
 }
+[
+  "DEATH_MARK_LIFE",
+  "DEATH_REPLAY_LIFE",
+  "DEATH_COACH_TIME",
+  "FAILURE_REHEARSAL_TIME",
+  "deathMarks",
+  "deathReplays",
+  "deathCoachTimer",
+  "failureCueTimer",
+  "addDeathMark",
+  "updateDeathMarks",
+  "drawDeathMarks",
+  "drawDeathReplays",
+  "drawFailureGhostLine",
+  "drawFailureGhostArrow",
+  "drawFailureRehearsalCue",
+  "drawFailureRouteArrow",
+  "drawDeathCoach",
+  "showDeathCoach",
+  "clearDeathCoach",
+  "showFailureRehearsal",
+  "showDrillFailureRehearsal",
+  "clearFailureRehearsal",
+  "showBeginnerDeathTip",
+  "deathPrescription",
+  "deathCoachPlanText"
+].forEach((marker) => {
+  if (runtimeSource.includes(marker)) {
+    fail(`public runtime must not restore obsolete quiet-failure pipeline marker ${marker}`);
+  }
+});
 if (!runtimeSource.includes('import("./modules/game/audio-cues.mjs?v=')
   || !audioCuesSource.includes("export const CHAPTER_AUDIO_PROFILES")
   || !audioCuesSource.includes("export function ambientChapterCueData(")

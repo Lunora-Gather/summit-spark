@@ -102,6 +102,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 可以删除：
 
 - 没有运行时或质量门消费者的脚手架；
+- 只为保留旧接口名而存在的空状态、空绘制钩子和空兼容函数；
 - 已完成任务的一次性补丁和生成器；
 - 与 `CHANGELOG.md` 重复的 README 历史；
 - 重复入口和重复说明文档。
@@ -114,3 +115,4 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 - 能捕获真实回归且由 `npm run check` 调用的工具。
 
 删除应通过 Git 完成，确保可恢复；删除后必须运行完整质量门并检查 Pages 暂存包。
+质量门应保护仍存在的用户行为，或明确阻止已废弃管线复活；不得要求无消费者的空函数继续存在。

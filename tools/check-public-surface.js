@@ -168,6 +168,8 @@ if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
   fail("public runtime must consume the versioned immutable room data and landmark module");
 }
 for (const trigger of [
+  'showMechanicFirstTouchCue("relay")',
+  'showMechanicFirstTouchCue("spring")',
   'showMechanicFirstTouchCue("updraft")',
   'showMechanicFirstTouchCue("crumble")',
   'showMechanicFirstTouchCue("prism")'

@@ -124,6 +124,12 @@ for (let i = 0; i < Math.min(8, maps.length); i += 1) {
 }
 if ((maps[1]?.join("").match(/A/g) || []).length < 2) errors.push("room 2 should establish a two-relay movement sentence");
 if ((maps[2]?.join("").match(/T/g) || []).length < 2) errors.push("room 3 should establish a two-spring height rhythm");
+if (maps[1]?.[8]?.[2] !== "P" || maps[1]?.[8]?.[10] !== "A" || maps[1]?.[9]?.slice(8, 13) !== "#####") {
+  errors.push("room 2 should teach its first relay on a level checkpoint runway above stable support");
+}
+if (maps[2]?.[10]?.[23] !== "T" || maps[2]?.[11]?.[23] !== "#") {
+  errors.push("room 3 should teach its first spring on stable support before the second spring");
+}
 if (maps[4]?.[8]?.slice(14, 17) !== "###" || maps[4]?.[9]?.[15] !== "#" || maps[4]?.[10]?.[15] !== "#") {
   errors.push("room 5 should keep a capped central ridge for the safe turn and Wall Spark cut");
 }

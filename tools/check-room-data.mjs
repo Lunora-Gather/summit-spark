@@ -67,7 +67,7 @@ assert.ok(Object.isFrozen(CHAPTER_EXPERIENCE[0]), "nested chapter records should
 assert.ok(Object.isFrozen(ROOM_STYLE_TRIALS[0].tech), "nested trial requirements should be read-only");
 assert.ok(Object.isFrozen(SKILL_LABELS), "skill labels should be read-only");
 assert.ok(Object.isFrozen(EXPERT_REQUIREMENT_LABELS), "expert labels should be read-only");
-assert.deepEqual(Object.keys(MECHANIC_FIRST_TOUCH_CUES).sort(), ["crumble", "prism", "updraft"], "first-touch cues should cover the three Wind Gorge mechanics");
+assert.deepEqual(Object.keys(MECHANIC_FIRST_TOUCH_CUES).sort(), ["crumble", "prism", "relay", "spring", "updraft"], "first-touch cues should cover the five introduced route mechanics");
 for (const [key, cue] of Object.entries(MECHANIC_FIRST_TOUCH_CUES)) {
   assert.ok(Number.isInteger(cue.room) && cue.room >= 0 && cue.room < maps.length, `${key} cue should reference a valid teaching room`);
   assert.equal(typeof cue.title, "string", `${key} cue should have a title`);
@@ -85,6 +85,8 @@ assertDeepFrozen(CHAPTER_EXPERIENCE, "chapter experience");
 assertDeepFrozen(SKILL_LABELS, "skill labels");
 assertDeepFrozen(EXPERT_REQUIREMENT_LABELS, "expert labels");
 assertDeepFrozen(MECHANIC_FIRST_TOUCH_CUES, "mechanic first-touch cues");
+assert.equal(mechanicFirstTouchCueData("relay")?.title, "光继", "new players should receive the first relay cue");
+assert.equal(mechanicFirstTouchCueData("spring")?.title, "弹簧", "new players should receive the first spring cue");
 assert.equal(mechanicFirstTouchCueData("updraft")?.title, "风升", "new players should receive the first updraft cue");
 assert.equal(mechanicFirstTouchCueData("crumble", { seen: { crumble: true } }), null, "a cue should appear at most once per session");
 assert.equal(mechanicFirstTouchCueData("prism", { roomFocus: Array.from({ length: 8 }, (_, index) => index === 7 ? { clears: 1 } : null) }), null, "cleared teaching rooms should suppress first-touch cues");

@@ -89,6 +89,12 @@ if (!room5Relay || !room5Ridge) {
 if (!String(guides[4] || "").includes("中棱") || !String(routeLines[4]?.[2] || "").includes("Wall Spark")) {
   errors.push("R5 guide and expert line should explain the central-ridge switchback and Wall Spark cut");
 }
+if (maps[1]?.[8]?.[2] !== "P" || maps[1]?.[8]?.[10] !== "A" || maps[1]?.[9]?.slice(8, 13) !== "#####") {
+  errors.push("R2 should teach its first relay on a level checkpoint runway with a stable recovery landing");
+}
+if (maps[2]?.[10]?.[23] !== "T" || maps[2]?.[11]?.[23] !== "#") {
+  errors.push("R3 should teach its first spring from stable ground before the route combines height decisions");
+}
 if (maps[6]?.[8]?.slice(5, 8) !== "CCC" || maps[6]?.[9]?.slice(5, 8) !== "###" || maps[6]?.[7]?.[7] !== "U") {
   errors.push("R7 should keep a low-risk first crumble and updraft teaching pocket");
 }
@@ -178,5 +184,5 @@ if (errors.length > 0) {
 }
 
 const summary = pressureByRoom.map((value, index) => "R" + (index + 1) + ":" + value).join(" ");
-console.log("Route audit passed: ten-room readable route, R5 central-ridge switchback, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
+console.log("Route audit passed: ten-room readable route, R2/R3 safe opening mechanic pockets, R5 central-ridge switchback, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
 for (const warning of warnings) console.log("warn: " + warning);

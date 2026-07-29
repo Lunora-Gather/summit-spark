@@ -125,12 +125,12 @@
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p198"),
-    import("./modules/core/math.mjs?v=20260729-p198"),
-    import("./modules/game/room-data.mjs?v=20260729-p198"),
-    import("./modules/systems/storage.mjs?v=20260729-p198"),
-    import("./modules/systems/input.mjs?v=20260729-p198"),
-    import("./modules/training/state.mjs?v=20260729-p198")
+    import("./modules/core/format.mjs?v=20260729-p199"),
+    import("./modules/core/math.mjs?v=20260729-p199"),
+    import("./modules/game/room-data.mjs?v=20260729-p199"),
+    import("./modules/systems/storage.mjs?v=20260729-p199"),
+    import("./modules/systems/input.mjs?v=20260729-p199"),
+    import("./modules/training/state.mjs?v=20260729-p199")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2397,6 +2397,7 @@
       if (relay.ready && charged && distRectPoint(box, relay.x, relay.y) < 26) {
         const chain = scoreRelayChain();
         markRoomTech("relay");
+        showMechanicFirstTouchCue("relay");
         if (chain >= 3) markRoomTech("relayChain");
         relay.ready = false;
         relay.timer = RELAY_RESET_TIME;
@@ -2502,6 +2503,7 @@
         player.y = spring.y - player.h;
         player.vy = -720;
         markRoomTech("spring");
+        showMechanicFirstTouchCue("spring");
         restoreDashCharge();
         player.stamina = MAX_STAMINA;
         spring.pulse = 0.22;

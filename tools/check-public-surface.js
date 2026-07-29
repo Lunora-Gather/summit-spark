@@ -306,6 +306,12 @@ for (const feedback of [
 if (!runtimeSource.includes("Number.isFinite(soundCooldowns[name])")) {
   fail("sound cooldowns should suppress same-frame world feedback even at audio time zero");
 }
+if (!runtimeSource.includes("let summitChapterResult = null")
+  || !runtimeSource.includes("summitChapterResult = chapterResultForTransition(chapterIndexForRoom(roomIndex))")
+  || !runtimeSource.includes("summitChapterResultText(summitChapterResult)")
+  || !runtimeSource.includes("clearSplitPopup();\n    clearMasteryPopup();\n    clearFocusPopup();")) {
+  fail("summit reveal must own final-act evidence without overlapping expiring room-result overlays");
+}
 if (!roomDataSource.includes('resolve: "断开的旧路，被你重新连起。"')
   || !runtimeSource.includes("let chapterTransitionFromChapter = -1")
   || !runtimeSource.includes("let chapterTransitionFromResult = null")

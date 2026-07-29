@@ -147,16 +147,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p208"),
-    import("./modules/core/math.mjs?v=20260729-p208"),
-    import("./modules/game/room-data.mjs?v=20260729-p208"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p208"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p208"),
-    import("./modules/systems/storage.mjs?v=20260729-p208"),
-    import("./modules/systems/input.mjs?v=20260729-p208"),
-    import("./modules/training/state.mjs?v=20260729-p208"),
-    import("./modules/training/replay.mjs?v=20260729-p208"),
-    import("./modules/ui/presentation.mjs?v=20260729-p208")
+    import("./modules/core/format.mjs?v=20260729-p209"),
+    import("./modules/core/math.mjs?v=20260729-p209"),
+    import("./modules/game/room-data.mjs?v=20260729-p209"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p209"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p209"),
+    import("./modules/systems/storage.mjs?v=20260729-p209"),
+    import("./modules/systems/input.mjs?v=20260729-p209"),
+    import("./modules/training/state.mjs?v=20260729-p209"),
+    import("./modules/training/replay.mjs?v=20260729-p209"),
+    import("./modules/ui/presentation.mjs?v=20260729-p209")
   ]);
 
   const canvas = document.getElementById("game");
@@ -622,6 +622,7 @@
   let won = false;
   let summitRevealTimer = 0;
   let pendingSummitResult = null;
+  let summitChapterResult = null;
   let lastTime = performance.now();
   let deathCount = 0;
   let deathReasons = createDeathReasons();
@@ -1849,6 +1850,7 @@
     won = false;
     summitRevealTimer = 0;
     pendingSummitResult = null;
+    summitChapterResult = null;
     hitStopTimer = 0;
     shakeTimer = 0;
     shakeDuration = 0;
@@ -1917,6 +1919,7 @@
     won = false;
     summitRevealTimer = 0;
     pendingSummitResult = null;
+    summitChapterResult = null;
     hitStopTimer = 0;
     particles.length = 0;
     ghosts.length = 0;
@@ -2563,6 +2566,7 @@
 
   function beginSummitReveal(result) {
     won = true;
+    summitChapterResult = chapterResultForTransition(chapterIndexForRoom(roomIndex));
     summitRevealTimer = prefersReducedMotion ? 1.35 : SUMMIT_REVEAL_TIME;
     pendingSummitResult = result;
     const expectedResult = result;
@@ -2572,7 +2576,10 @@
       finishSummitReveal();
     }, fallbackDelay);
     overlay.classList.add("hidden");
-    setGameStatus("星顶回应 · 山风安静下来");
+    clearSplitPopup();
+    clearMasteryPopup();
+    clearFocusPopup();
+    setGameStatus(`星顶回应 · ${summitChapterResultText(summitChapterResult)}`);
     resetRelayChain();
     player.vx = 0;
     player.vy = 0;
@@ -3006,6 +3013,11 @@
     const coverage = result.complete ? "" : `${result.visited}/${result.roomCount} 房 · `;
     const mistakes = result.mistakes > 0 ? `失误 ${result.mistakes}` : result.clean ? "无失误" : "失误 0";
     return `${assist}${coverage}${formatTime(result.seconds)} · ${mistakes}`;
+  }
+
+  function summitChapterResultText(result) {
+    const chapter = CHAPTER_EXPERIENCE[chapterIndexForRoom(roomIndex)]?.title || "第四幕 · 星顶";
+    return result ? `${chapter} · ${chapterTransitionResultText(result)}` : `${chapter} · 收束`;
   }
 
   function resolveRoomTransition() {
@@ -8218,6 +8230,9 @@
     ctx.fillStyle = "rgba(240, 246, 238, 0.82)";
     ctx.font = `600 ${compact ? 11 : 12}px system-ui, sans-serif`;
     ctx.fillText("山风停了一瞬。", W / 2, H * 0.43 + 33);
+    ctx.fillStyle = `${roomAtmosphere().rim}e0`;
+    ctx.font = `700 ${compact ? 9 : 10}px system-ui, sans-serif`;
+    ctx.fillText(fitText(summitChapterResultText(summitChapterResult), compact ? 300 : 380), W / 2, H * 0.43 + 55);
     ctx.restore();
     void time;
   }

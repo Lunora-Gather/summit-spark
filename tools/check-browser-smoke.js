@@ -611,16 +611,16 @@ async function runDesktopSmoke(cdp, baseUrl) {
     debugVisible: !document.querySelector("#debugPanel").classList.contains("hidden"),
     overlayHidden: document.querySelector("#overlay").classList.contains("hidden")
   })`);
-  if (!/星顶回应/.test(debugSummitState.status)) {
-    errors.push("debug summit trigger did not begin the reveal: " + JSON.stringify(debugSummitState));
+  if (!/星顶回应 · 第四幕 · 星顶 · 1\/2 房 ·/.test(debugSummitState.status)) {
+    errors.push("debug summit trigger should begin the reveal with partial final-act evidence: " + JSON.stringify(debugSummitState));
   }
   const summitRevealState = await waitUntil("summit reveal holds before review", () => evaluate(cdp, `(() => {
     const status = document.querySelector("#gameStatus").textContent;
     const hidden = document.querySelector("#overlay").classList.contains("hidden");
-    return /星顶回应/.test(status) && hidden ? { status, hidden } : null;
+    return /星顶回应 · 第四幕 · 星顶 · 1\\/2 房 ·/.test(status) && hidden ? { status, hidden } : null;
   })()`));
-  if (!summitRevealState.hidden || !/星顶回应/.test(summitRevealState.status)) {
-    errors.push("summit goal should hold on an in-world reveal before opening review: " + JSON.stringify(summitRevealState));
+  if (!summitRevealState.hidden || !/星顶回应 · 第四幕 · 星顶 · 1\/2 房 ·/.test(summitRevealState.status)) {
+    errors.push("summit goal should hold on an in-world reveal with final-act evidence before opening review: " + JSON.stringify(summitRevealState));
   }
   await sleep(2800);
   const finishProbe = await evaluate(cdp, `({
@@ -3673,7 +3673,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, summit reveal fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

@@ -89,8 +89,12 @@
     },
     {
       TRAINING_TRANSITIONS,
+      activeChallengeReviewData,
+      activeChallengeStateData,
       activeRouteContractDataFor,
       advanceRouteContractData,
+      challengeProgressData,
+      createActiveChallengeData,
       createDrillData,
       createRouteContractStateData,
       drillContractProgressData,
@@ -103,6 +107,7 @@
       recordDrillStartData,
       recordRoomClearData,
       recordRoomFaultData,
+      reconcileChallengeWinsData,
       routeContractMatchesDrillData,
       routeContractResumeStepData,
       roomFocusScoreData,
@@ -112,12 +117,12 @@
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p191"),
-    import("./modules/core/math.mjs?v=20260729-p191"),
-    import("./modules/game/room-data.mjs?v=20260729-p191"),
-    import("./modules/systems/storage.mjs?v=20260729-p191"),
-    import("./modules/systems/input.mjs?v=20260729-p191"),
-    import("./modules/training/state.mjs?v=20260729-p191")
+    import("./modules/core/format.mjs?v=20260729-p192"),
+    import("./modules/core/math.mjs?v=20260729-p192"),
+    import("./modules/game/room-data.mjs?v=20260729-p192"),
+    import("./modules/systems/storage.mjs?v=20260729-p192"),
+    import("./modules/systems/input.mjs?v=20260729-p192"),
+    import("./modules/training/state.mjs?v=20260729-p192")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1378,6 +1383,7 @@
   populateRoomSelect();
   initEntryMode();
   syncSettingsPanel();
+  syncChallengeWins();
   initCloudAccount();
 
   document.querySelectorAll("[data-touch]").forEach((button) => {
@@ -2591,9 +2597,7 @@
     }
     profile.bestRelayChain = Math.max(profile.bestRelayChain, bestRelayChain);
     profile.bestFlowPeak = Math.max(profile.bestFlowPeak, Math.floor(flowPeak), bestFlow);
-    challengeBoardItems().forEach((item) => {
-      if (item.done) profile.challengeWins[item.id] = true;
-    });
+    syncChallengeWins({ persist: false });
     writeProfile();
   }
 
@@ -2624,6 +2628,7 @@
     if (recordsEligible() && flowPeak > bestFlow) {
       bestFlow = flowPeak;
       writeBestFlow(bestFlow);
+      syncChallengeWins();
     }
     flowTimer = FLOW_DECAY_TIME;
     flowPopupTimer = FLOW_POPUP_TIME;
@@ -3323,6 +3328,7 @@
     showClearPopup(index, clean);
     updatePracticeCoach();
     writeRoomFocus();
+    syncChallengeWins();
     refreshRoomSelectOptions();
   }
 
@@ -3338,6 +3344,7 @@
     const entry = roomFocus[index] || createRoomFocusEntry();
     roomFocus[index] = recordDrillClearData(entry, clean, mode);
     writeRoomFocus();
+    syncChallengeWins();
     refreshRoomSelectOptions();
   }
 
@@ -4776,62 +4783,25 @@
 
   function createActiveChallenge(id = "clear") {
     const challenge = challengeById(id);
-    return {
-      id: challenge.id,
-      kind: challenge.kind,
-      label: challenge.label,
-      goal: challenge.goal,
-      startBestFlow: Math.floor(Math.max(bestFlow, profile.bestFlowPeak || 0))
-    };
+    return createActiveChallengeData(challenge, Math.max(bestFlow, profile.bestFlowPeak || 0));
   }
 
   function activeChallengeState() {
     if (!activeChallenge) return null;
     const challenge = challengeById(activeChallenge.id);
-    const targetRooms = maps.length;
-    const reachedRooms = won ? targetRooms : Math.max(0, Math.min(targetRooms, roomIndex));
-    let current = reachedRooms;
-    let target = targetRooms;
-    let detail = won ? "完整路线已结束" : `当前 R${roomIndex + 1}/${targetRooms}`;
-    let failed = false;
-    let done = won;
-
-    if (challenge.kind === "nodeath") {
-      failed = deathCount > 0;
-      done = won && deathCount === 0;
-      detail = failed ? `已有失误 ${deathCount}，继续完成可保留复盘` : `失误 0 · 当前 R${roomIndex + 1}/${targetRooms}`;
-    } else if (challenge.kind === "flow") {
-      current = Math.floor(Math.max(0, flowPeak));
-      target = FLOW_CHALLENGE_TARGET;
-      done = current >= target;
-      detail = `本轮 ${current}/${target} · 历史 Best ${Math.floor(Math.max(bestFlow, profile.bestFlowPeak || 0))}`;
-    }
-
-    const progress = target > 0 ? Math.round(Math.max(0, Math.min(1, current / target)) * 100) : 0;
-    return {
-      ...challenge,
-      current,
-      target,
-      progress,
-      detail,
-      failed,
-      done,
-      status: done ? "达成" : failed ? "已破" : won ? "未达成" : "进行中"
-    };
+    return activeChallengeStateData(activeChallenge, challenge, {
+      won,
+      roomIndex,
+      roomTotal: maps.length,
+      deathCount,
+      flowPeak,
+      flowTarget: FLOW_CHALLENGE_TARGET,
+      bestFlow: Math.max(bestFlow, profile.bestFlowPeak || 0)
+    });
   }
 
   function activeChallengeReview() {
-    const state = activeChallengeState();
-    if (!state) return null;
-    const value = `${state.status} · ${state.label}`;
-    const detail = state.done
-      ? state.goal
-      : state.kind === "flow"
-        ? `还差 ${Math.max(0, state.target - state.current)} Flow；${state.detail}`
-        : state.failed
-          ? `${state.detail}；下一轮从 R1 重开`
-          : `${state.progress}% · ${state.detail}`;
-    return { value, detail };
+    return activeChallengeReviewData(activeChallengeState());
   }
 
   function challengeTargetRoom(challenge) {
@@ -4843,46 +4813,20 @@
   }
 
   function challengeProgress(challenge) {
-    const roomTotal = maps.length;
-    let current = 0;
-    let target = 1;
-    let detail = challenge.goal;
-    if (challenge.kind === "run") {
-      current = profile.summitClears > 0 || bestTime > 0 ? 1 : 0;
-      detail = current ? `已登顶 ${profile.summitClears || 1} 次` : "从 R1 开始完整通关";
-    } else if (challenge.kind === "clean") {
-      current = cleanRoomCount();
-      target = roomTotal;
-      detail = `Clean ${current}/${target}`;
-    } else if (challenge.kind === "pace") {
-      current = sRankRoomCount();
-      target = roomTotal;
-      detail = `S ${current}/${target}`;
-    } else if (challenge.kind === "style") {
-      current = styleWinRoomCount();
-      target = roomTotal;
-      detail = `Style ${current}/${target}`;
-    } else if (challenge.kind === "expert") {
-      current = expertWinRoomCount();
-      target = roomTotal;
-      detail = `Expert ${current}/${target}`;
-    } else if (challenge.kind === "nodeath") {
-      current = profile.bestDeathCount === 0 ? 1 : 0;
-      detail = profile.bestDeathCount === null ? "未记录完整通关失误数" : `最佳失误 ${profile.bestDeathCount}`;
-    } else if (challenge.kind === "flow") {
-      current = Math.min(FLOW_CHALLENGE_TARGET, Math.max(bestFlow, profile.bestFlowPeak || 0));
-      target = FLOW_CHALLENGE_TARGET;
-      detail = `Flow Best ${Math.floor(Math.max(bestFlow, profile.bestFlowPeak || 0))}/${target}`;
-    }
-    const progress = target > 0 ? Math.round(Math.max(0, Math.min(1, current / target)) * 100) : 0;
-    const done = progress >= 100;
-    if (done) profile.challengeWins[challenge.id] = true;
+    const progress = challengeProgressData(challenge, {
+      roomTotal: maps.length,
+      summitClears: profile.summitClears,
+      bestTime,
+      cleanRooms: cleanRoomCount(),
+      sRooms: sRankRoomCount(),
+      styleRooms: styleWinRoomCount(),
+      expertRooms: expertWinRoomCount(),
+      bestDeathCount: profile.bestDeathCount,
+      bestFlow: Math.max(bestFlow, profile.bestFlowPeak || 0),
+      flowTarget: FLOW_CHALLENGE_TARGET
+    });
     return {
-      current,
-      target,
-      progress,
-      done,
-      detail,
+      ...progress,
       index: challengeTargetRoom(challenge),
       mode: challenge.mode || "auto"
     };
@@ -4893,6 +4837,18 @@
       ...challenge,
       ...challengeProgress(challenge)
     }));
+  }
+
+  function syncChallengeWins({ persist = true } = {}) {
+    const reconciled = reconcileChallengeWinsData(
+      profile.challengeWins,
+      challengeBoardItems(),
+      LONG_TERM_CHALLENGES.map((challenge) => challenge.id)
+    );
+    if (!reconciled.changed) return false;
+    profile.challengeWins = reconciled.challengeWins;
+    if (persist) writeProfile();
+    return true;
   }
 
   function updateChallengeBoard() {
@@ -4916,7 +4872,6 @@
     if (html === lastChallengeBoardHtml) return;
     lastChallengeBoardHtml = html;
     challengeBoard.innerHTML = html;
-    writeProfile();
   }
 
   function updateProfileSummary() {

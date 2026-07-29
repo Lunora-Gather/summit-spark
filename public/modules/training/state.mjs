@@ -278,3 +278,152 @@ export function roomReviewModeData({
   if (focusCount(entry?.styleWins) <= 0) return "style";
   return "expert";
 }
+
+function boundedProgress(current, target) {
+  if (!(target > 0)) return 0;
+  return Math.round(Math.max(0, Math.min(1, current / target)) * 100);
+}
+
+export function createActiveChallengeData(challenge, bestFlow) {
+  if (!challenge?.id) return null;
+  return {
+    id: challenge.id,
+    kind: challenge.kind,
+    label: challenge.label,
+    goal: challenge.goal,
+    startBestFlow: Math.floor(Math.max(0, Number(bestFlow) || 0))
+  };
+}
+
+export function activeChallengeStateData(active, challenge, {
+  won,
+  roomIndex,
+  roomTotal,
+  deathCount,
+  flowPeak,
+  flowTarget,
+  bestFlow
+} = {}) {
+  if (!active || !challenge || active.id !== challenge.id) return null;
+  const total = Math.max(1, Math.trunc(Number(roomTotal) || 0));
+  const room = Math.max(0, Math.min(total - 1, Math.trunc(Number(roomIndex) || 0)));
+  const reachedRooms = won ? total : room;
+  let current = reachedRooms;
+  let target = total;
+  let detail = won ? "完整路线已结束" : `当前 R${room + 1}/${total}`;
+  let failed = false;
+  let done = Boolean(won);
+
+  if (challenge.kind === "nodeath") {
+    const deaths = Math.max(0, Math.trunc(Number(deathCount) || 0));
+    failed = deaths > 0;
+    done = Boolean(won) && deaths === 0;
+    detail = failed ? `已有失误 ${deaths}，继续完成可保留复盘` : `失误 0 · 当前 R${room + 1}/${total}`;
+  } else if (challenge.kind === "flow") {
+    current = Math.floor(Math.max(0, Number(flowPeak) || 0));
+    target = Math.max(1, Math.floor(Number(flowTarget) || 0));
+    done = current >= target;
+    detail = `本轮 ${current}/${target} · 历史 Best ${Math.floor(Math.max(0, Number(bestFlow) || 0))}`;
+  }
+
+  return {
+    ...challenge,
+    current,
+    target,
+    progress: boundedProgress(current, target),
+    detail,
+    failed,
+    done,
+    status: done ? "达成" : failed ? "已破" : won ? "未达成" : "进行中"
+  };
+}
+
+export function activeChallengeReviewData(state) {
+  if (!state) return null;
+  const value = `${state.status} · ${state.label}`;
+  const detail = state.done
+    ? state.goal
+    : state.kind === "flow"
+      ? `还差 ${Math.max(0, state.target - state.current)} Flow；${state.detail}`
+      : state.failed
+        ? `${state.detail}；下一轮从 R1 重开`
+        : `${state.progress}% · ${state.detail}`;
+  return { value, detail };
+}
+
+export function challengeProgressData(challenge, {
+  roomTotal,
+  summitClears,
+  bestTime,
+  cleanRooms,
+  sRooms,
+  styleRooms,
+  expertRooms,
+  bestDeathCount,
+  bestFlow,
+  flowTarget
+} = {}) {
+  const total = Math.max(1, Math.trunc(Number(roomTotal) || 0));
+  const summitCount = Math.max(0, Math.trunc(Number(summitClears) || 0));
+  let current = 0;
+  let target = 1;
+  let detail = challenge?.goal || "";
+
+  if (challenge?.kind === "run") {
+    current = summitCount > 0 || Number(bestTime) > 0 ? 1 : 0;
+    detail = current ? `已登顶 ${summitCount || 1} 次` : "从 R1 开始完整通关";
+  } else if (challenge?.kind === "clean") {
+    current = Math.max(0, Math.trunc(Number(cleanRooms) || 0));
+    target = total;
+    detail = `Clean ${current}/${target}`;
+  } else if (challenge?.kind === "pace") {
+    current = Math.max(0, Math.trunc(Number(sRooms) || 0));
+    target = total;
+    detail = `S ${current}/${target}`;
+  } else if (challenge?.kind === "style") {
+    current = Math.max(0, Math.trunc(Number(styleRooms) || 0));
+    target = total;
+    detail = `Style ${current}/${target}`;
+  } else if (challenge?.kind === "expert") {
+    current = Math.max(0, Math.trunc(Number(expertRooms) || 0));
+    target = total;
+    detail = `Expert ${current}/${target}`;
+  } else if (challenge?.kind === "nodeath") {
+    current = bestDeathCount === 0 ? 1 : 0;
+    detail = bestDeathCount === null || bestDeathCount === undefined
+      ? "未记录完整通关失误数"
+      : `最佳失误 ${Math.max(0, Math.trunc(Number(bestDeathCount) || 0))}`;
+  } else if (challenge?.kind === "flow") {
+    target = Math.max(1, Math.floor(Number(flowTarget) || 0));
+    current = Math.min(target, Math.max(0, Number(bestFlow) || 0));
+    detail = `Flow Best ${Math.floor(Math.max(0, Number(bestFlow) || 0))}/${target}`;
+  }
+
+  const progress = boundedProgress(current, target);
+  return {
+    current,
+    target,
+    progress,
+    done: progress >= 100,
+    detail
+  };
+}
+
+export function reconcileChallengeWinsData(currentWins, challengeItems, allowedIds) {
+  const allowed = new Set(Array.from(allowedIds || []).filter((id) => typeof id === "string"));
+  const next = {};
+  allowed.forEach((id) => {
+    if (currentWins?.[id] === true) next[id] = true;
+  });
+  Array.from(challengeItems || []).forEach((item) => {
+    if (item?.done && allowed.has(item.id)) next[item.id] = true;
+  });
+  const before = currentWins && typeof currentWins === "object"
+    ? Object.keys(currentWins).filter((id) => currentWins[id] === true).sort()
+    : [];
+  const after = Object.keys(next).sort();
+  return {
+    challengeWins: next,
+    changed: before.length !== after.length || before.some((id, index) => id !== after[index])
+  };
+}

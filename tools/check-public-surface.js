@@ -225,7 +225,10 @@ if (!runtimeSource.includes('import("./modules/training/state.mjs?v=')
   || !trainingSource.includes("export function recordRoomFaultData(")
   || !trainingSource.includes("export function recordDrillClearData(")
   || !trainingSource.includes("export function roomMasteryScoreData(")
-  || !trainingSource.includes("export function roomReviewModeData(")) {
+  || !trainingSource.includes("export function roomReviewModeData(")
+  || !trainingSource.includes("export function activeChallengeStateData(")
+  || !trainingSource.includes("export function challengeProgressData(")
+  || !trainingSource.includes("export function reconcileChallengeWinsData(")) {
   fail("public runtime must consume the versioned training state module");
 }
 for (const delegation of [
@@ -238,7 +241,10 @@ for (const delegation of [
   "roomFocus[roomIndex] = recordRoomFaultData(entry, normalized)",
   "roomFocus[index] = recordDrillClearData(entry, clean, mode)",
   "return roomMasteryScoreData({",
-  "return roomReviewModeData({ entry, loss, pressure, grade })"
+  "return roomReviewModeData({ entry, loss, pressure, grade })",
+  "return activeChallengeStateData(activeChallenge, challenge, {",
+  "const progress = challengeProgressData(challenge, {",
+  "const reconciled = reconcileChallengeWinsData("
 ]) {
   if (!runtimeSource.includes(delegation)) {
     fail(`public runtime must delegate training ownership through ${delegation}`);

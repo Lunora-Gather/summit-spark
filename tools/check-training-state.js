@@ -107,6 +107,17 @@ const masteryBody = functionBody("roomMasteryScore");
 if (!masteryBody.includes("roomMasteryScoreData(")) errors.push("Focus mastery must delegate to the training module");
 const reviewModeBody = functionBody("roomReviewMode");
 if (!reviewModeBody.includes("roomReviewModeData(")) errors.push("Focus review mode must delegate to the training module");
+const activeChallengeBody = functionBody("activeChallengeState");
+if (!activeChallengeBody.includes("activeChallengeStateData(")) errors.push("active challenge state must delegate to the training module");
+const challengeProgressBody = functionBody("challengeProgress");
+if (!challengeProgressBody.includes("challengeProgressData(") || challengeProgressBody.includes("profile.challengeWins")) errors.push("challenge progress must remain pure and delegate to the training module");
+const challengeBoardBody = functionBody("updateChallengeBoard");
+if (challengeBoardBody.includes("writeProfile(")) errors.push("challenge rendering must not write profile state");
+const challengeSyncBody = functionBody("syncChallengeWins");
+if (!challengeSyncBody.includes("reconcileChallengeWinsData(") || !challengeSyncBody.includes("writeProfile(")) errors.push("challenge wins must reconcile through one explicit persistence path");
+for (const name of ["recordSummitProfile", "addFlow", "markRoomClear", "trackDrillClear"]) {
+  if (!functionBody(name).includes("syncChallengeWins(")) errors.push(name + " must explicitly reconcile newly earned challenge wins");
+}
 
 if (!js.includes("SETTINGS_SCHEMA_VERSION = 4")) errors.push("settings schema version should be current");
 if (!js.includes("PROFILE_SCHEMA_VERSION = 2")) errors.push("profile schema version should be current");

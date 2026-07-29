@@ -5,8 +5,12 @@ import assert from "node:assert/strict";
 import {
   TRAINING_TRANSITIONS,
   activeRouteContractDataFor,
+  activeChallengeReviewData,
+  activeChallengeStateData,
   advanceRouteContractData,
+  challengeProgressData,
   createDrillData,
+  createActiveChallengeData,
   createRouteContractStateData,
   drillSucceededData,
   drillContractProgressData,
@@ -18,6 +22,7 @@ import {
   recordDrillStartData,
   recordRoomClearData,
   recordRoomFaultData,
+  reconcileChallengeWinsData,
   roomFocusScoreData,
   roomMasteryLevelData,
   roomMasteryScoreData,
@@ -237,4 +242,102 @@ assert.equal(roomReviewModeData({
   grade: "S"
 }), "expert");
 
-console.log("Training module check passed: transitions, Drill/Route/Feel state, Focus counters, mastery and review mode.");
+const challenge = { id: "nodeath", kind: "nodeath", label: "零失误登顶", goal: "完整通关且失误数为 0" };
+assert.deepEqual(createActiveChallengeData(challenge, 45.9), {
+  ...challenge,
+  startBestFlow: 45
+});
+assert.equal(createActiveChallengeData(null, 0), null);
+const failedChallenge = activeChallengeStateData(
+  createActiveChallengeData(challenge, 0),
+  challenge,
+  {
+    won: false,
+    roomIndex: 4,
+    roomTotal: 10,
+    deathCount: 2,
+    flowPeak: 0,
+    flowTarget: 180,
+    bestFlow: 0
+  }
+);
+assert.equal(failedChallenge.status, "已破");
+assert.equal(failedChallenge.progress, 40);
+assert.equal(failedChallenge.failed, true);
+assert.deepEqual(activeChallengeReviewData(failedChallenge), {
+  value: "已破 · 零失误登顶",
+  detail: "已有失误 2，继续完成可保留复盘；下一轮从 R1 重开"
+});
+const flowChallenge = { id: "flow", kind: "flow", label: "Flow 峰值", goal: "本轮 Flow 达到 180" };
+const flowState = activeChallengeStateData(
+  createActiveChallengeData(flowChallenge, 170),
+  flowChallenge,
+  {
+    won: false,
+    roomIndex: 2,
+    roomTotal: 10,
+    deathCount: 0,
+    flowPeak: 180.9,
+    flowTarget: 180,
+    bestFlow: 180.9
+  }
+);
+assert.equal(flowState.done, true);
+assert.equal(flowState.progress, 100);
+assert.equal(flowState.status, "达成");
+assert.equal(activeChallengeStateData({ id: "__proto__" }, challenge, {}), null);
+
+const progressMetrics = {
+  roomTotal: 10,
+  summitClears: 2,
+  bestTime: 100,
+  cleanRooms: 8,
+  sRooms: 10,
+  styleRooms: 4,
+  expertRooms: 0,
+  bestDeathCount: 0,
+  bestFlow: 220.5,
+  flowTarget: 180
+};
+assert.deepEqual(challengeProgressData({
+  id: "run",
+  kind: "run",
+  goal: "完成一次完整路线"
+}, progressMetrics), {
+  current: 1,
+  target: 1,
+  progress: 100,
+  done: true,
+  detail: "已登顶 2 次"
+});
+assert.equal(challengeProgressData({ kind: "clean", goal: "" }, progressMetrics).progress, 80);
+assert.equal(challengeProgressData({ kind: "pace", goal: "" }, progressMetrics).done, true);
+assert.equal(challengeProgressData({ kind: "style", goal: "" }, progressMetrics).progress, 40);
+assert.equal(challengeProgressData({ kind: "expert", goal: "" }, progressMetrics).progress, 0);
+assert.equal(challengeProgressData({ kind: "nodeath", goal: "" }, progressMetrics).done, true);
+assert.deepEqual(challengeProgressData({ kind: "flow", goal: "" }, progressMetrics), {
+  current: 180,
+  target: 180,
+  progress: 100,
+  done: true,
+  detail: "Flow Best 220/180"
+});
+const reconciled = reconcileChallengeWinsData(
+  { clear: true, unknown: true },
+  [{ id: "pace", done: true }, { id: "__proto__", done: true }, { id: "style", done: false }],
+  ["clear", "pace", "style"]
+);
+assert.deepEqual(reconciled, {
+  challengeWins: { clear: true, pace: true },
+  changed: true
+});
+assert.deepEqual(reconcileChallengeWinsData(
+  reconciled.challengeWins,
+  [{ id: "pace", done: true }],
+  ["clear", "pace", "style"]
+), {
+  challengeWins: { clear: true, pace: true },
+  changed: false
+});
+
+console.log("Training module check passed: Drill/Route/Feel/Focus state plus pure challenge progress and win reconciliation.");

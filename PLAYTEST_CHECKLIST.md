@@ -13,7 +13,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 ## First Three Minutes
 
 - Start from a clean profile and do not open settings first.
-- Verify the first room starts without an automatic teaching toast or head-level coaching copy. On a clean desktop keyboard profile, only the compact bottom Move → Jump → Dash strip should appear; it must advance from real input and disappear after Dash. It must stay hidden when labelled touch controls are rendered.
+- Verify the first room starts without an automatic teaching toast, head-level coaching copy, or a redundant Move → Jump → Dash strip. The labelled touch controls remain the only persistent input labels during touch play.
 - Confirm free play shows only core HUD status; split delta, Flow, and pace meter should stay out of the default view until training/challenge context needs them.
 - Die once to spikes and once by falling; the game should not interrupt with explanatory coaching copy.
 - Press `O`, open settings, press `Escape`, and return to play without stuck movement.
@@ -75,7 +75,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 
 - At around 390x700, the start screen must show title, start, resume when present, practice, and settings entries without horizontal scroll.
 - In 390x700 portrait play, touch controls should sit below the playfield instead of covering the character, spikes, or bottom landings.
-- In 390x700 portrait practice, expand Room and confirm the room select, room brief, Drill variant buttons, and coach row stay inside the panel.
+- In 390x700 portrait practice, expand Room and confirm the room select, room brief, Drill variant buttons, and fixed launch action stay inside the panel.
 - At around 700x390, settings must scroll vertically and keep audio, low performance, touch size, gamepad deadzone, save import, and restore reachable.
 - At around 700x390, practice must scroll vertically and keep Route, Feel, Room, and Profile reachable.
 - On a notched phone, confirm the entry chooser, close button, account fields, and practice launch action stay clear of the notch and Home indicator; open the keyboard on the email field and confirm it remains reachable by scrolling.

@@ -597,7 +597,17 @@ if (!js.includes("const ghostTimerArmed = player.ghostTimer > 0") || !js.include
 if (!js.includes("if (!airborne) {") || !js.includes('ctx.fillStyle = "rgba(23,49,60,0.1)"') || js.includes("roundRect(ctx, frontFootX - 2.8") || !js.includes("const groundedLegTone = ctx.createLinearGradient") || js.includes('groundedLegTone.addColorStop(1, "#294b5d")')) errors.push("player contact shadow should disappear in air and grounded feet should share the soft mist-blue integrated leg silhouette without dark boot blocks");
 if (!js.includes("const ROOM_INTRO_TIME = 1.2") || !js.includes("const introAlpha = Math.min(1, t * 2.4)") || !js.includes('ctx.fillStyle = "rgba(224, 234, 225, 0.72)"') || !js.includes('ctx.fillStyle = "rgba(50, 75, 80, 0.76)"') || !js.includes('const width = introCompact ? 250 : 218') || js.includes('ctx.fillStyle = "rgba(12, 12, 13, 0.58)"')) errors.push("room entry feedback should remain a brief compact mist-light chapter card with a stable readable hold rather than a large dark or prematurely fading banner");
 if (!indexHtml.includes('id="portraitBrief"') || !indexHtml.includes('id="portraitRoomTitle"') || !indexHtml.includes('id="portraitRoomGoal"') || !js.includes("function updatePortraitBrief()") || !js.includes('hasProgress ? "上次训练" : "攀登起点"') || !js.includes("portraitRoomTitle.textContent = `R${target + 1} · ${ROOM_NAMES[target]")) errors.push("portrait play should expose a context-aware start/current-room brief instead of contradictory or empty space");
-if (indexHtml.includes('id="controlHint"') || css.includes(".control-hint") || js.includes('getElementById("controlHint")') || js.includes("updateOnboardingCues") || !js.includes('if (kind === "coach" || kind === "onboarding") return;')) errors.push("ordinary onboarding and coach tips should remain absent while warning and storage feedback stay available");
+if (indexHtml.includes('id="controlHint"')
+  || css.includes(".control-hint")
+  || css.includes(".game-tip.onboarding")
+  || js.includes('getElementById("controlHint")')
+  || js.includes("updateOnboardingCues")
+  || !js.includes('const GAME_TIP_CLASSES = ["death", "storage"]')
+  || !js.includes("if (!GAME_TIP_CLASSES.includes(kind)) return;")
+  || js.includes('"coach", GAME_TIP_TIME')
+  || js.includes('gameTipVisible("onboarding")')) {
+  errors.push("ordinary onboarding and coach tips should remain absent while warning and storage feedback stay available");
+}
 if (!css.includes('top: clamp(96px, calc(50dvh - 285px), 220px)')) errors.push("portrait brief should use the upper safe field while the chapter ridge keeps it visually coupled to the fixed-aspect playfield");
 if (!css.includes('@media (max-width: 760px) and (max-height: 520px) and (orientation: portrait)') || !css.includes('top: max(clamp(28px, calc(50dvh - 192px), 68px), calc(env(safe-area-inset-top, 0px) + 10px))')) errors.push("short portrait screens should compact and center the room brief in the upper safe field before the stage HUD rises into it");
 if (!css.includes('@media (max-width: 760px) and (max-height: 520px) and (orientation: landscape) and (pointer: coarse)') || !css.includes('.practice-launch-dock .focus-button {\n    min-height: 44px;')) errors.push("short touch landscape should preserve 44px practice launch and reset targets without expanding the mouse layout");
@@ -759,7 +769,7 @@ if (!playtestChecklist.includes("Ten-Room Route Pass") || !playtestChecklist.inc
 }
 if (!playtestChecklist.includes("诊断 / 复制")) errors.push("PLAYTEST_CHECKLIST.md must pair friction notes with diagnostics snapshots");
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js") || /20\d{6}-p\d+/.test(playtestChecklist)) errors.push("PLAYTEST_CHECKLIST.md should verify the current public build dynamically instead of pinning a stale release version");
-if (!playtestChecklist.includes("compact bottom Move → Jump → Dash strip") || !playtestChecklist.includes("labelled touch controls are rendered") || playtestChecklist.includes("without automatic teaching toast or visible control guide")) errors.push("PLAYTEST_CHECKLIST.md should distinguish the quiet first-run keyboard strip from forbidden toast/head-level coaching and touch duplication");
+if (!playtestChecklist.includes("redundant Move → Jump → Dash strip") || !playtestChecklist.includes("labelled touch controls remain the only persistent input labels") || !releaseChecklist.includes("does not show a redundant Move → Jump → Dash strip")) errors.push("manual release guidance should forbid retired keyboard coaching while preserving labelled touch controls");
 if (!playtestChecklist.includes("operating system's reduced-motion preference") || !releaseChecklist.includes("reduced-motion preference") || !releaseChecklist.includes("64px setting")) errors.push("manual and release checks should cover reduced motion plus the narrow-phone 64px touch-control boundary");
 if (!knownIssues.includes("Physical gamepad") || !knownIssues.includes("Full 10-room human pass") || !knownIssues.includes("Online Pages freshness")) {
   errors.push("KNOWN_ISSUES.md must keep current real-world verification limits visible");

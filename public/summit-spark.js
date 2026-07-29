@@ -146,16 +146,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p213"),
-    import("./modules/core/math.mjs?v=20260729-p213"),
-    import("./modules/game/room-data.mjs?v=20260729-p213"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p213"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p213"),
-    import("./modules/systems/storage.mjs?v=20260729-p213"),
-    import("./modules/systems/input.mjs?v=20260729-p213"),
-    import("./modules/training/state.mjs?v=20260729-p213"),
-    import("./modules/training/replay.mjs?v=20260729-p213"),
-    import("./modules/ui/presentation.mjs?v=20260729-p213")
+    import("./modules/core/format.mjs?v=20260729-p214"),
+    import("./modules/core/math.mjs?v=20260729-p214"),
+    import("./modules/game/room-data.mjs?v=20260729-p214"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p214"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p214"),
+    import("./modules/systems/storage.mjs?v=20260729-p214"),
+    import("./modules/systems/input.mjs?v=20260729-p214"),
+    import("./modules/training/state.mjs?v=20260729-p214"),
+    import("./modules/training/replay.mjs?v=20260729-p214"),
+    import("./modules/ui/presentation.mjs?v=20260729-p214")
   ]);
 
   const canvas = document.getElementById("game");
@@ -394,7 +394,7 @@
     retry: "重开",
     room: "换房"
   };
-  const GAME_TIP_CLASSES = ["coach", "onboarding", "death", "route", "storage"];
+  const GAME_TIP_CLASSES = ["death", "storage"];
   const FLOW_CHALLENGE_TARGET = 900;
   const GAMEPAD_DEADZONE_DEFAULT = 0.28;
   const GAMEPAD_DEADZONE_MIN = 0.12;
@@ -1568,7 +1568,6 @@
     overlay.classList.add("hidden");
     syncGameplayAccessibility();
     setGameStatus(`挑战路线开始：${challenge.label} · ${challenge.goal}`);
-    showGameTip(challenge.label, challenge.goal, "coach", GAME_TIP_TIME, 2);
     focusGame();
   }
 
@@ -1700,11 +1699,11 @@
     details.querySelector(":scope > summary")?.setAttribute("aria-expanded", String(details.open));
   }
 
-  function showGameTip(title, detail = "", kind = "coach", duration = GAME_TIP_TIME, priority = 1) {
+  function showGameTip(title, detail = "", kind = "storage", duration = GAME_TIP_TIME, priority = 1) {
     if (!gameTip || !gameTipTitle || !gameTipDetail) return;
-    if (kind === "coach" || kind === "onboarding") return;
+    if (!GAME_TIP_CLASSES.includes(kind)) return;
     if (gameTipTimer > 0 && gameTipPriority > priority) return;
-    const resolvedKind = GAME_TIP_CLASSES.includes(kind) ? kind : "coach";
+    const resolvedKind = kind;
     gameTipKind = resolvedKind;
     gameTipPriority = priority;
     gameTipMax = Math.max(0.8, duration);
@@ -4308,7 +4307,6 @@
     focusPopupText = `手感校准 · ${fixture.id}`;
     focusPopupDetail = `${fixture.note} / ${fixture.window} ≤ ${Number(fixture.maxDelay).toFixed(3)}s`;
     focusPopupTimer = FOCUS_POPUP_TIME;
-    showGameTip("手感校准", fixture.note, "coach", GAME_TIP_TIME, 2);
     setGameStatus(`手感校准 ${fixture.id}：${fixture.note}`);
     return true;
   }
@@ -5334,7 +5332,6 @@
     const copied = await copyTextWithDownloadFallback(text, filename, "application/json");
     const verb = copied ? "已复制" : "已下载";
     setGameStatus(`诊断${verb}，可贴到反馈`);
-    showGameTip(`诊断${verb}`, "仅包含版本、设置、进度摘要和设备视口，不含身份信息", "coach", GAME_TIP_TIME, 3);
     playSound("ui", 0.72);
   }
 
@@ -5345,7 +5342,6 @@
     const copied = await copyTextWithDownloadFallback(text, `summit-spark-feedback-${snapshot.build || "dev"}.txt`);
     const verb = copied ? "已复制" : "已下载";
     setGameStatus(`反馈模板${verb}`);
-    showGameTip(`反馈模板${verb}`, "包含版本、视口、训练状态和可填写复现项", "coach", GAME_TIP_TIME, 3);
     playSound("ui", 0.68);
   }
 
@@ -7549,7 +7545,7 @@
   function drawRouteFocusCue(time) {
     if (!started || won || player.deadTimer > 0 || !routeCueActive()) return;
     if (activeDrill && activeDrill.room === roomIndex) return;
-    if (gameTipVisible("onboarding") || gameTipVisible("death")) return;
+    if (gameTipVisible("death")) return;
     const active = activeDrill && activeDrill.room === roomIndex;
     if (!active && roomIntroTimer > 0.18) return;
     const data = routeFocusData(roomIndex);
@@ -7976,7 +7972,7 @@
     if (roomIntroTimer <= 0) return;
     if (chapterTransitionTimer > 0) return;
     if (!started || (overlay && !overlay.classList.contains("hidden"))) return;
-    if (gameTipVisible("onboarding") || gameTipVisible("death")) return;
+    if (gameTipVisible("death")) return;
     const t = roomIntroTimer / ROOM_INTRO_TIME;
     const introAlpha = Math.min(1, t * 2.4);
     const introTarget = ROOM_TARGETS[roomIndex] || 0;
@@ -8375,7 +8371,7 @@
 
   function drawActiveChallengeHud(time) {
     if (!activeChallenge || activeDrill || won || player.deadTimer > 0) return;
-    if (roomIntroTimer > 0.25 || gameTipVisible("onboarding") || gameTipVisible("death")) return;
+    if (roomIntroTimer > 0.25 || gameTipVisible("death")) return;
     const state = activeChallengeState();
     if (!state) return;
     const compact = isCompactCanvas();

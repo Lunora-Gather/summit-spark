@@ -2982,7 +2982,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       const rect = el.getBoundingClientRect();
       return { width: rect.width, scrollWidth: el.scrollWidth, height: rect.height };
     });
-    const roomItems = [...document.querySelectorAll("#roomSelect, #roomBrief, .drill-variants, .settings-group-room .coach-row")].map((el) => {
+    const roomItems = [...document.querySelectorAll("#roomSelect, #roomBrief, .drill-variants, #practiceLaunchDock")].map((el) => {
       const rect = el.getBoundingClientRect();
       return { id: el.id || el.className, left: rect.left, right: rect.right, width: rect.width, scrollWidth: el.scrollWidth };
     });

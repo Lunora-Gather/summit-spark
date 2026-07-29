@@ -333,15 +333,6 @@ canvas:focus {
   background: linear-gradient(90deg, var(--cyan), var(--gold));
 }
 
-.game-tip.onboarding {
-  border-color: rgba(247, 198, 93, 0.48);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28), 0 0 20px rgba(247, 198, 93, 0.12);
-}
-
-.game-tip.onboarding strong {
-  color: #fff0a8;
-}
-
 .game-tip.death {
   border-color: rgba(255, 101, 125, 0.46);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28), 0 0 20px rgba(255, 101, 125, 0.12);

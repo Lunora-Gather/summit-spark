@@ -284,7 +284,7 @@ function sleep(ms) {
 
 function virtualKeyCode(code, key) {
   if (key && key.length === 1) return key.toUpperCase().charCodeAt(0);
-  const named = { Enter: 13, Escape: 27, Tab: 9, F3: 114, Space: 32 };
+  const named = { Enter: 13, Escape: 27, Tab: 9, F3: 114, Space: 32, Shift: 16 };
   return named[key] || named[code] || 0;
 }
 
@@ -1484,6 +1484,63 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     || lateJump.y >= lateStart.y - 3
     || lateJump.vy >= -20) {
     errors.push("chapter transition should preserve a Jump pressed inside the final normal buffer window: " + JSON.stringify({ lateStart, lateWindow, lateJump }));
+  }
+}
+
+async function runGroundRechargeSmoke(cdp, baseUrl) {
+  await navigateApp(cdp, baseUrl, "ground recharge seed");
+  await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    saved.assistMode = "off";
+    saved.controlsPreset = "classic";
+    saved.keyboardLayout = "pc";
+    localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
+  })()`);
+  await navigateApp(cdp, baseUrl, "ground recharge");
+  await clickSelector(cdp, "#startButton");
+  await waitUntil("ground recharge run starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden") && /游戏开始/.test(document.querySelector("#gameStatus").textContent)`));
+  await enableDebugPanel(cdp);
+  const ready = await waitUntil("ground recharge begins from stable full dash", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const recharge = text.match(/recharge ([\\d.]+)/);
+    return /ground 1/.test(text) && /dash 1/.test(text) && recharge && Number(recharge[1]) === 0
+      ? { text, status: document.querySelector("#gameStatus").textContent }
+      : null;
+  })()`), 2500);
+  await keyHold(cdp, "KeyX", "x", 80);
+  const active = await waitUntil("ground dash emits one recharge pulse", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const recharge = text.match(/recharge ([\\d.]+)/);
+    const dash = text.match(/dash (\\d+)/);
+    if (!recharge || !dash || Number(recharge[1]) <= 0.05 || Number(dash[1]) !== 1) return null;
+    return {
+      recharge: Number(recharge[1]),
+      dash: Number(dash[1]),
+      aria: document.querySelector(".dash-meter")?.getAttribute("aria-valuenow") || "",
+      status: document.querySelector("#gameStatus").textContent,
+      text
+    };
+  })()`), 2500, 20);
+  const settled = await waitUntil("ground recharge pulse expires", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const recharge = text.match(/recharge ([\\d.]+)/);
+    if (!recharge || Number(recharge[1]) !== 0 || !/dash 1/.test(text) || !/ground 1/.test(text)) return null;
+    return { recharge: Number(recharge[1]), status: document.querySelector("#gameStatus").textContent, text };
+  })()`), 1800, 20);
+  await sleep(320);
+  const noRepeat = await evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const recharge = text.match(/recharge ([\\d.]+)/);
+    return { recharge: recharge ? Number(recharge[1]) : -1, dash: /dash 1/.test(text), status: document.querySelector("#gameStatus").textContent, text };
+  })()`);
+  if (active.aria !== "1"
+    || !/R1 计时开始/.test(active.status)
+    || settled.status !== active.status
+    || noRepeat.status !== active.status
+    || settled.recharge !== 0
+    || noRepeat.recharge !== 0
+    || !noRepeat.dash) {
+    errors.push("ground dash recharge should emit one foot-only pulse, restore the meter, expire and stay quiet while full: " + JSON.stringify({ ready, active, settled, noRepeat }));
   }
 }
 
@@ -4003,6 +4060,7 @@ async function main() {
 
     await runDesktopSmoke(cdp, baseUrl);
     await runChapterTransitionInputSmoke(cdp, baseUrl);
+    await runGroundRechargeSmoke(cdp, baseUrl);
     await runKeyboardSettingsSmoke(cdp, baseUrl);
     await runAssistModeSmoke(cdp, baseUrl);
     await runResumeSmoke(cdp, baseUrl);
@@ -4039,7 +4097,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, one-shot hair-independent ground dash recharge, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

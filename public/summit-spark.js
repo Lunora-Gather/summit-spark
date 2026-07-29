@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p236"),
-    import("./modules/core/math.mjs?v=20260729-p236"),
-    import("./modules/game/room-data.mjs?v=20260729-p236"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p236"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p236"),
-    import("./modules/systems/storage.mjs?v=20260729-p236"),
-    import("./modules/systems/input.mjs?v=20260729-p236"),
-    import("./modules/training/state.mjs?v=20260729-p236"),
-    import("./modules/training/replay.mjs?v=20260729-p236"),
-    import("./modules/ui/presentation.mjs?v=20260729-p236")
+    import("./modules/core/format.mjs?v=20260729-p237"),
+    import("./modules/core/math.mjs?v=20260729-p237"),
+    import("./modules/game/room-data.mjs?v=20260729-p237"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p237"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p237"),
+    import("./modules/systems/storage.mjs?v=20260729-p237"),
+    import("./modules/systems/input.mjs?v=20260729-p237"),
+    import("./modules/training/state.mjs?v=20260729-p237"),
+    import("./modules/training/replay.mjs?v=20260729-p237"),
+    import("./modules/ui/presentation.mjs?v=20260729-p237")
   ]);
 
   const canvas = document.getElementById("game");
@@ -774,6 +774,7 @@
     relay: 0,
     prism: 0,
     spring: 0,
+    recharge: 0,
     recall: 0,
     spawn: 0,
     death: 0
@@ -2005,7 +2006,7 @@
 
     if (player.onGround || player.wasGrounded) {
       player.stamina = MAX_STAMINA;
-      restoreDashCharge();
+      restoreGroundDashCharge();
       player.sparkHopTimer = 0;
       player.wallCoyote = 0;
       player.wallCoyoteDir = 0;
@@ -2264,12 +2265,18 @@
   }
 
   function restoreDashCharge() {
+    const before = player.dashes;
     if (assistActive()) {
       player.dashes = 2;
       player.lumenReserve = true;
-      return;
+      return player.dashes > before;
     }
     player.dashes = player.lumenReserve ? 2 : 1;
+    return player.dashes > before;
+  }
+
+  function restoreGroundDashCharge() {
+    if (restoreDashCharge()) triggerActionVisual("recharge", 0.26);
   }
 
   function playerNeedsRefill() {
@@ -2837,7 +2844,7 @@
           if (step > 0) {
             player.onGround = true;
             player.stamina = MAX_STAMINA;
-            restoreDashCharge();
+            restoreGroundDashCharge();
           }
           player.vy = 0;
         }
@@ -10087,6 +10094,7 @@
     const relay = visualRatio("relay", 0.34);
     const prism = visualRatio("prism", 0.42);
     const spring = visualRatio("spring", 0.24);
+    const recharge = visualRatio("recharge", 0.26);
     const recall = visualRatio("recall", 0.34);
     const death = visualRatio("death", 0.28);
     const land = visualRatio("land", 0.18);
@@ -10100,6 +10108,28 @@
       ctx.beginPath();
       ctx.ellipse(cx, player.y + player.h + 3, 18 + land * 10, 4 + land * 2, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    }
+
+    if (recharge > 0) {
+      const expansion = prefersReducedMotion ? 0 : 1 - recharge;
+      const radius = (settings.calmEffects ? 9 : 10) + expansion * (settings.calmEffects ? 7 : 11);
+      ctx.save();
+      ctx.globalAlpha = recharge * (settings.calmEffects ? 0.34 : 0.5);
+      ctx.strokeStyle = palette.cyan;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = palette.cyan;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 2 : 7);
+      ctx.beginPath();
+      ctx.ellipse(cx, player.y + player.h + 1.5, radius, radius * 0.28, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha *= 0.72;
+      ctx.beginPath();
+      ctx.moveTo(cx - radius * 0.55, player.y + player.h - 1);
+      ctx.lineTo(cx - radius * 0.3, player.y + player.h - 5 - recharge * 2);
+      ctx.moveTo(cx + radius * 0.55, player.y + player.h - 1);
+      ctx.lineTo(cx + radius * 0.3, player.y + player.h - 5 - recharge * 2);
+      ctx.stroke();
       ctx.restore();
     }
 
@@ -10638,7 +10668,7 @@
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}  wc ${player.wallCoyote.toFixed(3)}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${chapterTransitionTimer.toFixed(3)}`,
-      `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}`,
+      `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}  recharge ${visualRatio("recharge", 0.26).toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,
       `tip ${gameTipKind || "none"} ${gameTipTimer.toFixed(2)}`,

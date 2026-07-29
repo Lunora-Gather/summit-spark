@@ -288,6 +288,15 @@ if (!runtimeSource.includes("function emitSurfaceWallContact(")
   || runtimeSource.includes("addSnow(player.x + (player.wallDir > 0 ? player.w : 0)")) {
   fail("runtime wall contact feedback should reuse the active surface identity and move away from the touched wall");
 }
+if (!runtimeSource.includes("function restoreGroundDashCharge()")
+  || (runtimeSource.match(/restoreGroundDashCharge\(\);/g) || []).length < 2
+  || !runtimeSource.includes('if (restoreDashCharge()) triggerActionVisual("recharge", 0.26);')
+  || !runtimeSource.includes('const recharge = visualRatio("recharge", 0.26);')
+  || !runtimeSource.includes("ctx.ellipse(cx, player.y + player.h + 1.5")
+  || runtimeSource.includes("hairColor = player.dashes")
+  || runtimeSource.includes("hairColor = recharge")) {
+  fail("ground dash recharge should use a foot-level pulse while the climber hair remains state-independent");
+}
 for (const trigger of [
   'showMechanicFirstTouchCue("relay")',
   'showMechanicFirstTouchCue("spring")',

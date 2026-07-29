@@ -44,6 +44,33 @@ export function chapterGrade(percent) {
   return "D";
 }
 
+export function chapterTransitionResultData(input = {}) {
+  const roomIndexes = Array.isArray(input.roomIndexes) ? input.roomIndexes : [];
+  const roomTimes = Array.isArray(input.roomTimes) ? input.roomTimes : [];
+  const roomMistakes = Array.isArray(input.roomMistakes) ? input.roomMistakes : [];
+  const seen = new Set();
+  const indexes = roomIndexes.filter((index) => {
+    if (!Number.isInteger(index) || index < 0 || seen.has(index)) return false;
+    seen.add(index);
+    return true;
+  });
+  if (!indexes.length) return null;
+  const seconds = indexes.reduce((sum, index) => sum + nonNegativeNumber(roomTimes[index]), 0);
+  const mistakes = indexes.reduce((sum, index) => sum + Math.floor(nonNegativeNumber(roomMistakes[index])), 0);
+  const visited = indexes.filter((index) => nonNegativeNumber(roomTimes[index]) > 0).length;
+  if (!visited) return null;
+  const roomCount = indexes.length;
+  const complete = visited === roomCount;
+  return {
+    seconds,
+    mistakes,
+    visited,
+    roomCount,
+    complete,
+    clean: complete && mistakes === 0
+  };
+}
+
 export function roomSplitFeedbackData(input = {}) {
   const elapsed = finiteNumber(input.elapsed);
   if (!(elapsed > 0)) return null;

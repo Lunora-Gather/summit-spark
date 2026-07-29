@@ -141,21 +141,22 @@
     {
       chapterCompletionData: chapterCompletionModelData,
       chapterGrade,
+      chapterTransitionResultData,
       rankPracticeLedgerRowsData,
       roomSplitFeedbackData,
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p207"),
-    import("./modules/core/math.mjs?v=20260729-p207"),
-    import("./modules/game/room-data.mjs?v=20260729-p207"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p207"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p207"),
-    import("./modules/systems/storage.mjs?v=20260729-p207"),
-    import("./modules/systems/input.mjs?v=20260729-p207"),
-    import("./modules/training/state.mjs?v=20260729-p207"),
-    import("./modules/training/replay.mjs?v=20260729-p207"),
-    import("./modules/ui/presentation.mjs?v=20260729-p207")
+    import("./modules/core/format.mjs?v=20260729-p208"),
+    import("./modules/core/math.mjs?v=20260729-p208"),
+    import("./modules/game/room-data.mjs?v=20260729-p208"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p208"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p208"),
+    import("./modules/systems/storage.mjs?v=20260729-p208"),
+    import("./modules/systems/input.mjs?v=20260729-p208"),
+    import("./modules/training/state.mjs?v=20260729-p208"),
+    import("./modules/training/replay.mjs?v=20260729-p208"),
+    import("./modules/ui/presentation.mjs?v=20260729-p208")
   ]);
 
   const canvas = document.getElementById("game");
@@ -736,6 +737,7 @@
   let chapterTransitionTimer = 0;
   let chapterTransitionChapter = 0;
   let chapterTransitionFromChapter = -1;
+  let chapterTransitionFromResult = null;
   let activeDrill = null;
   let activeChallenge = null;
   let activeRouteContract = null;
@@ -1838,6 +1840,7 @@
     roomTime = 0;
     chapterTransitionTimer = 0;
     chapterTransitionFromChapter = -1;
+    chapterTransitionFromResult = null;
     clearAmbientVoices();
     ambientStep = 0;
     ambientNextTime = audioContext?.currentTime || 0;
@@ -1905,6 +1908,7 @@
     roomTime = 0;
     chapterTransitionTimer = 0;
     chapterTransitionFromChapter = -1;
+    chapterTransitionFromResult = null;
     clearAmbientVoices();
     ambientStep = 0;
     ambientNextTime = audioContext?.currentTime || 0;
@@ -2966,6 +2970,9 @@
     chapterTransitionFromChapter = Number.isInteger(fromChapter) && fromChapter !== chapterTransitionChapter
       ? fromChapter
       : -1;
+    chapterTransitionFromResult = chapterTransitionFromChapter >= 0
+      ? chapterResultForTransition(chapterTransitionFromChapter)
+      : null;
     chapterTransitionTimer = prefersReducedMotion
       ? chapterTransitionFromChapter >= 0 ? 1.2 : 0.9
       : CHAPTER_TRANSITION_TIME;
@@ -2980,6 +2987,25 @@
     const toChapter = chapterIndexForRoom(toRoom);
     if (toChapter === fromChapter) return;
     beginChapterEntry(toRoom, fromChapter);
+  }
+
+  function chapterResultForTransition(chapterIndex) {
+    const roomIndexes = maps
+      .map((_, index) => index)
+      .filter((index) => chapterIndexForRoom(index) === chapterIndex);
+    return chapterTransitionResultData({
+      roomIndexes,
+      roomTimes: runRoomTimes,
+      roomMistakes
+    });
+  }
+
+  function chapterTransitionResultText(result) {
+    if (!result) return "章节收束";
+    const assist = runUsedAssist ? "辅助 · " : "";
+    const coverage = result.complete ? "" : `${result.visited}/${result.roomCount} 房 · `;
+    const mistakes = result.mistakes > 0 ? `失误 ${result.mistakes}` : result.clean ? "无失误" : "失误 0";
+    return `${assist}${coverage}${formatTime(result.seconds)} · ${mistakes}`;
   }
 
   function resolveRoomTransition() {
@@ -8111,7 +8137,7 @@
       drawChapterTransitionCopy({
         title: `${previousChapter.title} · 已越`,
         detail: previousChapter.resolve,
-        focus: "章节收束",
+        focus: chapterTransitionResultText(chapterTransitionFromResult),
         alpha: previousAlpha,
         centerY,
         drift: -drift * 0.35,
@@ -8149,7 +8175,7 @@
     ctx.fillStyle = `${atmosphere.rim}d8`;
     ctx.font = `700 ${compact ? 9 : 10}px system-ui, sans-serif`;
     ctx.letterSpacing = "0.12em";
-    ctx.fillText(focus, W / 2, centerY + 39);
+    ctx.fillText(fitText(focus, compact ? 260 : 360), W / 2, centerY + 39);
     ctx.restore();
   }
 

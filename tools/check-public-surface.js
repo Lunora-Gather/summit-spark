@@ -308,8 +308,11 @@ if (!runtimeSource.includes("Number.isFinite(soundCooldowns[name])")) {
 }
 if (!roomDataSource.includes('resolve: "断开的旧路，被你重新连起。"')
   || !runtimeSource.includes("let chapterTransitionFromChapter = -1")
+  || !runtimeSource.includes("let chapterTransitionFromResult = null")
+  || !runtimeSource.includes("chapterResultForTransition(chapterTransitionFromChapter)")
+  || !runtimeSource.includes("chapterTransitionResultText(chapterTransitionFromResult)")
   || !runtimeSource.includes("drawChapterTransitionCopy({")
-  || !runtimeSource.includes('focus: "章节收束"')) {
+  || !uiPresentationSource.includes("export function chapterTransitionResultData(")) {
   fail("chapter transitions must close the previous act before presenting the next act");
 }
 for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_REQUIREMENTS", "maps", "ROOM_ATMOSPHERES", "ROOM_LANDMARKS", "CHAPTER_SURFACE_KINDS"]) {
@@ -410,6 +413,7 @@ for (const delegation of [
 if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterCompletionData(")
   || !uiPresentationSource.includes("export function chapterGrade(")
+  || !uiPresentationSource.includes("export function chapterTransitionResultData(")
   || !uiPresentationSource.includes("export function roomSplitFeedbackData(")
   || !uiPresentationSource.includes("export function roomReviewPriorityData(")
   || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")) {
@@ -417,6 +421,7 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
 }
 for (const delegation of [
   "return chapterCompletionModelData({",
+  "return chapterTransitionResultData({",
   "const result = roomSplitFeedbackData({",
   "return roomReviewPriorityData({",
   "return rankPracticeLedgerRowsData(maps.map("

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   chapterCompletionData,
   chapterGrade,
+  chapterTransitionResultData,
   rankPracticeLedgerRowsData,
   roomSplitFeedbackData,
   roomReviewPriorityData
@@ -52,6 +53,48 @@ assert.equal(chapterGrade(62), "A");
 assert.equal(chapterGrade(78), "S");
 assert.equal(chapterGrade(92), "SS");
 assert.equal(chapterGrade(Number.NaN), "D");
+
+assert.deepEqual(chapterTransitionResultData({
+  roomIndexes: [0, 1, 2],
+  roomTimes: [8, 9.5, 10],
+  roomMistakes: [0, 0, 0]
+}), {
+  seconds: 27.5,
+  mistakes: 0,
+  visited: 3,
+  roomCount: 3,
+  complete: true,
+  clean: true
+});
+assert.deepEqual(chapterTransitionResultData({
+  roomIndexes: [3, 4, 5],
+  roomTimes: [0, 0, 0, 14, 18, 20],
+  roomMistakes: [0, 0, 0, 1, 2, 0]
+}), {
+  seconds: 52,
+  mistakes: 3,
+  visited: 3,
+  roomCount: 3,
+  complete: true,
+  clean: false
+});
+assert.deepEqual(chapterTransitionResultData({
+  roomIndexes: [6, 7, 7, -1, 1.5],
+  roomTimes: [0, 0, 0, 0, 0, 0, 21, 0],
+  roomMistakes: [0, 0, 0, 0, 0, 0, 1, 0]
+}), {
+  seconds: 21,
+  mistakes: 1,
+  visited: 1,
+  roomCount: 2,
+  complete: false,
+  clean: false
+});
+assert.equal(chapterTransitionResultData({
+  roomIndexes: [8, 9],
+  roomTimes: []
+}), null);
+assert.equal(chapterTransitionResultData({ roomIndexes: ["0", -1] }), null);
 
 assert.equal(roomSplitFeedbackData({ elapsed: 0 }), null);
 assert.equal(roomSplitFeedbackData({ elapsed: Number.NaN }), null);
@@ -161,4 +204,4 @@ assert.notEqual(rankedRows[0], sourceRows[1], "presentation ranking must not exp
 assert.deepEqual(sourceRows.map((row) => row.index), [0, 1, 2], "presentation ranking must not reorder caller data");
 assert.deepEqual(rankPracticeLedgerRowsData(null), []);
 
-console.log("UI presentation check passed: chapter completion/grades, room split feedback and practice priority ranking preserved.");
+console.log("UI presentation check passed: chapter completion/grades, transition results, room split feedback and practice priority ranking preserved.");

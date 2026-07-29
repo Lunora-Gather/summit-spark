@@ -66,6 +66,7 @@ else {
     if (room.length !== rows) errors.push("room " + (roomIndex + 1) + " has " + room.length + " rows, expected " + rows);
     let pressure = 0;
     let crumbleCount = 0;
+    let entryAnchorCount = 0;
     if (roomIndex > 0 && !hasLeftGap(room)) errors.push("room " + (roomIndex + 1) + " has no left entry gap");
     if (roomIndex < maps.length - 1 && !hasRightGap(room)) errors.push("room " + (roomIndex + 1) + " has no right exit gap");
     room.forEach((line, y) => {
@@ -84,9 +85,13 @@ else {
         if (tile === "C") crumbleCount += 1;
         if (tile === "M" || tile === "T") pressure += 2;
         if (tile === "S") startCount += 1;
+        if (tile === "S" || tile === "P") entryAnchorCount += 1;
         if (tile === "H") goalCount += 1;
       });
     });
+    if (entryAnchorCount !== 1) {
+      errors.push("room " + (roomIndex + 1) + " should have exactly one S/P entry anchor, found " + entryAnchorCount);
+    }
     pressureScores[roomIndex] = pressure;
     crumbleRooms[roomIndex] = crumbleCount;
     landingRuns[roomIndex] = countLandingRuns(room);
@@ -265,4 +270,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Map check passed: " + maps.length + " rooms, " + cols + "x" + rows + ", " + targets.length + " targets, pressure " + pressureScores.join("/") + ", crumble " + crumbleRooms.join("/") + ", landings " + landingRuns.join("/") + ".");
+console.log("Map check passed: " + maps.length + " rooms, " + cols + "x" + rows + ", " + targets.length + " targets, one entry anchor per room, pressure " + pressureScores.join("/") + ", crumble " + crumbleRooms.join("/") + ", landings " + landingRuns.join("/") + ".");

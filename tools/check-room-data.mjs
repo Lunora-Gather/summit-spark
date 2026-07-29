@@ -57,6 +57,10 @@ maps.forEach((room) => {
   assert.ok(Object.isFrozen(room), "nested room rows should be read-only");
   room.forEach((row) => assert.equal(row.length, 30, "every room row should have 30 columns"));
 });
+maps.forEach((room, index) => {
+  const entryAnchors = room.join("").split("").filter((tile) => tile === "S" || tile === "P").length;
+  assert.equal(entryAnchors, 1, `room ${index + 1} should own exactly one entry anchor`);
+});
 assert.equal(CHAPTER_EXPERIENCE.length, 4, "chapter copy should cover four acts");
 assert.deepEqual(CHAPTER_SURFACE_KINDS, ["gate-slate", "old-peak", "wind-cut", "star-etched"], "four acts should own distinct platform materials");
 assert.equal(new Set(CHAPTER_SURFACE_KINDS).size, CHAPTER_EXPERIENCE.length, "chapter platform materials should remain distinct");
@@ -99,9 +103,11 @@ assert.equal(mechanicFirstTouchCueData("unknown"), null, "unknown mechanic cues 
 assert.equal(mechanicFirstTouchCueData("__proto__"), null, "prototype-named mechanic cues should fail closed");
 assert.equal(ROOM_NAMES[0], "起势山门");
 assert.equal(ROOM_NAMES.at(-1), "星顶终线");
+assert.equal(maps[6][15][2], "P", "Wind Gorge should start from a grounded checkpoint");
+assert.equal(maps[6][16].slice(0, 5), "#####", "Wind Gorge checkpoint should keep broad stable support");
 assert.ok(maps.at(-1).some((row) => row.includes("H")), "the summit goal should remain in the final room");
 assert.throws(() => {
   maps[0][0] = "";
 }, TypeError, "room maps should reject mutation at runtime");
 
-console.log("Room data module check passed: 10 immutable rooms, 4 chapters and aligned contracts.");
+console.log("Room data module check passed: 10 immutable rooms, one entry anchor per room, 4 chapters and aligned contracts.");

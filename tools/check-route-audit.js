@@ -96,8 +96,12 @@ if (maps[1]?.[8]?.[2] !== "P" || maps[1]?.[8]?.[10] !== "A" || maps[1]?.[9]?.sli
 if (maps[2]?.[10]?.[23] !== "T" || maps[2]?.[11]?.[23] !== "#") {
   errors.push("R3 should teach its first spring from stable ground before the route combines height decisions");
 }
-if (maps[6]?.[8]?.slice(5, 8) !== "CCC" || maps[6]?.[9]?.slice(5, 8) !== "###" || maps[6]?.[7]?.[7] !== "U") {
-  errors.push("R7 should keep a low-risk first crumble and updraft teaching pocket");
+if (maps[6]?.[15]?.[2] !== "P"
+  || maps[6]?.[16]?.slice(0, 5) !== "#####"
+  || maps[6]?.[8]?.slice(5, 8) !== "CCC"
+  || maps[6]?.[9]?.slice(5, 8) !== "###"
+  || maps[6]?.[7]?.[7] !== "U") {
+  errors.push("R7 should open from a grounded checkpoint before its low-risk first crumble and updraft teaching pocket");
 }
 if (maps[7]?.[3]?.[17] !== "B" || maps[7]?.[4]?.[17] !== "#") {
   errors.push("R8 should keep its first prism on stable ground before the exam combination");
@@ -193,5 +197,5 @@ if (errors.length > 0) {
 }
 
 const summary = pressureByRoom.map((value, index) => "R" + (index + 1) + ":" + value).join(" ");
-console.log("Route audit passed: ten-room readable route, R2/R3 safe opening mechanic pockets, R5 central-ridge switchback, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
+console.log("Route audit passed: ten-room readable route, R2/R3 safe opening mechanic pockets, R5 central-ridge switchback, grounded R7 chapter entry, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
 for (const warning of warnings) console.log("warn: " + warning);

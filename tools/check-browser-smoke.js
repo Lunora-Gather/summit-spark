@@ -1201,6 +1201,30 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await clickSelector(cdp, "#focusRoomButton");
   await waitUntil("selected room action starts R2 Drill", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R2/.test(document.querySelector("#gameStatus").textContent)`));
 
+  await navigateApp(cdp, baseUrl, "R7 grounded Practice entry");
+  await clickSelector(cdp, "#openTrainingButton");
+  await waitUntil("R7 practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(cdp, ".settings-group-room");
+  await evaluate(cdp, `(() => {
+    const select = document.querySelector("#roomSelect");
+    select.value = "6";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await clickSelector(cdp, "#focusRoomButton");
+  await waitUntil("selected room action starts R7 Drill", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R7/.test(document.querySelector("#gameStatus").textContent)`));
+  await keyTap(cdp, "F3", "F3");
+  const r7PracticeEntry = await waitUntil("R7 Practice uses its grounded checkpoint", () => evaluate(cdp, `(() => {
+    const debug = document.querySelector("#debugPanel").textContent;
+    const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    const ground = /ground 1/.test(debug);
+    if (!/room 7\\/10/.test(debug) || !position || !ground) return null;
+    return { x: Number(position[1]), y: Number(position[2]), ground };
+  })()`), 3500);
+  if (Math.abs(r7PracticeEntry.x - 70.5) > 1 || Math.abs(r7PracticeEntry.y - 487) > 1 || !r7PracticeEntry.ground) {
+    errors.push("direct R7 Practice should begin on the intended grounded Wind Gorge checkpoint: " + JSON.stringify(r7PracticeEntry));
+  }
+  await keyTap(cdp, "F3", "F3");
+
   await navigateApp(cdp, baseUrl, "first-run keyboard onboarding seed");
   await evaluate(cdp, `localStorage.clear()`);
   await navigateApp(cdp, baseUrl, "first-run keyboard onboarding clean");
@@ -3688,7 +3712,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, grounded R7 Practice entry, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

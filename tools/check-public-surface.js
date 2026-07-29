@@ -423,6 +423,16 @@ if (!runtimeSource.includes("drawActiveEchoMemory(anchor, time);")
   || runtimeSource.includes("hairColor = echoAnchor")) {
   fail("Echo readiness should stay local to the active anchor instead of drawing a room-spanning tether");
 }
+if (!runtimeSource.includes("drawSummitConstellation(time, atmosphere);")
+  || !runtimeSource.includes("function drawSummitConstellation(time, atmosphere)")
+  || !runtimeSource.includes("collected.size / totalLumens")
+  || !runtimeSource.includes("const segmentProgress = progress * (stars.length - 1);")
+  || !runtimeSource.includes("Math.max(0, Math.min(1, segmentProgress - i))")
+  || !runtimeSource.includes("if (progress <= 0)")
+  || !runtimeSource.includes("prefersReducedMotion ? 0")
+  || runtimeSource.includes("hairColor = collected.size")) {
+  fail("Star Summit's existing background constellation should respond continuously to current-run Lumens without recoloring the climber");
+}
 if (!runtimeSource.includes("Number.isFinite(soundCooldowns[name])")) {
   fail("sound cooldowns should suppress same-frame world feedback even at audio time zero");
 }

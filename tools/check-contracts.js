@@ -719,6 +719,16 @@ if (!js.includes("drawActiveEchoMemory(anchor, time);")
   || js.includes("ctx.lineTo(player.x + player.w / 2, player.y + player.h / 2);")) {
   errors.push("Echo readiness must stay as a bounded local anchor memory instead of a persistent room-spanning tether");
 }
+if (!js.includes("drawSummitConstellation(time, atmosphere);")
+  || !js.includes("function drawSummitConstellation(time, atmosphere)")
+  || !js.includes("collected.size / totalLumens")
+  || !js.includes("const segmentProgress = progress * (stars.length - 1);")
+  || !js.includes("Math.max(0, Math.min(1, segmentProgress - i))")
+  || !js.includes("if (progress <= 0)")
+  || !js.includes("prefersReducedMotion ? 0")
+  || !js.includes("lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8")) {
+  errors.push("Star Summit's existing constellation must continuously reflect current-run Lumen progress without becoming another UI counter");
+}
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length !== 2
   || (maps[5]?.join("").match(/T/g) || []).length !== 2

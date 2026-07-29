@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p240"),
-    import("./modules/core/math.mjs?v=20260729-p240"),
-    import("./modules/game/room-data.mjs?v=20260729-p240"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p240"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p240"),
-    import("./modules/systems/storage.mjs?v=20260729-p240"),
-    import("./modules/systems/input.mjs?v=20260729-p240"),
-    import("./modules/training/state.mjs?v=20260729-p240"),
-    import("./modules/training/replay.mjs?v=20260729-p240"),
-    import("./modules/ui/presentation.mjs?v=20260729-p240")
+    import("./modules/core/format.mjs?v=20260729-p241"),
+    import("./modules/core/math.mjs?v=20260729-p241"),
+    import("./modules/game/room-data.mjs?v=20260729-p241"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p241"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p241"),
+    import("./modules/systems/storage.mjs?v=20260729-p241"),
+    import("./modules/systems/input.mjs?v=20260729-p241"),
+    import("./modules/training/state.mjs?v=20260729-p241"),
+    import("./modules/training/replay.mjs?v=20260729-p241"),
+    import("./modules/ui/presentation.mjs?v=20260729-p241")
   ]);
 
   const canvas = document.getElementById("game");
@@ -8903,16 +8903,58 @@
       ctx.lineTo(domeX - 16, domeY - 108);
       ctx.closePath();
       ctx.fill();
-      const stars = [[118, 154], [184, 122], [250, 166], [326, 110], [392, 148]];
-      ctx.strokeStyle = atmosphere.rim;
-      ctx.beginPath();
-      stars.forEach(([x, y], index) => {
-        if (index === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      stars.forEach(([x, y], index) => ctx.fillRect(x - 2, y - 2, index === 3 ? 5 : 4, index === 3 ? 5 : 4));
+      drawSummitConstellation(time, atmosphere);
     }
+    ctx.restore();
+  }
+
+  function drawSummitConstellation(time, atmosphere) {
+    const stars = [[118, 154], [184, 122], [250, 166], [326, 110], [392, 148]];
+    const progress = totalLumens > 0 ? Math.max(0, Math.min(1, collected.size / totalLumens)) : 0;
+    const segmentProgress = progress * (stars.length - 1);
+    const breathe = prefersReducedMotion ? 0 : Math.sin(time * 2.2) * 0.025;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = atmosphere.haze;
+    ctx.fillStyle = atmosphere.haze;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = settings.lowPerformance ? 0.045 : settings.calmEffects ? 0.06 : 0.08;
+    ctx.beginPath();
+    stars.forEach(([x, y], index) => {
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+    });
+    ctx.stroke();
+
+    if (progress <= 0) {
+      ctx.restore();
+      return;
+    }
+    ctx.strokeStyle = atmosphere.rim;
+    ctx.fillStyle = atmosphere.rim;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = atmosphere.rim;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 1 : 6);
+    ctx.globalAlpha = (settings.calmEffects ? 0.14 : 0.2) + progress * 0.18 + breathe;
+    for (let i = 0; i < stars.length - 1; i += 1) {
+      const amount = Math.max(0, Math.min(1, segmentProgress - i));
+      if (amount <= 0) break;
+      const [fromX, fromY] = stars[i];
+      const [toX, toY] = stars[i + 1];
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(fromX + (toX - fromX) * amount, fromY + (toY - fromY) * amount);
+      ctx.stroke();
+    }
+    stars.forEach(([x, y], index) => {
+      const amount = Math.max(0, Math.min(1, progress * stars.length - index));
+      if (amount <= 0) return;
+      const size = 2 + amount * (index === 3 ? 3 : 2);
+      ctx.globalAlpha = (settings.calmEffects ? 0.16 : 0.24) + amount * 0.2 + breathe;
+      ctx.fillRect(x - size / 2, y - size / 2, size, size);
+    });
     ctx.restore();
   }
 
@@ -10796,7 +10838,7 @@
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  recall ${echoAnchor && echoAnchor.room === roomIndex && recallCooldown <= 0 && player.deadTimer <= 0 ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
-      `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}  surface ${surfaceFeedbackForRoom().kind}`,
+      `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
       `replay actions ${replayActionMarkersFor(bestRoomPaths[roomIndex]).length}  active ${practiceVisualsActive() ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,

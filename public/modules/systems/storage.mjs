@@ -238,6 +238,45 @@ export function normalizeRoomFocusData(raw, {
   });
 }
 
+export function hasMeaningfulSaveData(input = {}) {
+  const baselineSettings = input.baselineSettings && typeof input.baselineSettings === "object"
+    ? input.baselineSettings
+    : {};
+  const savedSettings = input.settings && typeof input.settings === "object"
+    ? input.settings
+    : baselineSettings;
+  if (JSON.stringify(savedSettings) !== JSON.stringify(baselineSettings)) return true;
+
+  const profile = input.profile && typeof input.profile === "object" ? input.profile : {};
+  const challengeWins = profile.challengeWins && typeof profile.challengeWins === "object"
+    ? profile.challengeWins
+    : {};
+  if (finiteNonNegativeInt(profile.summitClears) > 0
+    || profile.bestDeathCount !== null && profile.bestDeathCount !== undefined
+    || finiteNonNegativeInt(profile.bestRelayChain) > 0
+    || finiteNonNegativeNumber(profile.bestFlowPeak) > 0
+    || finiteNonNegativeNumber(profile.lastClearTime) > 0
+    || Boolean(profile.lastClearAt)
+    || Object.values(challengeWins).some((value) => value === true)) return true;
+
+  const roomBests = Array.isArray(input.roomBests) ? input.roomBests : [];
+  if (roomBests.some((value) => finiteNonNegativeNumber(value) > 0)) return true;
+  const roomPaths = Array.isArray(input.roomPaths) ? input.roomPaths : [];
+  if (roomPaths.some((path) => Array.isArray(path) && path.length > 0)) return true;
+  const roomFocus = Array.isArray(input.roomFocus) ? input.roomFocus : [];
+  if (roomFocus.some((entry) => {
+    if (!entry || typeof entry !== "object") return false;
+    if (entry.last && entry.last !== "none") return true;
+    return Object.entries(entry).some(([key, value]) => (
+      key !== "schemaVersion"
+      && key !== "last"
+      && finiteNonNegativeNumber(value) > 0
+    ));
+  })) return true;
+  return finiteNonNegativeNumber(input.bestTime) > 0
+    || finiteNonNegativeNumber(input.bestFlow) > 0;
+}
+
 export function parseSaveArchiveText(text, { maxChars, kind }) {
   if (text.length > maxChars) throw new Error("导入内容过大");
   let parsed;

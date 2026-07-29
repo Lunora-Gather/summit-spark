@@ -11,6 +11,7 @@ import {
   createSaveBackupData,
   finiteNonNegativeInt,
   finiteNonNegativeNumber,
+  hasMeaningfulSaveData,
   normalizeProfileData,
   normalizeRoomBestsData,
   normalizeRoomFocusData,
@@ -189,6 +190,43 @@ assert.equal(focus[0].fall, 7);
 assert.equal(focus[0].last, "fall");
 assert.equal(focus[1].last, "none");
 
+const emptySaveData = {
+  settings: defaultSettings,
+  baselineSettings: defaultSettings,
+  profile: createProfileData(2),
+  roomBests: [0, 0],
+  roomPaths: [[], []],
+  roomFocus: [
+    createRoomFocusEntryData(2, deathKeys),
+    createRoomFocusEntryData(2, deathKeys)
+  ],
+  bestTime: 0,
+  bestFlow: 0
+};
+assert.equal(hasMeaningfulSaveData(emptySaveData), false, "a normalized default archive should not block the first cloud download");
+for (const [label, patch] of [
+  ["custom setting", { settings: { ...defaultSettings, touchSize: 64 } }],
+  ["summit profile", { profile: { ...createProfileData(2), summitClears: 1 } }],
+  ["challenge win", { profile: { ...createProfileData(2), challengeWins: { clear: true } } }],
+  ["room PB", { roomBests: [0, 9.5] }],
+  ["room path", { roomPaths: [[], [{ x: 20, y: 30 }]] }],
+  ["failed Drill", { roomFocus: [{ ...createRoomFocusEntryData(2, deathKeys), paceDrills: 1 }] }],
+  ["death reason", { roomFocus: [{ ...createRoomFocusEntryData(2, deathKeys), fall: 1, last: "fall" }] }],
+  ["summit time", { bestTime: 88 }],
+  ["Flow best", { bestFlow: 42 }]
+]) {
+  assert.equal(hasMeaningfulSaveData({ ...emptySaveData, ...patch }), true, `${label} should require an explicit cloud-conflict choice`);
+}
+assert.equal(hasMeaningfulSaveData({
+  baselineSettings: defaultSettings,
+  profile: { challengeWins: { clear: false } },
+  roomBests: "bad",
+  roomPaths: {},
+  roomFocus: null,
+  bestTime: Number.NaN,
+  bestFlow: -1
+}), false, "malformed or false progress fields must fail closed");
+
 assert.throws(
   () => parseSaveArchiveText("{", { maxChars: 100, kind: "summit-spark-save" }),
   /不是有效 JSON/
@@ -338,4 +376,4 @@ assert.equal(failingStorage.getItem("a"), "old");
 assert.equal(failingStorage.getItem("b"), null);
 assert.equal(failingStorage.getItem("c"), "keep");
 
-console.log("Storage module check passed: settings, repair, archive/backup, bounds, legacy focus and exact rollback.");
+console.log("Storage module check passed: settings, meaningful-progress conflict protection, repair, archive/backup, bounds, legacy focus and exact rollback.");

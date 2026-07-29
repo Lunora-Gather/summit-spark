@@ -63,6 +63,7 @@
       createSaveArchiveData,
       createSaveBackupData,
       finiteNonNegativeNumber,
+      hasMeaningfulSaveData,
       normalizeProfileData,
       normalizeRoomBestsData,
       normalizeRoomFocusData,
@@ -148,16 +149,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p220"),
-    import("./modules/core/math.mjs?v=20260729-p220"),
-    import("./modules/game/room-data.mjs?v=20260729-p220"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p220"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p220"),
-    import("./modules/systems/storage.mjs?v=20260729-p220"),
-    import("./modules/systems/input.mjs?v=20260729-p220"),
-    import("./modules/training/state.mjs?v=20260729-p220"),
-    import("./modules/training/replay.mjs?v=20260729-p220"),
-    import("./modules/ui/presentation.mjs?v=20260729-p220")
+    import("./modules/core/format.mjs?v=20260729-p221"),
+    import("./modules/core/math.mjs?v=20260729-p221"),
+    import("./modules/game/room-data.mjs?v=20260729-p221"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p221"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p221"),
+    import("./modules/systems/storage.mjs?v=20260729-p221"),
+    import("./modules/systems/input.mjs?v=20260729-p221"),
+    import("./modules/training/state.mjs?v=20260729-p221"),
+    import("./modules/training/replay.mjs?v=20260729-p221"),
+    import("./modules/ui/presentation.mjs?v=20260729-p221")
   ]);
 
   const canvas = document.getElementById("game");
@@ -5858,7 +5859,7 @@
       setAccountStatus("本地与云端进度一致", "valid");
       return;
     }
-    if (!hasMeaningfulLocalProgress() && hasMeaningfulNormalizedProgress(remote)) {
+    if (!hasMeaningfulLocalProgress() && meaningfulSaveData(remote)) {
       await downloadCloudSave();
       return;
     }
@@ -5866,48 +5867,18 @@
     setAccountStatus("请选择“使用云端”或“上传本地”，确认后将自动同步");
   }
 
-  function hasMeaningfulSettings(value) {
+  function meaningfulSaveData(value) {
     const defaults = defaultSettings();
-    const normalized = normalizeSettings(value, defaults);
-    const baseline = normalizeSettings({}, defaults);
-    return JSON.stringify(normalized) !== JSON.stringify(baseline);
-  }
-
-  function hasMeaningfulProfile(value) {
-    const candidate = normalizeProfile(value);
-    return candidate.summitClears > 0
-      || candidate.bestDeathCount !== null
-      || candidate.bestRelayChain > 0
-      || candidate.bestFlowPeak > 0
-      || candidate.lastClearTime > 0
-      || Boolean(candidate.lastClearAt)
-      || Object.keys(candidate.challengeWins).length > 0;
-  }
-
-  function hasMeaningfulRoomFocus(entries) {
-    return entries.some((entry) => {
-      if (!entry || typeof entry !== "object") return false;
-      if (entry.last && entry.last !== "none") return true;
-      return Object.entries(entry).some(([key, value]) => key !== "schemaVersion" && key !== "last" && Number(value) > 0);
+    return hasMeaningfulSaveData({
+      ...value,
+      settings: normalizeSettings(value?.settings, defaults),
+      baselineSettings: normalizeSettings({}, defaults),
+      profile: normalizeProfile(value?.profile)
     });
   }
 
-  function hasMeaningfulRoomPaths(paths) {
-    return paths.some((path) => Array.isArray(path) && path.length > 0);
-  }
-
-  function hasMeaningfulSaveData({ settings: savedSettings, profile: savedProfile, roomBests, roomPaths, roomFocus: savedFocus, bestTime: savedBestTime, bestFlow: savedBestFlow }) {
-    return hasMeaningfulSettings(savedSettings)
-      || hasMeaningfulProfile(savedProfile)
-      || roomBests.some((value) => value > 0)
-      || hasMeaningfulRoomPaths(roomPaths)
-      || hasMeaningfulRoomFocus(savedFocus)
-      || savedBestTime > 0
-      || savedBestFlow > 0;
-  }
-
   function hasMeaningfulLocalProgress() {
-    return hasMeaningfulSaveData({
+    return meaningfulSaveData({
       settings,
       profile,
       roomBests: bestRoomTimes,
@@ -5916,10 +5887,6 @@
       bestTime: readBestTime(),
       bestFlow: readBestFlow()
     });
-  }
-
-  function hasMeaningfulNormalizedProgress(normalized) {
-    return hasMeaningfulSaveData(normalized);
   }
 
   function archiveFingerprint(archive) {

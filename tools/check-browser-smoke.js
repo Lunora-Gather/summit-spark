@@ -1240,11 +1240,55 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const debug = document.querySelector("#debugPanel").textContent;
     const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     const ground = /ground 1/.test(debug);
-    if (!/room 3\\/10/.test(debug) || !position || !ground) return null;
-    return { x: Number(position[1]), y: Number(position[2]), ground };
+    const flow = debug.match(/flow (\\d+)/);
+    const dash = debug.match(/dash (\\d+)/);
+    if (!/room 3\\/10/.test(debug) || !position || !ground || !flow || !dash) return null;
+    return { x: Number(position[1]), y: Number(position[2]), ground, flow: Number(flow[1]), dash: Number(dash[1]) };
   })()`), 3500);
-  if (Math.abs(r3PracticeEntry.x - 70.5) > 1 || Math.abs(r3PracticeEntry.y - 167) > 1 || !r3PracticeEntry.ground) {
+  if (Math.abs(r3PracticeEntry.x - 70.5) > 1
+    || Math.abs(r3PracticeEntry.y - 167) > 1
+    || !r3PracticeEntry.ground
+    || r3PracticeEntry.flow !== 0
+    || r3PracticeEntry.dash !== 1) {
     errors.push("direct R3 Practice should begin on the full-route left Gate capstone checkpoint: " + JSON.stringify(r3PracticeEntry));
+  }
+  await keyHold(cdp, "ArrowRight", "ArrowRight", 420);
+  await sleep(120);
+  const fullResourceRefill = await evaluate(cdp, `(() => {
+    const debug = document.querySelector("#debugPanel").textContent;
+    const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    const flow = debug.match(/flow (\\d+)/);
+    const dash = debug.match(/dash (\\d+)/);
+    return position && flow && dash
+      ? { x: Number(position[1]), y: Number(position[2]), flow: Number(flow[1]), dash: Number(dash[1]), ground: /ground 1/.test(debug), debug }
+      : { debug };
+  })()`);
+  if (fullResourceRefill.flow !== 0
+    || fullResourceRefill.dash !== 1
+    || fullResourceRefill.x < 105
+    || fullResourceRefill.x > 185
+    || !fullResourceRefill.ground) {
+    errors.push("walking through a refill with full dash and stamina should neither consume it nor award passive Flow: " + JSON.stringify(fullResourceRefill));
+  }
+  await keyTap(cdp, "KeyR", "R");
+  await waitUntil("R3 quick retry returns to the authored checkpoint", () => evaluate(cdp, `(() => {
+    const debug = document.querySelector("#debugPanel").textContent;
+    const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    return position && Math.abs(Number(position[1]) - 70.5) < 1 && /dash 1/.test(debug) && /flow 0/.test(debug);
+  })()`), 2500);
+  await keyTap(cdp, "ShiftLeft", "Shift");
+  await sleep(600);
+  const spentResourceRefill = await evaluate(cdp, `(() => {
+    const debug = document.querySelector("#debugPanel").textContent;
+    const flow = debug.match(/flow (\\d+)/);
+    const dash = debug.match(/dash (\\d+)/);
+    const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    return flow && dash && position
+      ? { flow: Number(flow[1]), dash: Number(dash[1]), x: Number(position[1]), y: Number(position[2]), debug }
+      : { debug };
+  })()`);
+  if (spentResourceRefill.flow < 19 || spentResourceRefill.dash !== 1) {
+    errors.push("R3 refill should still restore and reward a genuinely spent dash: " + JSON.stringify(spentResourceRefill));
   }
   await keyTap(cdp, "F3", "F3");
 
@@ -3767,7 +3811,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

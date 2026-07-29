@@ -46,7 +46,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 | --- | --- | --- |
 | R1 | basic jump, dash, safe landing | First clear should not require menu knowledge. |
 | R2 | relay timing and recovery | Light relay should read as a reset, not a platform. |
-| R3 | full-route entry, offset two-spring capstone and late dash | Direct Practice and continuous play should both begin on the left recovery platform; both spring landings should be visible before committing. |
+| R3 | full-route entry, value-aware refill, offset two-spring capstone and late dash | Direct Practice and continuous play should both begin on the left recovery platform. Walking into the nearby refill at full dash/stamina must not consume it or award Flow; after spending a resource it should restore normally. Both spring landings should be visible before committing. |
 | R4 | relay chain under hazard pressure | Safe line and faster chain should both be understandable. |
 | R5 | foldback route memory | Wall Spark line should look optional, not mandatory. |
 | R6 | four-relay sequence plus two-stage spring exit rhythm | Four relay nodes should read as deliberate route beats before the two springs complete the Old Peak sentence, not as two unmentioned extras. |

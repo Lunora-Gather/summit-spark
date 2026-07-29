@@ -715,6 +715,11 @@ if (!js.includes('stage.classList.toggle("lumen-reserve"')) errors.push("lumen r
 if (!js.includes("function restoreDashCharge()") || !js.includes("dashes: player.lumenReserve ? 2 : 1")) {
   errors.push("lumen reserve should survive retry and every dash-refill path consistently");
 }
+if (!js.includes("function playerNeedsRefill()")
+  || !js.includes("player.dashes < dashCapacity || player.stamina < MAX_STAMINA - 0.001")
+  || !js.includes("refill.ready && playerNeedsRefill() && distRectPoint(")) {
+  errors.push("refills should consume and award Flow only when they restore dash or stamina");
+}
 if (!indexHtml.includes('aria-labelledby="panelTitle" aria-modal="true"')) {
   errors.push("settings and practice should expose dynamic dialog semantics");
 }

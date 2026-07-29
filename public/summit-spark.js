@@ -151,16 +151,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p225"),
-    import("./modules/core/math.mjs?v=20260729-p225"),
-    import("./modules/game/room-data.mjs?v=20260729-p225"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p225"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p225"),
-    import("./modules/systems/storage.mjs?v=20260729-p225"),
-    import("./modules/systems/input.mjs?v=20260729-p225"),
-    import("./modules/training/state.mjs?v=20260729-p225"),
-    import("./modules/training/replay.mjs?v=20260729-p225"),
-    import("./modules/ui/presentation.mjs?v=20260729-p225")
+    import("./modules/core/format.mjs?v=20260729-p226"),
+    import("./modules/core/math.mjs?v=20260729-p226"),
+    import("./modules/game/room-data.mjs?v=20260729-p226"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p226"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p226"),
+    import("./modules/systems/storage.mjs?v=20260729-p226"),
+    import("./modules/systems/input.mjs?v=20260729-p226"),
+    import("./modules/training/state.mjs?v=20260729-p226"),
+    import("./modules/training/replay.mjs?v=20260729-p226"),
+    import("./modules/ui/presentation.mjs?v=20260729-p226")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2242,6 +2242,11 @@
     player.dashes = player.lumenReserve ? 2 : 1;
   }
 
+  function playerNeedsRefill() {
+    const dashCapacity = assistActive() || player.lumenReserve ? 2 : 1;
+    return player.dashes < dashCapacity || player.stamina < MAX_STAMINA - 0.001;
+  }
+
   function updateEntities(dt, input) {
     const wasInUpdraft = player.inUpdraft;
     player.inUpdraft = false;
@@ -2295,7 +2300,7 @@
         refill.timer -= dt;
         if (refill.timer <= 0) refill.ready = true;
       }
-      if (refill.ready && distRectPoint(box, refill.x, refill.y) < 24) {
+      if (refill.ready && playerNeedsRefill() && distRectPoint(box, refill.x, refill.y) < 24) {
         refill.ready = false;
         refill.timer = 3.2;
         restoreDashCharge();

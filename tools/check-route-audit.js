@@ -93,8 +93,12 @@ if (!String(guides[4] || "").includes("中棱") || !String(routeLines[4]?.[2] ||
 if (maps[1]?.[8]?.[2] !== "P" || maps[1]?.[8]?.[10] !== "A" || maps[1]?.[9]?.slice(8, 13) !== "#####") {
   errors.push("R2 should teach its first relay on a level checkpoint runway with a stable recovery landing");
 }
-if (maps[2]?.[10]?.[23] !== "T" || maps[2]?.[11]?.[23] !== "#") {
-  errors.push("R3 should teach its first spring from stable ground before the route combines height decisions");
+if (maps[2]?.[5]?.[2] !== "P"
+  || maps[2]?.[6]?.slice(0, 6) !== "######"
+  || maps[2]?.[8]?.[13] !== "."
+  || maps[2]?.[10]?.[23] !== "T"
+  || maps[2]?.[11]?.[23] !== "#") {
+  errors.push("R3 should start from the left recovery platform and preserve its supported first spring");
 }
 if (maps[6]?.[15]?.[2] !== "P"
   || maps[6]?.[16]?.slice(0, 5) !== "#####"
@@ -203,5 +207,5 @@ if (errors.length > 0) {
 }
 
 const summary = pressureByRoom.map((value, index) => "R" + (index + 1) + ":" + value).join(" ");
-console.log("Route audit passed: ten-room readable route, R2/R3 safe opening mechanic pockets, R5 central-ridge switchback, grounded R7 chapter entry, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + ") with middle recovery shelf, R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
+console.log("Route audit passed: ten-room readable route, R2 safe relay pocket, full-route R3 Practice entry and supported spring, R5 central-ridge switchback, grounded R7 chapter entry, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + ") with middle recovery shelf, R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
 for (const warning of warnings) console.log("warn: " + warning);

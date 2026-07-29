@@ -67,6 +67,7 @@ else {
     let pressure = 0;
     let crumbleCount = 0;
     let entryAnchorCount = 0;
+    let entryAnchor = null;
     if (roomIndex > 0 && !hasLeftGap(room)) errors.push("room " + (roomIndex + 1) + " has no left entry gap");
     if (roomIndex < maps.length - 1 && !hasRightGap(room)) errors.push("room " + (roomIndex + 1) + " has no right exit gap");
     room.forEach((line, y) => {
@@ -85,12 +86,22 @@ else {
         if (tile === "C") crumbleCount += 1;
         if (tile === "M" || tile === "T") pressure += 2;
         if (tile === "S") startCount += 1;
-        if (tile === "S" || tile === "P") entryAnchorCount += 1;
+        if (tile === "S" || tile === "P") {
+          entryAnchorCount += 1;
+          entryAnchor = { x, y, tile };
+        }
         if (tile === "H") goalCount += 1;
       });
     });
     if (entryAnchorCount !== 1) {
       errors.push("room " + (roomIndex + 1) + " should have exactly one S/P entry anchor, found " + entryAnchorCount);
+    } else {
+      if (entryAnchor.x > 2) {
+        errors.push("room " + (roomIndex + 1) + " entry anchor should stay within the left three columns");
+      }
+      if (room[entryAnchor.y + 1]?.[entryAnchor.x] !== "#") {
+        errors.push("room " + (roomIndex + 1) + " entry anchor should have stable # support");
+      }
     }
     pressureScores[roomIndex] = pressure;
     crumbleRooms[roomIndex] = crumbleCount;
@@ -280,4 +291,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Map check passed: " + maps.length + " rooms, " + cols + "x" + rows + ", " + targets.length + " targets, one entry anchor per room, pressure " + pressureScores.join("/") + ", crumble " + crumbleRooms.join("/") + ", landings " + landingRuns.join("/") + ".");
+console.log("Map check passed: " + maps.length + " rooms, " + cols + "x" + rows + ", " + targets.length + " targets, one grounded left entry per room, pressure " + pressureScores.join("/") + ", crumble " + crumbleRooms.join("/") + ", landings " + landingRuns.join("/") + ".");

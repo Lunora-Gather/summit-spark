@@ -58,8 +58,15 @@ maps.forEach((room) => {
   room.forEach((row) => assert.equal(row.length, 30, "every room row should have 30 columns"));
 });
 maps.forEach((room, index) => {
-  const entryAnchors = room.join("").split("").filter((tile) => tile === "S" || tile === "P").length;
-  assert.equal(entryAnchors, 1, `room ${index + 1} should own exactly one entry anchor`);
+  const entryAnchors = [];
+  room.forEach((row, y) => {
+    [...row].forEach((tile, x) => {
+      if (tile === "S" || tile === "P") entryAnchors.push({ x, y });
+    });
+  });
+  assert.equal(entryAnchors.length, 1, `room ${index + 1} should own exactly one entry anchor`);
+  assert.ok(entryAnchors[0].x <= 2, `room ${index + 1} entry should stay within the left three columns`);
+  assert.equal(room[entryAnchors[0].y + 1]?.[entryAnchors[0].x], "#", `room ${index + 1} entry should have stable support`);
 });
 assert.equal(CHAPTER_EXPERIENCE.length, 4, "chapter copy should cover four acts");
 assert.deepEqual(CHAPTER_SURFACE_KINDS, ["gate-slate", "old-peak", "wind-cut", "star-etched"], "four acts should own distinct platform materials");
@@ -103,6 +110,9 @@ assert.equal(mechanicFirstTouchCueData("unknown"), null, "unknown mechanic cues 
 assert.equal(mechanicFirstTouchCueData("__proto__"), null, "prototype-named mechanic cues should fail closed");
 assert.equal(ROOM_NAMES[0], "起势山门");
 assert.equal(ROOM_NAMES.at(-1), "星顶终线");
+assert.equal(maps[2][5][2], "P", "Gate capstone Practice should begin from the full left-side route");
+assert.equal(maps[2][6].slice(0, 6), "######", "Gate capstone entry should keep broad stable support");
+assert.equal(maps[2][8][13], ".", "Gate capstone should not retain a mid-room Practice shortcut");
 assert.equal(maps[6][15][2], "P", "Wind Gorge should start from a grounded checkpoint");
 assert.equal(maps[6][16].slice(0, 5), "#####", "Wind Gorge checkpoint should keep broad stable support");
 assert.equal(maps[8][10].slice(9, 16), "#######", "Echo Rockfield should recover on stable ground after its first wind");
@@ -114,4 +124,4 @@ assert.throws(() => {
   maps[0][0] = "";
 }, TypeError, "room maps should reject mutation at runtime");
 
-console.log("Room data module check passed: 10 immutable rooms, one entry anchor per room, 4 chapters and aligned contracts.");
+console.log("Room data module check passed: 10 immutable rooms, one grounded left entry per room, 4 chapters and aligned contracts.");

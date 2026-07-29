@@ -171,6 +171,16 @@ const focus = normalizeRoomFocusData({
   rooms: [{
     faults: -4,
     clears: 12000,
+    clean: 12000,
+    drills: 2,
+    drillClears: 7,
+    drillClean: 9,
+    cleanDrills: 0,
+    cleanWins: 4,
+    paceDrills: 1,
+    paceWins: 8,
+    styleDrills: 4,
+    styleWins: 4,
     expertWins: "3.8",
     spike: Infinity,
     fall: 7,
@@ -186,11 +196,68 @@ assert.equal(focus.length, 2);
 assert.equal(focus[0].schemaVersion, 2);
 assert.equal(focus[0].faults, 0);
 assert.equal(focus[0].clears, 9999);
-assert.equal(focus[0].expertWins, 3);
+assert.equal(focus[0].clean, 9999);
+assert.equal(focus[0].drillClears, 2);
+assert.equal(focus[0].drillClean, 2);
+assert.equal(focus[0].cleanWins, 0);
+assert.equal(focus[0].paceDrills, 1);
+assert.equal(focus[0].paceWins, 1);
+assert.equal(focus[0].styleDrills, 1);
+assert.equal(focus[0].styleWins, 1);
+assert.equal(focus[0].expertWins, 0);
 assert.equal(focus[0].spike, 0);
-assert.equal(focus[0].fall, 7);
-assert.equal(focus[0].last, "fall");
+assert.equal(focus[0].fall, 0);
+assert.equal(focus[0].last, "none");
 assert.equal(focus[1].last, "none");
+
+const repairedFocus = normalizeRoomFocusData({
+  rooms: [{
+    faults: 3,
+    fall: 8,
+    last: "fall",
+    clears: 1,
+    clean: 5,
+    drills: 2,
+    drillClears: 8,
+    drillClean: 6,
+    cleanDrills: 0,
+    cleanWins: 4,
+    paceDrills: 1,
+    paceWins: 7
+  }]
+}, {
+  roomCount: 1,
+  schemaVersion: 2,
+  deathReasonKeys: deathKeys,
+  deathReasonLabels: deathLabels
+})[0];
+assert.deepEqual({
+  faults: repairedFocus.faults,
+  fall: repairedFocus.fall,
+  last: repairedFocus.last,
+  clears: repairedFocus.clears,
+  clean: repairedFocus.clean,
+  drills: repairedFocus.drills,
+  drillClears: repairedFocus.drillClears,
+  drillClean: repairedFocus.drillClean,
+  cleanDrills: repairedFocus.cleanDrills,
+  cleanWins: repairedFocus.cleanWins,
+  paceDrills: repairedFocus.paceDrills,
+  paceWins: repairedFocus.paceWins
+}, {
+  faults: 3,
+  fall: 3,
+  last: "fall",
+  clears: 1,
+  clean: 1,
+  drills: 2,
+  drillClears: 2,
+  drillClean: 2,
+  cleanDrills: 0,
+  cleanWins: 0,
+  paceDrills: 1,
+  paceWins: 1
+}, "Focus normalization should fail closed when wins, clean clears or death reasons lack aggregate evidence");
 
 const emptySaveData = {
   settings: defaultSettings,
@@ -500,4 +567,4 @@ assert.equal(failingStorage.getItem("a"), "old");
 assert.equal(failingStorage.getItem("b"), null);
 assert.equal(failingStorage.getItem("c"), "keep");
 
-console.log("Storage module check passed: settings, meaningful-progress conflict protection, normalized collision-free sync comparison, repair, archive/backup, bounds, legacy focus and exact rollback.");
+console.log("Storage module check passed: settings, meaningful-progress conflict protection, normalized collision-free sync comparison, causal Focus repair, archive/backup, bounds, legacy focus and exact rollback.");

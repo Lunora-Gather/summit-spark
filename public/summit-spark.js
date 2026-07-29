@@ -152,16 +152,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p227"),
-    import("./modules/core/math.mjs?v=20260729-p227"),
-    import("./modules/game/room-data.mjs?v=20260729-p227"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p227"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p227"),
-    import("./modules/systems/storage.mjs?v=20260729-p227"),
-    import("./modules/systems/input.mjs?v=20260729-p227"),
-    import("./modules/training/state.mjs?v=20260729-p227"),
-    import("./modules/training/replay.mjs?v=20260729-p227"),
-    import("./modules/ui/presentation.mjs?v=20260729-p227")
+    import("./modules/core/format.mjs?v=20260729-p228"),
+    import("./modules/core/math.mjs?v=20260729-p228"),
+    import("./modules/game/room-data.mjs?v=20260729-p228"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p228"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p228"),
+    import("./modules/systems/storage.mjs?v=20260729-p228"),
+    import("./modules/systems/input.mjs?v=20260729-p228"),
+    import("./modules/training/state.mjs?v=20260729-p228"),
+    import("./modules/training/replay.mjs?v=20260729-p228"),
+    import("./modules/ui/presentation.mjs?v=20260729-p228")
   ]);
 
   const canvas = document.getElementById("game");

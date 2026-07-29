@@ -217,6 +217,36 @@ const ROOM_FOCUS_COUNTERS = [
   "expertWins"
 ];
 
+const ROOM_FOCUS_DRILL_PAIRS = [
+  ["cleanDrills", "cleanWins"],
+  ["paceDrills", "paceWins"],
+  ["styleDrills", "styleWins"],
+  ["expertDrills", "expertWins"]
+];
+
+function repairRoomFocusRelationships(entry, deathReasonKeys) {
+  entry.clean = Math.min(entry.clean, entry.clears);
+  entry.drillClears = Math.min(entry.drillClears, entry.drills);
+  entry.drillClean = Math.min(entry.drillClean, entry.drillClears);
+
+  let remainingStarts = entry.drills;
+  let remainingWins = entry.drillClears;
+  ROOM_FOCUS_DRILL_PAIRS.forEach(([startsKey, winsKey]) => {
+    entry[startsKey] = Math.min(entry[startsKey], remainingStarts);
+    remainingStarts -= entry[startsKey];
+    entry[winsKey] = Math.min(entry[winsKey], entry[startsKey], remainingWins);
+    remainingWins -= entry[winsKey];
+  });
+
+  let remainingFaults = entry.faults;
+  deathReasonKeys.forEach((key) => {
+    entry[key] = Math.min(entry[key], remainingFaults);
+    remainingFaults -= entry[key];
+  });
+  if (entry.last !== "none" && entry[entry.last] <= 0) entry.last = "none";
+  return entry;
+}
+
 export function normalizeRoomFocusData(raw, {
   roomCount,
   schemaVersion,
@@ -234,7 +264,7 @@ export function normalizeRoomFocusData(raw, {
     deathReasonKeys.forEach((key) => {
       entry[key] = finiteNonNegativeInt(saved[key], 0, 9999);
     });
-    return entry;
+    return repairRoomFocusRelationships(entry, deathReasonKeys);
   });
 }
 

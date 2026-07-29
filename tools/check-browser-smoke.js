@@ -2659,7 +2659,20 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       profile: { summitClears: 2, bestDeathCount: 1, bestFlowPeak: 210, challengeWins: { clear: true } },
       roomBests: [12.5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       roomPaths: [[{ x: 20, y: 40, t: 0.1, dash: true, spark: false, over: false }]],
-      roomFocus: { schemaVersion: 1, rooms: [{ faults: 3, fall: 3, drills: 2, cleanWins: 1, last: "fall" }] },
+      roomFocus: {
+        schemaVersion: 1,
+        rooms: [{
+          faults: 3,
+          fall: 8,
+          drills: 2,
+          drillClears: 2,
+          cleanDrills: 0,
+          cleanWins: 4,
+          paceDrills: 1,
+          paceWins: 7,
+          last: "fall"
+        }]
+      },
       bestTime: 55.25,
       bestFlow: 321
     }
@@ -2738,6 +2751,12 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       clears: profile.summitClears,
       focusVersion: focus.schemaVersion,
       focusRooms: Array.isArray(focus.rooms) ? focus.rooms.length : 0,
+      focusFaults: focus.rooms?.[0]?.faults,
+      focusFall: focus.rooms?.[0]?.fall,
+      focusCleanDrills: focus.rooms?.[0]?.cleanDrills,
+      focusCleanWins: focus.rooms?.[0]?.cleanWins,
+      focusPaceDrills: focus.rooms?.[0]?.paceDrills,
+      focusPaceWins: focus.rooms?.[0]?.paceWins,
       bestFlow: Number(localStorage.getItem("summit-spark-best-flow") || 0),
       backupKind: backup.kind,
       backupReason: backup.reason,
@@ -2746,7 +2765,26 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       stageTouchSize: getComputedStyle(document.querySelector(".stage")).getPropertyValue("--touch-size").trim()
     };
   })()`);
-  if (imported.settingsVersion !== 4 || imported.touchSize !== 62 || !imported.lowPerformance || imported.deadzone !== 0.18 || imported.profileVersion !== 2 || imported.clears !== 2 || imported.focusVersion !== 2 || imported.focusRooms !== 10 || imported.bestFlow !== 321 || imported.backupKind !== "summit-spark-save-backup" || imported.backupReason !== "before-import" || imported.backupArchiveKind !== "summit-spark-save" || imported.backupOldTouchSize !== 48 || imported.stageTouchSize !== "62px") {
+  if (imported.settingsVersion !== 4
+    || imported.touchSize !== 62
+    || !imported.lowPerformance
+    || imported.deadzone !== 0.18
+    || imported.profileVersion !== 2
+    || imported.clears !== 2
+    || imported.focusVersion !== 2
+    || imported.focusRooms !== 10
+    || imported.focusFaults !== 3
+    || imported.focusFall !== 3
+    || imported.focusCleanDrills !== 0
+    || imported.focusCleanWins !== 0
+    || imported.focusPaceDrills !== 1
+    || imported.focusPaceWins !== 1
+    || imported.bestFlow !== 321
+    || imported.backupKind !== "summit-spark-save-backup"
+    || imported.backupReason !== "before-import"
+    || imported.backupArchiveKind !== "summit-spark-save"
+    || imported.backupOldTouchSize !== 48
+    || imported.stageTouchSize !== "62px") {
     errors.push("save archive import did not normalize and apply storage: " + JSON.stringify(imported));
   }
   await clickSelector(cdp, "#startSettingsButton");
@@ -3815,7 +3853,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

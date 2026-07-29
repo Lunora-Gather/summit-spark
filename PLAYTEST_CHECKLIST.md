@@ -31,6 +31,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 - Confirm the compact “移动 / 动作” headings and every collapsed disclosure arrow remain visibly distinct from their local card backgrounds; on touch, tap the exposed blank margin beside an open Settings drawer and confirm it closes without activating anything behind it.
 - Confirm the practice panel initially exposes only room selection and training history; Route, Feel, Profile, and long-term goals remain reachable one level deeper without hiding the close button.
 - Start a recommended Drill from the practice panel and confirm the goal is clear before moving.
+- In a room with a saved PB path, start a Drill and confirm the gold `PB 路线` and cyan `本次` line are immediately distinguishable; the PB line should use at most one static label for each Dash/Spark/Overdrive family while combined transitions retain distinct symbols, and the moving PB ghost should name only its current key action.
 
 ## Ten-Room Route Pass
 

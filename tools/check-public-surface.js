@@ -36,6 +36,7 @@ const audioCuesSource = read("public/modules/game/audio-cues.mjs");
 const storageSource = read("public/modules/systems/storage.mjs");
 const inputSource = read("public/modules/systems/input.mjs");
 const trainingSource = read("public/modules/training/state.mjs");
+const trainingReplaySource = read("public/modules/training/replay.mjs");
 const uiPresentationSource = read("public/modules/ui/presentation.mjs");
 
 const buildVersion = extractOne(
@@ -93,6 +94,11 @@ const trainingVersion = extractOne(
   runtimeSource,
   /modules\/training\/state\.mjs\?v=([^"]+)"/
 );
+const trainingReplayVersion = extractOne(
+  "training replay module version",
+  runtimeSource,
+  /modules\/training\/replay\.mjs\?v=([^"]+)"/
+);
 const uiPresentationVersion = extractOne(
   "UI presentation module version",
   runtimeSource,
@@ -134,6 +140,9 @@ if (buildVersion && inputVersion && buildVersion !== inputVersion) {
 }
 if (buildVersion && trainingVersion && buildVersion !== trainingVersion) {
   fail(`training version ${trainingVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && trainingReplayVersion && buildVersion !== trainingReplayVersion) {
+  fail(`training replay version ${trainingReplayVersion} does not match build version ${buildVersion}`);
 }
 if (buildVersion && uiPresentationVersion && buildVersion !== uiPresentationVersion) {
   fail(`UI presentation version ${uiPresentationVersion} does not match build version ${buildVersion}`);
@@ -219,6 +228,16 @@ if (!runtimeSource.includes('import("./modules/game/audio-cues.mjs?v=')
 }
 if (runtimeSource.includes("const AMBIENT_CHAPTER_CHORDS")) {
   fail("public runtime must not duplicate chapter audio profile ownership");
+}
+if (!runtimeSource.includes('import("./modules/training/replay.mjs?v=')
+  || !trainingReplaySource.includes("export const REPLAY_ACTION_LABELS")
+  || !trainingReplaySource.includes("export function replayActionMarkersData(")
+  || !trainingReplaySource.includes("export function replayGhostStateData(")
+  || !runtimeSource.includes("drawReplayTag(path[0].x, path[0].y - 18, \"PB 路线\"")
+  || !runtimeSource.includes("drawReplayTag(origin.x, origin.y - 15, \"本次\"")
+  || !runtimeSource.includes("drawReplayActionMarker(marker, alpha, showLabel)")
+  || !runtimeSource.includes("replayGhostStateData(ghost)")) {
+  fail("practice replay must distinguish PB/current paths and explain bounded action transitions");
 }
 if (!runtimeSource.includes("CHAPTER_SURFACE_KINDS[chapterIndexForRoom(roomIndex)]")
   || !runtimeSource.includes("const material = CHAPTER_SURFACE_KINDS.includes(surfaceKind)")

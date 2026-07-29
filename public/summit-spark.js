@@ -135,21 +135,26 @@
       trainingTransitionOptionsData
     },
     {
+      replayActionMarkersData,
+      replayGhostStateData
+    },
+    {
       chapterCompletionData: chapterCompletionModelData,
       chapterGrade,
       rankPracticeLedgerRowsData,
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p204"),
-    import("./modules/core/math.mjs?v=20260729-p204"),
-    import("./modules/game/room-data.mjs?v=20260729-p204"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p204"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p204"),
-    import("./modules/systems/storage.mjs?v=20260729-p204"),
-    import("./modules/systems/input.mjs?v=20260729-p204"),
-    import("./modules/training/state.mjs?v=20260729-p204"),
-    import("./modules/ui/presentation.mjs?v=20260729-p204")
+    import("./modules/core/format.mjs?v=20260729-p205"),
+    import("./modules/core/math.mjs?v=20260729-p205"),
+    import("./modules/game/room-data.mjs?v=20260729-p205"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p205"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p205"),
+    import("./modules/systems/storage.mjs?v=20260729-p205"),
+    import("./modules/systems/input.mjs?v=20260729-p205"),
+    import("./modules/training/state.mjs?v=20260729-p205"),
+    import("./modules/training/replay.mjs?v=20260729-p205"),
+    import("./modules/ui/presentation.mjs?v=20260729-p205")
   ]);
 
   const canvas = document.getElementById("game");
@@ -8076,7 +8081,8 @@
 
   function drawCurrentRoomPath(time) {
     if (!practiceVisualsActive() || roomPath.length < 2 || player.deadTimer > 0) return;
-    const points = roomPath.filter((point) => point.room === roomIndex).slice(-CURRENT_PATH_DRAW_POINTS);
+    const roomPoints = roomPath.filter((point) => point.room === roomIndex);
+    const points = roomPoints.slice(-CURRENT_PATH_DRAW_POINTS);
     if (points.length < 2) return;
     const alpha = settings.ghostOpacity;
     ctx.save();
@@ -8096,6 +8102,8 @@
     ctx.fillStyle = palette.cyan;
     ctx.fillRect(last.x - 3, last.y - 3, 6, 6);
     ctx.restore();
+    const origin = roomPoints[0];
+    drawReplayTag(origin.x, origin.y - 15, "本次", palette.cyan, 0.58 * alpha);
   }
 
   function drawBestRoomGhost(time) {
@@ -8105,6 +8113,7 @@
     const rawIndex = pathIndexAtTime(path, roomTime, bestRoomTimes[roomIndex] || 0);
     const ghost = pointOnPath(path, rawIndex);
     if (!ghost) return;
+    const replayState = replayGhostStateData(ghost);
     const pulse = 1 + Math.sin(time * 9) * 0.06;
     ctx.save();
     ctx.globalAlpha = 0.46 * settings.ghostOpacity;
@@ -8120,6 +8129,88 @@
     ctx.fillStyle = ghost.over ? palette.green : ghost.spark ? "#fff0a0" : ghost.dash ? palette.cyan : palette.gold;
     ctx.fillRect(-3, -16, 6, 5);
     ctx.restore();
+    if (replayState.kind !== "pace") {
+      drawReplayTag(ghost.x, ghost.y - 31, replayState.label, replayActionColor(replayState.kind), 0.72 * settings.ghostOpacity);
+    }
+  }
+
+  function replayActionColor(kind) {
+    if (kind === "over" || kind === "overDash") return palette.green;
+    if (kind === "spark" || kind === "prismSpark") return "#fff0a0";
+    return palette.cyan;
+  }
+
+  function replayActionFamily(kind) {
+    if (kind === "spark" || kind === "prismSpark") return "spark";
+    if (kind === "over") return "over";
+    return "dash";
+  }
+
+  function drawReplayTag(x, y, label, color, alpha) {
+    const safeX = Math.max(28, Math.min(W - 28, x));
+    const safeY = Math.max(13, Math.min(H - 13, y));
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    ctx.font = "700 9px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const width = Math.max(32, Math.min(86, ctx.measureText(label).width + 14));
+    ctx.fillStyle = CANVAS_PANEL_BG;
+    roundRect(ctx, safeX - width / 2, safeY - 9, width, 18, 5);
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    roundRect(ctx, safeX - width / 2 + 0.5, safeY - 8.5, width - 1, 17, 5);
+    ctx.stroke();
+    ctx.fillStyle = CANVAS_PANEL_INK;
+    ctx.fillText(label, safeX, safeY);
+    ctx.restore();
+  }
+
+  function drawReplayActionMarker(marker, alpha, showLabel) {
+    const color = replayActionColor(marker.kind);
+    const ring = marker.kind === "over" || marker.kind === "overDash" || marker.kind === "prismSpark";
+    const diamond = marker.kind === "spark" || marker.kind === "prismSpark";
+    const chevron = marker.kind === "dash" || marker.kind === "overDash";
+    ctx.save();
+    ctx.translate(marker.x, marker.y);
+    ctx.globalAlpha = 0.72 * alpha;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 1.6;
+    if (ring) {
+      ctx.beginPath();
+      ctx.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (diamond) {
+      ctx.beginPath();
+      ctx.moveTo(0, -5);
+      ctx.lineTo(5, 0);
+      ctx.lineTo(0, 5);
+      ctx.lineTo(-5, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (chevron) {
+      ctx.beginPath();
+      ctx.moveTo(-5, -5);
+      ctx.lineTo(2, 0);
+      ctx.lineTo(-5, 5);
+      ctx.moveTo(1, -5);
+      ctx.lineTo(8, 0);
+      ctx.lineTo(1, 5);
+      ctx.stroke();
+    }
+    ctx.restore();
+    if (showLabel) drawReplayTag(marker.x, marker.y - 17, marker.label, color, 0.66 * alpha);
+  }
+
+  function replayActionMarkersFor(path) {
+    return replayActionMarkersData(path, {
+      maxMarkers: settings.lowPerformance ? 6 : settings.calmEffects ? 8 : 10,
+      minPointGap: settings.lowPerformance ? 5 : 3
+    });
   }
 
   function pathIndexAtTime(path, elapsed, best) {
@@ -9919,14 +10010,23 @@
     });
     ctx.stroke();
     ctx.setLineDash([]);
-    for (let i = 0; i < path.length; i += 8) {
+    for (let i = 0; i < path.length; i += 12) {
       const point = path[i];
       const pulse = 1 + Math.sin(time * 5 + i) * 0.16;
-      ctx.globalAlpha = alpha * (point.dash || point.spark || point.over ? 0.72 : 0.42);
-      ctx.fillStyle = point.over ? palette.green : point.spark ? "#fff0a0" : point.dash ? palette.cyan : palette.gold;
+      ctx.globalAlpha = alpha * 0.34;
+      ctx.fillStyle = palette.gold;
       ctx.fillRect(point.x - 2 * pulse, point.y - 2 * pulse, 4 * pulse, 4 * pulse);
     }
     ctx.restore();
+    drawReplayTag(path[0].x, path[0].y - 18, "PB 路线", palette.gold, 0.72 * alpha);
+    const markers = replayActionMarkersFor(path);
+    const labelledFamilies = new Set();
+    for (const marker of markers) {
+      const family = replayActionFamily(marker.kind);
+      const showLabel = !labelledFamilies.has(family);
+      drawReplayActionMarker(marker, alpha, showLabel);
+      labelledFamilies.add(family);
+    }
   }
 
   function drawRouteArrow(ax, ay, bx, by, index) {
@@ -10934,6 +11034,7 @@
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
       `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
+      `replay actions ${replayActionMarkersFor(bestRoomPaths[roomIndex]).length}  active ${practiceVisualsActive() ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,
       `audio ${settings.audioEnabled ? settings.audioVolume.toFixed(2) : "off"}  route ${activeRouteContract ? `${activeRouteContract.id}:${activeRouteContract.step + 1}` : "none"}`
     ].join("\n");

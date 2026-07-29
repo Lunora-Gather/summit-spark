@@ -107,6 +107,10 @@ async function verifyServerBoundary(baseUrl) {
   if (trainingModuleResponse.status !== 200 || trainingModuleResponse.body !== "" || !/text\/javascript/.test(trainingModuleResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the training module as JavaScript without a response body");
   }
+  const trainingReplayResponse = await request(baseUrl + "/modules/training/replay.mjs", { method: "HEAD" });
+  if (trainingReplayResponse.status !== 200 || trainingReplayResponse.body !== "" || !/text\/javascript/.test(trainingReplayResponse.headers["content-type"] || "")) {
+    errors.push("server HEAD must expose the training replay module as JavaScript without a response body");
+  }
   const uiPresentationResponse = await request(baseUrl + "/modules/ui/presentation.mjs", { method: "HEAD" });
   if (uiPresentationResponse.status !== 200 || uiPresentationResponse.body !== "" || !/text\/javascript/.test(uiPresentationResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the UI presentation module as JavaScript without a response body");
@@ -171,6 +175,7 @@ async function main() {
     const storageModule = await requestText(baseUrl + "/modules/systems/storage.mjs?v=" + encodeURIComponent(buildVersion));
     const inputModule = await requestText(baseUrl + "/modules/systems/input.mjs?v=" + encodeURIComponent(buildVersion));
     const trainingModule = await requestText(baseUrl + "/modules/training/state.mjs?v=" + encodeURIComponent(buildVersion));
+    const trainingReplayModule = await requestText(baseUrl + "/modules/training/replay.mjs?v=" + encodeURIComponent(buildVersion));
     const uiPresentationModule = await requestText(baseUrl + "/modules/ui/presentation.mjs?v=" + encodeURIComponent(buildVersion));
     const css = await requestText(baseUrl + "/summit-spark.css?v=" + encodeURIComponent(buildVersion));
     expectNoInlineScript(html);
@@ -217,6 +222,7 @@ async function main() {
     expectIncludes("js", js, `modules/systems/storage.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/systems/input.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/training/state.mjs?v=${buildVersion}`);
+    expectIncludes("js", js, `modules/training/replay.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/ui/presentation.mjs?v=${buildVersion}`);
     ["export function formatTime(", "export function formatDelta(", "export function splitGrade(", "export function escapeHtml("]
       .forEach((marker) => expectIncludes("core format", coreFormat, marker));
@@ -234,6 +240,8 @@ async function main() {
       .forEach((marker) => expectIncludes("input module", inputModule, marker));
     ["export const TRAINING_TRANSITIONS = Object.freeze({", "export function createDrillData(", "export function drillSucceededData(", "export function activeRouteContractDataFor(", "export function advanceRouteContractData(", "export function feelFixtureModeData(", "export function recordRoomFaultData(", "export function recordDrillClearData(", "export function roomMasteryScoreData(", "export function roomReviewModeData(", "export function activeChallengeStateData(", "export function challengeProgressData(", "export function reconcileChallengeWinsData(", "export function createRouteInterruptionResultData(", "export function createFeelCompletionResultData(", "export function feelFixturePresentationData("]
       .forEach((marker) => expectIncludes("training module", trainingModule, marker));
+    ["export const REPLAY_ACTION_LABELS =", "export function replayActionMarkersData(", "export function replayGhostStateData("]
+      .forEach((marker) => expectIncludes("training replay module", trainingReplayModule, marker));
     ["export function chapterCompletionData(", "export function chapterGrade(", "export function roomReviewPriorityData(", "export function rankPracticeLedgerRowsData("]
       .forEach((marker) => expectIncludes("UI presentation module", uiPresentationModule, marker));
 

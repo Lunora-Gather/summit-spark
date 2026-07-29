@@ -44,7 +44,7 @@ For each room, record `pass`, `friction`, or `blocked`.
 | R4 | relay chain under hazard pressure | Safe line and faster chain should both be understandable. |
 | R5 | foldback route memory | Wall Spark line should look optional, not mandatory. |
 | R6 | paired relays plus two-spring exit rhythm | The second relay/spring choice should complete the Old Peak sentence, not surprise the player. |
-| R7 | wind plus crumble introduction | Crumble warning and wind lift must be readable together. |
+| R7 | wind plus crumble introduction | Crumble warning and wind lift must be readable together; with audio on, wind entry should sound once and ice should crack before it breaks. |
 | R8 | prism/crumble route into a final updraft | Overdrive should not obscure hazards, and the late wind should feel like a deliberate Wind Gorge exam. |
 | R9 | safe entry anchor, recall, wind, prism | The anchor should activate beside the checkpoint before pressure begins; leave it once and confirm recall returns cleanly. |
 | R10 | full-kit finale | Finale should feel pressured but fair after R1-R9. |

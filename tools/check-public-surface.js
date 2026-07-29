@@ -196,6 +196,23 @@ if (!runtimeSource.includes('showFeelCue("回声召回", "冲刺与体力已恢�
   || !runtimeSource.includes('setGameStatus("回声召回：冲刺与体力已恢复")')) {
   fail("Echo activation and recall should expose concise canvas and live-status feedback");
 }
+for (const feedback of [
+  'wind: [{ type: "sine"',
+  'checkpoint: [{ type: "sine"',
+  'crack: [{ type: "square"',
+  "const wasInUpdraft = player.inUpdraft",
+  "const enteredUpdraft = !wasInUpdraft && !player.inUpdraft",
+  'playSound("wind", 0.58)',
+  'playSound("checkpoint", 0.72)',
+  'setGameStatus(`检查点已点亮 · R${roomIndex + 1}`)',
+  'playSound("crack", 0.62)',
+  'playSound("crumble", 0.72)'
+]) {
+  if (!runtimeSource.includes(feedback)) fail(`world feedback chain missing ${feedback}`);
+}
+if (!runtimeSource.includes("Number.isFinite(soundCooldowns[name])")) {
+  fail("sound cooldowns should suppress same-frame world feedback even at audio time zero");
+}
 if (!roomDataSource.includes('resolve: "断开的旧路，被你重新连起。"')
   || !runtimeSource.includes("let chapterTransitionFromChapter = -1")
   || !runtimeSource.includes("drawChapterTransitionCopy({")

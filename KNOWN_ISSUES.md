@@ -8,7 +8,7 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 - Real touch device feel: mobile smoke covers portrait/landscape fit, synthetic notch/home-indicator insets, keyboard-resized account input, contextual R9 recall and touch UI visibility; a physical phone or tablet pass is still needed for thumb reach, accidental presses, and vendor-specific browser chrome behavior.
 - Full 10-room human pass: scripts verify maps, state, and UI surfaces, but at least one uninterrupted human playthrough is still required before treating difficulty and teaching order as public-test stable.
 - Online Pages freshness: local HTML asset versioning and the SHA-pinned native Node 24 Pages chain are guarded, but after any push the public URL still needs one live check to confirm it serves the intended build.
-- Audio perception: headless smoke can verify the audio test path updates status, but volume balance and fatigue need a real listening pass.
+- Audio perception: headless smoke can verify the audio test path updates status and static gates cover checkpoint, wind-entry and two-stage crumble triggers, but their volume balance, separation and fatigue still need a real listening pass.
 - Diagnostics, feedback templates and summit run reports are local-only: they can include the current feedback note, viewport/training/gamepad summary, or bounded run timing evidence as appropriate, but there is no automatic upload or issue tracker integration.
 
 ## Current Product Boundaries

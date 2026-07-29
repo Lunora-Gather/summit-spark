@@ -132,13 +132,13 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p201"),
-    import("./modules/core/math.mjs?v=20260729-p201"),
-    import("./modules/game/room-data.mjs?v=20260729-p201"),
-    import("./modules/systems/storage.mjs?v=20260729-p201"),
-    import("./modules/systems/input.mjs?v=20260729-p201"),
-    import("./modules/training/state.mjs?v=20260729-p201"),
-    import("./modules/ui/presentation.mjs?v=20260729-p201")
+    import("./modules/core/format.mjs?v=20260729-p202"),
+    import("./modules/core/math.mjs?v=20260729-p202"),
+    import("./modules/game/room-data.mjs?v=20260729-p202"),
+    import("./modules/systems/storage.mjs?v=20260729-p202"),
+    import("./modules/systems/input.mjs?v=20260729-p202"),
+    import("./modules/training/state.mjs?v=20260729-p202"),
+    import("./modules/ui/presentation.mjs?v=20260729-p202")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2334,6 +2334,7 @@
   }
 
   function updateEntities(dt, input) {
+    const wasInUpdraft = player.inUpdraft;
     player.inUpdraft = false;
     const box = getPlayerBox();
 
@@ -2361,9 +2362,13 @@
       updraft.pulse = Math.max(0, updraft.pulse - dt);
       const field = updraftFieldBounds(updraft);
       if (aabb(box, field)) {
+        const enteredUpdraft = !wasInUpdraft && !player.inUpdraft;
         player.inUpdraft = true;
         markRoomTech("updraft");
         showMechanicFirstTouchCue("updraft");
+        if (enteredUpdraft) {
+          playSound("wind", 0.58);
+        }
         const center = field.x + field.w / 2;
         const pull = Math.max(-1, Math.min(1, (center - (player.x + player.w / 2)) / 34));
         const downResist = input.y > 0 ? 0.72 : 1;
@@ -2476,6 +2481,8 @@
         player.respawnX = nextX;
         player.respawnY = nextY;
         if (changed) {
+          playSound("checkpoint", 0.72);
+          setGameStatus(`检查点已点亮 · R${roomIndex + 1}`);
           glow(checkpoint.x, checkpoint.y, palette.green);
           burst(checkpoint.x, checkpoint.y + 8, palette.green, 4, 90);
         }
@@ -7057,8 +7064,11 @@
     prism: [{ type: "sawtooth", from: 360, to: 860, gain: 0.045, time: 0.18 }],
     refill: [{ type: "sine", from: 480, to: 720, gain: 0.034, time: 0.12 }],
     spring: [{ type: "triangle", from: 260, to: 620, gain: 0.041, time: 0.13 }],
+    wind: [{ type: "sine", from: 210, to: 380, gain: 0.024, time: 0.19 }, { type: "triangle", from: 420, to: 560, gain: 0.012, time: 0.16 }],
+    checkpoint: [{ type: "sine", from: 460, to: 760, gain: 0.032, time: 0.15 }, { type: "triangle", from: 690, to: 920, gain: 0.014, time: 0.13 }],
     echo: [{ type: "sine", from: 300, to: 420, gain: 0.03, time: 0.16 }],
     recall: [{ type: "triangle", from: 760, to: 320, gain: 0.04, time: 0.18 }],
+    crack: [{ type: "square", from: 460, to: 190, gain: 0.021, time: 0.07 }, { type: "triangle", from: 720, to: 310, gain: 0.012, time: 0.09 }],
     crumble: [{ type: "sawtooth", from: 180, to: 90, gain: 0.035, time: 0.16 }],
     land: [{ type: "triangle", from: 120, to: 90, gain: 0.022, time: 0.08 }],
     death: [{ type: "sawtooth", from: 240, to: 80, gain: 0.048, time: 0.18 }],
@@ -7136,8 +7146,8 @@
     if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
     const preset = SOUND_PRESETS[name] || SOUND_PRESETS.ui;
     const now = audioContext.currentTime;
-    const cooldown = name === "land" ? 0.08 : name === "ui" ? 0.04 : 0.035;
-    if (soundCooldowns[name] && now - soundCooldowns[name] < cooldown) return;
+    const cooldown = name === "wind" ? 0.28 : name === "land" ? 0.08 : name === "crack" ? 0.06 : name === "ui" ? 0.04 : 0.035;
+    if (Number.isFinite(soundCooldowns[name]) && now - soundCooldowns[name] < cooldown) return;
     soundCooldowns[name] = now;
     audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
     preset.forEach((voice, index) => playTone(voice, now + index * 0.012, intensity));
@@ -7329,6 +7339,7 @@
         crumbleSlipTimer = CRUMBLE_DEATH_MEMORY;
         markRoomTech("crumble");
         showMechanicFirstTouchCue("crumble");
+        playSound("crack", 0.62);
         shake(0.035, 1.2);
         burst(block.x * TILE + TILE / 2, block.y * TILE + 6, "#e7f4f7", 5, 95);
       }
@@ -7340,6 +7351,7 @@
       if (block.timer <= 0) {
         room.tiles[block.y][block.x] = ".";
         crumbleSlipTimer = CRUMBLE_DEATH_MEMORY;
+        playSound("crumble", 0.72);
         burst(block.x * TILE + TILE / 2, block.y * TILE + TILE / 2, palette.cyan, 12, 210);
         addSnow(block.x * TILE + TILE / 2, block.y * TILE + 4, 4);
       }

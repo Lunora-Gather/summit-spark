@@ -133,6 +133,12 @@ if (maps[4]?.[9]?.[6] !== "A" || maps[4]?.[9]?.[12] === "A") {
 if (maps[4]?.[7]?.[2] !== "P" || maps[4]?.[4]?.[21] !== "A") {
   errors.push("room 5 should keep its left recovery checkpoint and right upper relay");
 }
+if (maps[6]?.[8]?.slice(5, 8) !== "CCC" || maps[6]?.[9]?.slice(5, 8) !== "###" || maps[6]?.[7]?.[7] !== "U") {
+  errors.push("room 7 should teach its first crumble strip above stable support beside an updraft");
+}
+if (maps[7]?.[3]?.[17] !== "B" || maps[7]?.[4]?.[17] !== "#") {
+  errors.push("room 8 should introduce its prism over a stable landing before the combined route");
+}
 const echoTeachingRoom = maps[8];
 const echoCheckpoints = echoTeachingRoom ? tilePoints(echoTeachingRoom, "P") : [];
 const echoAnchors = echoTeachingRoom ? tilePoints(echoTeachingRoom, "M") : [];

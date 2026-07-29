@@ -161,9 +161,18 @@ if (!runtimeSource.includes('import("./modules/core/math.mjs?v=') || !coreMathSo
 if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
   || !roomDataSource.includes("export const maps = [")
   || !roomDataSource.includes("export const ROOM_LANDMARKS = [")
+  || !roomDataSource.includes("export const MECHANIC_FIRST_TOUCH_CUES = {")
+  || !roomDataSource.includes("export function mechanicFirstTouchCueData(")
   || !runtimeSource.includes("drawRoomLandmark(ambientTime, atmosphere)")
   || !roomDataSource.includes("].forEach(deepFreeze);")) {
   fail("public runtime must consume the versioned immutable room data and landmark module");
+}
+for (const trigger of [
+  'showMechanicFirstTouchCue("updraft")',
+  'showMechanicFirstTouchCue("crumble")',
+  'showMechanicFirstTouchCue("prism")'
+]) {
+  if (!runtimeSource.includes(trigger)) fail(`public runtime should trigger ${trigger} on first mechanic contact`);
 }
 if (!roomDataSource.includes('resolve: "断开的旧路，被你重新连起。"')
   || !runtimeSource.includes("let chapterTransitionFromChapter = -1")

@@ -174,6 +174,23 @@
     "overdrive": "棱镜",
     "finale": "终点"
   },
+  "mechanicFirstTouchCues": {
+    "updraft": {
+      "room": 6,
+      "title": "风升",
+      "detail": "松开下落，让风补回高度"
+    },
+    "crumble": {
+      "room": 6,
+      "title": "脆冰",
+      "detail": "只借一步，离开后再校正"
+    },
+    "prism": {
+      "room": 7,
+      "title": "棱镜过载",
+      "detail": "保持方向，下一次冲刺更远"
+    }
+  },
   "roomGuides": [
     "先把落点站稳，再追求更快。",
     "用第一颗光继建立速度，再用第二颗把落点收稳。",

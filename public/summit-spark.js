@@ -43,7 +43,8 @@
       ROOM_TARGETS,
       ROOM_TIERS,
       ROOM_WHISPERS,
-      SKILL_LABELS
+      SKILL_LABELS,
+      mechanicFirstTouchCueData
     },
     {
       clampGamepadDeadzoneData,
@@ -124,12 +125,12 @@
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p196"),
-    import("./modules/core/math.mjs?v=20260729-p196"),
-    import("./modules/game/room-data.mjs?v=20260729-p196"),
-    import("./modules/systems/storage.mjs?v=20260729-p196"),
-    import("./modules/systems/input.mjs?v=20260729-p196"),
-    import("./modules/training/state.mjs?v=20260729-p196")
+    import("./modules/core/format.mjs?v=20260729-p197"),
+    import("./modules/core/math.mjs?v=20260729-p197"),
+    import("./modules/game/room-data.mjs?v=20260729-p197"),
+    import("./modules/systems/storage.mjs?v=20260729-p197"),
+    import("./modules/systems/input.mjs?v=20260729-p197"),
+    import("./modules/training/state.mjs?v=20260729-p197")
   ]);
 
   const canvas = document.getElementById("game");
@@ -648,6 +649,7 @@
   let feelCueText = "";
   let feelCueDetail = "";
   let feelCueColor = palette.cyan;
+  const mechanicFirstTouchSeen = Object.create(null);
   let routeCueTimer = 0;
   let routeCueSlot = 0;
   let routeCueReason = "入场";
@@ -1716,8 +1718,6 @@
   function showGameTip(title, detail = "", kind = "coach", duration = GAME_TIP_TIME, priority = 1) {
     if (!gameTip || !gameTipTitle || !gameTipDetail) return;
     if (kind === "coach" || kind === "onboarding") return;
-    if (kind === "onboarding") return;
-    if (kind === "coach" && priority <= 2) return;
     if (gameTipTimer > 0 && gameTipPriority > priority) return;
     const resolvedKind = GAME_TIP_CLASSES.includes(kind) ? kind : "coach";
     gameTipKind = resolvedKind;
@@ -2355,6 +2355,7 @@
       if (aabb(box, field)) {
         player.inUpdraft = true;
         markRoomTech("updraft");
+        showMechanicFirstTouchCue("updraft");
         const center = field.x + field.w / 2;
         const pull = Math.max(-1, Math.min(1, (center - (player.x + player.w / 2)) / 34));
         const downResist = input.y > 0 ? 0.72 : 1;
@@ -2437,6 +2438,7 @@
         prism.timer = PRISM_RESET_TIME;
         prism.pulse = 0.5;
         markRoomTech("prism");
+        showMechanicFirstTouchCue("prism");
         player.overdrive = OVERDRIVE_TIME;
         restoreDashCharge();
         player.dashCooldown = 0;
@@ -5370,6 +5372,20 @@
     feelCueTimer = duration;
   }
 
+  function showMechanicFirstTouchCue(key) {
+    if (mechanicFirstTouchSeen[key]) return false;
+    const cue = mechanicFirstTouchCueData(key, {
+      seen: mechanicFirstTouchSeen,
+      roomFocus,
+      bestRoomTimes
+    });
+    mechanicFirstTouchSeen[key] = true;
+    if (!cue) return false;
+    const color = key === "prism" ? palette.gold : key === "crumble" ? palette.hot : palette.cyan;
+    showFeelCue(cue.title, cue.detail, color, FEEL_CUE_TIME * 1.65);
+    return true;
+  }
+
   function clearFeelCue() {
     feelCueTimer = 0;
     feelCueText = "";
@@ -7317,6 +7333,7 @@
         block.warned = true;
         crumbleSlipTimer = CRUMBLE_DEATH_MEMORY;
         markRoomTech("crumble");
+        showMechanicFirstTouchCue("crumble");
         shake(0.035, 1.2);
         burst(block.x * TILE + TILE / 2, block.y * TILE + 6, "#e7f4f7", 5, 95);
       }

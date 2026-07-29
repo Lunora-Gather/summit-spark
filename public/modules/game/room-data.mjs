@@ -136,8 +136,29 @@ export const EXPERT_REQUIREMENT_LABELS = {
     prism: "棱镜",
     echo: "回声锚点",
     recall: "召回",
-    crumble: "脆冰"
-  };
+  crumble: "脆冰"
+};
+
+export const MECHANIC_FIRST_TOUCH_CUES = {
+  updraft: { room: 6, title: "风升", detail: "松开下落，让风补回高度" },
+  crumble: { room: 6, title: "脆冰", detail: "只借一步，离开后再校正" },
+  prism: { room: 7, title: "棱镜过载", detail: "保持方向，下一次冲刺更远" }
+};
+
+export function mechanicFirstTouchCueData(key, options = {}) {
+  const {
+    seen = null,
+    roomFocus = [],
+    bestRoomTimes = [],
+    cues = MECHANIC_FIRST_TOUCH_CUES
+  } = options;
+  if (seen?.[key] || !Object.hasOwn(cues, key)) return null;
+  const cue = cues[key];
+  if (!cue || !Number.isInteger(cue.room) || cue.room < 0) return null;
+  const entry = roomFocus[cue.room];
+  if (Number(entry?.clears) > 0 || Number(bestRoomTimes[cue.room]) > 0) return null;
+  return cue;
+}
 
 export const maps = [
     [
@@ -381,6 +402,7 @@ function deepFreeze(value) {
   ROOM_STYLE_TRIALS,
   EXPERT_REQUIREMENTS,
   EXPERT_REQUIREMENT_LABELS,
+  MECHANIC_FIRST_TOUCH_CUES,
   maps,
   ROOM_ATMOSPHERES,
   ROOM_LANDMARKS

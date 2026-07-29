@@ -6,6 +6,7 @@ import {
   CHAPTER_EXPERIENCE,
   EXPERT_REQUIREMENTS,
   EXPERT_REQUIREMENT_LABELS,
+  MECHANIC_FIRST_TOUCH_CUES,
   maps,
   ROOM_ATMOSPHERES,
   ROOM_CHAPTER_LABELS,
@@ -19,7 +20,8 @@ import {
   ROOM_TARGETS,
   ROOM_TIERS,
   ROOM_WHISPERS,
-  SKILL_LABELS
+  SKILL_LABELS,
+  mechanicFirstTouchCueData
 } from "../public/modules/game/room-data.mjs";
 
 const roomCollections = [
@@ -65,6 +67,13 @@ assert.ok(Object.isFrozen(CHAPTER_EXPERIENCE[0]), "nested chapter records should
 assert.ok(Object.isFrozen(ROOM_STYLE_TRIALS[0].tech), "nested trial requirements should be read-only");
 assert.ok(Object.isFrozen(SKILL_LABELS), "skill labels should be read-only");
 assert.ok(Object.isFrozen(EXPERT_REQUIREMENT_LABELS), "expert labels should be read-only");
+assert.deepEqual(Object.keys(MECHANIC_FIRST_TOUCH_CUES).sort(), ["crumble", "prism", "updraft"], "first-touch cues should cover the three Wind Gorge mechanics");
+for (const [key, cue] of Object.entries(MECHANIC_FIRST_TOUCH_CUES)) {
+  assert.ok(Number.isInteger(cue.room) && cue.room >= 0 && cue.room < maps.length, `${key} cue should reference a valid teaching room`);
+  assert.equal(typeof cue.title, "string", `${key} cue should have a title`);
+  assert.equal(typeof cue.detail, "string", `${key} cue should have detail`);
+  assert.ok(cue.title.length > 0 && cue.detail.length > 0, `${key} cue copy should be non-empty`);
+}
 assert.equal(new Set(ROOM_LANDMARKS.map((landmark) => landmark.kind)).size, maps.length, "every room should have a distinct landmark kind");
 ROOM_LANDMARKS.forEach((landmark, index) => {
   assert.equal(typeof landmark.kind, "string", `room ${index + 1} landmark should have a kind`);
@@ -75,6 +84,13 @@ ROOM_LANDMARKS.forEach((landmark, index) => {
 assertDeepFrozen(CHAPTER_EXPERIENCE, "chapter experience");
 assertDeepFrozen(SKILL_LABELS, "skill labels");
 assertDeepFrozen(EXPERT_REQUIREMENT_LABELS, "expert labels");
+assertDeepFrozen(MECHANIC_FIRST_TOUCH_CUES, "mechanic first-touch cues");
+assert.equal(mechanicFirstTouchCueData("updraft")?.title, "风升", "new players should receive the first updraft cue");
+assert.equal(mechanicFirstTouchCueData("crumble", { seen: { crumble: true } }), null, "a cue should appear at most once per session");
+assert.equal(mechanicFirstTouchCueData("prism", { roomFocus: Array.from({ length: 8 }, (_, index) => index === 7 ? { clears: 1 } : null) }), null, "cleared teaching rooms should suppress first-touch cues");
+assert.equal(mechanicFirstTouchCueData("prism", { bestRoomTimes: Array.from({ length: 8 }, (_, index) => index === 7 ? 18.4 : 0) }), null, "recorded teaching-room times should suppress first-touch cues");
+assert.equal(mechanicFirstTouchCueData("unknown"), null, "unknown mechanic cues should fail closed");
+assert.equal(mechanicFirstTouchCueData("__proto__"), null, "prototype-named mechanic cues should fail closed");
 assert.equal(ROOM_NAMES[0], "起势山门");
 assert.equal(ROOM_NAMES.at(-1), "星顶终线");
 assert.ok(maps.at(-1).some((row) => row.includes("H")), "the summit goal should remain in the final room");

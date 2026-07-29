@@ -204,7 +204,7 @@ async function main() {
       .forEach((marker) => expectIncludes("core format", coreFormat, marker));
     ["export function aabb(", "export function distRectPoint(", "export function approach("]
       .forEach((marker) => expectIncludes("core math", coreMath, marker));
-    ["export const ROOM_TARGETS = [", "export const maps = [", "export const ROOM_ATMOSPHERES = [", "export const ROOM_LANDMARKS = [", "].forEach(deepFreeze);"]
+    ["export const ROOM_TARGETS = [", "export const maps = [", "export const ROOM_ATMOSPHERES = [", "export const ROOM_LANDMARKS = [", "export const MECHANIC_FIRST_TOUCH_CUES = {", "export function mechanicFirstTouchCueData(", "].forEach(deepFreeze);"]
       .forEach((marker) => expectIncludes("room data", roomData, marker));
     ["export function finiteNonNegativeNumber(", "export function normalizeSettingsData(", "export function readStoredJson(", "export function normalizeRoomFocusData(", "export function parseSaveArchiveText(", "export function createSaveArchiveData(", "export function createSaveBackupData(", "export function writeStorageTransaction("]
       .forEach((marker) => expectIncludes("storage module", storageModule, marker));

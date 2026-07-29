@@ -16,6 +16,7 @@ function validateRoomDataSnapshot(snapshot) {
     roomLandmarks: landmarks,
     roomSkills: skills,
     skillLabels,
+    mechanicFirstTouchCues,
     roomGuides: guides,
     roomPurposes: purposes,
     roomRouteLines: routeLines,
@@ -114,6 +115,28 @@ function validateRoomDataSnapshot(snapshot) {
         if (!knownSkills.has(skill)) push(`ROOM_SKILLS ${roomIndex + 1} references missing label ${skill}`);
       }
     });
+  }
+
+  const mechanicCueKeys = ["updraft", "crumble", "prism"];
+  if (!mechanicFirstTouchCues || typeof mechanicFirstTouchCues !== "object") {
+    push("MECHANIC_FIRST_TOUCH_CUES must be an object");
+  } else {
+    for (const key of mechanicCueKeys) {
+      const cue = mechanicFirstTouchCues[key];
+      if (!cue || typeof cue !== "object") {
+        push(`MECHANIC_FIRST_TOUCH_CUES missing ${key}`);
+        continue;
+      }
+      if (!Number.isInteger(cue.room) || cue.room < 0 || cue.room >= roomCount) {
+        push(`MECHANIC_FIRST_TOUCH_CUES ${key} has invalid teaching room`);
+      }
+      if (!isNonEmptyString(cue.title) || !isNonEmptyString(cue.detail)) {
+        push(`MECHANIC_FIRST_TOUCH_CUES ${key} needs title and detail`);
+      }
+    }
+    for (const key of Object.keys(mechanicFirstTouchCues)) {
+      if (!mechanicCueKeys.includes(key)) push(`MECHANIC_FIRST_TOUCH_CUES has unknown key ${key}`);
+    }
   }
 
   if (Array.isArray(routeLines)) {

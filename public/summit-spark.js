@@ -14,12 +14,22 @@
     return;
   }
 
-  const {
-    escapeHtml,
-    formatDelta,
-    formatTime,
-    splitGrade
-  } = await import("./modules/core/format.mjs?v=20260728-p182");
+  const [
+    {
+      escapeHtml,
+      formatDelta,
+      formatTime,
+      splitGrade
+    },
+    {
+      aabb,
+      approach,
+      distRectPoint
+    }
+  ] = await Promise.all([
+    import("./modules/core/format.mjs?v=20260728-p183"),
+    import("./modules/core/math.mjs?v=20260728-p183")
+  ]);
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -11176,22 +11186,6 @@
   function tileAt(x, y) {
     if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return "#";
     return room.tiles[y][x];
-  }
-
-  function aabb(a, b) {
-    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-  }
-
-  function distRectPoint(rect, x, y) {
-    const dx = Math.max(rect.x - x, 0, x - (rect.x + rect.w));
-    const dy = Math.max(rect.y - y, 0, y - (rect.y + rect.h));
-    return Math.hypot(dx, dy);
-  }
-
-  function approach(value, target, amount) {
-    if (value < target) return Math.min(value + amount, target);
-    if (value > target) return Math.max(value - amount, target);
-    return target;
   }
 
   function roundRect(context, x, y, w, h, r) {

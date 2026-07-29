@@ -29,6 +29,7 @@ const playtestChecklist = read("PLAYTEST_CHECKLIST.md");
 const pagesWorkflow = read(".github/workflows/pages.yml");
 const runtimeSource = read("public/summit-spark.js");
 const coreFormatSource = read("public/modules/core/format.mjs");
+const coreMathSource = read("public/modules/core/math.mjs");
 
 const buildVersion = extractOne(
   "meta build-version",
@@ -50,6 +51,11 @@ const coreFormatVersion = extractOne(
   runtimeSource,
   /modules\/core\/format\.mjs\?v=([^"]+)"/
 );
+const coreMathVersion = extractOne(
+  "core math module version",
+  runtimeSource,
+  /modules\/core\/math\.mjs\?v=([^"]+)"/
+);
 
 if (buildVersion && cssVersion && buildVersion !== cssVersion) {
   fail(`css version ${cssVersion} does not match build version ${buildVersion}`);
@@ -61,6 +67,10 @@ if (buildVersion && jsVersion && buildVersion !== jsVersion) {
 
 if (buildVersion && coreFormatVersion && buildVersion !== coreFormatVersion) {
   fail(`core format version ${coreFormatVersion} does not match build version ${buildVersion}`);
+}
+
+if (buildVersion && coreMathVersion && buildVersion !== coreMathVersion) {
+  fail(`core math version ${coreMathVersion} does not match build version ${buildVersion}`);
 }
 
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js")) {
@@ -103,8 +113,11 @@ if (pagesWorkflow.includes("path: .\n")) {
 if (!runtimeSource.includes("window.self !== window.top") || !runtimeSource.includes("document.body.replaceChildren(notice)")) {
   fail("public runtime must stop before initialization when embedded by another page");
 }
-if (!runtimeSource.includes('await import("./modules/core/format.mjs?v=') || !coreFormatSource.includes("export function formatTime(")) {
+if (!runtimeSource.includes('import("./modules/core/format.mjs?v=') || !coreFormatSource.includes("export function formatTime(")) {
   fail("public runtime must consume the versioned core format module");
+}
+if (!runtimeSource.includes('import("./modules/core/math.mjs?v=') || !coreMathSource.includes("export function aabb(")) {
+  fail("public runtime must consume the versioned core math module");
 }
 
 if (errors.length > 0) {

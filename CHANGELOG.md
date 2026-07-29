@@ -2,6 +2,8 @@
 
 ## 2026-07-28
 
+- Completed the second reversible core slice for `20260728-p183`. Rectangle overlap, rectangle-to-point distance and bounded numeric approach now live in `public/modules/core/math.mjs`; the format and math modules load in parallel so the extra boundary does not add a request waterfall. Direct Node tests lock strict edge-contact, inside/outside distance and no-overshoot behavior, while ownership, version, MIME and whitelist gates prevent duplicate or missing implementations. Physics constants and call sites, input, saves, DOM, rooms, the classic climber and fixed dark-blue hair remain unchanged.
+
 - Completed the first reversible low-risk module slice for `20260728-p182` without changing gameplay, saves, DOM structure or visible surfaces. Time formatting, split grading and HTML escaping now live in `public/modules/core/format.mjs`, consumed through a versioned native dynamic import after the synchronous anti-embed guard. Added direct Node behavior checks, module ownership/version contracts, local-server MIME and whitelist coverage, and real-browser boot regression; the old climber silhouette and fixed dark-blue hair remain untouched.
 
 - Removed the remaining Node 20 compatibility dependency from the release path without changing the public P181 runtime. Configure Pages, Upload Pages Artifact and Deploy Pages now use their reviewed native-Node-24 releases pinned to full official commit SHAs; the obsolete force-runtime override is gone, and repository checks now reject either old release set or a reintroduced compatibility flag. This closes the deprecation warning observed in the P181 deployment and keeps the Pages supply chain aligned with the project's Node 24 baseline.

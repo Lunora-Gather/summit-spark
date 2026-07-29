@@ -7,6 +7,7 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8");
 const coreFormat = fs.readFileSync(path.join(root, "public", "modules", "core", "format.mjs"), "utf8");
+const coreMath = fs.readFileSync(path.join(root, "public", "modules", "core", "math.mjs"), "utf8");
 const indexHtml = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const workflowPath = path.join(root, ".github", "workflows", "pages.yml");
 const workflow = fs.existsSync(workflowPath) ? fs.readFileSync(workflowPath, "utf8") : "";
@@ -409,9 +410,15 @@ if (!/^\d{8}-p\d+$/.test(buildVersion)) errors.push("HTML should expose the curr
 if (buildVersion && !indexHtml.includes("summit-spark.css?v=" + buildVersion)) errors.push("HTML should version the CSS asset with the build version");
 if (buildVersion && !indexHtml.includes("summit-spark.js?v=" + buildVersion)) errors.push("HTML should version the JS asset with the build version");
 if (buildVersion && !js.includes("modules/core/format.mjs?v=" + buildVersion)) errors.push("runtime should version the core format module with the build version");
+if (buildVersion && !js.includes("modules/core/math.mjs?v=" + buildVersion)) errors.push("runtime should version the core math module with the build version");
 for (const helper of ["formatTime", "formatDelta", "splitGrade", "escapeHtml"]) {
   if (!coreFormat.includes(`export function ${helper}(`) || js.includes(`function ${helper}(`)) {
     errors.push(`pure helper ${helper} should have one exported implementation in the core format module`);
+  }
+}
+for (const helper of ["aabb", "distRectPoint", "approach"]) {
+  if (!coreMath.includes(`export function ${helper}(`) || js.includes(`function ${helper}(`)) {
+    errors.push(`pure helper ${helper} should have one exported implementation in the core math module`);
   }
 }
 if (!indexHtml.includes("boot-noscript")) errors.push("start overlay should explain when JavaScript is disabled");

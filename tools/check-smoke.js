@@ -79,6 +79,10 @@ async function verifyServerBoundary(baseUrl) {
   if (moduleResponse.status !== 200 || moduleResponse.body !== "" || !/text\/javascript/.test(moduleResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the core format module as JavaScript without a response body");
   }
+  const mathModuleResponse = await request(baseUrl + "/modules/core/math.mjs", { method: "HEAD" });
+  if (mathModuleResponse.status !== 200 || mathModuleResponse.body !== "" || !/text\/javascript/.test(mathModuleResponse.headers["content-type"] || "")) {
+    errors.push("server HEAD must expose the core math module as JavaScript without a response body");
+  }
   const postResponse = await request(baseUrl + "/index.html", { method: "POST" });
   if (postResponse.status !== 405 || postResponse.headers.allow !== "GET, HEAD") {
     errors.push("server must reject non-read methods with 405 and an Allow header");
@@ -132,6 +136,7 @@ async function main() {
     await verifyServerBoundary(baseUrl);
     const js = await requestText(baseUrl + "/summit-spark.js?v=" + encodeURIComponent(buildVersion));
     const coreFormat = await requestText(baseUrl + "/modules/core/format.mjs?v=" + encodeURIComponent(buildVersion));
+    const coreMath = await requestText(baseUrl + "/modules/core/math.mjs?v=" + encodeURIComponent(buildVersion));
     const css = await requestText(baseUrl + "/summit-spark.css?v=" + encodeURIComponent(buildVersion));
     expectNoInlineScript(html);
 
@@ -170,8 +175,11 @@ async function main() {
       if (js.includes(marker)) errors.push("runtime should not expose quiet-mode prompt text: " + marker);
     });
     expectIncludes("js", js, `modules/core/format.mjs?v=${buildVersion}`);
+    expectIncludes("js", js, `modules/core/math.mjs?v=${buildVersion}`);
     ["export function formatTime(", "export function formatDelta(", "export function splitGrade(", "export function escapeHtml("]
       .forEach((marker) => expectIncludes("core format", coreFormat, marker));
+    ["export function aabb(", "export function distRectPoint(", "export function approach("]
+      .forEach((marker) => expectIncludes("core math", coreMath, marker));
 
     [
       "markAppReady",

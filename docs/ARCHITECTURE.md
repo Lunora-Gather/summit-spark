@@ -11,7 +11,8 @@ summit-spark/
 │  ├─ summit-spark.css      # UI、响应式与视觉
 │  ├─ summit-spark.js       # 当前游戏运行时
 │  ├─ modules/core/
-│  │  └─ format.mjs         # 无 DOM 的时间、评级与安全文本纯函数
+│  │  ├─ format.mjs         # 无 DOM 的时间、评级与安全文本纯函数
+│  │  └─ math.mjs           # 无状态的矩形判定、距离与数值逼近
 │  └─ vendor/               # 固定版本 Appwrite SDK 与许可证
 ├─ data/
 │  └─ rooms.generated.json # 房间/训练数据验证快照，不参与运行
@@ -41,6 +42,7 @@ public/index.html
   ├─ public/vendor/appwrite-26.2.0.js（按需加载）
   └─ public/summit-spark.js
        ├─ public/modules/core/format.mjs
+       ├─ public/modules/core/math.mjs
        ├─ Canvas / DOM / WebAudio / 输入
        ├─ localStorage / sessionStorage
        └─ Appwrite Account + TablesDB
@@ -55,7 +57,7 @@ public/summit-spark.js
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入、物理、渲染、训练、存档和账号逻辑。首个低风险切片只迁出了时间格式、分段评级和 HTML 转义，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入、物理、渲染、训练、存档和账号逻辑。两个低风险切片已迁出格式、安全文本、矩形判定、距离和数值逼近，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
 
 短期修改遵守：
 
@@ -68,8 +70,8 @@ public/summit-spark.js
 
 只有真正开始迁移时才创建目录，建议目标位于 `public/modules/`：
 
-1. `core/math.mjs`：继续迁移无 DOM、无存储、无计时器且不改变物理判定的纯函数；`core/format.mjs` 已完成。
-2. `game/room-data.mjs`：房间名、目标、地图、路线和合同，只读导出。
+1. `game/room-data.mjs`：房间名、目标、地图、路线和合同，只读导出；`core/format.mjs` 与 `core/math.mjs` 已完成。
+2. `systems/storage.mjs`：规范化、事务写入、备份与迁移。
 3. `systems/storage.js`：规范化、事务写入、备份与迁移。
 4. `systems/input.js`：键盘、触控、手柄和输入缓冲。
 5. `training/`：Drill、Route、Feel 和 Focus 纯状态计算。

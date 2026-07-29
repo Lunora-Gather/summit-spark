@@ -4,7 +4,7 @@
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260728-p182`
+当前公开构建：`20260728-p183`
 
 ## 快速开始
 
@@ -66,7 +66,7 @@ public/                 可直接部署的唯一运行目录
   index.html            唯一页面入口
   summit-spark.css      UI、响应式与视觉
   summit-spark.js       当前游戏运行时
-  modules/core/         已迁移且有独立契约的纯函数
+  modules/core/         已迁移且有独立契约的格式与数学纯函数
   vendor/               固定 Appwrite SDK 与许可证
 data/                   房间/训练数据验证快照
 tools/                  自动质量门和共享验证器
@@ -76,7 +76,7 @@ appwrite.config.json    云端资源和最小权限策略
 game-server.js          public 白名单本地服务器
 ```
 
-当前运行时主体仍是单体脚本；时间格式、分段评级和 HTML 转义已先迁入无状态核心模块。后续继续按只读数据、存档、输入、训练、UI、物理、渲染的顺序迁移。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+当前运行时主体仍是单体脚本；格式、安全文本、矩形判定、距离和数值逼近已迁入无状态核心模块。后续继续按只读数据、存档、输入、训练、UI、物理、渲染的顺序迁移。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 质量检查
 
@@ -166,4 +166,4 @@ Appwrite 仅启用 Account、Database/TablesDB 和 REST：
 
 ## 最新收尾
 
-P182 完成首个可回滚的低风险模块化切片：时间格式、分段评级和 HTML 转义从主运行时迁入原生 ES 模块，并增加独立 Node 契约、HTTP 类型/白名单检查和真实浏览器启动回归。物理、输入、存档、DOM、十房内容、旧小人轮廓和固定深蓝头发均未改变。
+P183 完成第二个可回滚的核心切片：矩形相交、矩形到点距离和数值逼近迁入数学模块，并用严格边界测试固定原行为；两个核心模块并行加载，避免新增启动瀑布。物理参数、输入、存档、DOM、十房内容、旧小人轮廓和固定深蓝头发均未改变。

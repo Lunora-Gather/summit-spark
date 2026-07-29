@@ -32,6 +32,7 @@ const publicFiles = new Map([
   ["/summit-spark.css", path.join("public", "summit-spark.css")],
   ["/summit-spark.js", path.join("public", "summit-spark.js")],
   ["/modules/core/format.mjs", path.join("public", "modules", "core", "format.mjs")],
+  ["/modules/core/math.mjs", path.join("public", "modules", "core", "math.mjs")],
   ["/vendor/appwrite-26.2.0.js", path.join("public", "vendor", "appwrite-26.2.0.js")],
   ["/vendor/APPWRITE-LICENSE", path.join("public", "vendor", "APPWRITE-LICENSE")]
 ]);

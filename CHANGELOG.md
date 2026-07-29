@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-07-29
+
+- Extracted the device-independent input mapping slice for `20260729-p187`. Gamepad axes, D-pad/buttons, trigger thresholds, drift diagnostics and edge presses now share `public/modules/systems/input.mjs` with preset/custom binding resolution, platform labels, reserved-key validation and duplicate-key swaps. Direct Node tests cover exact deadzone and trigger boundaries, mixed axis/button input, multi-pad diagnostics, opposing direction cancellation, prototype-named preset rejection, Mac/PC labels and binding swaps. DOM focus isolation, keyboard/touch listeners, jump/dash buffers, gameplay, rooms, physics, the classic climber and fixed dark-blue hair remain unchanged.
+
 ## 2026-07-28
 
 - Completed the storage-rule boundary for `20260728-p186`. Settings migration and binding fallback, corrupted local JSON repair, save archive assembly, backup assembly/validation, and input clamps now join the P185 guards and transaction rollback in `public/modules/systems/storage.mjs`; the main runtime only supplies current state and retains UI/cloud orchestration. Direct tests lock field order, schema values, repair/write-failure notices, invalid backup rejection, prototype-named preset rejection, Mac/PC binding fallback, touch/deadzone bounds and prior archive behavior. Save keys and payload shape, cloud semantics, gameplay, rooms, physics, the classic climber and fixed dark-blue hair remain unchanged.

@@ -62,12 +62,25 @@
       parseSaveBackupValue,
       readStoredJson: readStoredJsonData,
       writeStorageTransaction: writeStorageTransactionData
+    },
+    {
+      defaultBindingsForLayoutData,
+      effectiveBindingsData,
+      isStartCodeData,
+      keyCodeLabelData,
+      newlyPressedActions,
+      rebindActionData,
+      resolveGamepadState,
+      resolveMovementInput,
+      shouldBlockKeyData,
+      validBindingCodeData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260728-p186"),
-    import("./modules/core/math.mjs?v=20260728-p186"),
-    import("./modules/game/room-data.mjs?v=20260728-p186"),
-    import("./modules/systems/storage.mjs?v=20260728-p186")
+    import("./modules/core/format.mjs?v=20260729-p187"),
+    import("./modules/core/math.mjs?v=20260729-p187"),
+    import("./modules/game/room-data.mjs?v=20260729-p187"),
+    import("./modules/systems/storage.mjs?v=20260729-p187"),
+    import("./modules/systems/input.mjs?v=20260729-p187")
   ]);
 
   const canvas = document.getElementById("game");
@@ -398,7 +411,6 @@
   const ALL_ACTION_CODES = new Set(Object.values(CONTROL_PRESETS).flatMap((preset) =>
     Object.values(preset).flatMap((bindings) => [bindings.jump, bindings.dash, bindings.grab])
   ));
-  const START_CODES = new Set(["Enter", ...ALL_ACTION_CODES]);
   const BLOCKED_CODES = new Set([
     ...ALL_ACTION_CODES,
     "ArrowUp",
@@ -5120,11 +5132,7 @@
     const up = keyHeldAny(actionCodes("up")) || touch.up || gamepadInput.up;
     const down = keyHeldAny(actionCodes("down")) || touch.down || gamepadInput.down;
     const grab = settings.grabMode === "toggle" ? grabLatched : rawGrabHeld();
-    return {
-      x: Number(right) - Number(left),
-      y: Number(down) - Number(up),
-      grab
-    };
+    return resolveMovementInput({ left, right, up, down, grab });
   }
 
   function rawGrabHeld() {
@@ -5159,10 +5167,6 @@
     return input.x !== 0 || input.y !== 0 || input.grab || player.jumpBuffer > 0 || player.dashBuffer > 0;
   }
 
-  function justPressed(code) {
-    return pressed.has(code);
-  }
-
   function justPressedAny(codes) {
     for (const code of codes) {
       if (pressed.has(code)) return true;
@@ -5194,55 +5198,19 @@
   function updateGamepad() {
     const supported = typeof navigator !== "undefined" && typeof navigator.getGamepads === "function";
     const pads = supported ? navigator.getGamepads() : [];
-    const connectedPads = Array.from(pads || []).filter(Boolean);
-    const pad = connectedPads[0];
-    const nextHeld = new Set();
-
-    for (const key of Object.keys(gamepadInput)) {
-      gamepadInput[key] = false;
-    }
-
-    if (pad) {
-      const deadzone = settings.gamepadDeadzone;
-      const rawX = pad.axes[0] || 0;
-      const rawY = pad.axes[1] || 0;
-      const ax = Math.abs(rawX) > deadzone ? rawX : 0;
-      const ay = Math.abs(rawY) > deadzone ? rawY : 0;
-      const pressedButton = (index, threshold = 0.5) => Boolean(pad.buttons[index]?.pressed || pad.buttons[index]?.value > threshold);
-      gamepadInput.left = ax < -deadzone || pressedButton(14);
-      gamepadInput.right = ax > deadzone || pressedButton(15);
-      gamepadInput.up = ay < -deadzone || pressedButton(12);
-      gamepadInput.down = ay > deadzone || pressedButton(13);
-      gamepadInput.jump = pressedButton(0);
-      gamepadInput.dash = pressedButton(1) || pressedButton(2) || pressedButton(7, 0.35);
-      gamepadInput.grab = pressedButton(4) || pressedButton(5) || pressedButton(6, 0.35);
-      gamepadInput.recall = pressedButton(3) || pressedButton(8);
-
-      for (const action of ["jump", "dash", "grab", "recall"]) {
-        if (gamepadInput[action]) nextHeld.add(action);
-      }
-    }
-
-    const activeActions = Object.keys(gamepadInput).filter((key) => gamepadInput[key]);
-    lastGamepadStatus = {
+    const resolved = resolveGamepadState(pads, {
       supported,
-      connected: Boolean(pad),
-      count: connectedPads.length,
-      standardMapping: connectedPads.filter((item) => item.mapping === "standard").length,
-      axisX: pad ? Math.round((pad.axes[0] || 0) * 100) / 100 : 0,
-      axisY: pad ? Math.round((pad.axes[1] || 0) * 100) / 100 : 0,
-      axisMagnitude: pad ? Math.round(Math.hypot(pad.axes[0] || 0, pad.axes[1] || 0) * 100) / 100 : 0,
-      driftRisk: pad ? Math.hypot(pad.axes[0] || 0, pad.axes[1] || 0) > settings.gamepadDeadzone * 0.72 && Math.hypot(pad.axes[0] || 0, pad.axes[1] || 0) <= settings.gamepadDeadzone : false,
-      activeActions
-    };
+      deadzone: settings.gamepadDeadzone
+    });
+    Object.assign(gamepadInput, resolved.input);
+    lastGamepadStatus = resolved.status;
     updateGamepadStatusOutput();
 
-    for (const action of nextHeld) {
-      if (!gamepadHeld.has(action)) {
-        gamepadPressed.add(action);
-        if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
-      }
-    }
+    const nextHeld = new Set(resolved.heldActions);
+    newlyPressedActions(gamepadHeld, nextHeld).forEach((action) => {
+      gamepadPressed.add(action);
+      if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
+    });
     gamepadHeld = nextHeld;
   }
 
@@ -5299,55 +5267,32 @@
   }
 
   function shouldBlockKey(code) {
-    return BLOCKED_CODES.has(code) || (settings.controlsPreset === "custom" && BINDING_ACTIONS.some((action) => settings.customBindings?.[action] === code));
+    return shouldBlockKeyData(code, {
+      blockedCodes: BLOCKED_CODES,
+      controlsPreset: settings.controlsPreset,
+      bindingActions: BINDING_ACTIONS,
+      customBindings: settings.customBindings
+    });
   }
 
   function isStartCode(code) {
-    return code === "Enter" || ["jump", "dash", "grab"].some((action) => isActionCode(code, action));
+    return isStartCodeData(code, effectiveBindings());
   }
 
   function defaultBindingsForLayout(layout) {
-    return { ...KEYBOARD_LAYOUT_DEFAULTS[layout === "mac" ? "mac" : "pc"] };
-  }
-
-  function presetBindingsFor(preset = settings.controlsPreset, layout = settings.keyboardLayout) {
-    const presetName = CONTROL_PRESETS[preset] ? preset : "comfort";
-    const layoutName = layout === "mac" ? "mac" : "pc";
-    return CONTROL_PRESETS[presetName][layoutName];
+    return defaultBindingsForLayoutData(layout, KEYBOARD_LAYOUT_DEFAULTS);
   }
 
   function effectiveBindings() {
-    return settings.controlsPreset === "custom"
-      ? settings.customBindings
-      : presetBindingsFor();
+    return effectiveBindingsData(settings, CONTROL_PRESETS);
   }
 
   function validBindingCode(code) {
-    return typeof code === "string" && code.length > 0 && code.length <= 32 && !RESERVED_BINDING_CODES.has(code);
+    return validBindingCodeData(code, RESERVED_BINDING_CODES);
   }
 
   function keyCodeLabel(code, layout = settings.keyboardLayout) {
-    const common = {
-      Space: "Space",
-      ArrowLeft: "←",
-      ArrowRight: "→",
-      ArrowUp: "↑",
-      ArrowDown: "↓",
-      ShiftLeft: "Shift",
-      ShiftRight: "Shift",
-      ControlLeft: layout === "mac" ? "⌃ Control" : "Ctrl",
-      ControlRight: layout === "mac" ? "⌃ Control" : "Ctrl",
-      AltLeft: layout === "mac" ? "⌥ Option" : "Alt",
-      AltRight: layout === "mac" ? "⌥ Option" : "Alt",
-      MetaLeft: layout === "mac" ? "⌘ Command" : "Win",
-      MetaRight: layout === "mac" ? "⌘ Command" : "Win",
-      Backspace: layout === "mac" ? "Delete" : "Backspace"
-    };
-    if (common[code]) return common[code];
-    if (/^Key[A-Z]$/.test(code)) return code.slice(3);
-    if (/^Digit[0-9]$/.test(code)) return code.slice(5);
-    if (/^Numpad/.test(code)) return `Num ${code.slice(6)}`;
-    return code.replace(/(Left|Right)$/, "");
+    return keyCodeLabelData(code, layout);
   }
 
   function beginKeyBindingCapture(action) {
@@ -5390,19 +5335,15 @@
       if (keyBindingStatus) keyBindingStatus.textContent = "该按键保留给界面操作，请选择其他按键";
       return;
     }
-    const next = { ...settings.customBindings };
-    const previousCode = next[action];
-    const occupiedAction = BINDING_ACTIONS.find((candidate) => candidate !== action && next[candidate] === code);
-    if (occupiedAction && previousCode) next[occupiedAction] = previousCode;
-    next[action] = code;
-    settings.customBindings = next;
+    const rebound = rebindActionData(settings.customBindings, BINDING_ACTIONS, action, code);
+    settings.customBindings = rebound.bindings;
     settings.controlsPreset = "custom";
     pendingBindingAction = "";
     bindingCaptureSnapshot = null;
     releaseAllInputs();
     syncKeyBindingEditor();
     writeSettings();
-    const swapped = occupiedAction ? `，已与“${BINDING_LABELS[occupiedAction]}”交换` : "";
+    const swapped = rebound.occupiedAction ? `，已与“${BINDING_LABELS[rebound.occupiedAction]}”交换` : "";
     if (keyBindingStatus) keyBindingStatus.textContent = `${BINDING_LABELS[action]}：${keyCodeLabel(code)}${swapped}`;
     setGameStatus(`键位已更新：${BINDING_LABELS[action]} ${keyCodeLabel(code)}`);
   }

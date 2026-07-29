@@ -32,6 +32,7 @@ const coreFormatSource = read("public/modules/core/format.mjs");
 const coreMathSource = read("public/modules/core/math.mjs");
 const roomDataSource = read("public/modules/game/room-data.mjs");
 const storageSource = read("public/modules/systems/storage.mjs");
+const inputSource = read("public/modules/systems/input.mjs");
 
 const buildVersion = extractOne(
   "meta build-version",
@@ -68,6 +69,11 @@ const storageVersion = extractOne(
   runtimeSource,
   /modules\/systems\/storage\.mjs\?v=([^"]+)"/
 );
+const inputVersion = extractOne(
+  "input module version",
+  runtimeSource,
+  /modules\/systems\/input\.mjs\?v=([^"]+)"/
+);
 
 if (buildVersion && cssVersion && buildVersion !== cssVersion) {
   fail(`css version ${cssVersion} does not match build version ${buildVersion}`);
@@ -91,6 +97,10 @@ if (buildVersion && roomDataVersion && buildVersion !== roomDataVersion) {
 
 if (buildVersion && storageVersion && buildVersion !== storageVersion) {
   fail(`storage version ${storageVersion} does not match build version ${buildVersion}`);
+}
+
+if (buildVersion && inputVersion && buildVersion !== inputVersion) {
+  fail(`input version ${inputVersion} does not match build version ${buildVersion}`);
 }
 
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js")) {
@@ -171,6 +181,21 @@ for (const delegation of [
 ]) {
   if (!runtimeSource.includes(delegation)) {
     fail(`public runtime must delegate storage ownership through ${delegation}`);
+  }
+}
+if (!runtimeSource.includes('import("./modules/systems/input.mjs?v=')
+  || !inputSource.includes("export function resolveGamepadState(")
+  || !inputSource.includes("export function effectiveBindingsData(")
+  || !inputSource.includes("export function rebindActionData(")) {
+  fail("public runtime must consume the versioned input mapping module");
+}
+for (const delegation of [
+  "const resolved = resolveGamepadState(pads, {",
+  "return effectiveBindingsData(settings, CONTROL_PRESETS)",
+  "const rebound = rebindActionData(settings.customBindings"
+]) {
+  if (!runtimeSource.includes(delegation)) {
+    fail(`public runtime must delegate input ownership through ${delegation}`);
   }
 }
 

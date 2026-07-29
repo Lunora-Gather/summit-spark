@@ -10,6 +10,7 @@ const coreFormat = fs.readFileSync(path.join(root, "public", "modules", "core", 
 const coreMath = fs.readFileSync(path.join(root, "public", "modules", "core", "math.mjs"), "utf8");
 const roomData = fs.readFileSync(path.join(root, "public", "modules", "game", "room-data.mjs"), "utf8");
 const storageModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "storage.mjs"), "utf8");
+const inputModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "input.mjs"), "utf8");
 const dataAndRuntime = roomData + "\n" + js;
 const indexHtml = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const workflowPath = path.join(root, ".github", "workflows", "pages.yml");
@@ -632,8 +633,8 @@ if (!css.includes(".start-panel .primary,\n  .start-panel .secondary-start {\n  
 if (!css.includes("#practiceButton,\n  #settingsButton {\n    width: 44px;") || !css.includes("height: 44px;\n    min-height: 44px;")) errors.push("narrow and coarse-pointer HUD practice/settings actions should retain 44px square hit targets");
 if (!css.includes("overflow-x: hidden")) errors.push("overlays should not create horizontal scrollbars");
 if (!css.includes("overflow-y: auto")) errors.push("finish review overlay should be scroll-safe");
-if (!js.includes("x: Number(right) - Number(left)")) errors.push("opposing horizontal inputs should resolve to neutral");
-if (!js.includes("y: Number(down) - Number(up)")) errors.push("opposing vertical inputs should resolve to neutral");
+if (!inputModule.includes("x: Number(Boolean(right)) - Number(Boolean(left))")) errors.push("opposing horizontal inputs should resolve to neutral");
+if (!inputModule.includes("y: Number(Boolean(down)) - Number(Boolean(up))")) errors.push("opposing vertical inputs should resolve to neutral");
 if (!js.includes('window.addEventListener("blur"') || !js.includes('document.addEventListener("visibilitychange"')) {
   errors.push("focus loss should release held inputs and pause the simulation");
 }

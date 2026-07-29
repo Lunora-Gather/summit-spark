@@ -107,6 +107,20 @@ echoTeachingDistance = echoCheckpointRow >= 0 && echoAnchorRow >= 0
 if (echoTeachingDistance > 3 || echoCheckpointRow !== echoAnchorRow) {
   errors.push("R9 should teach its first Echo anchor in a short low-risk checkpoint pocket before the combined route");
 }
+const finaleRoom = maps[9] || [];
+const finaleCheckpointRow = finaleRoom.findIndex((row) => row.includes("P"));
+const finaleAnchorRow = finaleRoom.findIndex((row) => row.includes("M"));
+const finaleCheckpointColumn = finaleCheckpointRow >= 0 ? finaleRoom[finaleCheckpointRow].indexOf("P") : -1;
+const finaleAnchorColumn = finaleAnchorRow >= 0 ? finaleRoom[finaleAnchorRow].indexOf("M") : -1;
+const finaleEchoDistance = finaleCheckpointRow >= 0 && finaleAnchorRow >= 0
+  ? Math.abs(finaleCheckpointRow - finaleAnchorRow) + Math.abs(finaleCheckpointColumn - finaleAnchorColumn)
+  : Number.POSITIVE_INFINITY;
+if (finaleEchoDistance !== 1 || finaleCheckpointRow !== finaleAnchorRow || finaleRoom[finaleAnchorRow + 1]?.[finaleAnchorColumn] !== "#") {
+  errors.push("R10 should reuse Echo from a stable entry checkpoint pocket");
+}
+if (!snapshot.expertRequirements?.[9]?.includes("echo") || !snapshot.roomStyleTrials?.[9]?.tech?.includes("echo")) {
+  errors.push("R10 Style and Expert routes should require establishing Echo without forcing recall");
+}
 
 routeLines.forEach((lines, index) => {
   if (!Array.isArray(lines) || lines.length !== 3) {
@@ -164,5 +178,5 @@ if (errors.length > 0) {
 }
 
 const summary = pressureByRoom.map((value, index) => "R" + (index + 1) + ":" + value).join(" ");
-console.log("Route audit passed: ten-room readable route, R5 central-ridge switchback, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
+console.log("Route audit passed: ten-room readable route, R5 central-ridge switchback, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
 for (const warning of warnings) console.log("warn: " + warning);

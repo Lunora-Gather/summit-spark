@@ -155,6 +155,22 @@ if (echoCheckpoints.length !== 1 || echoAnchors.length !== 1) {
     errors.push("room 9 first Echo anchor should be supported by a stable readable landing");
   }
 }
+const finaleRoom = maps[9];
+const finaleCheckpoints = finaleRoom ? tilePoints(finaleRoom, "P") : [];
+const finaleAnchors = finaleRoom ? tilePoints(finaleRoom, "M") : [];
+if (finaleCheckpoints.length !== 1 || finaleAnchors.length !== 1) {
+  errors.push("room 10 should keep one checkpoint and one reusable Echo anchor");
+} else {
+  const checkpoint = finaleCheckpoints[0];
+  const anchor = finaleAnchors[0];
+  const distance = Math.abs(anchor.x - checkpoint.x) + Math.abs(anchor.y - checkpoint.y);
+  if (anchor.y !== checkpoint.y || distance !== 1) {
+    errors.push("room 10 Echo anchor should touch its entry checkpoint pocket");
+  }
+  if ((finaleRoom[anchor.y + 1]?.[anchor.x] || "") !== "#") {
+    errors.push("room 10 Echo anchor should sit over stable entry ground");
+  }
+}
 const finalGoalRow = maps[maps.length - 1]?.findIndex((line) => line.includes("H")) ?? -1;
 if (finalGoalRow < 0 || finalGoalRow >= Math.floor(rows / 2)) errors.push("final summit goal H should resolve in the upper half of room 10");
 for (let i = 6; i < maps.length; i += 1) {
@@ -203,6 +219,8 @@ expertRequirements.forEach((requirements, roomIndex) => {
     }
   }
 });
+if (!expertRequirements[9]?.includes("echo")) errors.push("room 10 expert route should reuse the Echo anchor");
+if (!styleTrials[9]?.tech?.includes("echo")) errors.push("room 10 style route should reuse the Echo anchor");
 
 const styleKinds = new Set();
 styleTrials.forEach((trial, roomIndex) => {

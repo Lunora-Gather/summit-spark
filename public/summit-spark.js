@@ -125,12 +125,12 @@
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p197"),
-    import("./modules/core/math.mjs?v=20260729-p197"),
-    import("./modules/game/room-data.mjs?v=20260729-p197"),
-    import("./modules/systems/storage.mjs?v=20260729-p197"),
-    import("./modules/systems/input.mjs?v=20260729-p197"),
-    import("./modules/training/state.mjs?v=20260729-p197")
+    import("./modules/core/format.mjs?v=20260729-p198"),
+    import("./modules/core/math.mjs?v=20260729-p198"),
+    import("./modules/game/room-data.mjs?v=20260729-p198"),
+    import("./modules/systems/storage.mjs?v=20260729-p198"),
+    import("./modules/systems/input.mjs?v=20260729-p198"),
+    import("./modules/training/state.mjs?v=20260729-p198")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2490,6 +2490,7 @@
           addFlow(10, "echo");
           triggerActionVisual("recall", 0.2);
           playSound("echo");
+          setGameStatus("回声锚点已激活，可随时召回");
           burst(anchor.x, anchor.y, palette.green, 14, 220);
         }
       }
@@ -5156,7 +5157,9 @@
     recallCooldown = ECHO_RECALL_COOLDOWN;
     recallPulseTimer = 0.42;
     triggerActionVisual("recall", 0.34);
+    showFeelCue("回声召回", "冲刺与体力已恢复", palette.green, FEEL_CUE_TIME * 1.05);
     playSound("recall");
+    setGameStatus("回声召回：冲刺与体力已恢复");
     hitStopTimer = Math.max(hitStopTimer, 0.012);
     resetRelayChain();
     clearRecentPath();

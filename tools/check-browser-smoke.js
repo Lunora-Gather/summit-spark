@@ -3149,12 +3149,24 @@ async function runMobileSmoke(cdp, baseUrl) {
     if (!match || !button.disabled) return null;
     const x = Number(match[1]);
     return x > ${Math.round(beforeTouchRecall.x + 20)}
-      ? { x, label: button.getAttribute("aria-label"), active: button.classList.contains("active") }
+      ? { x, label: button.getAttribute("aria-label"), active: button.classList.contains("active"), status: document.querySelector("#gameStatus").textContent }
       : null;
   })()`), 3500);
   if (!echoRecallReady.available || echoRecallReady.width < 44 || echoRecallReady.label !== "召回到回声锚点"
-    || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active) {
+    || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active || !/回声召回.*恢复/.test(afterTouchRecall.status)) {
     errors.push("R9 touch recall should appear contextually, activate in the safe Echo entry pocket, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
+  }
+  await keyTap(cdp, "Digit0", "0");
+  await waitUntil("mobile debug jump reaches finale room", () => evaluate(cdp, `/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
+  const finaleEchoReady = await waitUntil("R10 reuses Echo beside its entry checkpoint", () => evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-touch="recall"]');
+    const debug = document.querySelector("#debugPanel").textContent;
+    return !button.hidden && !button.disabled && /anchor 1/.test(debug)
+      ? { label: button.getAttribute("aria-label"), status: document.querySelector("#gameStatus").textContent }
+      : null;
+  })()`), 3500);
+  if (finaleEchoReady.label !== "召回到回声锚点" || !/回声锚点已激活/.test(finaleEchoReady.status)) {
+    errors.push("R10 should reactivate Echo from its stable entry pocket before the finale route: " + JSON.stringify(finaleEchoReady));
   }
   await keyTap(cdp, "Digit1", "1");
   await keyTap(cdp, "F3", "F3");

@@ -174,6 +174,11 @@ for (const trigger of [
 ]) {
   if (!runtimeSource.includes(trigger)) fail(`public runtime should trigger ${trigger} on first mechanic contact`);
 }
+if (!runtimeSource.includes('showFeelCue("回声召回", "冲刺与体力已恢复"')
+  || !runtimeSource.includes('setGameStatus("回声锚点已激活，可随时召回")')
+  || !runtimeSource.includes('setGameStatus("回声召回：冲刺与体力已恢复")')) {
+  fail("Echo activation and recall should expose concise canvas and live-status feedback");
+}
 if (!roomDataSource.includes('resolve: "断开的旧路，被你重新连起。"')
   || !runtimeSource.includes("let chapterTransitionFromChapter = -1")
   || !runtimeSource.includes("drawChapterTransitionCopy({")

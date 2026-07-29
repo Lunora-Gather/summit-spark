@@ -32,6 +32,7 @@ const coreFormatSource = read("public/modules/core/format.mjs");
 const coreMathSource = read("public/modules/core/math.mjs");
 const roomDataSource = read("public/modules/game/room-data.mjs");
 const effectBudgetSource = read("public/modules/game/effect-budget.mjs");
+const audioCuesSource = read("public/modules/game/audio-cues.mjs");
 const storageSource = read("public/modules/systems/storage.mjs");
 const inputSource = read("public/modules/systems/input.mjs");
 const trainingSource = read("public/modules/training/state.mjs");
@@ -71,6 +72,11 @@ const effectBudgetVersion = extractOne(
   "effect budget module version",
   runtimeSource,
   /modules\/game\/effect-budget\.mjs\?v=([^"]+)"/
+);
+const audioCuesVersion = extractOne(
+  "audio cues module version",
+  runtimeSource,
+  /modules\/game\/audio-cues\.mjs\?v=([^"]+)"/
 );
 const storageVersion = extractOne(
   "storage module version",
@@ -114,6 +120,9 @@ if (buildVersion && roomDataVersion && buildVersion !== roomDataVersion) {
 }
 if (buildVersion && effectBudgetVersion && buildVersion !== effectBudgetVersion) {
   fail(`effect budget version ${effectBudgetVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && audioCuesVersion && buildVersion !== audioCuesVersion) {
+  fail(`audio cues version ${audioCuesVersion} does not match build version ${buildVersion}`);
 }
 
 if (buildVersion && storageVersion && buildVersion !== storageVersion) {
@@ -197,6 +206,19 @@ if (!runtimeSource.includes('import("./modules/game/effect-budget.mjs?v=')
 }
 if (runtimeSource.includes("while (lightTrails.length > 18)")) {
   fail("public runtime must not retain an independent light-trail queue limit");
+}
+if (!runtimeSource.includes('import("./modules/game/audio-cues.mjs?v=')
+  || !audioCuesSource.includes("export const CHAPTER_AUDIO_PROFILES")
+  || !audioCuesSource.includes("export function ambientChapterCueData(")
+  || !audioCuesSource.includes("export function chapterEntryCueData(")
+  || !audioCuesSource.includes("export function summitCueData(")
+  || !runtimeSource.includes("playChapterEntrySound(chapterTransitionChapter, chapterTransitionFromChapter)")
+  || !runtimeSource.includes("clearAmbientVoices()")
+  || !runtimeSource.includes("playSummitSound()")) {
+  fail("public runtime must consume chapter-owned ambient, transition and summit audio cues");
+}
+if (runtimeSource.includes("const AMBIENT_CHAPTER_CHORDS")) {
+  fail("public runtime must not duplicate chapter audio profile ownership");
 }
 if (!runtimeSource.includes("CHAPTER_SURFACE_KINDS[chapterIndexForRoom(roomIndex)]")
   || !runtimeSource.includes("const material = CHAPTER_SURFACE_KINDS.includes(surfaceKind)")

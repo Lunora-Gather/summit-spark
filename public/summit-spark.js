@@ -52,6 +52,11 @@
       enforceEffectQueueBudget
     },
     {
+      ambientChapterCueData,
+      chapterEntryCueData,
+      summitCueData
+    },
+    {
       clampGamepadDeadzoneData,
       clampTouchSizeData,
       createProfileData,
@@ -136,14 +141,15 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p203"),
-    import("./modules/core/math.mjs?v=20260729-p203"),
-    import("./modules/game/room-data.mjs?v=20260729-p203"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p203"),
-    import("./modules/systems/storage.mjs?v=20260729-p203"),
-    import("./modules/systems/input.mjs?v=20260729-p203"),
-    import("./modules/training/state.mjs?v=20260729-p203"),
-    import("./modules/ui/presentation.mjs?v=20260729-p203")
+    import("./modules/core/format.mjs?v=20260729-p204"),
+    import("./modules/core/math.mjs?v=20260729-p204"),
+    import("./modules/game/room-data.mjs?v=20260729-p204"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p204"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p204"),
+    import("./modules/systems/storage.mjs?v=20260729-p204"),
+    import("./modules/systems/input.mjs?v=20260729-p204"),
+    import("./modules/training/state.mjs?v=20260729-p204"),
+    import("./modules/ui/presentation.mjs?v=20260729-p204")
   ]);
 
   const canvas = document.getElementById("game");
@@ -759,6 +765,7 @@
   let ambientBus = null;
   let ambientNextTime = 0;
   let ambientStep = 0;
+  const ambientVoices = new Map();
   const soundCooldowns = {};
   let timingArmed = false;
   let timingInputReady = false;
@@ -1851,6 +1858,9 @@
     roomTime = 0;
     chapterTransitionTimer = 0;
     chapterTransitionFromChapter = -1;
+    clearAmbientVoices();
+    ambientStep = 0;
+    ambientNextTime = audioContext?.currentTime || 0;
     timingArmed = false;
     timingInputReady = false;
     won = false;
@@ -1919,6 +1929,9 @@
     roomTime = 0;
     chapterTransitionTimer = 0;
     chapterTransitionFromChapter = -1;
+    clearAmbientVoices();
+    ambientStep = 0;
+    ambientNextTime = audioContext?.currentTime || 0;
     timingArmed = false;
     timingInputReady = false;
     won = false;
@@ -2591,7 +2604,8 @@
     resetRelayChain();
     player.vx = 0;
     player.vy = 0;
-    playSound("clear", 1);
+    clearAmbientVoices();
+    playSummitSound();
     const goal = room.entities.goal;
     if (goal) {
       burst(goal.x, goal.y, palette.gold, 30, 300);
@@ -2981,8 +2995,10 @@
     chapterTransitionTimer = prefersReducedMotion
       ? chapterTransitionFromChapter >= 0 ? 1.2 : 0.9
       : CHAPTER_TRANSITION_TIME;
-    ambientNextTime = audioContext?.currentTime || 0;
-    playSound("clear", 0.72);
+    clearAmbientVoices();
+    ambientStep = 0;
+    ambientNextTime = (audioContext?.currentTime || 0) + chapterTransitionTimer * 0.58;
+    playChapterEntrySound(chapterTransitionChapter, chapterTransitionFromChapter);
   }
 
   function beginChapterTransition(fromRoom, toRoom) {
@@ -7085,13 +7101,6 @@
     death: [{ type: "sawtooth", from: 240, to: 80, gain: 0.048, time: 0.18 }],
     clear: [{ type: "sine", from: 520, to: 880, gain: 0.038, time: 0.15 }, { type: "triangle", from: 780, to: 1120, gain: 0.026, time: 0.18 }]
   };
-  const AMBIENT_CHAPTER_CHORDS = [
-    [[146.83, 220, 293.66], [164.81, 246.94, 329.63]],
-    [[130.81, 196, 261.63], [146.83, 220, 293.66]],
-    [[123.47, 185, 246.94], [138.59, 207.65, 277.18]],
-    [[146.83, 220, 329.63], [164.81, 246.94, 369.99]]
-  ];
-
   function unlockAudio() {
     if (!settings.audioEnabled || audioContext) return;
     const AudioCtor = window.AudioContext || window.webkitAudioContext;
@@ -7122,32 +7131,47 @@
       return;
     }
     if (ambientNextTime > now + 0.6) return;
-    const chapter = roomIndex < 3 ? 0 : roomIndex < 6 ? 1 : roomIndex < 8 ? 2 : 3;
-    const chords = AMBIENT_CHAPTER_CHORDS[chapter];
-    const chord = chords[ambientStep % chords.length];
+    const chapter = chapterIndexForRoom(roomIndex);
+    const cue = ambientChapterCueData(chapter, ambientStep, flowScore);
+    if (!cue) return;
     const start = Math.max(now + 0.05, ambientNextTime);
-    const duration = 4.6 - chapter * 0.18;
-    const flowLift = flowScore > 120 ? 1.5 : 1;
-    chord.forEach((frequency, index) => {
-      playAmbientTone(frequency * flowLift, start + index * 0.045, duration, 0.0048 + chapter * 0.00055);
+    cue.voices.forEach((voice) => {
+      playAmbientTone(voice, start + voice.offset, cue.duration);
     });
     ambientStep += 1;
-    ambientNextTime = start + duration * 0.82;
+    ambientNextTime = start + cue.nextAfter;
   }
 
-  function playAmbientTone(frequency, start, duration, volume) {
+  function playAmbientTone(voice, start, duration) {
     const osc = audioContext.createOscillator();
     const gain = audioContext.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(frequency, start);
+    osc.type = voice.type || "sine";
+    osc.frequency.setValueAtTime(voice.frequency, start);
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(volume, start + 0.55);
-    gain.gain.setValueAtTime(volume, start + duration * 0.68);
+    gain.gain.exponentialRampToValueAtTime(voice.gain, start + 0.55);
+    gain.gain.setValueAtTime(voice.gain, start + duration * 0.68);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     osc.connect(gain);
     gain.connect(ambientBus);
+    ambientVoices.set(osc, gain);
+    osc.addEventListener("ended", () => ambientVoices.delete(osc), { once: true });
     osc.start(start);
     osc.stop(start + duration + 0.05);
+  }
+
+  function clearAmbientVoices() {
+    if (!audioContext || ambientVoices.size === 0) return;
+    const now = audioContext.currentTime;
+    for (const [osc, gain] of ambientVoices) {
+      try {
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setTargetAtTime(0.0001, now, 0.018);
+        osc.stop(now + 0.08);
+      } catch {
+        // A voice may already have ended between iteration and cancellation.
+      }
+    }
+    ambientVoices.clear();
   }
 
   function playSound(name, intensity = 1) {
@@ -7162,6 +7186,24 @@
     soundCooldowns[name] = now;
     audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
     preset.forEach((voice, index) => playTone(voice, now + index * 0.012, intensity));
+  }
+
+  function playScheduledCue(cue, intensity = 1) {
+    if (!cue || !Array.isArray(cue.voices) || !settings.audioEnabled || settings.audioVolume <= 0) return;
+    unlockAudio();
+    if (!audioContext || !audioMaster) return;
+    if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
+    const now = audioContext.currentTime;
+    audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
+    cue.voices.forEach((voice) => playTone(voice, now + voice.offset, intensity));
+  }
+
+  function playChapterEntrySound(chapter, fromChapter) {
+    playScheduledCue(chapterEntryCueData(chapter, fromChapter), 0.82);
+  }
+
+  function playSummitSound() {
+    playScheduledCue(summitCueData(), 1);
   }
 
   function playAudioTestPattern() {

@@ -9,6 +9,7 @@ const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8")
 const coreFormat = fs.readFileSync(path.join(root, "public", "modules", "core", "format.mjs"), "utf8");
 const coreMath = fs.readFileSync(path.join(root, "public", "modules", "core", "math.mjs"), "utf8");
 const roomData = fs.readFileSync(path.join(root, "public", "modules", "game", "room-data.mjs"), "utf8");
+const audioCuesModule = fs.readFileSync(path.join(root, "public", "modules", "game", "audio-cues.mjs"), "utf8");
 const storageModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "storage.mjs"), "utf8");
 const inputModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "input.mjs"), "utf8");
 const trainingModule = fs.readFileSync(path.join(root, "public", "modules", "training", "state.mjs"), "utf8");
@@ -546,7 +547,12 @@ if (!js.includes("clampTouchSize")) errors.push("touch size normalization helper
 if (!js.includes("lowPerformance")) errors.push("low performance setting is missing");
 if (!js.includes("SETTINGS_SCHEMA_VERSION")) errors.push("settings schema version is missing");
 if (!js.includes("function recordsEligible()") || !js.includes("辅助完成 · 不计 PB")) errors.push("assist mode must isolate PB and long-term records");
-if (!js.includes("function updateAmbientMusic(") || !js.includes("AMBIENT_CHAPTER_CHORDS")) errors.push("chapter ambient music layer is missing");
+if (!js.includes("function updateAmbientMusic(")
+  || !js.includes('import("./modules/game/audio-cues.mjs?v=')
+  || !audioCuesModule.includes("export const CHAPTER_AUDIO_PROFILES")
+  || !audioCuesModule.includes("export function ambientChapterCueData(")
+  || !audioCuesModule.includes("export function chapterEntryCueData(")
+  || !audioCuesModule.includes("export function summitCueData(")) errors.push("chapter audio identities and transition cadence are missing");
 if (!js.includes("ROOM_WHISPERS") || !js.includes('const hairColor = "#294657"') || js.includes("function drawPlayerRibbon(")) errors.push("classic fixed-hair climber or room atmosphere copy is missing");
 if (!js.includes("CHAPTER_EXPERIENCE") || !js.includes("function beginChapterTransition(") || !js.includes("function drawChapterTransition(") || !js.includes("chapterEntry: true")) errors.push("chapter boundaries and direct chapter practice need a paced in-canvas transition");
 if (!js.includes("function drawChapterWeather(") || !js.includes("chapterIndexForRoom(roomIndex)")) errors.push("each chapter needs a distinct environmental motion language");

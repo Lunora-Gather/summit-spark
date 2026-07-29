@@ -7,7 +7,7 @@ This checklist is for one focused manual pass after `npm run check` and `npm run
 1. Open the local page from `npm start`.
 2. Inspect the page markup and confirm `meta build-version` matches the current CSS/JS asset version; `node tools/check-public-surface.js` should report the same build before manual play begins.
 3. Use a clean browser profile for first-run checks, then repeat with an existing profile that has training progress.
-4. Keep audio on for one pass and off for one pass.
+4. Keep audio on for one pass and off for one pass. With audio on, each act boundary should first release the previous harmony and then introduce a recognizably different destination motif; no old-act pad should bleed across a room jump or summit reveal.
 5. Test desktop keyboard first; test touch and a physical gamepad when devices are available.
 
 ## First Three Minutes

@@ -15,7 +15,8 @@ summit-spark/
 │  │  └─ math.mjs           # 无状态的矩形判定、距离与数值逼近
 │  ├─ modules/game/
 │  │  ├─ room-data.mjs      # 递归冻结的地图、章节、路线、氛围、地标与机制教学内容
-│  │  └─ effect-budget.mjs  # 长局视觉效果队列预算与保留最新反馈的裁剪规则
+│  │  ├─ effect-budget.mjs  # 长局视觉效果队列预算与保留最新反馈的裁剪规则
+│  │  └─ audio-cues.mjs     # 四幕环境和弦、两段式换幕与登顶声纹
 │  ├─ modules/systems/
 │  │  ├─ storage.mjs        # 设置/存档迁移、读修复、档案/备份与事务回滚
 │  │  └─ input.mjs          # 三类设备状态、动作缓冲、手柄映射与键位规则
@@ -55,6 +56,7 @@ public/index.html
        ├─ public/modules/core/math.mjs
        ├─ public/modules/game/room-data.mjs
        ├─ public/modules/game/effect-budget.mjs
+       ├─ public/modules/game/audio-cues.mjs
        ├─ public/modules/systems/storage.mjs
        ├─ public/modules/systems/input.mjs
        ├─ public/modules/training/state.mjs
@@ -73,7 +75,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、视觉效果队列预算、存档规则、输入状态/缓冲/映射，Drill/Route/Feel/Focus/挑战的纯状态与结果组装规则，以及章节完成度和练习优先级展示模型，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、章节声纹、视觉效果队列预算、存档规则、输入状态/缓冲/映射，Drill/Route/Feel/Focus/挑战的纯状态与结果组装规则，以及章节完成度和练习优先级展示模型，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
 
 短期修改遵守：
 
@@ -86,7 +88,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/effect-budget.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/effect-budget.mjs`、`game/audio-cues.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成。接下来的顺序是：
 
 1. `ui/`：只在有直接消费者与契约时继续迁移无副作用的面板/HUD 展示模型，DOM 事件仍留主运行时。
 2. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。

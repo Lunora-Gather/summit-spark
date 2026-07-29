@@ -337,6 +337,7 @@ if (js.includes('!${') || !js.includes('` · 失误 ${current}`') || !js.include
 if (!js.includes("drawRouteFocusCue")) errors.push("route focus cue renderer is missing");
 if (!js.includes("showMasteryPopup")) errors.push("room mastery completion popup helper is missing");
 if (!js.includes("drawMasteryPopup")) errors.push("room mastery popup renderer is missing");
+if (js.includes("masteryPopupColor")) errors.push("fixed mist mastery popup should not retain unread legacy tint state");
 if (!js.includes("nextMasteryStepText")) errors.push("mastery feedback should name the next contract step");
 if (!js.includes("masteryContractPillsHtml")) errors.push("mastery contract pill renderer is missing");
 if (!js.includes("masteryRoadmapRows")) errors.push("mastery roadmap rows helper is missing");

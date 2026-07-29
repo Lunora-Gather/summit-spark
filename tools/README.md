@@ -34,7 +34,7 @@ npm run check
 
 ## 安全与发布
 
-- `check-public-surface.js`：检查单一 HTML 入口、CSP、版本号、Pages 暂存目录、嵌入保护，以及运行时函数、模块导入和 CSS 类消费者。
+- `check-public-surface.js`：检查单一 HTML 入口、CSP、版本号、Pages 暂存目录、嵌入保护，以及运行时函数、模块导入、顶层可变状态和 CSS 类消费者。
 - `check-appwrite-contract.js`：检查区域、最小服务面、认证策略和用户行级权限。
 - `check-maintenance-tools.js`：检查工具语法、禁止已删除脚手架回归，并要求 GitHub Actions 固定完整提交 SHA。
 - `check-docs.js`：检查维护者真正需要的文档和运行文件。

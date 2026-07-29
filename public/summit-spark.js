@@ -148,16 +148,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p217"),
-    import("./modules/core/math.mjs?v=20260729-p217"),
-    import("./modules/game/room-data.mjs?v=20260729-p217"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p217"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p217"),
-    import("./modules/systems/storage.mjs?v=20260729-p217"),
-    import("./modules/systems/input.mjs?v=20260729-p217"),
-    import("./modules/training/state.mjs?v=20260729-p217"),
-    import("./modules/training/replay.mjs?v=20260729-p217"),
-    import("./modules/ui/presentation.mjs?v=20260729-p217")
+    import("./modules/core/format.mjs?v=20260729-p218"),
+    import("./modules/core/math.mjs?v=20260729-p218"),
+    import("./modules/game/room-data.mjs?v=20260729-p218"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p218"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p218"),
+    import("./modules/systems/storage.mjs?v=20260729-p218"),
+    import("./modules/systems/input.mjs?v=20260729-p218"),
+    import("./modules/training/state.mjs?v=20260729-p218"),
+    import("./modules/training/replay.mjs?v=20260729-p218"),
+    import("./modules/ui/presentation.mjs?v=20260729-p218")
   ]);
 
   const canvas = document.getElementById("game");
@@ -670,7 +670,6 @@
   let masteryPopupTimer = 0;
   let masteryPopupText = "";
   let masteryPopupDetail = "";
-  let masteryPopupColor = palette.gold;
   let focusPopupTimer = 0;
   let focusPopupText = "";
   let focusPopupDetail = "";
@@ -770,7 +769,7 @@
     spawn: 0,
     death: 0
   };
-  let totalLumens = maps.reduce((total, rows) => {
+  const totalLumens = maps.reduce((total, rows) => {
     return total + rows.join("").split("").filter((tile) => tile === "L").length;
   }, 0);
 
@@ -3462,7 +3461,6 @@
     if (roomResult && !roomResult.eligible) {
       masteryPopupText = `R${index + 1} 辅助通过`;
       masteryPopupDetail = `${formatTime(roomResult.elapsed)} · 本次不计 PB、Clean 或训练记录`;
-      masteryPopupColor = palette.cyan;
       masteryPopupTimer = MASTERY_POPUP_TIME;
       playSound("clear", 0.72);
       setGameStatus(`${masteryPopupText}：${masteryPopupDetail}`);
@@ -3480,7 +3478,6 @@
     if (!wins.length) wins.push("CLEAR");
     masteryPopupText = delta > 0 ? `R${index + 1} 掌握 +${delta}` : `R${index + 1} ${level} ${afterScore}`;
     masteryPopupDetail = `${level} ${afterScore}/100 · ${wins.join(" · ")}${grade ? ` · ${grade}` : ""} · ${nextStep}`;
-    masteryPopupColor = delta > 0 ? palette.gold : clean ? palette.green : palette.cyan;
     masteryPopupTimer = MASTERY_POPUP_TIME;
     playSound("clear", clean ? 1 : 0.75);
     setGameStatus(`${masteryPopupText}：${masteryPopupDetail}`);
@@ -3490,7 +3487,6 @@
     masteryPopupTimer = 0;
     masteryPopupText = "";
     masteryPopupDetail = "";
-    masteryPopupColor = palette.gold;
   }
 
   function roomMedalLabel(index) {

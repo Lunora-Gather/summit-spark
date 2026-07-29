@@ -325,6 +325,22 @@ for (const match of importBindingsSource.matchAll(/^      ([A-Za-z_$][\w$]*)(?::
   const references = runtimeSource.match(new RegExp(`\\b${escaped}\\b`, "g"))?.length || 0;
   if (references <= 1) fail(`public runtime import ${localName} has no consumer`);
 }
+for (const declaration of runtimeSource.matchAll(/^  let\s+([A-Za-z_$][\w$]*)\b/gm)) {
+  const name = declaration[1];
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const occurrencePattern = new RegExp(`(?<![\\w$])${escaped}(?![\\w$])`, "g");
+  let reads = 0;
+  for (const occurrence of runtimeSource.matchAll(occurrencePattern)) {
+    const occurrenceIndex = occurrence.index || 0;
+    if (occurrenceIndex >= declaration.index && occurrenceIndex < declaration.index + declaration[0].length) continue;
+    const before = runtimeSource.slice(Math.max(0, occurrenceIndex - 12), occurrenceIndex);
+    const after = runtimeSource.slice(occurrenceIndex + name.length, occurrenceIndex + name.length + 12);
+    const directWrite = /(?:\+\+|--)\s*$/.test(before)
+      || /^\s*(?:=(?!=)|\+=|-=|\*=|\/=|%=|\+\+|--)/.test(after);
+    if (!directWrite) reads += 1;
+  }
+  if (reads === 0) fail(`public runtime mutable state ${name} is written but never read`);
+}
 const surfaceConsumerSource = `${gameHtml}\n${runtimeSource}`;
 const stylesheetClasses = new Set(
   [...stylesheetSource.matchAll(/\.([A-Za-z_][\w-]*)/g)].map((match) => match[1])

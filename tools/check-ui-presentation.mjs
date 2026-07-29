@@ -5,6 +5,7 @@ import {
   chapterCompletionData,
   chapterGrade,
   chapterTransitionResultData,
+  fullRunRecordEligibilityData,
   postRunReviewData,
   rankPracticeLedgerRowsData,
   runChapterReviewData,
@@ -99,6 +100,47 @@ assert.equal(chapterTransitionResultData({
   roomTimes: []
 }), null);
 assert.equal(chapterTransitionResultData({ roomIndexes: ["0", -1] }), null);
+
+assert.deepEqual(fullRunRecordEligibilityData({
+  roomTimes: [8, 9, 10],
+  roomCount: 3,
+  routeOriginEligible: true,
+  recordsEligible: true
+}), {
+  visited: 3,
+  roomCount: 3,
+  complete: true,
+  eligible: true
+});
+assert.deepEqual(fullRunRecordEligibilityData({
+  roomTimes: [0, 0, 12],
+  roomCount: 3,
+  routeOriginEligible: false,
+  recordsEligible: true
+}), {
+  visited: 1,
+  roomCount: 3,
+  complete: false,
+  eligible: false
+}, "direct final-room Practice must not qualify as a full run");
+assert.equal(fullRunRecordEligibilityData({
+  roomTimes: [8, 9, 10],
+  roomCount: 3,
+  routeOriginEligible: false,
+  recordsEligible: true
+}).eligible, false, "covering every room after a Practice/debug jump must remain partial");
+assert.equal(fullRunRecordEligibilityData({
+  roomTimes: [8, 9, 10],
+  roomCount: 3,
+  routeOriginEligible: true,
+  recordsEligible: false
+}).eligible, false, "assist use must still isolate complete-route records");
+assert.equal(fullRunRecordEligibilityData({
+  roomTimes: [8, Number.NaN, 10],
+  roomCount: 3,
+  routeOriginEligible: true,
+  recordsEligible: true
+}).eligible, false, "invalid room evidence must fail closed");
 
 assert.equal(roomSplitFeedbackData({ elapsed: 0 }), null);
 assert.equal(roomSplitFeedbackData({ elapsed: Number.NaN }), null);
@@ -347,4 +389,4 @@ assert.ok(runReportTextData({
   }))
 }).length < 4000, "run reports must stay bounded even when display labels are malformed");
 
-console.log("UI presentation check passed: chapter completion/grades, transition results, room split feedback, post-run evidence, run reports and practice priority ranking preserved.");
+console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, post-run evidence, run reports and practice priority ranking preserved.");

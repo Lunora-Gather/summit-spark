@@ -142,6 +142,7 @@
       chapterCompletionData: chapterCompletionModelData,
       chapterGrade,
       chapterTransitionResultData,
+      fullRunRecordEligibilityData,
       postRunReviewData,
       rankPracticeLedgerRowsData,
       runChapterReviewData,
@@ -151,16 +152,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p226"),
-    import("./modules/core/math.mjs?v=20260729-p226"),
-    import("./modules/game/room-data.mjs?v=20260729-p226"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p226"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p226"),
-    import("./modules/systems/storage.mjs?v=20260729-p226"),
-    import("./modules/systems/input.mjs?v=20260729-p226"),
-    import("./modules/training/state.mjs?v=20260729-p226"),
-    import("./modules/training/replay.mjs?v=20260729-p226"),
-    import("./modules/ui/presentation.mjs?v=20260729-p226")
+    import("./modules/core/format.mjs?v=20260729-p227"),
+    import("./modules/core/math.mjs?v=20260729-p227"),
+    import("./modules/game/room-data.mjs?v=20260729-p227"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p227"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p227"),
+    import("./modules/systems/storage.mjs?v=20260729-p227"),
+    import("./modules/systems/input.mjs?v=20260729-p227"),
+    import("./modules/training/state.mjs?v=20260729-p227"),
+    import("./modules/training/replay.mjs?v=20260729-p227"),
+    import("./modules/ui/presentation.mjs?v=20260729-p227")
   ]);
 
   const canvas = document.getElementById("game");
@@ -629,6 +630,7 @@
   let roomFocus = readRoomFocus();
   let roomAttemptClean = true;
   let runUsedAssist = false;
+  let runStartedAsFullRoute = true;
   let lastDeathReason = "none";
   let crumbleSlipTimer = 0;
   let runTime = 0;
@@ -887,7 +889,7 @@
       if (target >= 0 && target < maps.length) jumpToRoom(target);
     }
     if (debugVisible && firstPress && event.code === "KeyH" && started && !won && roomIndex === maps.length - 1) {
-      beginSummitReveal({ isBest: false, assisted: runUsedAssist, drillResult: null });
+      beginSummitReveal({ isBest: false, assisted: runUsedAssist, partial: true, drillResult: null });
     }
   });
 
@@ -1755,6 +1757,7 @@
     runRoomTimes = createRoomCounters();
     roomAttemptClean = true;
     runUsedAssist = assistActive();
+    runStartedAsFullRoute = true;
     lastDeathReason = "none";
     crumbleSlipTimer = 0;
     clearFocusPopup();
@@ -1820,6 +1823,7 @@
     runRoomTimes = createRoomCounters();
     roomAttemptClean = true;
     runUsedAssist = assistActive();
+    runStartedAsFullRoute = false;
     lastDeathReason = "none";
     crumbleSlipTimer = 0;
     clearFocusPopup();
@@ -2470,14 +2474,24 @@
     if (drillResult === false) return { isBest: false, drillResult };
     showMasteryPopup(roomIndex, masteryBefore, clearedClean, drillResult === true ? drillMode : "", roomResult);
     addFlow(120, "summit");
-    const eligible = recordsEligible();
-    if (eligible) recordSummitProfile();
-    if (eligible && (bestTime <= 0 || runTime < bestTime)) {
+    const fullRunResult = fullRunRecordEligibilityData({
+      roomTimes: runRoomTimes,
+      roomCount: maps.length,
+      routeOriginEligible: runStartedAsFullRoute,
+      recordsEligible: recordsEligible()
+    });
+    if (fullRunResult.eligible) recordSummitProfile();
+    if (fullRunResult.eligible && (bestTime <= 0 || runTime < bestTime)) {
       bestTime = runTime;
       writeBestTime(bestTime);
-      return { isBest: true, drillResult, assisted: false };
+      return { isBest: true, drillResult, assisted: false, partial: false };
     }
-    return { isBest: false, drillResult, assisted: !eligible };
+    return {
+      isBest: false,
+      drillResult,
+      assisted: !recordsEligible(),
+      partial: !fullRunResult.complete
+    };
   }
 
   function beginSummitReveal(result) {
@@ -2520,13 +2534,15 @@
     const result = pendingSummitResult;
     pendingSummitResult = null;
     summitRevealTimer = 0;
-    showFinishOverlay(result.isBest, result.assisted);
+    showFinishOverlay(result.isBest, result.assisted, result.partial);
   }
 
-  function showFinishOverlay(isBest, assisted = runUsedAssist) {
+  function showFinishOverlay(isBest, assisted = runUsedAssist, partial = false) {
     const record = isBest ? " · 新纪录" : "";
-    const assistNote = assisted ? " · 辅助完成，不计纪录" : "";
-    overlay.innerHTML = `<h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">${formatTime(runTime)}${record}${assistNote} · 失误 ${deathCount} · 光继连锁 ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><p class="finish-whisper">山没有变轻，是你学会了继续向上。</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">再来</button>`;
+    const recordNote = partial
+      ? assisted ? " · 练习登顶 · 辅助开启，不计总纪录" : " · 练习登顶，不计总纪录"
+      : assisted ? " · 辅助完成，不计纪录" : "";
+    overlay.innerHTML = `<h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">${formatTime(runTime)}${record}${recordNote} · 失误 ${deathCount} · 光继连锁 ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><p class="finish-whisper">山没有变轻，是你学会了继续向上。</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">再来</button>`;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");

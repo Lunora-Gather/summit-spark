@@ -578,6 +578,15 @@ if (!js.includes("function drawChapterWeather(") || !js.includes("chapterIndexFo
 if (!js.includes("function beginSummitReveal(") || !js.includes("function finishSummitReveal(") || !js.includes("pendingSummitResult !== expectedResult") || !js.includes("function drawSummitReveal(") || !js.includes("SUMMIT_REVEAL_TIME") || !js.includes("summitReveal: summitRevealTimer > 0")) errors.push("the summit must pause for a testable in-world reveal and safely reach review even when animation frames are throttled");
 if (!js.includes("summitChapterResult = chapterResultForTransition(") || !js.includes("summitChapterResultText(summitChapterResult)") || !js.includes("clearSplitPopup();\n    clearMasteryPopup();\n    clearFocusPopup();")) errors.push("summit reveal should absorb final-act evidence instead of hiding expiring room-result overlays");
 if (!uiPresentationModule.includes("export function postRunReviewData(") || !js.includes("function currentRunReviewData(") || !js.includes('reviewCardHtml("本轮最大损失"') || !js.includes("postRunTrainingAdvice(runPlan)")) errors.push("summit review should derive its next Drill and largest loss from current-run evidence");
+if (!uiPresentationModule.includes("export function fullRunRecordEligibilityData(")
+  || !js.includes("let runStartedAsFullRoute = true;")
+  || !js.includes("runStartedAsFullRoute = false;")
+  || !js.includes("const fullRunResult = fullRunRecordEligibilityData({")
+  || !js.includes("if (fullRunResult.eligible) recordSummitProfile();")
+  || !js.includes("partial: !fullRunResult.complete")
+  || !js.includes("练习登顶，不计总纪录")) {
+  errors.push("summit profile and total-time records must require a full-route origin plus current-run ten-room coverage");
+}
 if (!js.includes("player.inUpdraft = true") || !js.includes("const windborne = Boolean(player.inUpdraft)") || !js.includes("windborne,")) errors.push("the fixed-hair climber needs a restrained body-level updraft response without recoloring the hair");
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length !== 2

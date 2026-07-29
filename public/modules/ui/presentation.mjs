@@ -71,6 +71,24 @@ export function chapterTransitionResultData(input = {}) {
   };
 }
 
+export function fullRunRecordEligibilityData(input = {}) {
+  const roomTimes = Array.isArray(input.roomTimes) ? input.roomTimes : [];
+  const roomCount = Math.max(1, Math.floor(nonNegativeNumber(input.roomCount || roomTimes.length)));
+  const visited = roomTimes
+    .slice(0, roomCount)
+    .filter((seconds) => nonNegativeNumber(seconds) > 0)
+    .length;
+  const complete = input.routeOriginEligible === true
+    && roomTimes.length >= roomCount
+    && visited === roomCount;
+  return {
+    visited,
+    roomCount,
+    complete,
+    eligible: complete && input.recordsEligible === true
+  };
+}
+
 export function roomSplitFeedbackData(input = {}) {
   const elapsed = finiteNumber(input.elapsed);
   if (!(elapsed > 0)) return null;

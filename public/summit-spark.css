@@ -196,10 +196,6 @@ canvas:focus {
   border-color: rgba(255, 101, 125, 0.36);
 }
 
-.pace-meter.behind span {
-  background: linear-gradient(90deg, var(--gold), var(--hot));
-}
-
 .pace-meter.ahead span {
   background: linear-gradient(90deg, var(--cyan), var(--green));
 }
@@ -305,14 +301,6 @@ canvas:focus {
   line-height: 1.22;
 }
 
-.game-tip em {
-  color: rgba(226, 241, 248, 0.82);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
 .game-tip i {
   position: absolute;
   left: 12px;
@@ -340,13 +328,6 @@ canvas:focus {
 
 .game-tip.death strong {
   color: #ffb1bf;
-}
-
-.game-tip.storage {
-  border-color: rgba(143, 227, 155, 0.42);
-  background:
-    linear-gradient(90deg, rgba(143, 227, 155, 0.14), rgba(118, 215, 255, 0.08)),
-    rgba(7, 12, 20, 0.82);
 }
 
 .game-tip.storage strong {
@@ -386,11 +367,6 @@ canvas:focus {
   height: 28px;
   border-radius: 6px;
   font-size: 18px;
-}
-
-.icon-button:hover,
-.mini-button:hover {
-  background: rgba(118, 215, 255, 0.22);
 }
 
 .icon-button[aria-expanded="true"] {
@@ -451,10 +427,6 @@ canvas:focus {
 }
 
 .settings-backdrop.hidden {
-  display: none;
-}
-
-.settings-panel.hidden {
   display: none;
 }
 
@@ -645,10 +617,6 @@ canvas:focus {
 .settings-group[open] summary {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.035);
-}
-
-.settings-group[open] summary::after {
-  content: "−";
 }
 
 .settings-group summary span,
@@ -1182,10 +1150,6 @@ canvas:focus {
 
 .control-row span {
   white-space: nowrap;
-}
-
-.settings-head strong {
-  font-size: 14px;
 }
 
 .control-row {
@@ -1885,10 +1849,6 @@ canvas:focus {
   cursor: pointer;
 }
 
-.secondary-start:hover {
-  background: rgba(118, 215, 255, 0.18);
-}
-
 .secondary-start.subtle {
   min-width: 90px;
   border-color: rgba(255, 255, 255, 0.18);
@@ -2271,12 +2231,6 @@ canvas:focus {
   touch-action: none;
 }
 
-.touch button:active,
-.touch button.active {
-  background: rgba(118, 215, 255, 0.38);
-  border-color: rgba(255, 255, 255, 0.55);
-}
-
 /* P17 visual simplification: quiet grouped settings, lower blue glow, fewer competing cards. */
 .settings-panel .chapter-overview,
 .settings-panel .practice-report,
@@ -2290,23 +2244,6 @@ canvas:focus {
   margin: 0;
 }
 
-.settings-panel .chapter-overview,
-.settings-panel .practice-report,
-.settings-panel .profile-summary,
-.settings-panel .challenge-card,
-.settings-panel .queue-card,
-.settings-panel .ledger-row,
-.settings-panel .plan-step,
-.settings-panel .route-contract-card,
-.settings-panel .feel-card,
-.settings-panel .room-brief {
-  border-color: rgba(255, 255, 255, 0.09);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.032)),
-    rgba(0, 0, 0, 0.14);
-  box-shadow: none;
-}
-
 .settings-panel .route-contract-card.active,
 .settings-panel .feel-card.active,
 .settings-panel .plan-step:hover,
@@ -2318,32 +2255,10 @@ canvas:focus {
     rgba(0, 0, 0, 0.12);
 }
 
-.settings-panel .route-contract-card.done,
-.settings-panel .feel-card.recent,
-.settings-panel .challenge-card.done {
-  border-color: rgba(143, 209, 154, 0.28);
-  background: rgba(143, 209, 154, 0.075);
-}
-
 .settings-panel .route-contract-card.interrupted,
 .settings-panel .feel-card.interrupted {
   border-color: rgba(255, 198, 106, 0.3);
   background: rgba(232, 196, 106, 0.075);
-}
-
-.settings-panel .control-row {
-  min-height: 36px;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.settings-panel .control-row:last-child {
-  border-bottom: 0;
-}
-
-.settings-panel .control-row select,
-.settings-panel .control-row input[type="range"] {
-  width: 120px;
 }
 
 .settings-panel .focus-button,
@@ -2376,14 +2291,6 @@ canvas:focus {
   border-color: rgba(255, 255, 255, 0.14);
   background: linear-gradient(180deg, rgba(22, 22, 23, 0.9), rgba(12, 12, 13, 0.78));
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
-}
-
-.game-tip strong {
-  font-size: 14px;
-}
-
-.game-tip em {
-  font-size: 11px;
 }
 
 @media (max-width: 760px) {
@@ -2851,11 +2758,6 @@ body {
     linear-gradient(145deg, #111112 0%, #1d1d1f 56%, #292927 100%);
 }
 
-.stage {
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.38);
-}
-
 .hud,
 .settings-panel,
 .start-panel,
@@ -2899,12 +2801,6 @@ body {
 .review-button,
 .touch button {
   font-weight: 600;
-}
-
-.overlay:not(.hidden) {
-  background:
-    radial-gradient(circle at 50% 38%, rgba(232, 196, 106, 0.1), transparent 26%),
-    rgba(13, 13, 14, 0.48);
 }
 
 .overlay:not(.hidden) .start-panel {
@@ -2964,30 +2860,10 @@ body {
   box-shadow: none;
 }
 
-.primary {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(249, 247, 240, 0.92);
-  color: #171719;
-}
-
 .secondary-start {
   border-color: rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.08);
   color: rgba(249, 247, 240, 0.86);
-}
-
-.secondary-start:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.settings-panel {
-  width: min(500px, calc(100% - 40px));
-  padding: 10px;
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(32, 32, 34, 0.97), rgba(20, 20, 21, 0.96)),
-    rgba(20, 20, 21, 0.96);
-  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.36);
 }
 
 .settings-head {
@@ -2995,31 +2871,8 @@ body {
   margin-bottom: 8px;
 }
 
-.settings-head strong {
-  font-size: 14px;
-}
-
-.settings-body {
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
 .settings-column {
   gap: 8px;
-}
-
-.settings-group {
-  border-color: rgba(255, 255, 255, 0.09);
-  background: rgba(255, 255, 255, 0.045);
-}
-
-.settings-group summary {
-  min-height: 42px;
-  padding: 0 13px;
-}
-
-.settings-group summary span {
-  font-size: 13px;
 }
 
 .settings-group summary em {
@@ -3041,45 +2894,6 @@ body {
 .settings-panel .feel-lab,
 .settings-panel .practice-queue {
   gap: 7px;
-}
-
-.settings-panel .chapter-overview,
-.settings-panel .practice-report,
-.settings-panel .profile-summary,
-.settings-panel .challenge-card,
-.settings-panel .queue-card,
-.settings-panel .ledger-row,
-.settings-panel .plan-step,
-.settings-panel .route-contract-card,
-.settings-panel .feel-card,
-.settings-panel .room-brief {
-  border-color: rgba(255, 255, 255, 0.075);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.settings-panel .control-row {
-  min-height: 34px;
-  padding: 6px 0;
-  font-size: 12px;
-}
-
-.game-tip {
-  width: min(340px, calc(100% - 44px));
-  min-height: 38px;
-  padding: 7px 10px 10px;
-  border-radius: 8px;
-  background: rgba(20, 20, 21, 0.9);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
-}
-
-.game-tip strong {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.game-tip em {
-  font-size: 11px;
-  font-weight: 400;
 }
 
 @media (max-width: 760px) {
@@ -3112,41 +2926,10 @@ output {
   text-rendering: geometricPrecision;
 }
 
-.settings-panel {
-  top: 58px;
-  right: 18px;
-  width: min(460px, calc(100% - 36px));
-  max-height: min(calc(100% - 84px), calc(100dvh - 88px));
-  padding: 8px;
-  border-color: rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(38, 38, 40, 0.96), rgba(24, 24, 25, 0.96)),
-    rgba(24, 24, 25, 0.96);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
-}
-
-.settings-head {
-  min-height: 34px;
-  margin: -8px -8px 8px;
-  padding: 8px 10px;
-  border-bottom-color: rgba(255, 255, 255, 0.07);
-  background: rgba(31, 31, 33, 0.96);
-}
-
-.settings-head strong {
-  font-size: 14px;
-  font-weight: 500;
-}
-
 .settings-body {
   display: grid;
   grid-template-columns: 1fr;
   gap: 7px;
-}
-
-.settings-column {
-  display: contents;
 }
 
 .settings-group {
@@ -3164,36 +2947,6 @@ output {
 .settings-group-feedback { order: 5; }
 .settings-group-training { order: 7; }
 
-.settings-group summary {
-  min-height: 38px;
-  padding: 0 12px;
-}
-
-.settings-group summary span {
-  color: rgba(247, 245, 240, 0.9);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.settings-group summary::after {
-  width: 20px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.075);
-  color: rgba(247, 245, 240, 0.68);
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.settings-group[open] summary {
-  border-bottom-color: rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.settings-group-body {
-  gap: 0;
-  padding: 0 12px 6px;
-}
-
 .settings-panel .control-row {
   min-height: 40px;
   padding: 6px 0;
@@ -3210,11 +2963,6 @@ output {
   font-weight: 400;
 }
 
-.settings-panel .control-row select,
-.settings-panel .control-row input[type="range"] {
-  width: 150px;
-}
-
 .settings-panel .control-row select {
   height: 30px;
   border-radius: 7px;
@@ -3223,11 +2971,6 @@ output {
   color: rgba(247, 245, 240, 0.92);
   font-size: 13px;
   font-weight: 400;
-}
-
-.settings-panel .control-row input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
 }
 
 .settings-panel .focus-button,
@@ -3354,13 +3097,6 @@ output {
   font-weight: 500;
   backdrop-filter: blur(8px);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
-}
-
-.touch button:active,
-.touch button.active {
-  background: rgba(247, 198, 93, 0.24);
-  border-color: rgba(255, 255, 255, 0.44);
-  color: rgba(255, 250, 226, 0.96);
 }
 
 .review-grid-primary {
@@ -3496,10 +3232,6 @@ body {
   color: rgba(247, 245, 240, 0.82);
 }
 
-.stage.run-started .brand {
-  opacity: 0.52;
-}
-
 .stage.run-started .brand:hover,
 .stage.settings-open .brand {
   opacity: 1;
@@ -3519,10 +3251,6 @@ body {
   color: rgba(247, 245, 240, 0.86);
   font-size: 12px;
   font-weight: 650;
-}
-
-.counter.stat {
-  color: rgba(247, 245, 240, 0.78);
 }
 
 .stage.free-play #splitTime,
@@ -3595,26 +3323,9 @@ body {
   scrollbar-color: rgba(247, 245, 240, 0.24) rgba(255, 255, 255, 0.045);
 }
 
-.settings-head {
-  top: 0;
-  margin: 0;
-  padding: 13px 15px;
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-  background: rgba(28, 28, 30, 0.98);
-}
-
-.settings-head strong {
-  font-size: 15px;
-  font-weight: 650;
-}
-
 .settings-body {
   display: block;
   padding: 10px 12px 12px;
-}
-
-.settings-column + .settings-column {
-  margin-top: 8px;
 }
 
 .settings-group {
@@ -3622,17 +3333,6 @@ body {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.052);
   box-shadow: none;
-}
-
-.settings-group summary {
-  min-height: 44px;
-  padding: 10px 13px;
-}
-
-.settings-group summary span {
-  color: rgba(247, 245, 240, 0.92);
-  font-size: 13px;
-  font-weight: 620;
 }
 
 .settings-group summary::after {
@@ -3647,11 +3347,6 @@ body {
   transition: transform 140ms ease;
 }
 
-.settings-group[open] summary {
-  border-bottom-color: rgba(255, 255, 255, 0.075);
-  background: transparent;
-}
-
 .settings-group[open] summary::after {
   content: "›";
   transform: rotate(90deg);
@@ -3660,12 +3355,6 @@ body {
 .settings-group-body {
   gap: 0;
   padding: 0 13px 9px;
-}
-
-.settings-panel .control-row {
-  min-height: 44px;
-  padding: 9px 0;
-  border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
 .control-row span,
@@ -3722,11 +3411,6 @@ body {
   transition: transform 140ms ease;
 }
 
-.settings-panel .control-row input[type="checkbox"]:checked {
-  border-color: rgba(143, 209, 154, 0.38);
-  background: rgba(143, 209, 154, 0.56);
-}
-
 .settings-panel .control-row input[type="checkbox"]:checked::after {
   transform: translateX(18px);
 }
@@ -3765,20 +3449,6 @@ body {
 .challenge-card em,
 .ledger-main em {
   font-weight: 520;
-}
-
-.settings-panel .chapter-overview,
-.settings-panel .practice-report,
-.settings-panel .profile-summary,
-.settings-panel .challenge-card,
-.settings-panel .queue-card,
-.settings-panel .ledger-row,
-.settings-panel .plan-step,
-.settings-panel .route-contract-card,
-.settings-panel .feel-card,
-.settings-panel .room-brief {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.045);
 }
 
 .plan-head span,
@@ -3849,12 +3519,6 @@ body {
   color: rgba(247, 245, 240, 0.9);
   font-weight: 650;
   backdrop-filter: blur(10px);
-}
-
-.touch button:active,
-.touch button.active {
-  border-color: rgba(232, 196, 106, 0.42);
-  background: rgba(232, 196, 106, 0.24);
 }
 
 @media (max-width: 760px) {
@@ -3976,25 +3640,6 @@ body {
 }
 
 /* P24 final cascade. */
-body {
-  background:
-    radial-gradient(circle at 50% 18%, rgba(74, 91, 121, 0.16), transparent 42%),
-    #090d16;
-}
-
-.stage {
-  border-color: rgba(184, 211, 221, 0.14);
-  background: #101827;
-  box-shadow: 0 28px 80px rgba(2, 6, 14, 0.55);
-}
-
-#game {
-  filter: saturate(1.04) contrast(1.03);
-}
-
-.overlay:not(.hidden) {
-  background: linear-gradient(180deg, rgba(8, 14, 25, 0.12), rgba(8, 12, 20, 0.38));
-}
 
 .overlay h1 {
   letter-spacing: 0.04em;
@@ -4007,10 +3652,6 @@ body {
   color: #1a2230;
   box-shadow: 0 4px 0 #a85f4e;
   transition: transform 100ms ease, background 100ms ease, box-shadow 100ms ease;
-}
-
-.primary:hover {
-  background: #f0c66f;
 }
 
 .primary:active {
@@ -4042,24 +3683,11 @@ body {
 }
 
 /* P28 bright ascent and map-sheet panels. */
-body {
-  background:
-    radial-gradient(circle at 50% 10%, rgba(255, 244, 205, 0.82), transparent 32%),
-    linear-gradient(145deg, #dce8e8 0%, #b9ced4 48%, #d8c7b8 100%);
-}
-
-.shell {
-  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3), transparent 58%);
-}
 
 .stage {
   border-color: rgba(50, 78, 94, 0.28);
   background: #58758a;
   box-shadow: 0 24px 64px rgba(48, 67, 77, 0.3);
-}
-
-#game {
-  filter: saturate(1.12) brightness(1.05) contrast(1.025);
 }
 
 .stage.settings-open #game {
@@ -4092,17 +3720,6 @@ body {
   scrollbar-color: rgba(55, 84, 96, 0.34) rgba(255, 255, 255, 0.38);
 }
 
-.settings-panel.mode-practice {
-  width: min(590px, calc(100% - 36px));
-}
-
-.settings-head {
-  min-height: 54px;
-  padding: 10px 14px 10px 16px;
-  border-bottom: 1px solid rgba(65, 92, 102, 0.14);
-  background: rgba(250, 249, 241, 0.94);
-}
-
 .settings-head::after {
   position: absolute;
   left: 16px;
@@ -4123,20 +3740,11 @@ body {
   color: #263744;
 }
 
-.settings-head strong {
-  align-self: start;
-  font-size: 15px;
-}
-
 .settings-panel .mini-button {
   border-color: rgba(46, 70, 80, 0.16);
   background: rgba(255, 255, 255, 0.72);
   color: #354b57;
   box-shadow: 0 2px 8px rgba(46, 68, 76, 0.08);
-}
-
-.settings-body {
-  padding: 10px 11px 12px;
 }
 
 .settings-column + .settings-column {
@@ -4151,25 +3759,6 @@ body {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(58, 85, 96, 0.12);
-}
-
-.settings-group {
-  margin-bottom: 6px;
-  border: 1px solid rgba(58, 85, 96, 0.13);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.36);
-  overflow: hidden;
-}
-
-.settings-group[open] {
-  border-color: rgba(63, 101, 111, 0.2);
-  background: rgba(255, 255, 255, 0.68);
-  box-shadow: 0 5px 16px rgba(61, 83, 90, 0.07);
-}
-
-.settings-group summary {
-  min-height: 42px;
-  padding: 9px 12px;
 }
 
 .settings-group summary span {
@@ -4189,34 +3778,8 @@ body {
   content: "";
 }
 
-.settings-group-audio summary span::before {
-  background: #d59a70;
-}
-
-.settings-group-display summary span::before,
-.settings-group-training summary span::before {
-  background: #77a98c;
-}
-
-.settings-group-feedback summary span::before {
-  background: #b08aaa;
-}
-
-.settings-group-room summary span::before {
-  background: #d2ad52;
-}
-
 .settings-group summary::after {
   color: rgba(45, 69, 79, 0.55);
-}
-
-.settings-group[open] summary {
-  border-bottom-color: rgba(59, 86, 96, 0.1);
-  background: rgba(231, 239, 234, 0.58);
-}
-
-.settings-group-body {
-  padding: 2px 12px 9px;
 }
 
 .settings-panel .control-row {
@@ -4279,10 +3842,6 @@ body {
   color: rgba(53, 75, 85, 0.42);
 }
 
-.settings-panel .control-row input[type="range"] {
-  accent-color: #c9913f;
-}
-
 .settings-panel .control-row input[type="checkbox"] {
   border-color: rgba(50, 76, 87, 0.2);
   background: rgba(100, 119, 124, 0.3);
@@ -4300,13 +3859,6 @@ body {
   background: rgba(255, 255, 255, 0.72);
   color: #304754;
   box-shadow: 0 2px 6px rgba(46, 69, 78, 0.06);
-}
-
-.settings-panel .focus-button:not(.ghost),
-.settings-panel .variant-button.active {
-  border-color: rgba(183, 132, 47, 0.26);
-  background: rgba(239, 196, 104, 0.25);
-  color: #5c4824;
 }
 
 .settings-panel .chapter-overview,
@@ -4640,18 +4192,10 @@ body {
   box-shadow: 0 -10px 24px rgba(45, 65, 75, 0.07);
 }
 
-.settings-panel.mode-practice .practice-launch-dock {
-  display: grid;
-}
-
 .practice-launch-dock .coach-actions {
   display: grid;
   grid-template-columns: minmax(140px, auto) auto;
   gap: 7px;
-}
-
-.practice-launch-dock .focus-button {
-  min-height: 42px;
 }
 
 @media (max-width: 760px) {
@@ -4687,14 +4231,6 @@ body {
 
 /* P72: the brightened mountain palette should not carry near-black HUD slabs.
    A blue-mist glass layer keeps white telemetry readable without looking pasted on. */
-.brand,
-.meters,
-.hud-actions {
-  border-color: rgba(224, 237, 231, 0.2);
-  background: linear-gradient(180deg, rgba(74, 99, 108, 0.62), rgba(37, 58, 72, 0.5));
-  box-shadow: 0 8px 18px rgba(28, 48, 60, 0.14);
-  backdrop-filter: blur(8px) saturate(1.08);
-}
 
 .stage.run-started .brand {
   opacity: 0.68;
@@ -4994,19 +4530,6 @@ body {
   scrollbar-color: rgba(83, 111, 116, 0.4) rgba(238, 244, 238, 0.36);
 }
 
-.settings-head {
-  min-height: 58px;
-  padding: 11px 52px 11px 17px;
-  border-bottom-color: rgba(59, 88, 98, 0.13);
-  background: linear-gradient(180deg, rgba(242, 244, 234, 0.9), rgba(223, 232, 225, 0.78));
-}
-
-.settings-head strong {
-  color: #2b414d;
-  font-size: 15px;
-  letter-spacing: 0.02em;
-}
-
 .settings-panel .settings-head .mini-button {
   position: absolute;
   top: 10px;
@@ -5017,26 +4540,10 @@ body {
   box-shadow: 0 3px 9px rgba(45, 68, 77, 0.08);
 }
 
-.settings-body {
-  padding: 11px 12px 13px;
-}
-
-.settings-group {
-  margin-bottom: 8px;
-  border-color: rgba(60, 88, 97, 0.14);
-  border-radius: 11px;
-  background: rgba(238, 243, 237, 0.5);
-}
-
 .settings-group[open] {
   border-color: rgba(69, 101, 108, 0.22);
   background: rgba(241, 245, 239, 0.78);
   box-shadow: 0 5px 14px rgba(48, 71, 79, 0.065);
-}
-
-.settings-group summary {
-  min-height: 44px;
-  padding: 10px 13px;
 }
 
 .settings-group summary span::before {
@@ -5068,32 +4575,12 @@ body {
   box-shadow: 0 0 0 3px rgba(143, 135, 157, 0.08);
 }
 
-.settings-group[open] summary {
-  border-bottom-color: rgba(57, 86, 95, 0.1);
-  background: rgba(205, 220, 215, 0.5);
-}
-
-.settings-panel .control-row {
-  background: rgba(207, 222, 217, 0.46);
-}
-
 .practice-launch-dock {
   gap: 14px;
   padding: 10px 12px 12px;
   border-top-color: rgba(59, 87, 96, 0.14);
   background: rgba(205, 219, 214, 0.96);
   box-shadow: 0 -8px 20px rgba(45, 67, 75, 0.055);
-}
-
-.practice-launch-dock .coach-actions {
-  grid-template-columns: minmax(128px, auto) auto;
-}
-
-.settings-panel .focus-button:not(.ghost),
-.settings-panel .variant-button.active {
-  border-color: rgba(176, 133, 50, 0.28);
-  background: linear-gradient(180deg, rgba(238, 208, 133, 0.46), rgba(217, 183, 105, 0.34));
-  color: #584622;
 }
 
 @media (max-width: 760px) {
@@ -5128,19 +4615,6 @@ body {
    The header names the surface once, the body contains choices, and the dock
    carries one primary action. Decorative category dots and duplicated summaries
    no longer compete with the game route behind the sheet. */
-.settings-panel,
-.settings-panel.mode-practice {
-  width: min(470px, calc(100% - 36px));
-  background:
-    linear-gradient(145deg, rgba(214, 226, 220, 0.985), rgba(191, 209, 207, 0.985)),
-    #ccd9d5;
-}
-
-.settings-head {
-  min-height: 48px;
-  padding: 12px 50px 11px 16px;
-  background: linear-gradient(180deg, rgba(232, 237, 226, 0.88), rgba(210, 222, 216, 0.76));
-}
 
 .settings-head strong {
   align-self: center;
@@ -5153,27 +4627,6 @@ body {
   content: none;
 }
 
-.settings-panel .settings-head .mini-button {
-  top: 7px;
-  right: 9px;
-  width: 34px;
-  height: 34px;
-}
-
-.settings-body {
-  padding: 10px 11px 11px;
-}
-
-.settings-group {
-  margin-bottom: 7px;
-  background: rgba(232, 239, 233, 0.5);
-}
-
-.settings-group summary {
-  min-height: 42px;
-  padding: 9px 13px;
-}
-
 .settings-group summary span {
   gap: 0;
 }
@@ -5181,14 +4634,6 @@ body {
 .settings-group summary span::before {
   display: none;
   content: none;
-}
-
-.settings-group[open] summary {
-  box-shadow: 3px 0 0 rgba(103, 137, 129, 0.48) inset;
-}
-
-.settings-panel.mode-practice .settings-group[open] summary {
-  box-shadow: 3px 0 0 rgba(177, 143, 72, 0.5) inset;
 }
 
 .practice-launch-dock {
@@ -5246,36 +4691,12 @@ body {
 }
 
 /* P119 theme lock */
-.settings-panel,
-.settings-panel.mode-practice {
-  --panel-accent: #8fbfce;
-  --panel-accent-strong: #c2e0e6;
-  --panel-line: rgba(197, 220, 226, 0.16);
-  --panel-surface: rgba(222, 235, 238, 0.065);
-  --panel-surface-strong: rgba(222, 235, 238, 0.1);
-  --panel-text: #edf4f5;
-  --panel-muted: rgba(190, 208, 214, 0.65);
-  width: min(430px, calc(100% - 40px));
-  border-color: rgba(191, 216, 223, 0.24);
-  background: linear-gradient(155deg, rgba(52, 77, 94, 0.988), rgba(34, 57, 74, 0.994)), #2c4658;
-  color: var(--panel-text);
-}
-
-.settings-panel.mode-practice {
-  width: min(488px, calc(100% - 40px));
-  border-color: rgba(151, 193, 204, 0.24);
-  background: radial-gradient(circle at 92% 0%, rgba(151, 194, 205, 0.16), transparent 34%), linear-gradient(155deg, rgba(48, 72, 85, 0.99), rgba(31, 52, 65, 0.995)), #2a4351;
-}
 
 .settings-head {
   min-height: 62px;
   padding: 11px 54px 10px 17px;
   border-bottom-color: var(--panel-line);
   background: rgba(137, 179, 191, 0.035);
-}
-
-.settings-head strong {
-  color: var(--panel-text);
 }
 
 .settings-panel .settings-head .mini-button {
@@ -5306,17 +4727,6 @@ body {
   margin-bottom: 6px;
   border-color: transparent;
   background: transparent;
-}
-
-.settings-group[open] {
-  border-color: var(--panel-line);
-  background: var(--panel-surface);
-}
-
-.settings-group summary {
-  min-height: 43px;
-  padding: 10px 12px;
-  color: rgba(222, 235, 238, 0.78);
 }
 
 .settings-group summary span {
@@ -5362,11 +4772,6 @@ body {
   border-bottom: 0;
 }
 
-.settings-panel .control-row > span,
-.settings-panel .feedback-box > span {
-  color: var(--panel-muted);
-}
-
 .settings-panel .control-row select,
 .settings-panel textarea {
   border-color: var(--panel-line);
@@ -5379,23 +4784,9 @@ body {
   accent-color: var(--panel-accent);
 }
 
-.settings-panel output,
-.settings-panel em,
-.settings-panel .practice-report {
-  color: var(--panel-muted);
-}
-
 .settings-panel output {
   border-color: var(--panel-line);
   background: rgba(20, 41, 54, 0.28);
-}
-
-.settings-panel .focus-button:not(.ghost),
-.settings-panel .variant-button.active {
-  border-color: rgba(180, 216, 225, 0.48);
-  background: linear-gradient(180deg, #b9d8df, #82acb8);
-  color: #152b36;
-  font-weight: 760;
 }
 
 .settings-panel .room-brief-head strong,
@@ -5414,15 +4805,6 @@ body {
   border-top-color: rgba(205, 223, 219, 0.09);
 }
 
-.settings-panel .room-brief-focus b {
-  color: var(--panel-accent-strong);
-}
-
-.settings-panel .room-route {
-  border-color: var(--panel-line);
-  background: rgba(6, 19, 27, 0.24);
-}
-
 .settings-panel .room-route b {
   color: var(--panel-accent);
 }
@@ -5433,10 +4815,6 @@ body {
 
 .settings-panel .room-route.expert b {
   color: #b8c5de;
-}
-
-.settings-panel .room-route em {
-  color: rgba(211, 225, 221, 0.7);
 }
 
 .settings-panel .room-brief,
@@ -5652,13 +5030,6 @@ body {
   color: var(--panel-muted);
 }
 
-.settings-panel .route-contract-card.active,
-.settings-panel .feel-card.active {
-  border-color: rgba(143, 191, 206, 0.42);
-  background: rgba(111, 161, 177, 0.12);
-  box-shadow: inset 3px 0 0 rgba(143, 191, 206, 0.72);
-}
-
 .settings-panel .route-contract-card.done,
 .settings-panel .feel-card.recent,
 .settings-panel .challenge-card.done {
@@ -5689,11 +5060,6 @@ body {
   cursor: pointer;
 }
 
-.key-binding-editor button:hover {
-  border-color: rgba(174, 215, 225, 0.36);
-  background: rgba(190, 220, 228, 0.1);
-}
-
 .key-binding-editor button span {
   overflow: hidden;
   color: var(--panel-muted);
@@ -5718,17 +5084,6 @@ body {
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.key-binding-editor button.capturing {
-  border-color: rgba(184, 222, 231, 0.58);
-  background: rgba(151, 202, 214, 0.16);
-  box-shadow: 0 0 0 2px rgba(143, 191, 206, 0.11) inset;
-}
-
-.key-binding-editor button.capturing kbd {
-  background: #b9d8df;
-  color: #17303b;
 }
 
 .binding-tools {
@@ -5759,18 +5114,6 @@ body {
 .binding-tools .focus-button {
   flex: 0 0 auto;
   min-height: 34px;
-}
-
-.settings-panel .binding-tools .focus-button.ghost {
-  border-color: var(--panel-line);
-  background: rgba(20, 42, 55, 0.28);
-  color: rgba(226, 239, 242, 0.82);
-}
-
-.settings-panel .binding-tools .focus-button.ghost:hover {
-  border-color: rgba(174, 215, 225, 0.34);
-  background: rgba(190, 220, 228, 0.1);
-  color: #f0f8f9;
 }
 
 .practice-launch-dock {
@@ -6041,12 +5384,6 @@ textarea {
   box-shadow: 0 2px 8px rgba(39, 65, 75, 0.12);
 }
 
-.key-binding-editor {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 12px 4px 7px;
-}
-
 .key-binding-editor button {
   min-height: 44px;
   padding: 8px 9px 8px 12px;
@@ -6055,17 +5392,6 @@ textarea {
   background: rgba(255, 255, 255, 0.38);
   color: var(--panel-text);
   box-shadow: none;
-}
-
-.key-binding-editor button:hover {
-  border-color: rgba(55, 122, 133, 0.3);
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.key-binding-editor button span {
-  color: #71838b;
-  font-size: 11px;
-  font-weight: 650;
 }
 
 .key-binding-editor kbd {
@@ -6077,12 +5403,6 @@ textarea {
   background: rgba(71, 97, 107, 0.09);
   color: #31535f;
   font: 700 11px/1 "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
-}
-
-.key-binding-editor button.capturing {
-  border-color: rgba(49, 118, 131, 0.48);
-  background: rgba(78, 145, 155, 0.12);
-  box-shadow: 0 0 0 2px rgba(71, 132, 143, 0.08) inset;
 }
 
 .key-binding-editor button.capturing kbd {
@@ -6347,13 +5667,6 @@ textarea {
   gap: 5px;
 }
 
-.account-field > span,
-.password-reset > span {
-  color: #71838b;
-  font-size: 11px;
-  font-weight: 650;
-}
-
 .account-field input,
 .password-reset input {
   width: 100%;
@@ -6366,10 +5679,6 @@ textarea {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 8px;
-}
-
-.account-code-fields .focus-button {
-  min-height: 42px;
 }
 
 .account-submit {
@@ -6465,14 +5774,6 @@ textarea {
   line-height: 1.4;
 }
 
-.account-status.valid {
-  color: #347365 !important;
-}
-
-.account-status.error {
-  color: #a05252 !important;
-}
-
 .account-entry {
   grid-column: 1 / -1;
   justify-self: center;
@@ -6548,18 +5849,6 @@ textarea {
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.game-tip i {
-  right: 10px;
-  bottom: 4px;
-  left: 10px;
-  height: 2px;
-  background: rgba(220, 234, 233, 0.14);
-}
-
-.game-tip i::after {
-  background: #8bc2ba;
 }
 
 .game-tip.death {

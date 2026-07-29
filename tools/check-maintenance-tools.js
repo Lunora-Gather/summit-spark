@@ -10,6 +10,7 @@ const errors = [];
 const requiredTools = [
   "tools/check-appwrite-contract.js",
   "tools/check-browser-smoke.js",
+  "tools/check-css-cascade.js",
   "tools/check-core-format.mjs",
   "tools/check-core-math.mjs",
   "tools/check-room-data.mjs",

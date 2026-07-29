@@ -4,7 +4,7 @@
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260729-p214`
+当前公开构建：`20260729-p215`
 
 ## 快速开始
 
@@ -102,6 +102,7 @@ npm run browser-smoke
 npm run smoke
 npm run route-audit
 npm run state-check
+npm run css-audit
 node tools/export-room-data.js --check
 node tools/report-room-data.js
 ```

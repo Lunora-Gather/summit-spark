@@ -308,6 +308,17 @@ if (!runtimeSource.includes("const relayChainPath = [];")
   || !runtimeSource.includes("if (!prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance)")) {
   fail("Relay activation order should render one bounded in-world thread that clears with the chain and respects comfort modes");
 }
+if (!runtimeSource.includes("awakened: false")
+  || !runtimeSource.includes("relay.awakened = true;")
+  || !runtimeSource.includes("function relayLandmarkProgress()")
+  || !runtimeSource.includes("relays.filter((relay) => relay.awakened).length / relays.length")
+  || !runtimeSource.includes("function drawProgressiveLandmarkPath(points, progress)")
+  || !runtimeSource.includes("function drawRelayLandmarkResponse(kind, progress, time, atmosphere)")
+  || !runtimeSource.includes("drawRelayLandmarkResponse(landmark.kind, relayLandmarkProgress(), time, atmosphere);")
+  || !runtimeSource.includes('"broken-gate": [[-72, -50], [-38, -78], [-5, -54], [7, -67], [18, -62], [42, -80], [72, -50]]')
+  || runtimeSource.includes("hairColor = relayLandmarkProgress")) {
+  fail("Old Peak Relay progress should remain an attempt-local environmental landmark response without recoloring the climber");
+}
 for (const trigger of [
   'showMechanicFirstTouchCue("relay")',
   'showMechanicFirstTouchCue("spring")',

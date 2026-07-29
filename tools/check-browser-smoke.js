@@ -1485,6 +1485,7 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     || earlyExpired.jump !== 0
     || earlyExpired.dash !== 0
     || !/surface warm-dust/.test(earlyStart.text)
+    || !/relays 3  relic 0\.00/.test(earlyStart.text)
     || Math.abs(earlySettled.x - earlyStart.x) > 2
     || Math.abs(earlySettled.y - earlyStart.y) > 2
     || Math.abs(earlySettled.vx) > 2
@@ -1520,6 +1521,43 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     || lateJump.y >= lateStart.y - 3
     || lateJump.vy >= -20) {
     errors.push("chapter transition should preserve a Jump pressed inside the final normal buffer window: " + JSON.stringify({ lateStart, lateWindow, lateJump }));
+  }
+}
+
+async function runOldPeakRelicSmoke(cdp, baseUrl) {
+  await navigateApp(cdp, baseUrl, "Old Peak Relay relic");
+  await clickSelector(cdp, "#startButton");
+  await enableDebugPanel(cdp);
+  await keyTap(cdp, "Digit5", "5");
+  const dormant = await waitUntil("R5 Relay relic starts dormant", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /room 5\\/10/.test(text) && /relays 3  relic 0\\.00/.test(text) ? { text } : null;
+  })()`), 3500);
+  await keyDown(cdp, "KeyD", "D");
+  const awakened = await waitUntil("R5 first Relay awakens its switchback relic", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    return /relays 3  relic 0\\.33/.test(text) && position
+      ? { x: Number(position[1]), y: Number(position[2]), text }
+      : null;
+  })()`), 1800, 20);
+  await keyUp(cdp, "KeyD", "D");
+  await sleep(4350);
+  const afterCooldown = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
+  await keyTap(cdp, "KeyR", "R");
+  const reset = await waitUntil("R5 retry clears attempt-local Relay relic", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /快速重开 · R5/.test(document.querySelector("#gameStatus").textContent)
+      && /relays 3  relic 0\\.00/.test(text)
+      ? { text }
+      : null;
+  })()`), 3500);
+  if (!/relic 0\.00/.test(dormant.text)
+    || awakened.x < 180
+    || awakened.x > 235
+    || !/relic 0\.33/.test(afterCooldown)
+    || !/relic 0\.00/.test(reset.text)) {
+    errors.push("R5 Relay relic should awaken once, survive node cooldown and clear through the room retry lifecycle: " + JSON.stringify({ dormant, awakened, afterCooldown, reset }));
   }
 }
 
@@ -4098,6 +4136,7 @@ async function main() {
 
     await runDesktopSmoke(cdp, baseUrl);
     await runChapterTransitionInputSmoke(cdp, baseUrl);
+    await runOldPeakRelicSmoke(cdp, baseUrl);
     await runGroundRechargeSmoke(cdp, baseUrl);
     await runKeyboardSettingsSmoke(cdp, baseUrl);
     await runAssistModeSmoke(cdp, baseUrl);
@@ -4135,7 +4174,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

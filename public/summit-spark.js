@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p241"),
-    import("./modules/core/math.mjs?v=20260729-p241"),
-    import("./modules/game/room-data.mjs?v=20260729-p241"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p241"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p241"),
-    import("./modules/systems/storage.mjs?v=20260729-p241"),
-    import("./modules/systems/input.mjs?v=20260729-p241"),
-    import("./modules/training/state.mjs?v=20260729-p241"),
-    import("./modules/training/replay.mjs?v=20260729-p241"),
-    import("./modules/ui/presentation.mjs?v=20260729-p241")
+    import("./modules/core/format.mjs?v=20260729-p242"),
+    import("./modules/core/math.mjs?v=20260729-p242"),
+    import("./modules/game/room-data.mjs?v=20260729-p242"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p242"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p242"),
+    import("./modules/systems/storage.mjs?v=20260729-p242"),
+    import("./modules/systems/input.mjs?v=20260729-p242"),
+    import("./modules/training/state.mjs?v=20260729-p242"),
+    import("./modules/training/replay.mjs?v=20260729-p242"),
+    import("./modules/ui/presentation.mjs?v=20260729-p242")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1460,7 +1460,7 @@
           tiles[y][x] = ".";
         }
         if (tile === "A") {
-          entities.relays.push({ x: cx, y: cy, ready: true, timer: 0, bob: Math.random() * 6, pulse: 0 });
+          entities.relays.push({ x: cx, y: cy, ready: true, timer: 0, bob: Math.random() * 6, pulse: 0, awakened: false });
           tiles[y][x] = ".";
         }
         if (tile === "U") {
@@ -2364,6 +2364,7 @@
         markRoomTech("relay");
         showMechanicFirstTouchCue("relay");
         if (chain >= 3) markRoomTech("relayChain");
+        relay.awakened = true;
         relay.ready = false;
         relay.timer = RELAY_RESET_TIME;
         relay.pulse = Math.min(0.46, 0.24 + chain * 0.045);
@@ -9126,6 +9127,57 @@
         ctx.stroke();
       }
     }
+    drawRelayLandmarkResponse(landmark.kind, relayLandmarkProgress(), time, atmosphere);
+    ctx.restore();
+  }
+
+  function relayLandmarkProgress() {
+    if (!["triple-link", "switchback", "broken-gate"].includes(ROOM_LANDMARKS[roomIndex]?.kind)) return 0;
+    const relays = room.entities.relays;
+    if (!Array.isArray(relays) || relays.length === 0) return 0;
+    return relays.filter((relay) => relay.awakened).length / relays.length;
+  }
+
+  function drawProgressiveLandmarkPath(points, progress) {
+    if (!Array.isArray(points) || points.length < 2 || progress <= 0) return;
+    const segmentProgress = Math.max(0, Math.min(1, progress)) * (points.length - 1);
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const amount = Math.max(0, Math.min(1, segmentProgress - i));
+      if (amount <= 0) break;
+      const [fromX, fromY] = points[i];
+      const [toX, toY] = points[i + 1];
+      ctx.lineTo(fromX + (toX - fromX) * amount, fromY + (toY - fromY) * amount);
+      if (amount < 1) break;
+    }
+    ctx.stroke();
+  }
+
+  function drawRelayLandmarkResponse(kind, progress, time, atmosphere) {
+    if (progress <= 0) return;
+    const breathe = prefersReducedMotion ? 0 : Math.sin(time * 2.1 + roomIndex) * 0.025;
+    const paths = {
+      "triple-link": [[-62, 16], [0, -22], [62, 16]],
+      switchback: [[-92, 66], [72, 66], [72, 28], [-52, 28], [-52, -10], [52, -10], [52, -50], [-18, -50]],
+      "broken-gate": [[-72, -50], [-38, -78], [-5, -54], [7, -67], [18, -62], [42, -80], [72, -50]]
+    };
+    const path = paths[kind];
+    if (!path) return;
+    ctx.save();
+    ctx.globalAlpha = (settings.calmEffects ? 0.2 : 0.3) + progress * 0.22 + breathe;
+    ctx.strokeStyle = progress >= 1 ? atmosphere.rim : palette.cyan;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.lineWidth = settings.calmEffects ? 2 : 2.5;
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 1 : 7);
+    drawProgressiveLandmarkPath(path, progress);
+    path.forEach(([x, y], index) => {
+      const amount = Math.max(0, Math.min(1, progress * path.length - index));
+      if (amount <= 0) return;
+      const size = 2 + amount * 2;
+      ctx.fillRect(x - size / 2, y - size / 2, size, size);
+    });
     ctx.restore();
   }
 
@@ -10838,7 +10890,7 @@
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  recall ${echoAnchor && echoAnchor.room === roomIndex && recallCooldown <= 0 && player.deadTimer <= 0 ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
-      `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
+      `relays ${room.entities.relays.length}  relic ${relayLandmarkProgress().toFixed(2)}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
       `replay actions ${replayActionMarkersFor(bestRoomPaths[roomIndex]).length}  active ${practiceVisualsActive() ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,

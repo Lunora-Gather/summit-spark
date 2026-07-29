@@ -260,6 +260,19 @@ if (!js.includes("const relayChainPath = [];")
   || !js.includes("path ${relayChainPath.length}")) {
   errors.push("Relay chains must own one bounded activation-order thread that clears with the existing chain lifecycle and respects comfort budgets");
 }
+if (!js.includes("awakened: false")
+  || !js.includes("relay.awakened = true;")
+  || !js.includes("function relayLandmarkProgress()")
+  || !js.includes('["triple-link", "switchback", "broken-gate"].includes(ROOM_LANDMARKS[roomIndex]?.kind)')
+  || !js.includes("relays.filter((relay) => relay.awakened).length / relays.length")
+  || !js.includes("function drawProgressiveLandmarkPath(points, progress)")
+  || !js.includes("function drawRelayLandmarkResponse(kind, progress, time, atmosphere)")
+  || !js.includes("drawRelayLandmarkResponse(landmark.kind, relayLandmarkProgress(), time, atmosphere);")
+  || !js.includes('"triple-link": [[-62, 16], [0, -22], [62, 16]]')
+  || !js.includes("prefersReducedMotion ? 0")
+  || !js.includes("relic ${relayLandmarkProgress().toFixed(2)}")) {
+  errors.push("Old Peak landmarks must retain current-attempt Relay awakenings and answer with distinct bounded world-space paths");
+}
 if (!js.includes("ctx.lineWidth = 2.65") || !js.includes("ctx.lineWidth = 2.55") || !js.includes('const handSkin = "#d6aa8f"') || !js.includes("walling ? 1.3 : 1.15") || js.includes("ctx.arc(cx + player.wallDir * 12, y + 15, 2")) errors.push("player arms and muted hands should stay compact and wall grip must not add a duplicate glowing hand dot");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");

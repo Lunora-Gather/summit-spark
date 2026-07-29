@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   CHAPTER_EXPERIENCE,
   CHAPTER_START_ROOMS,
+  CHAPTER_SURFACE_FEEDBACK,
   CHAPTER_SURFACE_KINDS,
   EXPERT_REQUIREMENTS,
   EXPERT_REQUIREMENT_LABELS,
@@ -81,6 +82,17 @@ CHAPTER_START_ROOMS.forEach((room, chapter) => {
 });
 assert.deepEqual(CHAPTER_SURFACE_KINDS, ["gate-slate", "old-peak", "wind-cut", "star-etched"], "four acts should own distinct platform materials");
 assert.equal(new Set(CHAPTER_SURFACE_KINDS).size, CHAPTER_EXPERIENCE.length, "chapter platform materials should remain distinct");
+assert.deepEqual(
+  CHAPTER_SURFACE_FEEDBACK.map((feedback) => feedback.kind),
+  ["slate-chip", "warm-dust", "ice-flake", "star-spark"],
+  "four acts should carry distinct landing feedback silhouettes"
+);
+assert.equal(CHAPTER_SURFACE_FEEDBACK.length, CHAPTER_EXPERIENCE.length, "every act should own landing feedback");
+assert.equal(new Set(CHAPTER_SURFACE_FEEDBACK.map((feedback) => feedback.primary)).size, CHAPTER_EXPERIENCE.length, "landing feedback primary colors should remain distinct");
+CHAPTER_SURFACE_FEEDBACK.forEach((feedback, index) => {
+  assert.match(feedback.primary, /^#[0-9a-f]{6}$/i, `chapter ${index + 1} landing primary should be a hex color`);
+  assert.match(feedback.accent, /^#[0-9a-f]{6}$/i, `chapter ${index + 1} landing accent should be a hex color`);
+});
 CHAPTER_EXPERIENCE.forEach((chapter, index) => {
   for (const field of ["title", "vow", "focus", "resolve"]) {
     assert.equal(typeof chapter[field], "string", `chapter ${index + 1} should include ${field}`);
@@ -108,6 +120,7 @@ ROOM_LANDMARKS.forEach((landmark, index) => {
 assertDeepFrozen(CHAPTER_EXPERIENCE, "chapter experience");
 assertDeepFrozen(CHAPTER_START_ROOMS, "chapter start rooms");
 assertDeepFrozen(CHAPTER_SURFACE_KINDS, "chapter surface kinds");
+assertDeepFrozen(CHAPTER_SURFACE_FEEDBACK, "chapter surface feedback");
 assertDeepFrozen(SKILL_LABELS, "skill labels");
 assertDeepFrozen(EXPERT_REQUIREMENT_LABELS, "expert labels");
 assertDeepFrozen(MECHANIC_FIRST_TOUCH_CUES, "mechanic first-touch cues");

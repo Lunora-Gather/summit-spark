@@ -154,7 +154,7 @@ class CdpClient {
   }
 }
 
-async function waitUntil(label, fn, timeout = 6000) {
+async function waitUntil(label, fn, timeout = 6000, pollInterval = 120) {
   const start = Date.now();
   let last = "";
   while (Date.now() - start < timeout) {
@@ -165,7 +165,7 @@ async function waitUntil(label, fn, timeout = 6000) {
     } catch (error) {
       last = error.message;
     }
-    await new Promise((resolve) => setTimeout(resolve, 120));
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
   throw new Error(label + " timed out" + (last ? ": " + last : ""));
 }
@@ -603,7 +603,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const match = text.match(/dead ([\\d.]+)/);
     const remaining = match ? Number(match[1]) : 0;
     return remaining >= 0.15 ? { remaining } : null;
-  })()`), 5000);
+  })()`), 5000, 20);
   await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "KeyD", key: "d", windowsVirtualKeyCode: 68 });
   await keyTap(cdp, "Space", " ");
   await sleep(420);
@@ -621,8 +621,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     const match = text.match(/dead ([\\d.]+)/);
     const remaining = match ? Number(match[1]) : 0;
-    return remaining > 0 && remaining <= 0.12 ? { remaining, text } : null;
-  })()`), 5000);
+    return remaining >= 0.055 && remaining <= 0.105 ? { remaining, text } : null;
+  })()`), 5000, 20);
   await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "KeyD", key: "d", windowsVirtualKeyCode: 68 });
   await keyTap(cdp, "Space", " ");
   await sleep(260);
@@ -1448,12 +1448,13 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
   if (earlyExpired.act <= 0.4
     || earlyExpired.jump !== 0
     || earlyExpired.dash !== 0
+    || !/surface warm-dust/.test(earlyStart.text)
     || Math.abs(earlySettled.x - earlyStart.x) > 2
     || Math.abs(earlySettled.y - earlyStart.y) > 2
     || Math.abs(earlySettled.vx) > 2
     || Math.abs(earlySettled.vy) > 2
     || earlySettled.dash !== 1) {
-    errors.push("chapter transition should expire early Jump/Dash without launching the new act: " + JSON.stringify({ earlyStart, earlyExpired, earlySettled }));
+    errors.push("chapter transition should expire early Jump/Dash and expose Old Peak landing material without launching the new act: " + JSON.stringify({ earlyStart, earlyExpired, earlySettled }));
   }
 
   const lateStart = await launchR4Transition("late chapter-buffer");
@@ -1461,8 +1462,8 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     const act = text.match(/act ([\\d.]+)/);
     const remaining = act ? Number(act[1]) : -1;
-    return remaining > 0 && remaining <= 0.12 ? { remaining, text } : null;
-  })()`), 3500);
+    return remaining >= 0.055 && remaining <= 0.105 ? { remaining, text } : null;
+  })()`), 3500, 20);
   await keyTap(cdp, "Space", " ");
   const lateJump = await waitUntil("late chapter Jump connects after transition", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;

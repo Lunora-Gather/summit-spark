@@ -216,6 +216,16 @@ if (!js.includes("if (chapterTransitionTimer > 0) {\n        updateBuffers(dt);"
   || !js.includes("act ${chapterTransitionTimer.toFixed(3)}")) {
   errors.push("chapter transitions must keep shared input polling and normal buffer expiry active so stale actions expire while final-window actions connect");
 }
+if (!roomData.includes("export const CHAPTER_SURFACE_FEEDBACK = [")
+  || !js.includes("function emitSurfaceLandingFeedback(fallSpeed, strong)")
+  || !js.includes("emitSurfaceLandingFeedback(fallSpeed, true);")
+  || !js.includes("emitSurfaceLandingFeedback(fallSpeed, false);")
+  || !js.includes('p.shape === "warm-dust"')
+  || !js.includes('p.shape === "ice-flake"')
+  || !js.includes('p.shape === "star-spark"')
+  || !js.includes('p.shape === "slate-chip"')) {
+  errors.push("landing feedback must consume the four chapter-owned material silhouettes at both light and hard contact thresholds");
+}
 if (!js.includes("ctx.lineWidth = 2.65") || !js.includes("ctx.lineWidth = 2.55") || !js.includes('const handSkin = "#d6aa8f"') || !js.includes("walling ? 1.3 : 1.15") || js.includes("ctx.arc(cx + player.wallDir * 12, y + 15, 2")) errors.push("player arms and muted hands should stay compact and wall grip must not add a duplicate glowing hand dot");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");
@@ -456,6 +466,9 @@ const browserSmoke = fs.readFileSync(path.join(root, "tools", "check-browser-smo
 if (!browserSmoke.includes("chapter transition should expire early Jump/Dash")
   || !browserSmoke.includes("chapter transition should preserve a Jump pressed inside the final normal buffer window")) {
   errors.push("browser smoke must prove chapter-transition stale-input expiry and final-window acceptance");
+}
+if (!browserSmoke.includes("surface warm-dust")) {
+  errors.push("browser smoke must prove R4 resolves the Old Peak landing material at runtime");
 }
 if (!css.includes(".stage.low-performance #game") || !css.includes("-webkit-backdrop-filter: none;") || !browserSmoke.includes("low-performance mode should remove per-frame canvas filters and backdrop blurs")) errors.push("low-performance mode must remove canvas filter passes and live backdrop compositing");
 if (!js.includes("function writeStorageTransaction(entries)")

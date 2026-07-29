@@ -29,6 +29,7 @@
     {
       CHAPTER_EXPERIENCE,
       CHAPTER_START_ROOMS,
+      CHAPTER_SURFACE_FEEDBACK,
       CHAPTER_SURFACE_KINDS,
       EXPERT_REQUIREMENTS,
       EXPERT_REQUIREMENT_LABELS,
@@ -155,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p234"),
-    import("./modules/core/math.mjs?v=20260729-p234"),
-    import("./modules/game/room-data.mjs?v=20260729-p234"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p234"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p234"),
-    import("./modules/systems/storage.mjs?v=20260729-p234"),
-    import("./modules/systems/input.mjs?v=20260729-p234"),
-    import("./modules/training/state.mjs?v=20260729-p234"),
-    import("./modules/training/replay.mjs?v=20260729-p234"),
-    import("./modules/ui/presentation.mjs?v=20260729-p234")
+    import("./modules/core/format.mjs?v=20260729-p235"),
+    import("./modules/core/math.mjs?v=20260729-p235"),
+    import("./modules/game/room-data.mjs?v=20260729-p235"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p235"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p235"),
+    import("./modules/systems/storage.mjs?v=20260729-p235"),
+    import("./modules/systems/input.mjs?v=20260729-p235"),
+    import("./modules/training/state.mjs?v=20260729-p235"),
+    import("./modules/training/replay.mjs?v=20260729-p235"),
+    import("./modules/ui/presentation.mjs?v=20260729-p235")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2046,10 +2047,11 @@
       triggerActionVisual("land", 0.18);
       playSound("land", 1);
       shake(0.055, Math.min(2.4, fallSpeed / 320));
-      burst(player.x + player.w / 2, player.y + player.h, "#e9f7ff", 3, 82);
+      emitSurfaceLandingFeedback(fallSpeed, true);
     } else if (!player.wasGrounded && player.onGround && fallSpeed > 180) {
       triggerActionVisual("land", 0.12);
       playSound("land", 0.65);
+      emitSurfaceLandingFeedback(fallSpeed, false);
     }
     resolveRoomTransition();
     updateEntities(dt, input);
@@ -7215,26 +7217,54 @@
     roomPath.length = 0;
   }
 
-  function burst(x, y, color, count, speed) {
+  function burst(x, y, color, count, speed, options = {}) {
     const effectScale = settings.lowPerformance ? 0.42 : prefersReducedMotion ? 0.5 : settings.calmEffects ? 0.68 : 1;
     const budgetedCount = Math.max(2, Math.ceil(count * effectScale));
+    const sizeScale = Number.isFinite(options.sizeScale) ? Math.max(0.2, options.sizeScale) : 1;
+    const lifeScale = Number.isFinite(options.lifeScale) ? Math.max(0.2, options.lifeScale) : 1;
     for (let i = 0; i < budgetedCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
+      const angle = options.grounded ? Math.PI + Math.random() * Math.PI : Math.random() * Math.PI * 2;
       const power = speed * (0.28 + Math.random() * 0.72);
+      const life = (0.28 + Math.random() * 0.48) * lifeScale;
       particles.push({
         x,
         y,
         vx: Math.cos(angle) * power,
         vy: Math.sin(angle) * power - 40,
-        life: 0.28 + Math.random() * 0.48,
-        max: 0.7,
-        size: 2 + Math.random() * 5,
-        color,
+        life,
+        max: 0.7 * lifeScale,
+        size: (2 + Math.random() * 5) * sizeScale,
+        color: options.accentColor && i % 3 === 0 ? options.accentColor : color,
+        shape: options.shape || "square",
         rot: Math.random() * Math.PI,
         spin: (Math.random() - 0.5) * 8
       });
     }
     budgetEffectQueue("particles", particles);
+  }
+
+  function surfaceFeedbackForRoom(index = roomIndex) {
+    const chapter = chapterIndexForRoom(index);
+    return CHAPTER_SURFACE_FEEDBACK[chapter] || CHAPTER_SURFACE_FEEDBACK[0];
+  }
+
+  function emitSurfaceLandingFeedback(fallSpeed, strong) {
+    const feedback = surfaceFeedbackForRoom();
+    const energy = Math.max(0.72, Math.min(1.18, fallSpeed / 520));
+    burst(
+      player.x + player.w / 2,
+      player.y + player.h,
+      feedback.primary,
+      strong ? 6 : 3,
+      (strong ? 104 : 58) * energy,
+      {
+        accentColor: feedback.accent,
+        grounded: true,
+        lifeScale: strong ? 0.72 : 0.55,
+        shape: feedback.kind,
+        sizeScale: strong ? 0.72 : 0.52
+      }
+    );
   }
 
   function addSnow(x, y, count) {
@@ -10419,7 +10449,33 @@
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rot);
       ctx.fillStyle = p.color;
-      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      if (p.shape === "warm-dust") {
+        ctx.globalAlpha *= 0.58;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size * 0.75, p.size * 0.42, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.shape === "ice-flake") {
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = Math.max(0.7, p.size * 0.18);
+        ctx.beginPath();
+        ctx.moveTo(-p.size * 0.55, 0);
+        ctx.lineTo(p.size * 0.55, 0);
+        ctx.moveTo(0, -p.size * 0.55);
+        ctx.lineTo(0, p.size * 0.55);
+        ctx.stroke();
+      } else if (p.shape === "star-spark") {
+        ctx.beginPath();
+        ctx.moveTo(0, -p.size * 0.72);
+        ctx.lineTo(p.size * 0.42, 0);
+        ctx.lineTo(0, p.size * 0.72);
+        ctx.lineTo(-p.size * 0.42, 0);
+        ctx.closePath();
+        ctx.fill();
+      } else if (p.shape === "slate-chip") {
+        ctx.fillRect(-p.size * 0.7, -p.size * 0.24, p.size * 1.4, p.size * 0.48);
+      } else {
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      }
       ctx.restore();
     }
   }
@@ -10529,7 +10585,7 @@
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
-      `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}`,
+      `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}  surface ${surfaceFeedbackForRoom().kind}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
       `replay actions ${replayActionMarkersFor(bestRoomPaths[roomIndex]).length}  active ${practiceVisualsActive() ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,

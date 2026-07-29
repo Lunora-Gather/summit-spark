@@ -230,7 +230,7 @@ async function main() {
       .forEach((marker) => expectIncludes("core format", coreFormat, marker));
     ["export function aabb(", "export function distRectPoint(", "export function approach("]
       .forEach((marker) => expectIncludes("core math", coreMath, marker));
-    ["export const ROOM_TARGETS = [", "export const maps = [", "export const ROOM_ATMOSPHERES = [", "export const ROOM_LANDMARKS = [", "export const CHAPTER_SURFACE_KINDS = [", "export const MECHANIC_FIRST_TOUCH_CUES = {", "export function mechanicFirstTouchCueData(", "].forEach(deepFreeze);"]
+    ["export const ROOM_TARGETS = [", "export const maps = [", "export const ROOM_ATMOSPHERES = [", "export const ROOM_LANDMARKS = [", "export const CHAPTER_SURFACE_KINDS = [", "export const CHAPTER_SURFACE_FEEDBACK = [", "export const MECHANIC_FIRST_TOUCH_CUES = {", "export function mechanicFirstTouchCueData(", "].forEach(deepFreeze);"]
       .forEach((marker) => expectIncludes("room data", roomData, marker));
     ["export const EFFECT_BUDGETS =", "export function effectQueueLimit(", "export function enforceEffectQueueBudget("]
       .forEach((marker) => expectIncludes("effect budget", effectBudget, marker));

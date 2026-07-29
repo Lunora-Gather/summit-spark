@@ -199,6 +199,7 @@ if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
   || !roomDataSource.includes("export const maps = [")
   || !roomDataSource.includes("export const ROOM_LANDMARKS = [")
   || !roomDataSource.includes("export const CHAPTER_SURFACE_KINDS = [")
+  || !roomDataSource.includes("export const CHAPTER_SURFACE_FEEDBACK = [")
   || !roomDataSource.includes("export const MECHANIC_FIRST_TOUCH_CUES = {")
   || !roomDataSource.includes("export function mechanicFirstTouchCueData(")
   || !runtimeSource.includes("drawRoomLandmark(ambientTime, atmosphere)")
@@ -275,6 +276,11 @@ if (!runtimeSource.includes("CHAPTER_SURFACE_KINDS[chapterIndexForRoom(roomIndex
   || !runtimeSource.includes("const material = CHAPTER_SURFACE_KINDS.includes(surfaceKind)")
   || !runtimeSource.includes("`${scale}:${material}:")) {
   fail("rock tile cache should preserve four chapter-owned surface materials");
+}
+if (!runtimeSource.includes("CHAPTER_SURFACE_FEEDBACK[chapter]")
+  || !runtimeSource.includes("emitSurfaceLandingFeedback(fallSpeed, true)")
+  || !runtimeSource.includes("emitSurfaceLandingFeedback(fallSpeed, false)")) {
+  fail("runtime landing feedback should consume the four chapter-owned surface identities");
 }
 for (const trigger of [
   'showMechanicFirstTouchCue("relay")',
@@ -394,7 +400,7 @@ if (!roomDataSource.includes('resolve: "断开的旧路，被你重新连起。"
   || !uiPresentationSource.includes("export function chapterTransitionResultData(")) {
   fail("chapter transitions must close the previous act before presenting the next act");
 }
-for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_REQUIREMENTS", "maps", "ROOM_ATMOSPHERES", "ROOM_LANDMARKS", "CHAPTER_SURFACE_KINDS"]) {
+for (const name of ["ROOM_TARGETS", "ROOM_NAMES", "ROOM_STYLE_TRIALS", "EXPERT_REQUIREMENTS", "maps", "ROOM_ATMOSPHERES", "ROOM_LANDMARKS", "CHAPTER_SURFACE_KINDS", "CHAPTER_SURFACE_FEEDBACK"]) {
   if (new RegExp(`\\bconst\\s+${name}\\s*=`).test(runtimeSource)) {
     fail(`public runtime must not duplicate room-data ownership for ${name}`);
   }

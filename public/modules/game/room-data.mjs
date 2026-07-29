@@ -26,6 +26,13 @@ export const CHAPTER_SURFACE_KINDS = [
   "star-etched"
 ];
 
+export const CHAPTER_SURFACE_FEEDBACK = [
+  { kind: "slate-chip", primary: "#dcebf1", accent: "#9fc4cf" },
+  { kind: "warm-dust", primary: "#e3c3ad", accent: "#b88979" },
+  { kind: "ice-flake", primary: "#eaf7f8", accent: "#a9d9df" },
+  { kind: "star-spark", primary: "#fff0b0", accent: "#9fd7df" }
+];
+
 export const ROOM_WHISPERS = [
     "先迈出第一步，山会回应。",
     "让微光接住你的速度。",
@@ -409,6 +416,7 @@ function deepFreeze(value) {
   CHAPTER_START_ROOMS,
   CHAPTER_EXPERIENCE,
   CHAPTER_SURFACE_KINDS,
+  CHAPTER_SURFACE_FEEDBACK,
   ROOM_WHISPERS,
   ROOM_SKILLS,
   SKILL_LABELS,

@@ -427,3 +427,102 @@ export function reconcileChallengeWinsData(currentWins, challengeItems, allowedI
     changed: before.length !== after.length || before.some((id, index) => id !== after[index])
   };
 }
+
+export function createRouteInterruptionResultData(active, contracts, reason, stepLabel) {
+  const data = activeRouteContractDataFor(active, contracts);
+  if (!data) return null;
+  const label = typeof stepLabel === "function" ? stepLabel(data.step) : "";
+  return {
+    id: data.contract.id,
+    label: data.contract.label,
+    done: false,
+    step: data.stepIndex,
+    detail: `${reason}：停在 ${data.stepIndex + 1}/${data.total}${label ? ` ${label}` : ""}`
+  };
+}
+
+export function createRouteCompletionResultData(contract) {
+  if (!contract?.id) return null;
+  return {
+    id: contract.id,
+    label: contract.label,
+    done: true,
+    detail: contract.goal || ""
+  };
+}
+
+export function routeContractSummaryTextData({
+  active,
+  lastResult,
+  nextContract,
+  nextProgress,
+  stepLabel
+} = {}) {
+  if (active) {
+    const label = typeof stepLabel === "function" ? stepLabel(active.step) : "";
+    return `航线 ${active.contract.label} ${active.stepIndex + 1}/${active.total}${label ? `：${label}` : ""}`;
+  }
+  if (lastResult) {
+    return lastResult.done
+      ? `航线 ${lastResult.label} 已完成`
+      : `航线 ${lastResult.label} 可继续`;
+  }
+  return nextContract
+    ? `航线建议 ${nextContract.label} ${Math.max(0, Math.min(100, Math.round(Number(nextProgress) || 0)))}%`
+    : "航线建议 暂无";
+}
+
+function fixtureById(fixtures, id) {
+  return Array.from(fixtures || []).find((fixture) => fixture?.id === id) || null;
+}
+
+export function createFeelInterruptionResultData(active, fixtures, reason) {
+  if (!active) return null;
+  const fixture = fixtureById(fixtures, active.id);
+  if (!fixture) return null;
+  return {
+    id: fixture.id,
+    done: false,
+    detail: `${reason}：${fixture.note}`
+  };
+}
+
+export function createFeelCompletionResultData(active, fixtures, {
+  room,
+  mode,
+  clean,
+  elapsed,
+  formatTime
+} = {}) {
+  if (!active || active.room !== room || active.mode !== mode) return null;
+  const fixture = fixtureById(fixtures, active.id);
+  if (!fixture) return null;
+  const time = typeof formatTime === "function" ? formatTime(elapsed) : String(elapsed);
+  return {
+    id: fixture.id,
+    done: true,
+    detail: `${fixture.note} / ${time}${clean ? " / 无失误" : ""}`
+  };
+}
+
+export function feelFixturePresentationData(fixture, active, lastResult, fallback) {
+  if (active?.id === fixture?.id) {
+    return {
+      status: "进行中",
+      detail: `当前校准：${fixture.note}`,
+      className: "active"
+    };
+  }
+  if (lastResult?.id === fixture?.id) {
+    return {
+      status: lastResult.done ? "刚完成" : "已中断",
+      detail: lastResult.detail,
+      className: lastResult.done ? "recent" : "interrupted"
+    };
+  }
+  return {
+    status: fallback,
+    detail: fixture?.note || "",
+    className: ""
+  };
+}

@@ -118,6 +118,15 @@ if (!challengeSyncBody.includes("reconcileChallengeWinsData(") || !challengeSync
 for (const name of ["recordSummitProfile", "addFlow", "markRoomClear", "trackDrillClear"]) {
   if (!functionBody(name).includes("syncChallengeWins(")) errors.push(name + " must explicitly reconcile newly earned challenge wins");
 }
+const cancelRouteBody = functionBody("cancelActiveRouteContract");
+if (!cancelRouteBody.includes("createRouteInterruptionResultData(")) errors.push("Route interruption results must delegate to exact training result assembly");
+const routeSummaryBody = functionBody("routeContractSummaryText");
+if (!routeSummaryBody.includes("routeContractSummaryTextData(")) errors.push("Route summaries must delegate to training result assembly");
+const completeFeelBody = functionBody("completeActiveFeelFixture");
+if (!completeFeelBody.includes("createFeelCompletionResultData(")) errors.push("Feel completion results must delegate to exact training result assembly");
+const feelPresentationBody = functionBody("feelFixtureStatusText");
+if (!feelPresentationBody.includes("feelFixturePresentationData(")) errors.push("Feel card presentation must delegate to training result assembly");
+if (js.includes("function routeContractById(") || js.includes("function feelFixtureById(")) errors.push("training state must not retain fallback-to-first Route or Feel lookup helpers");
 
 if (!js.includes("SETTINGS_SCHEMA_VERSION = 4")) errors.push("settings schema version should be current");
 if (!js.includes("PROFILE_SCHEMA_VERSION = 2")) errors.push("profile schema version should be current");

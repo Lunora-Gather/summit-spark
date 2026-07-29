@@ -9,14 +9,19 @@ import {
   activeChallengeStateData,
   advanceRouteContractData,
   challengeProgressData,
+  createFeelCompletionResultData,
+  createFeelInterruptionResultData,
   createDrillData,
   createActiveChallengeData,
+  createRouteCompletionResultData,
+  createRouteInterruptionResultData,
   createRouteContractStateData,
   drillSucceededData,
   drillContractProgressData,
   drillContractStatsData,
   feelFixtureMatchesDrillData,
   feelFixtureModeData,
+  feelFixturePresentationData,
   leadingRoomReasonData,
   recordDrillClearData,
   recordDrillStartData,
@@ -29,6 +34,7 @@ import {
   roomReviewModeData,
   routeContractMatchesDrillData,
   routeContractResumeStepData,
+  routeContractSummaryTextData,
   routeStepIndexData,
   trainingTransitionOptionsData
 } from "../public/modules/training/state.mjs";
@@ -340,4 +346,93 @@ assert.deepEqual(reconcileChallengeWinsData(
   changed: false
 });
 
-console.log("Training module check passed: Drill/Route/Feel/Focus state plus pure challenge progress and win reconciliation.");
+const interruptedRoute = createRouteInterruptionResultData(
+  { id: "stable", step: 1, generation: 4 },
+  contracts,
+  "切换航线",
+  (step) => `R${step.index + 1} ${step.mode}`
+);
+assert.deepEqual(interruptedRoute, {
+  id: "stable",
+  label: "稳定航线",
+  done: false,
+  step: 1,
+  detail: "切换航线：停在 2/3 R5 clean"
+});
+assert.equal(createRouteInterruptionResultData(
+  { id: "__proto__", step: 0 },
+  contracts,
+  "中断",
+  () => ""
+), null);
+assert.deepEqual(createRouteCompletionResultData(contract), {
+  id: "stable",
+  label: "稳定航线",
+  done: true,
+  detail: ""
+});
+assert.equal(createRouteCompletionResultData(null), null);
+assert.equal(routeContractSummaryTextData({
+  active: activeRouteContractDataFor(route, contracts),
+  stepLabel: (step) => `R${step.index + 1} ${step.mode}`
+}), "航线 稳定航线 1/3：R2 clean");
+assert.equal(routeContractSummaryTextData({
+  lastResult: interruptedRoute
+}), "航线 稳定航线 可继续");
+assert.equal(routeContractSummaryTextData({
+  lastResult: createRouteCompletionResultData(contract)
+}), "航线 稳定航线 已完成");
+assert.equal(routeContractSummaryTextData({
+  nextContract: contract,
+  nextProgress: 33.6
+}), "航线建议 稳定航线 34%");
+
+const fixtures = [{
+  id: "jump-buffer",
+  room: 1,
+  expected: ["jump"],
+  note: "提前按跳必须接住落地"
+}];
+const activeFeel = { id: "jump-buffer", room: 0, mode: "clean" };
+assert.deepEqual(createFeelInterruptionResultData(activeFeel, fixtures, "改练中断"), {
+  id: "jump-buffer",
+  done: false,
+  detail: "改练中断：提前按跳必须接住落地"
+});
+assert.equal(createFeelInterruptionResultData({ id: "__proto__" }, fixtures, "中断"), null);
+const completedFeel = createFeelCompletionResultData(activeFeel, fixtures, {
+  room: 0,
+  mode: "clean",
+  clean: true,
+  elapsed: 1.25,
+  formatTime: (value) => `${value.toFixed(2)}s`
+});
+assert.deepEqual(completedFeel, {
+  id: "jump-buffer",
+  done: true,
+  detail: "提前按跳必须接住落地 / 1.25s / 无失误"
+});
+assert.equal(createFeelCompletionResultData(activeFeel, fixtures, {
+  room: 1,
+  mode: "clean",
+  clean: true,
+  elapsed: 1,
+  formatTime: String
+}), null);
+assert.deepEqual(feelFixturePresentationData(fixtures[0], activeFeel, null, "未开练"), {
+  status: "进行中",
+  detail: "当前校准：提前按跳必须接住落地",
+  className: "active"
+});
+assert.deepEqual(feelFixturePresentationData(fixtures[0], null, completedFeel, "未开练"), {
+  status: "刚完成",
+  detail: completedFeel.detail,
+  className: "recent"
+});
+assert.deepEqual(feelFixturePresentationData(fixtures[0], null, null, "未开练"), {
+  status: "未开练",
+  detail: "提前按跳必须接住落地",
+  className: ""
+});
+
+console.log("Training module check passed: state, Focus/challenges and exact Route/Feel result assembly.");

@@ -96,12 +96,17 @@
       challengeProgressData,
       createActiveChallengeData,
       createDrillData,
+      createFeelCompletionResultData,
+      createFeelInterruptionResultData,
+      createRouteCompletionResultData,
       createRouteContractStateData,
+      createRouteInterruptionResultData,
       drillContractProgressData,
       drillContractStatsData,
       drillSucceededData,
       feelFixtureMatchesDrillData,
       feelFixtureModeData,
+      feelFixturePresentationData,
       leadingRoomReasonData,
       recordDrillClearData,
       recordDrillStartData,
@@ -110,6 +115,7 @@
       reconcileChallengeWinsData,
       routeContractMatchesDrillData,
       routeContractResumeStepData,
+      routeContractSummaryTextData,
       roomFocusScoreData,
       roomMasteryLevelData,
       roomMasteryScoreData,
@@ -117,12 +123,12 @@
       trainingTransitionOptionsData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p192"),
-    import("./modules/core/math.mjs?v=20260729-p192"),
-    import("./modules/game/room-data.mjs?v=20260729-p192"),
-    import("./modules/systems/storage.mjs?v=20260729-p192"),
-    import("./modules/systems/input.mjs?v=20260729-p192"),
-    import("./modules/training/state.mjs?v=20260729-p192")
+    import("./modules/core/format.mjs?v=20260729-p193"),
+    import("./modules/core/math.mjs?v=20260729-p193"),
+    import("./modules/game/room-data.mjs?v=20260729-p193"),
+    import("./modules/systems/storage.mjs?v=20260729-p193"),
+    import("./modules/systems/input.mjs?v=20260729-p193"),
+    import("./modules/training/state.mjs?v=20260729-p193")
   ]);
 
   const canvas = document.getElementById("game");
@@ -4302,10 +4308,6 @@
     return ROUTE_CONTRACTS.find((contract) => contract.id === id) || null;
   }
 
-  function routeContractById(id) {
-    return ROUTE_CONTRACTS.find((contract) => contract.id === id) || ROUTE_CONTRACTS[0];
-  }
-
   function rejectTrainingEntry(label) {
     setGameStatus(`${label} 入口失效，请刷新页面后重试`);
     showGameTip("训练入口失效", "请刷新页面后重新打开设置面板", "death", GAME_TIP_TIME, 3);
@@ -4336,16 +4338,13 @@
   function cancelActiveRouteContract(reason = "已中断") {
     if (!activeRouteContract) return false;
     clearRouteContractStepTimer();
-    const contract = routeContractById(activeRouteContract.id);
-    const stepIndex = Math.max(0, Math.min(contract.steps.length - 1, activeRouteContract.step || 0));
-    const step = contract.steps[stepIndex];
-    lastRouteContractResult = {
-      id: contract.id,
-      label: contract.label,
-      done: false,
-      step: stepIndex,
-      detail: step ? `${reason}：停在 ${stepIndex + 1}/${contract.steps.length} ${routeContractStepLabel(step)}` : reason
-    };
+    const result = createRouteInterruptionResultData(
+      activeRouteContract,
+      ROUTE_CONTRACTS,
+      reason,
+      routeContractStepLabel
+    );
+    lastRouteContractResult = result;
     activeRouteContract = null;
     nextRouteContractGeneration();
     return true;
@@ -4368,12 +4367,14 @@
 
   function routeContractSummaryText() {
     const active = activeRouteContractData();
-    if (active) return `航线 ${active.contract.label} ${active.stepIndex + 1}/${active.total}：${routeContractStepLabel(active.step)}`;
-    if (lastRouteContractResult) return lastRouteContractResult.done
-      ? `航线 ${lastRouteContractResult.label} 已完成`
-      : `航线 ${lastRouteContractResult.label} 可继续`;
     const next = ROUTE_CONTRACTS.find((contract) => routeContractProgress(contract) < 100) || ROUTE_CONTRACTS[0];
-    return `航线建议 ${next.label} ${routeContractProgress(next)}%`;
+    return routeContractSummaryTextData({
+      active,
+      lastResult: lastRouteContractResult,
+      nextContract: next,
+      nextProgress: routeContractProgress(next),
+      stepLabel: routeContractStepLabel
+    });
   }
 
   function routeContractResumeStep(contract) {
@@ -4432,12 +4433,13 @@
   function startRouteContractStep(expectedGeneration = activeRouteContract?.generation) {
     if (!activeRouteContract) return;
     if (activeRouteContract.generation !== expectedGeneration) return;
-    const contract = routeContractById(activeRouteContract.id);
-    const step = contract.steps[activeRouteContract.step];
-    if (!step) {
+    const data = activeRouteContractData();
+    if (!data) {
       activeRouteContract = null;
+      nextRouteContractGeneration();
       return;
     }
+    const { contract, step } = data;
     startRoomDrill(step.index, step.mode, { keepRoute: true });
     focusPopupText = `${contract.label} ${activeRouteContract.step + 1}/${contract.steps.length}`;
     focusPopupDetail = `${routeContractStepLabel(step)} / ${drillObjectiveForRoom(step.index, step.mode)}`;
@@ -4447,7 +4449,13 @@
 
   function advanceRouteContract(index, mode) {
     if (!activeRouteContract) return false;
-    const contract = routeContractById(activeRouteContract.id);
+    const data = activeRouteContractData();
+    if (!data) {
+      activeRouteContract = null;
+      nextRouteContractGeneration();
+      return false;
+    }
+    const { contract } = data;
     const advancement = advanceRouteContractData(activeRouteContract, contract, index, mode);
     if (!advancement.matched) return false;
     activeRouteContract = advancement.state;
@@ -4456,7 +4464,7 @@
       focusPopupText = `${contract.label} 完成`;
       focusPopupDetail = contract.goal;
       focusPopupTimer = FOCUS_POPUP_TIME;
-      lastRouteContractResult = { id: contract.id, label: contract.label, done: true, detail: contract.goal };
+      lastRouteContractResult = createRouteCompletionResultData(contract);
       activeRouteContract = null;
       nextRouteContractGeneration();
       updatePracticeCoach();
@@ -4475,10 +4483,6 @@
       startRouteContractStep(generation);
     }, 80);
     return true;
-  }
-
-  function feelFixtureById(id) {
-    return FEEL_REPLAY_FIXTURES.find((fixture) => fixture.id === id) || FEEL_REPLAY_FIXTURES[0];
   }
 
   function findFeelFixtureById(id) {
@@ -4505,44 +4509,36 @@
 
   function cancelActiveFeelFixture(reason = "已中断") {
     if (!activeFeelFixture) return false;
-    const fixture = feelFixtureById(activeFeelFixture.id);
-    lastFeelFixtureResult = {
-      id: fixture.id,
-      done: false,
-      detail: `${reason}：${fixture.note}`
-    };
+    const result = createFeelInterruptionResultData(activeFeelFixture, FEEL_REPLAY_FIXTURES, reason);
+    lastFeelFixtureResult = result;
     activeFeelFixture = null;
     return true;
   }
 
   function completeActiveFeelFixture(index, mode, clean, elapsed) {
-    if (!activeFeelFixture || activeFeelFixture.room !== index || activeFeelFixture.mode !== mode) return false;
-    const fixture = feelFixtureById(activeFeelFixture.id);
-    lastFeelFixtureResult = {
-      id: fixture.id,
-      done: true,
-      detail: `${fixture.note} / ${formatTime(elapsed)}${clean ? " / 无失误" : ""}`
-    };
+    const result = createFeelCompletionResultData(activeFeelFixture, FEEL_REPLAY_FIXTURES, {
+      room: index,
+      mode,
+      clean,
+      elapsed,
+      formatTime
+    });
+    if (!result) return false;
+    lastFeelFixtureResult = result;
     activeFeelFixture = null;
     return true;
   }
 
   function feelFixtureStatusText(fixture, fallback) {
-    if (activeFeelFixture && activeFeelFixture.id === fixture.id) return "进行中";
-    if (lastFeelFixtureResult && lastFeelFixtureResult.id === fixture.id) return lastFeelFixtureResult.done ? "刚完成" : "已中断";
-    return fallback;
+    return feelFixturePresentationData(fixture, activeFeelFixture, lastFeelFixtureResult, fallback).status;
   }
 
   function feelFixtureDetailText(fixture) {
-    if (activeFeelFixture && activeFeelFixture.id === fixture.id) return `当前校准：${fixture.note}`;
-    if (lastFeelFixtureResult && lastFeelFixtureResult.id === fixture.id) return lastFeelFixtureResult.detail;
-    return fixture.note;
+    return feelFixturePresentationData(fixture, activeFeelFixture, lastFeelFixtureResult, "").detail;
   }
 
   function feelFixtureCardClass(fixture) {
-    if (activeFeelFixture && activeFeelFixture.id === fixture.id) return "active";
-    if (lastFeelFixtureResult && lastFeelFixtureResult.id === fixture.id) return lastFeelFixtureResult.done ? "recent" : "interrupted";
-    return "";
+    return feelFixturePresentationData(fixture, activeFeelFixture, lastFeelFixtureResult, "").className;
   }
 
   function feelLabItems() {

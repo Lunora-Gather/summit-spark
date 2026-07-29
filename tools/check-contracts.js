@@ -591,6 +591,9 @@ if (!roomData.includes("export const ROOM_CHAPTER_INDEXES = [0, 0, 0, 1, 1, 1, 2
   || !roomData.includes("export const CHAPTER_START_ROOMS = [0, 3, 6, 8];")
   || !js.includes("const chapter = ROOM_CHAPTER_INDEXES[index];")
   || !js.includes("started = true;\n    roomIntroTimer = ROOM_INTRO_TIME;\n    clearTransientTrainingResults();")
+  || !js.includes("triggerActionVisual(\"spawn\", 0.32);\n    roomIntroTimer = ROOM_INTRO_TIME;\n    routeCueTimer = 0;")
+  || !js.includes('function openingActStatus(prefix = "游戏开始")')
+  || !js.includes('setGameStatus(openingActStatus("游戏重开"));')
   || !js.includes("CHAPTER_START_ROOMS[0] === roomIndex")
   || !js.includes("`${openingChapter.title} · ${openingChapter.vow}`")
   || !js.includes("fitText(subline, width - 18)")) {

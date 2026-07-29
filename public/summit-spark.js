@@ -154,16 +154,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p230"),
-    import("./modules/core/math.mjs?v=20260729-p230"),
-    import("./modules/game/room-data.mjs?v=20260729-p230"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p230"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p230"),
-    import("./modules/systems/storage.mjs?v=20260729-p230"),
-    import("./modules/systems/input.mjs?v=20260729-p230"),
-    import("./modules/training/state.mjs?v=20260729-p230"),
-    import("./modules/training/replay.mjs?v=20260729-p230"),
-    import("./modules/ui/presentation.mjs?v=20260729-p230")
+    import("./modules/core/format.mjs?v=20260729-p231"),
+    import("./modules/core/math.mjs?v=20260729-p231"),
+    import("./modules/game/room-data.mjs?v=20260729-p231"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p231"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p231"),
+    import("./modules/systems/storage.mjs?v=20260729-p231"),
+    import("./modules/systems/input.mjs?v=20260729-p231"),
+    import("./modules/training/state.mjs?v=20260729-p231"),
+    import("./modules/training/replay.mjs?v=20260729-p231"),
+    import("./modules/ui/presentation.mjs?v=20260729-p231")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1537,6 +1537,7 @@
     clearGrabToggle();
     resetActionVisuals();
     triggerActionVisual("spawn", 0.32);
+    roomIntroTimer = ROOM_INTRO_TIME;
     routeCueTimer = 0;
     routeCueReason = "";
   }
@@ -1552,6 +1553,11 @@
     }));
   }
 
+  function openingActStatus(prefix = "游戏开始") {
+    const opening = CHAPTER_EXPERIENCE[ROOM_CHAPTER_INDEXES[CHAPTER_START_ROOMS[0]] || 0];
+    return `${prefix} · ${opening?.title || "第一幕"}：${opening?.vow || "继续向上。"}`;
+  }
+
   function begin() {
     started = true;
     roomIntroTimer = ROOM_INTRO_TIME;
@@ -1560,7 +1566,7 @@
     overlay.classList.add("hidden");
     settingsVisible = false;
     syncSettingsVisibility();
-    setGameStatus(`游戏开始 · ${CHAPTER_EXPERIENCE[0]?.title || "第一幕"}：${CHAPTER_EXPERIENCE[0]?.vow || "继续向上。"}`);
+    setGameStatus(openingActStatus());
     focusGame();
   }
 
@@ -1815,6 +1821,7 @@
     resetToStart(0);
     refreshRoomSelectOptions();
     updateHud();
+    setGameStatus(openingActStatus("游戏重开"));
     focusGame();
   }
 

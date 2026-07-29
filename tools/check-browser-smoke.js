@@ -1615,6 +1615,94 @@ async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
   }
 }
 
+async function runSpringApexSmoke(cdp, baseUrl) {
+  await navigateApp(cdp, baseUrl, "spring apex seed");
+  await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    saved.assistMode = "off";
+    saved.controlsPreset = "comfort";
+    saved.keyboardLayout = "pc";
+    localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
+  })()`);
+  await navigateApp(cdp, baseUrl, "spring apex");
+  await clickSelector(cdp, "#startButton");
+  await enableDebugPanel(cdp);
+  await keyTap(cdp, "Digit0", "0");
+  const ready = await waitUntil("R10 spring route starts settled", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    return /room 10\\/10/.test(text) && /ground 1/.test(text) && /act 0\\.000/.test(text) && position
+      ? { x: Number(position[1]), y: Number(position[2]), text }
+      : null;
+  })()`), 4500, 20);
+  await keyHold(cdp, "KeyD", "D", 750);
+  const approach = await waitUntil("R10 spring approach reaches the lower floor", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    return /ground 1/.test(text) && position && Number(position[1]) >= 245 && Number(position[1]) <= 270
+      ? { x: Number(position[1]), y: Number(position[2]), text }
+      : null;
+  })()`), 1800, 20);
+  let launch;
+  await keyDown(cdp, "KeyD", "D");
+  try {
+    launch = await waitUntil("R10 floor spring opens the apex window", () => evaluate(cdp, `(() => {
+      const text = document.querySelector("#debugPanel").textContent;
+      const timer = text.match(/spring apex ([\\d.]+) hit/);
+      const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
+      return timer && Number(timer[1]) > 0.2 && velocity && Number(velocity[2]) < -500
+        ? { timer: Number(timer[1]), vx: Number(velocity[1]), vy: Number(velocity[2]), text }
+        : null;
+    })()`), 1200, 20);
+  } finally {
+    await keyUp(cdp, "KeyD", "D");
+  }
+  const apex = await waitUntil("R10 spring reaches its authored apex timing", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const timer = text.match(/spring apex ([\\d.]+) hit/);
+    const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
+    return timer && Number(timer[1]) > 0 && velocity && Math.abs(Number(velocity[2])) <= 150
+      ? { timer: Number(timer[1]), vx: Number(velocity[1]), vy: Number(velocity[2]), text }
+      : null;
+  })()`), 1200, 10);
+  await keyTap(cdp, "KeyK", "K");
+  const recognized = await waitUntil("R10 apex dash closes the spring timing loop", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const hit = text.match(/spring apex ([\\d.]+) hit ([\\d.]+)/);
+    const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
+    const flow = text.match(/flow (\\d+)/);
+    if (!hit || !velocity || !flow || Number(hit[2]) <= 0 || Number(flow[1]) < 15 || !/feel SPRING APEX/.test(text)) return null;
+    return {
+      timer: Number(hit[1]),
+      hit: Number(hit[2]),
+      vx: Number(velocity[1]),
+      vy: Number(velocity[2]),
+      flow: Number(flow[1]),
+      speed: Math.hypot(Number(velocity[1]), Number(velocity[2])),
+      text
+    };
+  })()`), 900, 10);
+  await keyTap(cdp, "KeyR", "R");
+  const reset = await waitUntil("R10 retry clears spring apex attempt state", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /快速重开 · R10/.test(document.querySelector("#gameStatus").textContent)
+      && /spring apex 0\\.000 hit 0\\.000/.test(text)
+      ? { text }
+      : null;
+  })()`), 3500, 20);
+  if (ready.x < 60
+    || approach.x < 245
+    || launch.timer <= 0.2
+    || Math.abs(apex.vy) > 150
+    || recognized.timer !== 0
+    || recognized.flow < 15
+    || recognized.speed < 560
+    || recognized.speed > 610
+    || !/spring apex 0\.000 hit 0\.000/.test(reset.text)) {
+    errors.push("R10 spring apex should reward the authored timing at ordinary dash speed and clear all attempt state on retry: " + JSON.stringify({ ready, approach, launch, apex, recognized, reset }));
+  }
+}
+
 async function runGroundRechargeSmoke(cdp, baseUrl) {
   await navigateApp(cdp, baseUrl, "ground recharge seed");
   await evaluate(cdp, `(() => {
@@ -4192,6 +4280,7 @@ async function main() {
     await runChapterTransitionInputSmoke(cdp, baseUrl);
     await runOldPeakRelicSmoke(cdp, baseUrl);
     await runWindGorgeCrumbleRippleSmoke(cdp, baseUrl);
+    await runSpringApexSmoke(cdp, baseUrl);
     await runGroundRechargeSmoke(cdp, baseUrl);
     await runKeyboardSettingsSmoke(cdp, baseUrl);
     await runAssistModeSmoke(cdp, baseUrl);
@@ -4229,7 +4318,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

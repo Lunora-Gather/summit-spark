@@ -150,7 +150,7 @@ if (finaleEchoDistance !== 1 || finaleCheckpointRow !== finaleAnchorRow || final
 if (finaleRoom[15]?.[9] !== "T" || finaleRoom[14]?.[9] !== "A" || finaleRoom[16]?.[9] !== "#") {
   errors.push("R10 should recall the opening act through a grounded spring-to-relay launch");
 }
-const finaleSynthesis = ["echo", "spring", "relay", "updraft", "prism", "crumble"];
+const finaleSynthesis = ["echo", "spring", "springApex", "relay", "updraft", "prism", "crumble"];
 for (const requirement of finaleSynthesis) {
   if (!snapshot.expertRequirements?.[9]?.includes(requirement) || !snapshot.roomStyleTrials?.[9]?.tech?.includes(requirement)) {
     errors.push("R10 Style and Expert routes should synthesize " + requirement);

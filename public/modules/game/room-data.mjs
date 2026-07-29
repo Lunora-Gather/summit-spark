@@ -120,27 +120,27 @@ export const ROOM_ROUTE_LINES = [
 export const ROOM_STYLE_TRIALS = [
     { kind: "precision", label: "落点精度", goal: "干净落点后用 Spark 越过危险", clean: true, tech: ["spark"], timeScale: 1.55 },
     { kind: "recovery", label: "恢复控制", goal: "双光继之间稳住一次落点", clean: true, tech: ["relay"], timeScale: 1.45 },
-    { kind: "timing", label: "弹簧节拍", goal: "串起两级弹簧，Spark 省掉等待", clean: true, tech: ["spring", "spark"], timeScale: 1.5 },
+    { kind: "timing", label: "弹簧节拍", goal: "串起两级弹簧，在顶点冲刺并用 Spark 省掉等待", clean: true, tech: ["spring", "springApex", "spark"], timeScale: 1.5 },
     { kind: "chain", label: "连锁节奏", goal: "把三段光继连成一句动作", clean: false, tech: ["relayChain"], timeScale: 1.45 },
     { kind: "route", label: "路线选择", goal: "从中棱折返后用 Wall Spark 直切上层", clean: true, tech: ["wallSpark"], timeScale: 1.45 },
-    { kind: "exit", label: "出口节拍", goal: "四枚光继接两级弹簧，把出口动作收干净", clean: true, tech: ["relay", "spring"], timeScale: 1.4 },
+    { kind: "exit", label: "出口节拍", goal: "四枚光继接两级弹簧，在顶点冲刺收干净出口", clean: true, tech: ["relay", "spring", "springApex"], timeScale: 1.4 },
     { kind: "terrain", label: "地形风险", goal: "脆冰只借一步，立刻进风场", clean: false, tech: ["crumble", "updraft"], timeScale: 1.35 },
     { kind: "risk", label: "过载风险", goal: "棱镜过载后接 Prism Spark 穿过脆冰排", clean: false, tech: ["prism", "prismSpark", "crumble"], timeScale: 1.35 },
     { kind: "reading", label: "回声读图", goal: "先建回声锚点，再召回重接路线", clean: false, tech: ["echo", "recall"], timeScale: 1.55 },
-    { kind: "endurance", label: "终盘回响", goal: "先立回声，再以弹簧接光继，把风、棱镜与脆冰连续收束", clean: false, tech: ["echo", "spring", "relay", "updraft", "prism", "crumble"], timeScale: 1.35 }
+    { kind: "endurance", label: "终盘回响", goal: "先立回声，在弹簧顶点冲刺接光继，再把风、棱镜与脆冰连续收束", clean: false, tech: ["echo", "spring", "springApex", "relay", "updraft", "prism", "crumble"], timeScale: 1.35 }
   ];
 
 export const EXPERT_REQUIREMENTS = [
     ["spark"],
     ["relay"],
-    ["spark", "spring"],
+    ["spark", "spring", "springApex"],
     ["relayChain"],
     ["wallSpark"],
-    ["relay", "spring"],
+    ["relay", "spring", "springApex"],
     ["updraft", "crumble"],
     ["prism", "prismSpark", "crumble", "updraft"],
     ["echo", "updraft", "prism"],
-    ["echo", "spring", "relay", "updraft", "prism", "crumble"]
+    ["echo", "spring", "springApex", "relay", "updraft", "prism", "crumble"]
   ];
 
 export const EXPERT_REQUIREMENT_LABELS = {
@@ -150,6 +150,7 @@ export const EXPERT_REQUIREMENT_LABELS = {
     relay: "光继",
     relayChain: "连锁x3",
     spring: "弹簧",
+    springApex: "弹簧顶点",
     updraft: "风",
     prism: "棱镜",
     echo: "回声锚点",

@@ -143,6 +143,10 @@ assert.match(ROOM_GUIDES[5], /四枚光继.*两级弹簧/, "Old Peak guide shoul
 assert.match(ROOM_PURPOSES[5], /四枚光继.*两级弹簧/, "Old Peak purpose should match the authored mechanic counts");
 assert.match(ROOM_ROUTE_LINES[5][2], /四枚光继.*两级弹簧/, "Old Peak expert line should match the authored mechanic counts");
 assert.match(ROOM_STYLE_TRIALS[5].goal, /四枚光继.*两级弹簧/, "Old Peak style goal should match the authored mechanic counts");
+assert.ok(ROOM_STYLE_TRIALS[2].tech.includes("springApex"), "Gate capstone Style should recognize the taught spring-apex dash");
+assert.ok(ROOM_STYLE_TRIALS[5].tech.includes("springApex"), "Old Peak capstone Style should recover the spring-apex dash");
+assert.ok(ROOM_STYLE_TRIALS[9].tech.includes("springApex"), "Summit finale Style should synthesize the spring-apex dash");
+assert.equal(EXPERT_REQUIREMENT_LABELS.springApex, "弹簧顶点", "spring-apex mastery should have one canonical label");
 assert.equal(maps[6][15][2], "P", "Wind Gorge should start from a grounded checkpoint");
 assert.equal(maps[6][16].slice(0, 5), "#####", "Wind Gorge checkpoint should keep broad stable support");
 assert.equal(maps[8][10].slice(9, 16), "#######", "Echo Rockfield should recover on stable ground after its first wind");

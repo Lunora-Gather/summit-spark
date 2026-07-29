@@ -308,10 +308,11 @@
     {
       "kind": "timing",
       "label": "弹簧节拍",
-      "goal": "串起两级弹簧，Spark 省掉等待",
+      "goal": "串起两级弹簧，在顶点冲刺并用 Spark 省掉等待",
       "clean": true,
       "tech": [
         "spring",
+        "springApex",
         "spark"
       ],
       "timeScale": 1.5
@@ -339,11 +340,12 @@
     {
       "kind": "exit",
       "label": "出口节拍",
-      "goal": "四枚光继接两级弹簧，把出口动作收干净",
+      "goal": "四枚光继接两级弹簧，在顶点冲刺收干净出口",
       "clean": true,
       "tech": [
         "relay",
-        "spring"
+        "spring",
+        "springApex"
       ],
       "timeScale": 1.4
     },
@@ -384,11 +386,12 @@
     {
       "kind": "endurance",
       "label": "终盘回响",
-      "goal": "先立回声，再以弹簧接光继，把风、棱镜与脆冰连续收束",
+      "goal": "先立回声，在弹簧顶点冲刺接光继，再把风、棱镜与脆冰连续收束",
       "clean": false,
       "tech": [
         "echo",
         "spring",
+        "springApex",
         "relay",
         "updraft",
         "prism",
@@ -406,7 +409,8 @@
     ],
     [
       "spark",
-      "spring"
+      "spring",
+      "springApex"
     ],
     [
       "relayChain"
@@ -416,7 +420,8 @@
     ],
     [
       "relay",
-      "spring"
+      "spring",
+      "springApex"
     ],
     [
       "updraft",
@@ -436,6 +441,7 @@
     [
       "echo",
       "spring",
+      "springApex",
       "relay",
       "updraft",
       "prism",
@@ -449,6 +455,7 @@
     "relay": "光继",
     "relayChain": "连锁x3",
     "spring": "弹簧",
+    "springApex": "弹簧顶点",
     "updraft": "风",
     "prism": "棱镜",
     "echo": "回声锚点",

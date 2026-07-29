@@ -236,7 +236,7 @@ const requirementTiles = {
   echo: "M",
   crumble: "C"
 };
-const allowedRequirements = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "updraft", "prism", "echo", "recall", "crumble"]);
+const allowedRequirements = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble"]);
 expertRequirements.forEach((requirements, roomIndex) => {
   if (!Array.isArray(requirements)) {
     errors.push("expert requirements for room " + (roomIndex + 1) + " must be an array");
@@ -254,7 +254,7 @@ expertRequirements.forEach((requirements, roomIndex) => {
     }
   }
 });
-for (const requirement of ["echo", "spring", "relay", "updraft", "prism", "crumble"]) {
+for (const requirement of ["echo", "spring", "springApex", "relay", "updraft", "prism", "crumble"]) {
   if (!expertRequirements[9]?.includes(requirement)) errors.push("room 10 expert route should synthesize " + requirement);
   if (!styleTrials[9]?.tech?.includes(requirement)) errors.push("room 10 style route should synthesize " + requirement);
 }

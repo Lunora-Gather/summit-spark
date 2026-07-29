@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p243"),
-    import("./modules/core/math.mjs?v=20260729-p243"),
-    import("./modules/game/room-data.mjs?v=20260729-p243"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p243"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p243"),
-    import("./modules/systems/storage.mjs?v=20260729-p243"),
-    import("./modules/systems/input.mjs?v=20260729-p243"),
-    import("./modules/training/state.mjs?v=20260729-p243"),
-    import("./modules/training/replay.mjs?v=20260729-p243"),
-    import("./modules/ui/presentation.mjs?v=20260729-p243")
+    import("./modules/core/format.mjs?v=20260729-p244"),
+    import("./modules/core/math.mjs?v=20260729-p244"),
+    import("./modules/game/room-data.mjs?v=20260729-p244"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p244"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p244"),
+    import("./modules/systems/storage.mjs?v=20260729-p244"),
+    import("./modules/systems/input.mjs?v=20260729-p244"),
+    import("./modules/training/state.mjs?v=20260729-p244"),
+    import("./modules/training/replay.mjs?v=20260729-p244"),
+    import("./modules/ui/presentation.mjs?v=20260729-p244")
   ]);
 
   const canvas = document.getElementById("game");
@@ -394,6 +394,8 @@
   const CURRENT_PATH_DRAW_POINTS = 90;
   const CRUMBLE_BREAK_TIME = 0.42;
   const CRUMBLE_RIPPLE_DELAY = 0.065;
+  const SPRING_APEX_WINDOW = 0.62;
+  const SPRING_APEX_SPEED = 150;
   const DASH_AIM_PREVIEW_LENGTH = 58;
   const DASH_AIM_PREVIEW_MIN_ALPHA = 0.24;
   const CRUMBLE_DEATH_MEMORY = 1.4;
@@ -776,6 +778,7 @@
     relay: 0,
     prism: 0,
     spring: 0,
+    springApex: 0,
     recharge: 0,
     recall: 0,
     spawn: 0,
@@ -814,6 +817,7 @@
     sparkHopDirX: 1,
     sparkHopDirY: 0,
     sparkHopVariant: "spark",
+    springLaunchTimer: 0,
     wallJumpLock: 0,
     deadTimer: 0,
     respawnRoom: 0,
@@ -1536,6 +1540,7 @@
       sparkHopDirX: 1,
       sparkHopDirY: 0,
       sparkHopVariant: "spark",
+      springLaunchTimer: 0,
       wallJumpLock: 0,
       inUpdraft: false,
       deadTimer: 0,
@@ -2010,6 +2015,7 @@
     player.coyote = player.wasGrounded ? COYOTE_TIME : Math.max(0, player.coyote - dt);
     player.dashCooldown = Math.max(0, player.dashCooldown - dt);
     player.sparkHopTimer = Math.max(0, player.sparkHopTimer - dt);
+    player.springLaunchTimer = Math.max(0, player.springLaunchTimer - dt);
     player.wallJumpLock = Math.max(0, player.wallJumpLock - dt);
     player.overdrive = Math.max(0, player.overdrive - dt);
     updateInputCues(input);
@@ -2018,6 +2024,7 @@
       player.stamina = MAX_STAMINA;
       restoreGroundDashCharge();
       player.sparkHopTimer = 0;
+      player.springLaunchTimer = 0;
       player.wallCoyote = 0;
       player.wallCoyoteDir = 0;
     }
@@ -2238,6 +2245,10 @@
     const len = Math.hypot(dx, dy) || 1;
     dx /= len;
     dy /= len;
+    const springApex = player.springLaunchTimer > 0
+      && !player.wasGrounded
+      && Math.abs(player.vy) <= SPRING_APEX_SPEED;
+    player.springLaunchTimer = 0;
     const dashSpeed = DASH_SPEED * (player.overdrive > 0 ? OVERDRIVE_DASH_MULT : 1);
     player.vx = dx * dashSpeed;
     player.vy = dy * dashSpeed;
@@ -2252,8 +2263,15 @@
     consumeInputBuffer(player, "dash");
     player.coyote = 0;
     player.facing = dx === 0 ? player.facing : Math.sign(dx);
-    addFlow(player.overdrive > 0 ? 8 : 5, player.overdrive > 0 ? "over" : "dash");
+    addFlow(springApex ? 15 : player.overdrive > 0 ? 8 : 5, springApex ? "springApex" : player.overdrive > 0 ? "over" : "dash");
     triggerActionVisual("dash", 0.24);
+    if (springApex) {
+      markRoomTech("springApex");
+      triggerActionVisual("springApex", 0.34);
+      showFeelCue("SPRING APEX", "顶点冲刺", palette.green, 0.58);
+      playSound("spring", 0.45);
+      burst(player.x + player.w / 2, player.y + player.h / 2, palette.green, 8, 190);
+    }
     if (usedAimMemory) showFeelCue("AIM MEMORY", "沿用上一冲刺方向", palette.cyan, 0.54);
     playSound(player.overdrive > 0 ? "prism" : "dash");
     hitStopTimer = Math.max(hitStopTimer, DASH_HITSTOP);
@@ -2478,7 +2496,10 @@
       spring.pulse = Math.max(0, spring.pulse - dt);
       if (aabb(box, spring) && player.vy >= 0) {
         player.y = spring.y - player.h;
+        player.onGround = false;
+        player.wasGrounded = false;
         player.vy = -720;
+        player.springLaunchTimer = SPRING_APEX_WINDOW;
         markRoomTech("spring");
         showMechanicFirstTouchCue("spring");
         restoreDashCharge();
@@ -3016,6 +3037,7 @@
       player.respawnY = Math.min(player.y, H - TILE * 3);
       echoAnchor = null;
       recallPulseTimer = 0;
+      player.springLaunchTimer = 0;
       clearRecentPath();
       clearRoomPath();
       addFlow(26, "split");
@@ -3037,6 +3059,7 @@
       player.respawnY = Math.min(player.y, H - TILE * 3);
       echoAnchor = null;
       recallPulseTimer = 0;
+      player.springLaunchTimer = 0;
       clearRecentPath();
       clearRoomPath();
       burst(W - 28, player.y + player.h / 2, palette.cyan, 10, 170);
@@ -3061,6 +3084,7 @@
     burst(player.x + player.w / 2, player.y + player.h / 2, palette.hot, 16, 310);
     player.vx = 0;
     player.vy = 0;
+    player.springLaunchTimer = 0;
   }
 
   function respawn(options = {}) {
@@ -3090,6 +3114,7 @@
     player.dashDirX = player.facing;
     player.dashDirY = 0;
     player.sparkHopTimer = 0;
+    player.springLaunchTimer = 0;
     player.sparkHopDirX = player.facing;
     player.sparkHopDirY = 0;
     player.sparkHopVariant = "spark";
@@ -3170,6 +3195,7 @@
       sparkHopDirX: 1,
       sparkHopDirY: 0,
       sparkHopVariant: "spark",
+      springLaunchTimer: 0,
       wallJumpLock: 0,
       deadTimer: 0,
       respawnRoom: roomIndex,
@@ -3242,6 +3268,7 @@
       relay: false,
       relayChain: false,
       spring: false,
+      springApex: false,
       updraft: false,
       prism: false,
       echo: false,
@@ -4910,6 +4937,7 @@
     player.dashTimer = 0;
     player.dashCooldown = 0;
     player.sparkHopTimer = 0;
+    player.springLaunchTimer = 0;
     player.wallJumpLock = 0;
     player.wallCoyote = 0;
     player.wallCoyoteDir = 0;
@@ -10369,12 +10397,13 @@
     const relay = visualRatio("relay", 0.34);
     const prism = visualRatio("prism", 0.42);
     const spring = visualRatio("spring", 0.24);
+    const springApex = visualRatio("springApex", 0.34);
     const recharge = visualRatio("recharge", 0.26);
     const recall = visualRatio("recall", 0.34);
     const death = visualRatio("death", 0.28);
     const land = visualRatio("land", 0.18);
     const wall = visualRatio("wall", 0.22);
-    const strongest = Math.max(dash, spark, relay, prism, spring, recall, death, wall);
+    const strongest = Math.max(dash, spark, relay, prism, spring, springApex, recall, death, wall);
 
     if (land > 0) {
       ctx.save();
@@ -10408,12 +10437,30 @@
       ctx.restore();
     }
 
+    if (springApex > 0) {
+      const expansion = prefersReducedMotion ? 0 : 1 - springApex;
+      const radius = 14 + expansion * (settings.calmEffects ? 6 : 10);
+      ctx.save();
+      ctx.globalAlpha = springApex * (settings.calmEffects ? 0.34 : 0.52);
+      ctx.strokeStyle = palette.green;
+      ctx.lineWidth = 1.6;
+      ctx.shadowColor = palette.green;
+      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 1 : 6);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, Math.PI * 1.08, Math.PI * 1.92);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, Math.PI * 0.08, Math.PI * 0.92);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if (strongest <= 0) return;
 
     const color = prism > 0 ? palette.gold
       : relay > 0 ? palette.cyan
         : spark > 0 ? "#fff0a0"
-          : spring > 0 || recall > 0 ? palette.green
+          : spring > 0 || springApex > 0 || recall > 0 ? palette.green
             : death > 0 ? palette.hot
               : palette.cyan;
     const radius = 17 + strongest * 12;
@@ -10948,7 +10995,7 @@
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}  wc ${player.wallCoyote.toFixed(3)}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${chapterTransitionTimer.toFixed(3)}`,
-      `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}  recharge ${visualRatio("recharge", 0.26).toFixed(3)}`,
+      `spark ${player.sparkHopTimer.toFixed(3)}  spring apex ${player.springLaunchTimer.toFixed(3)} hit ${visualRatio("springApex", 0.34).toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}  recharge ${visualRatio("recharge", 0.26).toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,
       `tip ${gameTipKind || "none"} ${gameTipTimer.toFixed(2)}`,

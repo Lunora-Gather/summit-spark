@@ -136,7 +136,7 @@ routeLines.forEach((lines, index) => {
   });
 });
 const styleKinds = new Set();
-const allowedStyleTech = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "updraft", "prism", "echo", "recall", "crumble"]);
+const allowedStyleTech = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble"]);
 styleTrials.forEach((trial, index) => {
   if (!trial || typeof trial !== "object") errors.push("room " + (index + 1) + " style trial must be an object");
   if (isTooShortText(trial?.label, 7, 2)) errors.push("room " + (index + 1) + " style label is too short");
@@ -246,7 +246,7 @@ if (!js.includes("recharge: 0")
   || !js.includes("return player.dashes > before;")
   || !js.includes('const recharge = visualRatio("recharge", 0.26);')
   || !js.includes("ctx.ellipse(cx, player.y + player.h + 1.5")
-  || !js.includes("const strongest = Math.max(dash, spark, relay, prism, spring, recall, death, wall)")) {
+  || !js.includes("const strongest = Math.max(dash, spark, relay, prism, spring, springApex, recall, death, wall)")) {
   errors.push("ground dash restoration must raise one quiet foot-only pulse without changing hair, status copy or the body aura");
 }
 if (!js.includes("const relayChainPath = [];")
@@ -757,6 +757,23 @@ if (!js.includes("const CRUMBLE_RIPPLE_DELAY = 0.065;")
   || !js.includes('name === "land" || name === "crumble"')
   || !js.includes("q${crumble.queued} a${crumble.armed}")) {
   errors.push("Wind Gorge crumble strips must ripple only through contiguous same-row tiles while queued collision, full warnings and bounded audio remain intact");
+}
+if (!js.includes("const SPRING_APEX_WINDOW = 0.62;")
+  || !js.includes("const SPRING_APEX_SPEED = 150;")
+  || !js.includes("springLaunchTimer: 0")
+  || !js.includes("player.springLaunchTimer = SPRING_APEX_WINDOW;")
+  || !js.includes("player.onGround = false;\n        player.wasGrounded = false;\n        player.vy = -720;")
+  || !js.includes("const springApex = player.springLaunchTimer > 0")
+  || !js.includes("Math.abs(player.vy) <= SPRING_APEX_SPEED")
+  || !js.includes('addFlow(springApex ? 15')
+  || !js.includes('markRoomTech("springApex")')
+  || !js.includes('showFeelCue("SPRING APEX", "顶点冲刺"')
+  || !js.includes('triggerActionVisual("springApex", 0.34)')
+  || !js.includes("function drawPlayerAura(time)")
+  || !js.includes("const springApex = visualRatio(\"springApex\", 0.34);")
+  || !js.includes("spring apex ${player.springLaunchTimer.toFixed(3)} hit")
+  || !js.includes("const dashSpeed = DASH_SPEED * (player.overdrive > 0 ? OVERDRIVE_DASH_MULT : 1);")) {
+  errors.push("spring apex dashes must recognize the authored timing without changing dash physics, then close the loop through Flow, world feedback and diagnostics");
 }
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length !== 2

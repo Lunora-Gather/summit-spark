@@ -457,6 +457,20 @@ if (!runtimeSource.includes("const CRUMBLE_RIPPLE_DELAY = 0.065;")
   || runtimeSource.includes("hairColor = block.rippleDelay")) {
   fail("Wind Gorge crumble strips should expose a bounded same-row fracture ripple without changing Star Summit or the climber");
 }
+if (!runtimeSource.includes("const SPRING_APEX_WINDOW = 0.62;")
+  || !runtimeSource.includes("const SPRING_APEX_SPEED = 150;")
+  || !runtimeSource.includes("player.springLaunchTimer = SPRING_APEX_WINDOW;")
+  || !runtimeSource.includes("player.onGround = false;\n        player.wasGrounded = false;\n        player.vy = -720;")
+  || !runtimeSource.includes("const springApex = player.springLaunchTimer > 0")
+  || !runtimeSource.includes("Math.abs(player.vy) <= SPRING_APEX_SPEED")
+  || !runtimeSource.includes('addFlow(springApex ? 15')
+  || !runtimeSource.includes('markRoomTech("springApex")')
+  || !runtimeSource.includes('showFeelCue("SPRING APEX", "顶点冲刺"')
+  || !runtimeSource.includes('triggerActionVisual("springApex", 0.34)')
+  || !runtimeSource.includes("const dashSpeed = DASH_SPEED * (player.overdrive > 0 ? OVERDRIVE_DASH_MULT : 1);")
+  || runtimeSource.includes("hairColor = springApex")) {
+  fail("spring apex timing should be rewarded without changing dash speed or recoloring the climber");
+}
 if (!runtimeSource.includes("Number.isFinite(soundCooldowns[name])")) {
   fail("sound cooldowns should suppress same-frame world feedback even at audio time zero");
 }

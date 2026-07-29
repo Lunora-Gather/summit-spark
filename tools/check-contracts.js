@@ -226,6 +226,18 @@ if (!roomData.includes("export const CHAPTER_SURFACE_FEEDBACK = [")
   || !js.includes('p.shape === "slate-chip"')) {
   errors.push("landing feedback must consume the four chapter-owned material silhouettes at both light and hard contact thresholds");
 }
+if (!js.includes('emitSurfaceWallContact(')
+  || !js.includes('"slide"')
+  || !js.includes('"climb"')
+  || !js.includes("function emitSurfaceWallJumpFeedback(wallDir, climbJump)")
+  || !js.includes("directionX: -(wallDir || 1)")
+  || !js.includes("directionY: -0.34")
+  || !js.includes("spread: 1.25")
+  || !js.includes("climbJump ? palette.green : feedback.primary")
+  || js.includes("addSnow(player.x + (player.wallDir > 0 ? player.w : 0)")
+  || js.includes('climbJump ? palette.green : "#e9f7ff"')) {
+  errors.push("wall-slide, climb and wall-jump must share chapter material feedback, leave the wall and preserve the climb-jump accent");
+}
 if (!js.includes("ctx.lineWidth = 2.65") || !js.includes("ctx.lineWidth = 2.55") || !js.includes('const handSkin = "#d6aa8f"') || !js.includes("walling ? 1.3 : 1.15") || js.includes("ctx.arc(cx + player.wallDir * 12, y + 15, 2")) errors.push("player arms and muted hands should stay compact and wall grip must not add a duplicate glowing hand dot");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");

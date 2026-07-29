@@ -282,6 +282,12 @@ if (!runtimeSource.includes("CHAPTER_SURFACE_FEEDBACK[chapter]")
   || !runtimeSource.includes("emitSurfaceLandingFeedback(fallSpeed, false)")) {
   fail("runtime landing feedback should consume the four chapter-owned surface identities");
 }
+if (!runtimeSource.includes("function emitSurfaceWallContact(")
+  || !runtimeSource.includes("function emitSurfaceWallJumpFeedback(")
+  || !runtimeSource.includes("directionX: -(wallDir || 1)")
+  || runtimeSource.includes("addSnow(player.x + (player.wallDir > 0 ? player.w : 0)")) {
+  fail("runtime wall contact feedback should reuse the active surface identity and move away from the touched wall");
+}
 for (const trigger of [
   'showMechanicFirstTouchCue("relay")',
   'showMechanicFirstTouchCue("spring")',

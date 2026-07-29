@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p235"),
-    import("./modules/core/math.mjs?v=20260729-p235"),
-    import("./modules/game/room-data.mjs?v=20260729-p235"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p235"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p235"),
-    import("./modules/systems/storage.mjs?v=20260729-p235"),
-    import("./modules/systems/input.mjs?v=20260729-p235"),
-    import("./modules/training/state.mjs?v=20260729-p235"),
-    import("./modules/training/replay.mjs?v=20260729-p235"),
-    import("./modules/ui/presentation.mjs?v=20260729-p235")
+    import("./modules/core/format.mjs?v=20260729-p236"),
+    import("./modules/core/math.mjs?v=20260729-p236"),
+    import("./modules/game/room-data.mjs?v=20260729-p236"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p236"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p236"),
+    import("./modules/systems/storage.mjs?v=20260729-p236"),
+    import("./modules/systems/input.mjs?v=20260729-p236"),
+    import("./modules/training/state.mjs?v=20260729-p236"),
+    import("./modules/training/replay.mjs?v=20260729-p236"),
+    import("./modules/ui/presentation.mjs?v=20260729-p236")
   ]);
 
   const canvas = document.getElementById("game");
@@ -2099,7 +2099,13 @@
 
     if (player.wallDir !== 0 && !player.wasGrounded && player.vy > 190) {
       player.vy = 190;
-      addSnow(player.x + (player.wallDir > 0 ? player.w : 0), player.y + player.h * 0.45, 2);
+      emitSurfaceWallContact(
+        player.x + (player.wallDir > 0 ? player.w : 0),
+        player.y + player.h * 0.45,
+        2,
+        player.wallDir,
+        "slide"
+      );
     }
   }
 
@@ -2111,7 +2117,13 @@
     const climbTarget = input.y < 0 ? -96 : input.y > 0 ? 145 : 34;
     player.vy = approach(player.vy, climbTarget, 1200 * dt);
     player.stamina = Math.max(0, player.stamina - (input.y < 0 ? 0.52 : 0.28) * dt);
-    addSnow(player.x + (player.wallDir > 0 ? player.w : 0), player.y + player.h * 0.35, 1);
+    emitSurfaceWallContact(
+      player.x + (player.wallDir > 0 ? player.w : 0),
+      player.y + player.h * 0.35,
+      1,
+      player.wallDir,
+      "climb"
+    );
   }
 
   function updateLastAim(input, dt) {
@@ -2168,7 +2180,7 @@
       showFeelCue(wallGrace ? "WALL GRACE" : climbJump ? "CLIMB JUMP" : "WALL JUMP", wallGrace ? "离墙宽限命中" : away ? "反向推离墙面" : "墙面节奏重置", wallGrace ? palette.gold : palette.cyan);
       playSound("wall");
       shake(0.04, 1.35);
-      burst(player.x + (wallJumpDir > 0 ? player.w : 0), player.y + player.h * 0.55, climbJump ? palette.green : "#e9f7ff", 6, 170);
+      emitSurfaceWallJumpFeedback(wallJumpDir, climbJump);
     }
   }
 
@@ -7223,7 +7235,16 @@
     const sizeScale = Number.isFinite(options.sizeScale) ? Math.max(0.2, options.sizeScale) : 1;
     const lifeScale = Number.isFinite(options.lifeScale) ? Math.max(0.2, options.lifeScale) : 1;
     for (let i = 0; i < budgetedCount; i++) {
-      const angle = options.grounded ? Math.PI + Math.random() * Math.PI : Math.random() * Math.PI * 2;
+      const directional = Number.isFinite(options.directionX) || Number.isFinite(options.directionY);
+      const baseAngle = directional
+        ? Math.atan2(Number(options.directionY) || 0, Number(options.directionX) || 0)
+        : 0;
+      const spread = Number.isFinite(options.spread) ? Math.max(0, options.spread) : Math.PI * 2;
+      const angle = options.grounded
+        ? Math.PI + Math.random() * Math.PI
+        : directional
+          ? baseAngle + (Math.random() - 0.5) * spread
+          : Math.random() * Math.PI * 2;
       const power = speed * (0.28 + Math.random() * 0.72);
       const life = (0.28 + Math.random() * 0.48) * lifeScale;
       particles.push({
@@ -7263,6 +7284,50 @@
         lifeScale: strong ? 0.72 : 0.55,
         shape: feedback.kind,
         sizeScale: strong ? 0.72 : 0.52
+      }
+    );
+  }
+
+  function emitSurfaceWallContact(x, y, count, wallDir, mode) {
+    const feedback = surfaceFeedbackForRoom();
+    const effectScale = settings.lowPerformance ? 0.42 : prefersReducedMotion ? 0.5 : settings.calmEffects ? 0.68 : 1;
+    const budgetedCount = Math.max(1, Math.ceil(count * effectScale));
+    const direction = wallDir || 1;
+    for (let i = 0; i < budgetedCount; i++) {
+      const life = 0.18 + Math.random() * 0.2;
+      particles.push({
+        x,
+        y,
+        vx: -direction * (18 + Math.random() * (mode === "slide" ? 42 : 30)),
+        vy: (mode === "slide" ? 32 : 18) + Math.random() * 58,
+        life,
+        max: 0.42,
+        size: 0.8 + Math.random() * 1.8,
+        color: i % 3 === 0 ? feedback.accent : feedback.primary,
+        shape: feedback.kind,
+        rot: Math.random() * Math.PI,
+        spin: (Math.random() - 0.5) * 5
+      });
+    }
+    budgetEffectQueue("particles", particles);
+  }
+
+  function emitSurfaceWallJumpFeedback(wallDir, climbJump) {
+    const feedback = surfaceFeedbackForRoom();
+    burst(
+      player.x + (wallDir > 0 ? player.w : 0),
+      player.y + player.h * 0.55,
+      climbJump ? palette.green : feedback.primary,
+      6,
+      170,
+      {
+        accentColor: feedback.accent,
+        directionX: -(wallDir || 1),
+        directionY: -0.34,
+        lifeScale: 0.78,
+        shape: feedback.kind,
+        sizeScale: 0.68,
+        spread: 1.25
       }
     );
   }

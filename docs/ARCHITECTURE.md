@@ -18,7 +18,7 @@ summit-spark/
 │  │  ├─ effect-budget.mjs  # 长局视觉效果队列预算与保留最新反馈的裁剪规则
 │  │  └─ audio-cues.mjs     # 四幕环境和弦、两段式换幕与登顶声纹
 │  ├─ modules/systems/
-│  │  ├─ storage.mjs        # 设置/存档迁移、读修复、冲突保护、档案/备份与事务回滚
+│  │  ├─ storage.mjs        # 设置/存档迁移、精确同步比较、冲突保护、档案/备份与事务回滚
 │  │  └─ input.mjs          # 三类设备状态、动作缓冲、手柄映射与键位规则
 │  ├─ modules/training/
 │  │  ├─ state.mjs          # Drill、Route、Feel、Focus、挑战与转场纯规则

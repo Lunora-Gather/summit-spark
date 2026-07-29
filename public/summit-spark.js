@@ -72,6 +72,7 @@
       parseSaveArchiveText,
       parseSaveBackupValue,
       readStoredJson: readStoredJsonData,
+      saveArchiveSyncKeyData,
       writeStorageTransaction: writeStorageTransactionData
     },
     {
@@ -149,16 +150,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p221"),
-    import("./modules/core/math.mjs?v=20260729-p221"),
-    import("./modules/game/room-data.mjs?v=20260729-p221"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p221"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p221"),
-    import("./modules/systems/storage.mjs?v=20260729-p221"),
-    import("./modules/systems/input.mjs?v=20260729-p221"),
-    import("./modules/training/state.mjs?v=20260729-p221"),
-    import("./modules/training/replay.mjs?v=20260729-p221"),
-    import("./modules/ui/presentation.mjs?v=20260729-p221")
+    import("./modules/core/format.mjs?v=20260729-p222"),
+    import("./modules/core/math.mjs?v=20260729-p222"),
+    import("./modules/game/room-data.mjs?v=20260729-p222"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p222"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p222"),
+    import("./modules/systems/storage.mjs?v=20260729-p222"),
+    import("./modules/systems/input.mjs?v=20260729-p222"),
+    import("./modules/training/state.mjs?v=20260729-p222"),
+    import("./modules/training/replay.mjs?v=20260729-p222"),
+    import("./modules/ui/presentation.mjs?v=20260729-p222")
   ]);
 
   const canvas = document.getElementById("game");
@@ -713,7 +714,7 @@
   let cloudSyncFlushRequested = false;
   let cloudSyncRetryBlocked = false;
   let accountSessionGeneration = 0;
-  let lastCloudArchiveHash = "";
+  let lastCloudArchiveSyncKey = "";
   let flowScore = 0;
   let flowPeak = 0;
   let flowTimer = 0;
@@ -5788,7 +5789,7 @@
     cloudSaveDirty = false;
     cloudSyncFlushRequested = false;
     cloudSyncRetryBlocked = false;
-    lastCloudArchiveHash = "";
+    lastCloudArchiveSyncKey = "";
     writeAccountHint(true);
     resolveEntryMode("account", false);
     syncAccountUi();
@@ -5849,10 +5850,10 @@
     cloudUploadPermitted = true;
     syncCloudActionAvailability();
     const localArchive = buildSaveArchive();
-    const remoteHash = archiveFingerprint(JSON.parse(cloudRow.archive));
-    const localHash = archiveFingerprint(localArchive);
-    if (remoteHash === localHash) {
-      lastCloudArchiveHash = localHash;
+    const remoteSyncKey = saveArchiveSyncKeyData(JSON.parse(cloudRow.archive));
+    const localSyncKey = saveArchiveSyncKeyData(localArchive);
+    if (remoteSyncKey === localSyncKey) {
+      lastCloudArchiveSyncKey = localSyncKey;
       cloudSyncReady = true;
       cloudSaveDirty = false;
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
@@ -5887,21 +5888,6 @@
       bestTime: readBestTime(),
       bestFlow: readBestFlow()
     });
-  }
-
-  function archiveFingerprint(archive) {
-    const copy = {
-      kind: archive?.kind || "",
-      schemaVersion: archive?.schemaVersion || 0,
-      storage: archive?.storage || {}
-    };
-    const text = JSON.stringify(copy);
-    let hash = 2166136261;
-    for (let index = 0; index < text.length; index += 1) {
-      hash ^= text.charCodeAt(index);
-      hash = Math.imul(hash, 16777619);
-    }
-    return (hash >>> 0).toString(36);
   }
 
   function formatCloudTime(value) {
@@ -5952,8 +5938,8 @@
       setAccountStatus("存档过大，暂时无法上传", "error");
       return false;
     }
-    const fingerprint = archiveFingerprint(archive);
-    if (!force && fingerprint === lastCloudArchiveHash) {
+    const syncKey = saveArchiveSyncKeyData(archive);
+    if (!force && syncKey === lastCloudArchiveSyncKey) {
       cloudSaveDirty = false;
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow?.$updatedAt)}`);
       return true;
@@ -5983,7 +5969,7 @@
       cloudRow = { ...uploadedRow, archive: uploadedRow.archive || archiveText };
       cloudRemoteUsable = true;
       cloudUploadPermitted = true;
-      lastCloudArchiveHash = fingerprint;
+      lastCloudArchiveSyncKey = syncKey;
       cloudSyncReady = true;
       setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
       setAccountStatus("进度已安全保存到云端", "valid");
@@ -6074,7 +6060,7 @@
       cloudSaveDirty = false;
       cloudSyncFlushRequested = false;
       cloudSyncRetryBlocked = false;
-      lastCloudArchiveHash = "";
+      lastCloudArchiveSyncKey = "";
       syncAccountUi();
       setCloudStatus("未登录");
       setAccountStatus("已退出；本地进度仍保留", "valid");

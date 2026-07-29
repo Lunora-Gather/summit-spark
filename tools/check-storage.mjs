@@ -21,6 +21,7 @@ import {
   parseSaveArchiveText,
   parseSaveBackupValue,
   readStoredJson,
+  saveArchiveSyncKeyData,
   strictBoolean,
   writeStorageTransaction
 } from "../public/modules/systems/storage.mjs";
@@ -227,6 +228,90 @@ assert.equal(hasMeaningfulSaveData({
   bestFlow: -1
 }), false, "malformed or false progress fields must fail closed");
 
+const syncArchiveA = {
+  kind: "summit-spark-save",
+  schemaVersion: 1,
+  build: "p1",
+  exportedAt: "earlier",
+  storage: {
+    settings: { audioEnabled: true, touchSize: 48 },
+    roomBests: [8.8, 0],
+    roomPaths: [[], [{ x: 1, y: 2 }]]
+  }
+};
+const syncArchiveReordered = {
+  exportedAt: "later",
+  build: "p999",
+  storage: {
+    roomPaths: [[], [{ y: 2, x: 1 }]],
+    roomBests: [8.8, 0],
+    settings: { touchSize: 48, audioEnabled: true }
+  },
+  schemaVersion: 1,
+  kind: "summit-spark-save"
+};
+assert.equal(
+  saveArchiveSyncKeyData(syncArchiveA),
+  saveArchiveSyncKeyData(syncArchiveReordered),
+  "sync comparison should ignore build/export time and object-key order"
+);
+assert.notEqual(
+  saveArchiveSyncKeyData(syncArchiveA),
+  saveArchiveSyncKeyData({
+    ...syncArchiveA,
+    storage: { ...syncArchiveA.storage, roomBests: [8.7, 0] }
+  }),
+  "different PB content must never be skipped as already synchronized"
+);
+assert.notEqual(
+  saveArchiveSyncKeyData(syncArchiveA),
+  saveArchiveSyncKeyData({
+    ...syncArchiveA,
+    storage: { ...syncArchiveA.storage, roomPaths: [[{ x: 1, y: 2 }], []] }
+  }),
+  "array order remains meaningful for room-indexed save data"
+);
+function legacyArchiveFingerprintForRegression(archive) {
+  const text = JSON.stringify({
+    kind: archive?.kind || "",
+    schemaVersion: archive?.schemaVersion || 0,
+    storage: archive?.storage || {}
+  });
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+const legacyCollisionA = {
+  kind: "summit-spark-save",
+  schemaVersion: 1,
+  storage: { marker: "1251qgz-be4" }
+};
+const legacyCollisionB = {
+  kind: "summit-spark-save",
+  schemaVersion: 1,
+  storage: { marker: "1ccfy0c-1ayr" }
+};
+assert.equal(
+  legacyArchiveFingerprintForRegression(legacyCollisionA),
+  legacyArchiveFingerprintForRegression(legacyCollisionB),
+  "the regression fixtures should demonstrate the retired 32-bit collision"
+);
+assert.notEqual(
+  saveArchiveSyncKeyData(legacyCollisionA),
+  saveArchiveSyncKeyData(legacyCollisionB),
+  "different archives that collided under the retired fingerprint must never compare equal"
+);
+const cyclicArchive = { kind: "summit-spark-save", storage: {} };
+cyclicArchive.storage.self = cyclicArchive.storage;
+assert.throws(
+  () => saveArchiveSyncKeyData(cyclicArchive),
+  /acyclic/,
+  "non-JSON cyclic values must fail closed"
+);
+
 assert.throws(
   () => parseSaveArchiveText("{", { maxChars: 100, kind: "summit-spark-save" }),
   /不是有效 JSON/
@@ -376,4 +461,4 @@ assert.equal(failingStorage.getItem("a"), "old");
 assert.equal(failingStorage.getItem("b"), null);
 assert.equal(failingStorage.getItem("c"), "keep");
 
-console.log("Storage module check passed: settings, meaningful-progress conflict protection, repair, archive/backup, bounds, legacy focus and exact rollback.");
+console.log("Storage module check passed: settings, meaningful-progress conflict protection, collision-free sync comparison, repair, archive/backup, bounds, legacy focus and exact rollback.");

@@ -277,6 +277,37 @@ export function hasMeaningfulSaveData(input = {}) {
     || finiteNonNegativeNumber(input.bestFlow) > 0;
 }
 
+function canonicalJsonText(value, stack = new Set()) {
+  if (value === null) return "null";
+  if (typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
+  if (typeof value === "number") return Number.isFinite(value) ? JSON.stringify(value) : "null";
+  if (typeof value === "bigint") throw new TypeError("archive values must be JSON-compatible");
+  if (!value || typeof value !== "object") return undefined;
+  if (stack.has(value)) throw new TypeError("archive values must be acyclic");
+  stack.add(value);
+  let text;
+  if (Array.isArray(value)) {
+    text = `[${value.map((item) => canonicalJsonText(item, stack) ?? "null").join(",")}]`;
+  } else {
+    const fields = [];
+    for (const key of Object.keys(value).sort()) {
+      const item = canonicalJsonText(value[key], stack);
+      if (item !== undefined) fields.push(`${JSON.stringify(key)}:${item}`);
+    }
+    text = `{${fields.join(",")}}`;
+  }
+  stack.delete(value);
+  return text;
+}
+
+export function saveArchiveSyncKeyData(archive) {
+  return canonicalJsonText({
+    kind: archive?.kind || "",
+    schemaVersion: archive?.schemaVersion || 0,
+    storage: archive?.storage || {}
+  });
+}
+
 export function parseSaveArchiveText(text, { maxChars, kind }) {
   if (text.length > maxChars) throw new Error("导入内容过大");
   let parsed;

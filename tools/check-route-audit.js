@@ -118,6 +118,12 @@ echoTeachingDistance = echoCheckpointRow >= 0 && echoAnchorRow >= 0
 if (echoTeachingDistance > 3 || echoCheckpointRow !== echoAnchorRow) {
   errors.push("R9 should teach its first Echo anchor in a short low-risk checkpoint pocket before the combined route");
 }
+if (echoTeachingRoom[10]?.slice(9, 16) !== "#######"
+  || echoTeachingRoom[10]?.slice(22, 26) !== "CCCC"
+  || !String(guides[8] || "").includes("落稳中层")
+  || !String(routeLines[8]?.[0] || "").includes("落稳中层")) {
+  errors.push("R9 should alternate its first wind with a stable middle recovery shelf before renewed crumble pressure");
+}
 const finaleRoom = maps[9] || [];
 const finaleCheckpointRow = finaleRoom.findIndex((row) => row.includes("P"));
 const finaleAnchorRow = finaleRoom.findIndex((row) => row.includes("M"));
@@ -197,5 +203,5 @@ if (errors.length > 0) {
 }
 
 const summary = pressureByRoom.map((value, index) => "R" + (index + 1) + ":" + value).join(" ");
-console.log("Route audit passed: ten-room readable route, R2/R3 safe opening mechanic pockets, R5 central-ridge switchback, grounded R7 chapter entry, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + "), R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
+console.log("Route audit passed: ten-room readable route, R2/R3 safe opening mechanic pockets, R5 central-ridge switchback, grounded R7 chapter entry, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + ") with middle recovery shelf, R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
 for (const warning of warnings) console.log("warn: " + warning);

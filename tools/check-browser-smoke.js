@@ -3175,8 +3175,15 @@ async function runMobileSmoke(cdp, baseUrl) {
     const button = document.querySelector('[data-touch="recall"]');
     const debug = document.querySelector("#debugPanel").textContent;
     const rect = button.getBoundingClientRect();
+    const crumble = debug.match(/crumble (\\d+)\\/(\\d+)/);
     return !button.hidden && !button.disabled && /anchor 1/.test(debug)
-      ? { label: button.getAttribute("aria-label"), available: button.classList.contains("available"), width: Math.round(rect.width) }
+      ? {
+          label: button.getAttribute("aria-label"),
+          available: button.classList.contains("available"),
+          width: Math.round(rect.width),
+          crumbleActive: Number(crumble?.[1]),
+          crumbleTotal: Number(crumble?.[2])
+        }
       : null;
   })()`), 3500);
   await windowKeyHold(cdp, "KeyA", "a", 220);
@@ -3192,8 +3199,9 @@ async function runMobileSmoke(cdp, baseUrl) {
       : null;
   })()`), 3500);
   if (!echoRecallReady.available || echoRecallReady.width < 44 || echoRecallReady.label !== "召回到回声锚点"
+    || echoRecallReady.crumbleActive !== 16 || echoRecallReady.crumbleTotal !== 16
     || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active || !/回声召回.*恢复/.test(afterTouchRecall.status)) {
-    errors.push("R9 touch recall should appear contextually, activate in the safe Echo entry pocket, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
+    errors.push("R9 should expose contextual Echo recall from its safe pocket, load the recovered 16-crumble route, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
   }
   await keyTap(cdp, "Digit0", "0");
   await waitUntil("mobile debug jump reaches finale room", () => evaluate(cdp, `/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
@@ -3712,7 +3720,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, grounded R7 Practice entry, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, grounded R7 Practice entry, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, immediate fresh entry, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

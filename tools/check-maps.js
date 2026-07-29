@@ -111,6 +111,12 @@ if (!(midPressure >= earlyPressure + 2)) {
 if (!(latePressure >= midPressure + 20)) {
   errors.push("late-room pressure must clearly exceed mid-room pressure");
 }
+for (let i = 6; i < pressureScores.length; i += 1) {
+  const step = pressureScores[i] - pressureScores[i - 1];
+  if (step < 8 || step > 24) {
+    errors.push("late-room pressure step R" + i + "->R" + (i + 1) + " should stay progressive without a cliff, found " + step);
+  }
+}
 for (let i = 0; i < Math.min(6, maps.length); i += 1) {
   if (maps[i].some((line) => line.includes("C"))) errors.push("crumble C should not appear before room 7");
 }
@@ -165,6 +171,10 @@ if (echoCheckpoints.length !== 1 || echoAnchors.length !== 1) {
   if ((echoTeachingRoom[anchor.y + 1]?.[anchor.x] || "") !== "#") {
     errors.push("room 9 first Echo anchor should be supported by a stable readable landing");
   }
+}
+if (echoTeachingRoom?.[10]?.slice(9, 16) !== "#######"
+  || echoTeachingRoom?.[10]?.slice(22, 26) !== "CCCC") {
+  errors.push("room 9 should keep a stable middle recovery shelf before its remaining crumble pressure");
 }
 const finaleRoom = maps[9];
 const finaleCheckpoints = finaleRoom ? tilePoints(finaleRoom, "P") : [];

@@ -105,6 +105,10 @@ assert.equal(ROOM_NAMES[0], "起势山门");
 assert.equal(ROOM_NAMES.at(-1), "星顶终线");
 assert.equal(maps[6][15][2], "P", "Wind Gorge should start from a grounded checkpoint");
 assert.equal(maps[6][16].slice(0, 5), "#####", "Wind Gorge checkpoint should keep broad stable support");
+assert.equal(maps[8][10].slice(9, 16), "#######", "Echo Rockfield should recover on stable ground after its first wind");
+assert.equal(maps[8][10].slice(22, 26), "CCCC", "Echo Rockfield should renew crumble pressure after its recovery shelf");
+assert.match(ROOM_GUIDES[8], /落稳中层/, "Echo Rockfield guide should explain its recovery beat");
+assert.match(ROOM_ROUTE_LINES[8][0], /落稳中层/, "Echo Rockfield safe route should name its recovery beat");
 assert.ok(maps.at(-1).some((row) => row.includes("H")), "the summit goal should remain in the final room");
 assert.throws(() => {
   maps[0][0] = "";

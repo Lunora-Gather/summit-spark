@@ -192,7 +192,6 @@ if (!js.includes("ROOM_STYLE_TRIALS")) errors.push("style difficulty trials are 
 if (!roomData.includes('{ top: "#294563", mid: "#66869c", low: "#c99b84", back: "#728b9c", midPeak: "#536f86", front: "#354c64"') || !js.includes("act === 0 ? 0.19 : 0.14") || !js.includes("[gateX + 27, gateX + 75].forEach((lanternX)")) errors.push("R1 should open with a bright dawn gradient, clear aerial perspective and restrained static gate lantern detail");
 if (!js.includes("styleTrialSucceeded")) errors.push("style trial success helper is missing");
 if (!js.includes("styleTrialReviewText")) errors.push("finish review must expose a Style trial card");
-if (!js.includes("drillHudDetailText")) errors.push("Drill HUD should show contract progress details");
 if (!js.includes("drawRequirementBeacons")) errors.push("active Style/Expert drills should draw missing requirement beacons");
 if (!js.includes("requirementBeaconPoints")) errors.push("requirement beacons need entity point mapping");
 if (!js.includes('mode === "style"')) errors.push("Style mode must participate in drill mode checks");
@@ -209,10 +208,8 @@ if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missin
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");
 if (!js.includes("routeLineCore")) errors.push("drill route line core helper is missing");
 if (!js.includes("roomTrainingAdvice")) errors.push("room training advice helper is missing");
-if (!js.includes("roomCleanShort")) errors.push("room clean badge helper is missing");
 if (!js.includes("roomDrillText")) errors.push("room drill stats helper is missing");
 if (!js.includes("roomPaceLabel")) errors.push("room pace helper is missing");
-if (!js.includes("summitReview")) errors.push("summit review helper is missing");
 if (!js.includes("summitReviewCardsHtml")) errors.push("summit review card helper is missing");
 if (!js.includes("function runChapterSplits(") || !js.includes("function runChapterReview(") || !js.includes('reviewCardHtml("本轮分幕"') || !js.includes("runRoomTimes[roomIndex]")) errors.push("summit review must retain per-room timing and a quiet four-act breakdown");
 if (!js.includes("roomTimes: runRoomTimes.map(") || !js.includes("roomMistakes: roomMistakes.slice()") || !js.includes("chapterSplits: runChapterSplits().map(")) errors.push("diagnostics must expose current-run room and chapter evidence for full-pass tuning");
@@ -284,7 +281,6 @@ if (!js.includes("routeContractResumeStep")) errors.push("route contract resume 
 if (!js.includes("routeContractGeneration")) errors.push("route contract generation guard is missing");
 if (!js.includes("clearRouteContractStepTimer")) errors.push("route contract timer cleanup is missing");
 if (!js.includes("routeContractMatchesDrill")) errors.push("route retry should validate matching active contract state");
-if (!js.includes("routeContractHudDetail")) errors.push("active route contract should be visible in Drill HUD");
 if (!js.includes("routeContractSummaryText")) errors.push("route contracts should appear in practice reports and review");
 if (!js.includes("route-resume-badge")) errors.push("route resume card should expose an explicit continue badge");
 if (!js.includes("FEEL_REPLAY_FIXTURES")) errors.push("feel replay fixtures are missing");
@@ -305,7 +301,6 @@ if (!js.includes("maybeShowStorageRepairToast")) errors.push("storage repair sho
 if (!js.includes("wallSpark") || !js.includes("prismSpark")) errors.push("Spark variants are missing");
 if (!js.includes("triggerSparkVariantVisual")) errors.push("Wall/Prism Spark should keep distinct visual pulses");
 if (!js.includes("drawChapterResonance")) errors.push("chapter resonance environment feedback is missing");
-if (!js.includes("roomBriefText")) errors.push("room brief helper is missing");
 if (!js.includes("roomBriefHtml")) errors.push("room brief should expose structured overview markup");
 if (!js.includes("trackDrillStart")) errors.push("drill start tracker is missing");
 if (!js.includes("trackDrillClear")) errors.push("drill clear tracker is missing");
@@ -337,7 +332,6 @@ if (!js.includes("nextMasteryStepText")) errors.push("mastery feedback should na
 if (!js.includes("masteryContractPillsHtml")) errors.push("mastery contract pill renderer is missing");
 if (!js.includes("masteryRoadmapRows")) errors.push("mastery roadmap rows helper is missing");
 if (!js.includes("reviewRoadmapHtml")) errors.push("finish review should expose a mastery roadmap");
-if (!js.includes("drawContractStrip")) errors.push("Drill HUD should show contract ladder status");
 ["首次输入开始计时", "松开按键后待命", "修正路线", "REHEARSE"].forEach((marker) => {
   if (js.includes(marker)) errors.push("quiet play mode must not expose prompt text: " + marker);
 });
@@ -572,7 +566,31 @@ if (!js.includes("restoreSaveBackup") || !js.includes("updateSaveBackupStatus") 
 if (!js.includes("drawPlayerStateFrame")) errors.push("player state silhouette helper is missing");
 if (js.includes("const hairRgb") || js.includes("for (let i = player.hair.length - 1; i > 0; i--)")) errors.push("player hair must remain part of the head silhouette instead of becoming a detached line after jumping");
 if (!js.includes("function paceFeedbackActive()") || !js.includes("!paceFeedbackActive()")) errors.push("the large pace ribbon must stay inside explicit pace, route, Feel, or pace-challenge sessions");
-if (js.includes("    drawFeelCue(time);\n    drawFlowCue(time);\n    drawRelayChainCue(time);\n    drawRoomBestCue();")) errors.push("normal rendering must not stack text labels directly above the player");
+for (const deadFunction of [
+  "activeDrillText",
+  "buildSaveArchiveText",
+  "createProfile",
+  "drawContractStrip",
+  "drawFlowCue",
+  "drawRelayChainCue",
+  "drawRoomBestCue",
+  "drillHudDetailText",
+  "normalizeRoomPathPoint",
+  "roomBriefText",
+  "roomCleanShort",
+  "roomPaceShort",
+  "roomSkillShort",
+  "routeContractHudDetail",
+  "summitReview",
+  "tileAt"
+]) {
+  if (js.includes(`function ${deadFunction}(`)) errors.push("runtime should not restore consumerless helper " + deadFunction);
+}
+if (!js.includes("drawRouteFocusCue(time);\n    drawFeelCue(time);")
+  || !js.includes("setGameStatus(`${cue.title}：${cue.detail}`)")
+  || js.includes("triggerSparkVariantVisual(variant);\n    showFeelCue(")) {
+  errors.push("one-shot mechanic cues should render and announce without restoring per-Spark text noise");
+}
 if (!js.includes('const outline = "rgba(31, 66, 82, 0.58)"') || js.includes('const outline = "#162233"')) errors.push("player edges should use a soft blue local edge instead of a small black sticker outline");
 if (js.includes("if (apex > 0) {") || !js.includes("if (!practiceVisualsActive() || player.deadTimer > 0")) errors.push("free climbing must not show an apex line or a permanent dash-aim guide around the player");
 if (js.includes("if (jump > 0) {") || js.includes("cy - 28 - lift")) errors.push("jumping must read through character motion rather than a floating chevron above the head");

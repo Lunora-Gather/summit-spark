@@ -59,7 +59,6 @@
     {
       clampGamepadDeadzoneData,
       clampTouchSizeData,
-      createProfileData,
       createRoomFocusEntryData,
       createSaveArchiveData,
       createSaveBackupData,
@@ -67,7 +66,6 @@
       normalizeProfileData,
       normalizeRoomBestsData,
       normalizeRoomFocusData,
-      normalizeRoomPathPointData,
       normalizeRoomPathsData,
       normalizeSettingsData,
       parseSaveArchiveText,
@@ -148,16 +146,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p211"),
-    import("./modules/core/math.mjs?v=20260729-p211"),
-    import("./modules/game/room-data.mjs?v=20260729-p211"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p211"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p211"),
-    import("./modules/systems/storage.mjs?v=20260729-p211"),
-    import("./modules/systems/input.mjs?v=20260729-p211"),
-    import("./modules/training/state.mjs?v=20260729-p211"),
-    import("./modules/training/replay.mjs?v=20260729-p211"),
-    import("./modules/ui/presentation.mjs?v=20260729-p211")
+    import("./modules/core/format.mjs?v=20260729-p212"),
+    import("./modules/core/math.mjs?v=20260729-p212"),
+    import("./modules/game/room-data.mjs?v=20260729-p212"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p212"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p212"),
+    import("./modules/systems/storage.mjs?v=20260729-p212"),
+    import("./modules/systems/input.mjs?v=20260729-p212"),
+    import("./modules/training/state.mjs?v=20260729-p212"),
+    import("./modules/training/replay.mjs?v=20260729-p212"),
+    import("./modules/ui/presentation.mjs?v=20260729-p212")
   ]);
 
   const canvas = document.getElementById("game");
@@ -352,7 +350,6 @@
   const PATH_SAMPLE_INTERVAL = 0.045;
   const RECENT_PATH_SECONDS = 1.55;
   const MAX_ROOM_PATH_POINTS = 420;
-  const ROOM_BEST_FLASH_TIME = 1.15;
   const SPLIT_POPUP_TIME = 1.25;
   const FOCUS_POPUP_TIME = 1.35;
   const GAME_TIP_TIME = 4.8;
@@ -382,7 +379,6 @@
   const BEST_FLOW_KEY = "summit-spark-best-flow";
   const FLOW_DECAY_TIME = 1.9;
   const FLOW_DECAY_RATE = 38;
-  const FLOW_POPUP_TIME = 0.62;
   const NEAR_MISS_COOLDOWN = 0.48;
   const ECHO_RECALL_COOLDOWN = 0.32;
   const ROOM_INTRO_TIME = 1.2;
@@ -661,8 +657,6 @@
   let relayChain = 0;
   let relayChainTimer = 0;
   let bestRelayChain = 0;
-  let relayPopupTimer = 0;
-  let roomBestFlashTimer = 0;
   let splitPopupTimer = 0;
   let splitPopupText = "";
   let splitPopupAhead = true;
@@ -727,8 +721,6 @@
   let flowScore = 0;
   let flowPeak = 0;
   let flowTimer = 0;
-  let flowPopupTimer = 0;
-  let flowLabel = "";
   let nearMissCooldown = 0;
   let echoAnchor = null;
   let recallCooldown = 0;
@@ -1865,8 +1857,6 @@
     pathSampleTimer = 0;
     relayChain = 0;
     relayChainTimer = 0;
-    relayPopupTimer = 0;
-    roomBestFlashTimer = 0;
     clearSplitPopup();
     resetFlow();
     echoAnchor = null;
@@ -1931,8 +1921,6 @@
     pathSampleTimer = 0;
     relayChain = 0;
     relayChainTimer = 0;
-    relayPopupTimer = 0;
-    roomBestFlashTimer = 0;
     clearSplitPopup();
     resetFlow();
     echoAnchor = null;
@@ -2243,7 +2231,6 @@
   }
 
   function sparkHop() {
-    const quality = player.sparkHopTimer / SPARK_HOP_WINDOW;
     const dir = player.sparkHopDirX || player.facing;
     const variant = player.sparkHopVariant === "prismSpark" ? "prismSpark" : player.sparkHopVariant === "wallSpark" ? "wallSpark" : "spark";
     const xMult = variant === "wallSpark" ? WALL_SPARK_X_MULT : variant === "prismSpark" ? PRISM_SPARK_MULT : 1;
@@ -2260,7 +2247,6 @@
     markRoomTech(variant);
     addFlow(12, "spark");
     triggerSparkVariantVisual(variant);
-    showFeelCue(variant === "prismSpark" ? "PRISM SPARK" : variant === "wallSpark" ? "WALL SPARK" : quality > 0.45 ? "SPARK" : "LATE SPARK", variant === "prismSpark" ? "过载续跃命中" : variant === "wallSpark" ? "贴墙续跃转向" : quality > 0.45 ? "续跃窗口命中" : "压线续跃", variant === "prismSpark" || quality <= 0.45 ? palette.gold : palette.cyan, variant === "spark" ? FEEL_CUE_TIME : FEEL_CUE_TIME * 1.18);
     playSound(variant);
     hitStopTimer = Math.max(hitStopTimer, 0.012);
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 7, 200);
@@ -2638,24 +2624,21 @@
   function scoreRelayChain() {
     relayChain = relayChainTimer > 0 ? relayChain + 1 : 1;
     relayChainTimer = RELAY_CHAIN_TIME;
-    relayPopupTimer = 0.68;
     bestRelayChain = Math.max(bestRelayChain, relayChain);
     return relayChain;
   }
 
   function updateRelayChain(dt) {
     relayChainTimer = Math.max(0, relayChainTimer - dt);
-    relayPopupTimer = Math.max(0, relayPopupTimer - dt);
     if (relayChainTimer <= 0) relayChain = 0;
   }
 
   function resetRelayChain() {
     relayChain = 0;
     relayChainTimer = 0;
-    relayPopupTimer = 0;
   }
 
-  function addFlow(amount, label) {
+  function addFlow(amount) {
     const chainBonus = flowTimer > 0 ? 1.18 : 1;
     flowScore = Math.min(999, flowScore + amount * chainBonus);
     flowPeak = Math.max(flowPeak, flowScore);
@@ -2665,13 +2648,10 @@
       syncChallengeWins();
     }
     flowTimer = FLOW_DECAY_TIME;
-    flowPopupTimer = FLOW_POPUP_TIME;
-    flowLabel = label;
   }
 
   function updateFlow(dt) {
     flowTimer = Math.max(0, flowTimer - dt);
-    flowPopupTimer = Math.max(0, flowPopupTimer - dt);
     if (flowTimer <= 0 && flowScore > 0) {
       flowScore = Math.max(0, flowScore - FLOW_DECAY_RATE * dt);
     }
@@ -2681,15 +2661,11 @@
     flowScore = 0;
     flowPeak = 0;
     flowTimer = 0;
-    flowPopupTimer = 0;
-    flowLabel = "";
   }
 
   function breakFlow() {
     flowScore = 0;
     flowTimer = 0;
-    flowPopupTimer = 0;
-    flowLabel = "";
   }
 
   function readBestTime() {
@@ -2732,10 +2708,6 @@
 
   function readStoredJson(key, fallback, normalize) {
     return readStoredJsonData(localStorage, key, fallback, normalize, markStorageIssue);
-  }
-
-  function createProfile() {
-    return createProfileData(PROFILE_SCHEMA_VERSION);
   }
 
   function normalizeProfile(saved) {
@@ -2792,7 +2764,6 @@
     writeRoomBests();
     saveRoomPath(index);
     refreshRoomSelectOptions();
-    roomBestFlashTimer = ROOM_BEST_FLASH_TIME;
     addFlow(42, "pb");
     burst(player.x + player.w / 2, player.y + player.h / 2, palette.gold, 14, 210);
     return result;
@@ -2827,14 +2798,6 @@
     return normalizeRoomPathsData(saved, {
       roomCount: maps.length,
       maxPoints: MAX_ROOM_PATH_POINTS,
-      tile: TILE,
-      width: W,
-      height: H
-    });
-  }
-
-  function normalizeRoomPathPoint(point) {
-    return normalizeRoomPathPointData(point, {
       tile: TILE,
       width: W,
       height: H
@@ -3406,11 +3369,6 @@
     return skills.length ? skills.map(skillLabel).join("+") : "路线";
   }
 
-  function roomSkillShort(index) {
-    const skills = ROOM_SKILLS[index] || [];
-    return skills.length ? skills.slice(0, 2).map(skillLabel).join("+") : "路线";
-  }
-
   function skillLabel(skill) {
     return SKILL_LABELS[skill] || skill;
   }
@@ -3622,13 +3580,6 @@
     return `${grade || "PB"} ${formatTime(best)}`;
   }
 
-  function roomCleanShort(index) {
-    const entry = roomFocus[index] || createRoomFocusEntry();
-    if (entry.clean > 0) return `净${entry.clean}`;
-    if (entry.clears > 0) return `通${entry.clears}`;
-    return "未通";
-  }
-
   function roomCleanText(index) {
     const entry = roomFocus[index] || createRoomFocusEntry();
     if (entry.clears > 0) return `无失误 ${entry.clean}/${entry.clears}`;
@@ -3653,15 +3604,6 @@
     const delta = best - target;
     if (delta <= 0) return "已达标";
     return `慢 ${formatDelta(delta)}`;
-  }
-
-  function roomPaceShort(index) {
-    const best = bestRoomTimes[index] || 0;
-    const target = ROOM_TARGETS[index] || 0;
-    if (!best || !target) return "新";
-    const delta = best - target;
-    if (delta <= 0) return "达标";
-    return formatDelta(delta);
   }
 
   function roomTierLabel(index) {
@@ -3826,39 +3768,6 @@
     return requirements.length ? `高手动作：${requirements.map(expertRequirementLabel).join("+")}` : "高手动作：自由路线";
   }
 
-  function expertRequirementProgress(index) {
-    const requirements = expertRequirementsForRoom(index);
-    if (!requirements.length) return "";
-    const done = requirements.filter((key) => roomTech[key]).length;
-    return `动作 ${done}/${requirements.length}`;
-  }
-
-  function styleTrialProgress(index) {
-    const requirements = styleTrialTech(index);
-    if (!requirements.length) return "";
-    const done = requirements.filter((key) => roomTech[key]).length;
-    return `类型 ${done}/${requirements.length}`;
-  }
-
-  function drillHudDetailText(drill, index) {
-    if (!drill || drill.room !== index) return "";
-    if (drill.mode === "style") {
-      const limit = styleTrialTimeLimit(index);
-      const time = limit > 0 ? ` · 剩 ${formatTime(Math.max(0, limit - roomTime))}` : "";
-      return `${styleTrialProgress(index)}${time}`;
-    }
-    if (drill.mode === "expert") {
-      const target = ROOM_TARGETS[index] || 0;
-      const time = target > 0 ? ` · S 剩 ${formatTime(Math.max(0, target - roomTime))}` : "";
-      return `${expertRequirementProgress(index)}${time}`;
-    }
-    if (drill.mode === "pace") {
-      const target = ROOM_TARGETS[index] || 0;
-      return target > 0 ? `剩 ${formatTime(Math.max(0, target - roomTime))}` : "";
-    }
-    return "";
-  }
-
   function drillTargetText(index, mode = "auto") {
     const resolvedMode = resolveDrillMode(index, mode);
     const target = ROOM_TARGETS[index] || 0;
@@ -4006,17 +3915,6 @@
       return clean ? `用时 ${formatTime(elapsed)} / S ${formatTime(drill.target)}` : "Expert 要求 S + 无失误";
     }
     return drill.objective;
-  }
-
-  function activeDrillText(index) {
-    if (!activeDrill || activeDrill.room !== index) return "";
-    const current = roomMistakes[index] || 0;
-    const progress = activeDrill.mode === "expert"
-      ? expertRequirementProgress(index)
-      : activeDrill.mode === "style"
-        ? styleTrialProgress(index)
-        : "";
-    return `${drillModeLabel(activeDrill.mode)} / ${activeDrill.objective}${progress ? ` / ${progress}` : ""}${current ? ` / 失误 ${current}` : ""}`;
   }
 
   function practiceCoachText() {
@@ -4285,13 +4183,6 @@
 
   function routeContractMatchesDrill(drill) {
     return routeContractMatchesDrillData(activeRouteContract, ROUTE_CONTRACTS, drill);
-  }
-
-  function routeContractHudDetail(index, mode) {
-    const data = activeRouteContractData();
-    if (!data || data.step.index !== index || data.step.mode !== mode) return "";
-    const next = data.contract.steps[data.stepIndex + 1];
-    return `航线 ${data.stepIndex + 1}/${data.total} ${data.contract.label}${next ? ` -> ${routeContractStepLabel(next)}` : " -> 收束"}`;
   }
 
   function routeContractSummaryText() {
@@ -5275,6 +5166,7 @@
     if (!cue) return false;
     const color = key === "prism" ? palette.gold : key === "crumble" ? palette.hot : palette.cyan;
     showFeelCue(cue.title, cue.detail, color, FEEL_CUE_TIME * 1.65);
+    setGameStatus(`${cue.title}：${cue.detail}`);
     return true;
   }
 
@@ -5318,19 +5210,6 @@
     if (settingsVisible && panelMode === "practice") return;
     roomSelect.value = String(roomIndex);
     updateRoomBrief();
-  }
-
-  function roomBriefText(index) {
-    return [
-      `R${index + 1} ${ROOM_NAMES[index] || "Summit"} · ${roomMedalLabel(index)} · ${roomPaceLabel(index)}`,
-      `${roomCleanText(index)} · ${roomDrillText(index)} · ${roomSkillLabel(index)}`,
-      `合同 ${roomDrillContractText(index)}`,
-      styleTrialText(index),
-      `目标 ${roomPurposeLabel(index)}`,
-      `稳健 ${routeLineCore(index, 0)}`,
-      `快速 ${routeLineCore(index, 1)}`,
-      `高手 ${routeLineCore(index, 2)}`
-    ].join("\n");
   }
 
   function roomBriefHtml(index) {
@@ -5591,10 +5470,6 @@
     });
     window.__summitLastSaveArchive = archive;
     return archive;
-  }
-
-  function buildSaveArchiveText() {
-    return JSON.stringify(buildSaveArchive(), null, 2);
   }
 
   function readSessionValue(key) {
@@ -7186,7 +7061,6 @@
     }
     const chapterBreathing = chapterTransitionTimer > 0;
     chapterTransitionTimer = Math.max(0, chapterTransitionTimer - dt);
-    roomBestFlashTimer = Math.max(0, roomBestFlashTimer - dt);
     nearMissCooldown = Math.max(0, nearMissCooldown - dt);
     recallCooldown = Math.max(0, recallCooldown - dt);
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
@@ -7523,6 +7397,7 @@
     drawTimingGateCue(time);
     drawRoomIntro(time);
     drawRouteFocusCue(time);
+    drawFeelCue(time);
     drawMasteryPopup(time);
     drawSplitPopup(time);
     drawFocusPopup(time);
@@ -7605,50 +7480,6 @@
     ctx.restore();
   }
 
-  function drawRelayChainCue(time) {
-    if (relayPopupTimer <= 0 || relayChain <= 1 || player.deadTimer > 0) return;
-    const t = relayPopupTimer / 0.68;
-    const cx = player.x + player.w / 2;
-    const cy = player.y - 16 - (1 - t) * 12;
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, t * 1.35);
-    ctx.font = "600 18px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = palette.cyan;
-    ctx.shadowBlur = performanceShadowBlur(10);
-    ctx.fillStyle = relayChain >= 3 ? palette.gold : "#f8fbff";
-    ctx.fillText(`x${relayChain}`, cx, cy);
-    ctx.strokeStyle = relayChain >= 3 ? palette.gold : palette.cyan;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, player.y + player.h / 2, 22 + Math.sin(time * 22) * 1.4, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawRoomBestCue() {
-    if (roomBestFlashTimer <= 0 || player.deadTimer > 0) return;
-    const t = roomBestFlashTimer / ROOM_BEST_FLASH_TIME;
-    const cx = player.x + player.w / 2;
-    const cy = player.y - 31 - (1 - t) * 10;
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, t * 1.4);
-    ctx.font = "600 16px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = palette.gold;
-    ctx.shadowBlur = performanceShadowBlur(10);
-    ctx.fillStyle = palette.gold;
-    ctx.fillText("PB", cx, cy);
-    ctx.strokeStyle = palette.gold;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, player.y + player.h / 2, 24 + (1 - t) * 10, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
   function drawInputCues(time) {
     if (player.deadTimer > 0) return;
     const cx = player.x + player.w / 2;
@@ -7711,7 +7542,14 @@
 
   function drawFeelCue(time) {
     void time;
-    if (player.deadTimer > 0 || feelCueTimer <= 0 || !feelCueText) return;
+    if (player.deadTimer > 0
+      || feelCueTimer <= 0
+      || !feelCueText
+      || splitPopupTimer > 0
+      || masteryPopupTimer > 0
+      || focusPopupTimer > 0
+      || chapterTransitionTimer > 0
+      || summitRevealTimer > 0) return;
     const t = Math.max(0, Math.min(1, feelCueTimer / feelCueMax));
     ctx.save();
     ctx.font = "600 11px system-ui, sans-serif";
@@ -8339,18 +8177,6 @@
     return `R${index + 1} ${ROOM_NAMES[index] || "Summit"}：本轮慢 ${formatDelta(recommendation.loss)}；${roomRouteLine(index, 1)}`;
   }
 
-  function runSplitLossSummary(plan = currentRunReviewData()) {
-    const loss = plan?.largestLoss;
-    if (!loss) return "本轮分段损失 无";
-    if (loss.loss <= 0) return "本轮全部达标";
-    return `本轮分段损失 R${loss.index + 1} ${formatDelta(loss.loss)}：${roomPurposeLabel(loss.index)}`;
-  }
-
-  function summitReview() {
-    const plan = currentRunReviewData();
-    return `${chapterSummary()} / ${challengeSummary()} / ${runChapterReview().summary} / ${weakestRoomSummary()} / ${runSplitLossSummary(plan)} / 下个 Drill ${postRunTrainingAdvice(plan)}`;
-  }
-
   function runChapterSplits() {
     return CHAPTER_EXPERIENCE.map((chapter, chapterIndex) => {
       const rooms = maps.map((_, index) => index).filter((index) => chapterIndexForRoom(index) === chapterIndex);
@@ -8696,63 +8522,6 @@
     ctx.fillStyle = color;
     roundRect(ctx, x + 14, y + height - 8, (width - 28) * progress, 3, 2);
     ctx.fill();
-    ctx.restore();
-  }
-
-  function drawContractStrip(x, y, width, height, index, activeMode) {
-    const modes = ["clean", "pace", "style", "expert"];
-    const gap = 5;
-    const segment = (width - gap * (modes.length - 1)) / modes.length;
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "600 9px system-ui, sans-serif";
-    modes.forEach((mode, slot) => {
-      const stats = drillContractStats(index, mode);
-      const complete = stats.wins > 0;
-      const active = mode === activeMode;
-      const sx = x + slot * (segment + gap);
-      ctx.fillStyle = complete
-        ? "rgba(143,227,155,0.28)"
-        : active
-          ? "rgba(247,198,93,0.22)"
-          : "rgba(46,68,76,0.06)";
-      ctx.strokeStyle = active
-        ? "rgba(247,198,93,0.76)"
-        : complete
-          ? "rgba(143,227,155,0.52)"
-          : "rgba(46,68,76,0.14)";
-      ctx.lineWidth = active ? 1.4 : 1;
-      roundRect(ctx, sx, y, segment, height, 3);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = active ? "#705821" : complete ? "#2e6c4e" : "rgba(42,63,72,0.55)";
-      ctx.fillText(mode === "expert" ? "X" : drillModeLabel(mode).slice(0, 1), sx + segment / 2, y + height / 2 + 0.5);
-    });
-    ctx.restore();
-  }
-
-  function drawFlowCue(time) {
-    if (player.deadTimer > 0 || flowPopupTimer <= 0 || flowScore <= 0) return;
-    const t = flowPopupTimer / FLOW_POPUP_TIME;
-    const cx = player.x + player.w / 2;
-    const cy = player.y - 48 - (1 - t) * 12;
-    const color = flowTierColor(flowScore);
-    const text = flowScore >= 80 ? `${flowTierLabel(flowScore)} ${Math.floor(flowScore)}` : `${flowLabel.toUpperCase()} ${Math.floor(flowScore)}`;
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, t * 1.25);
-    ctx.font = "600 13px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = color;
-    ctx.shadowBlur = performanceShadowBlur(9);
-    ctx.fillStyle = color;
-    ctx.fillText(text, cx, cy);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, player.y + player.h / 2, 28 + Math.sin(time * 20) * 1.5, 0, Math.PI * 2);
-    ctx.stroke();
     ctx.restore();
   }
 
@@ -10896,11 +10665,6 @@
       "aria-label",
       available ? "召回到回声锚点" : anchorActive ? "召回冷却中" : "先激活回声锚点"
     );
-  }
-
-  function tileAt(x, y) {
-    if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return "#";
-    return room.tiles[y][x];
   }
 
   function roundRect(context, x, y, w, h, r) {

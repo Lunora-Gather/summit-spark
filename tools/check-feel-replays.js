@@ -96,7 +96,6 @@ if (!source.includes("activeFeelFixture")) errors.push("active feel fixture stat
 if (!source.includes("lastFeelFixtureResult")) errors.push("feel fixture result state is missing");
 if (!source.includes("completeActiveFeelFixture")) errors.push("feel fixture completion helper is missing");
 if (!source.includes("cancelActiveFeelFixture")) errors.push("feel fixture interruption helper is missing");
-if (!source.includes("routeContractHudDetail")) errors.push("route contracts should feed the active Drill HUD");
 if (!source.includes("routeContractSummaryText")) errors.push("route contracts should feed practice review text");
 if (!source.includes("resumeRouteContract")) errors.push("route contracts should support resuming interrupted routes");
 if (!source.includes("routeContractGeneration")) errors.push("route contract auto-advance should use a generation guard");

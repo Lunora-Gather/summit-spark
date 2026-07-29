@@ -254,7 +254,6 @@ async function main() {
       "startFeelFixture",
       "activeFeelFixture",
       "lastFeelFixtureResult",
-      "routeContractHudDetail",
       "cancelActiveRouteContract",
       "playAudioTestPattern",
       "buildDiagnosticsSnapshot",

@@ -284,6 +284,36 @@ for (const trigger of [
 ]) {
   if (!runtimeSource.includes(trigger)) fail(`public runtime should trigger ${trigger} on first mechanic contact`);
 }
+if (!runtimeSource.includes("drawRouteFocusCue(time);\n    drawFeelCue(time);")
+  || !runtimeSource.includes("setGameStatus(`${cue.title}：${cue.detail}`)")
+  || runtimeSource.includes("triggerSparkVariantVisual(variant);\n    showFeelCue(")) {
+  fail("public runtime should render and announce one-shot mechanic cues without per-Spark text noise");
+}
+for (const deadFunction of [
+  "activeDrillText",
+  "buildSaveArchiveText",
+  "createProfile",
+  "drawContractStrip",
+  "drawFlowCue",
+  "drawRelayChainCue",
+  "drawRoomBestCue",
+  "drillHudDetailText",
+  "normalizeRoomPathPoint",
+  "roomBriefText",
+  "roomCleanShort",
+  "roomPaceShort",
+  "roomSkillShort",
+  "routeContractHudDetail",
+  "summitReview",
+  "tileAt"
+]) {
+  if (runtimeSource.includes(`function ${deadFunction}(`)) fail(`public runtime should not ship consumerless helper ${deadFunction}`);
+}
+for (const match of runtimeSource.matchAll(/^  function\s+([A-Za-z_$][\w$]*)\s*\(/gm)) {
+  const name = match[1];
+  const references = runtimeSource.match(new RegExp(`\\b${name}\\b`, "g"))?.length || 0;
+  if (references <= 1) fail(`public runtime function ${name} has no consumer`);
+}
 if (!runtimeSource.includes('showFeelCue("回声召回", "冲刺与体力已恢复"')
   || !runtimeSource.includes('setGameStatus("回声锚点已激活，可随时召回")')
   || !runtimeSource.includes('setGameStatus("回声召回：冲刺与体力已恢复")')) {

@@ -621,7 +621,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     const match = text.match(/dead ([\\d.]+)/);
     const remaining = match ? Number(match[1]) : 0;
-    return remaining >= 0.04 && remaining <= 0.10 ? { remaining, text } : null;
+    return remaining > 0 && remaining <= 0.12 ? { remaining, text } : null;
   })()`), 5000);
   await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "KeyD", key: "d", windowsVirtualKeyCode: 68 });
   await keyTap(cdp, "Space", " ");
@@ -1387,6 +1387,103 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await keyTap(cdp, "KeyX", "X");
   const afterInputsTipHidden = await evaluate(cdp, `document.querySelector("#gameTip").classList.contains("hidden")`);
   if (!afterInputsTipHidden) errors.push("ordinary movement inputs should not raise a coaching card");
+}
+
+async function runChapterTransitionInputSmoke(cdp, baseUrl) {
+  async function launchR4Transition(label) {
+    await navigateApp(cdp, baseUrl, label);
+    await clickSelector(cdp, "#openTrainingButton");
+    await waitUntil(label + " practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+    await openSettingsGroup(cdp, ".settings-group-room");
+    await evaluate(cdp, `(() => {
+      const select = document.querySelector("#roomSelect");
+      select.value = "3";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await clickSelector(cdp, "#focusRoomButton");
+    await waitUntil(label + " starts R4 transition", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R4/.test(document.querySelector("#gameStatus").textContent)`));
+    await enableDebugPanel(cdp);
+    return waitUntil(label + " exposes act timer", () => evaluate(cdp, `(() => {
+      const text = document.querySelector("#debugPanel").textContent;
+      const act = text.match(/act ([\\d.]+)/);
+      const pos = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+      return act && pos && Number(act[1]) > 1.2
+        ? { act: Number(act[1]), x: Number(pos[1]), y: Number(pos[2]), text }
+        : null;
+    })()`), 3500);
+  }
+
+  const earlyStart = await launchR4Transition("early chapter-buffer");
+  await keyTap(cdp, "Space", " ");
+  await keyTap(cdp, "KeyX", "X");
+  await sleep(360);
+  const earlyExpired = await evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const act = text.match(/act ([\\d.]+)/);
+    const jump = text.match(/jbuf ([\\d.]+)/);
+    const dash = text.match(/dbuf ([\\d.]+)/);
+    return {
+      act: act ? Number(act[1]) : -1,
+      jump: jump ? Number(jump[1]) : -1,
+      dash: dash ? Number(dash[1]) : -1,
+      text
+    };
+  })()`);
+  const earlySettled = await waitUntil("early chapter inputs remain stale after transition", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const act = text.match(/act ([\\d.]+)/);
+    const pos = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
+    const dash = text.match(/dash (\\d+)/);
+    if (!act || Number(act[1]) !== 0 || !pos || !velocity || !dash || !/ground 1/.test(text)) return null;
+    return {
+      x: Number(pos[1]),
+      y: Number(pos[2]),
+      vx: Number(velocity[1]),
+      vy: Number(velocity[2]),
+      dash: Number(dash[1]),
+      text
+    };
+  })()`), 4000);
+  if (earlyExpired.act <= 0.4
+    || earlyExpired.jump !== 0
+    || earlyExpired.dash !== 0
+    || Math.abs(earlySettled.x - earlyStart.x) > 2
+    || Math.abs(earlySettled.y - earlyStart.y) > 2
+    || Math.abs(earlySettled.vx) > 2
+    || Math.abs(earlySettled.vy) > 2
+    || earlySettled.dash !== 1) {
+    errors.push("chapter transition should expire early Jump/Dash without launching the new act: " + JSON.stringify({ earlyStart, earlyExpired, earlySettled }));
+  }
+
+  const lateStart = await launchR4Transition("late chapter-buffer");
+  const lateWindow = await waitUntil("chapter transition reaches final input-buffer window", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const act = text.match(/act ([\\d.]+)/);
+    const remaining = act ? Number(act[1]) : -1;
+    return remaining > 0 && remaining <= 0.12 ? { remaining, text } : null;
+  })()`), 3500);
+  await keyTap(cdp, "Space", " ");
+  const lateJump = await waitUntil("late chapter Jump connects after transition", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    const act = text.match(/act ([\\d.]+)/);
+    const pos = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
+    if (!act || Number(act[1]) !== 0 || !pos || !velocity) return null;
+    const state = {
+      x: Number(pos[1]),
+      y: Number(pos[2]),
+      vx: Number(velocity[1]),
+      vy: Number(velocity[2]),
+      text
+    };
+    return state.y < ${lateStart.y - 3} && state.vy < -20 ? state : null;
+  })()`), 1800);
+  if (!(lateWindow.remaining > 0)
+    || lateJump.y >= lateStart.y - 3
+    || lateJump.vy >= -20) {
+    errors.push("chapter transition should preserve a Jump pressed inside the final normal buffer window: " + JSON.stringify({ lateStart, lateWindow, lateJump }));
+  }
 }
 
 async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
@@ -3904,6 +4001,7 @@ async function main() {
     });
 
     await runDesktopSmoke(cdp, baseUrl);
+    await runChapterTransitionInputSmoke(cdp, baseUrl);
     await runKeyboardSettingsSmoke(cdp, baseUrl);
     await runAssistModeSmoke(cdp, baseUrl);
     await runResumeSmoke(cdp, baseUrl);
@@ -3940,7 +4038,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

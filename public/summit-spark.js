@@ -155,16 +155,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p233"),
-    import("./modules/core/math.mjs?v=20260729-p233"),
-    import("./modules/game/room-data.mjs?v=20260729-p233"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p233"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p233"),
-    import("./modules/systems/storage.mjs?v=20260729-p233"),
-    import("./modules/systems/input.mjs?v=20260729-p233"),
-    import("./modules/training/state.mjs?v=20260729-p233"),
-    import("./modules/training/replay.mjs?v=20260729-p233"),
-    import("./modules/ui/presentation.mjs?v=20260729-p233")
+    import("./modules/core/format.mjs?v=20260729-p234"),
+    import("./modules/core/math.mjs?v=20260729-p234"),
+    import("./modules/game/room-data.mjs?v=20260729-p234"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p234"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p234"),
+    import("./modules/systems/storage.mjs?v=20260729-p234"),
+    import("./modules/systems/input.mjs?v=20260729-p234"),
+    import("./modules/training/state.mjs?v=20260729-p234"),
+    import("./modules/training/replay.mjs?v=20260729-p234"),
+    import("./modules/ui/presentation.mjs?v=20260729-p234")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1923,6 +1923,7 @@
 
     if (started && !won && !paused) {
       if (chapterTransitionTimer > 0) {
+        updateBuffers(dt);
         updateParticles(dt * 0.22);
         updateHair(dt);
         updateHud();
@@ -10515,7 +10516,7 @@
       `vel ${player.vx.toFixed(1)}, ${player.vy.toFixed(1)}`,
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}  wc ${player.wallCoyote.toFixed(3)}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
-      `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}`,
+      `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${chapterTransitionTimer.toFixed(3)}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,

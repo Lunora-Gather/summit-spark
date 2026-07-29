@@ -186,13 +186,21 @@ for (const delegation of [
 if (!runtimeSource.includes('import("./modules/systems/input.mjs?v=')
   || !inputSource.includes("export function resolveGamepadState(")
   || !inputSource.includes("export function effectiveBindingsData(")
-  || !inputSource.includes("export function rebindActionData(")) {
+  || !inputSource.includes("export function rebindActionData(")
+  || !inputSource.includes("export function setInputBuffer(")
+  || !inputSource.includes("export function tickInputBuffers(")
+  || !inputSource.includes("export function consumeInputBuffer(")
+  || !inputSource.includes("export function clearInputBuffers(")) {
   fail("public runtime must consume the versioned input mapping module");
 }
 for (const delegation of [
   "const resolved = resolveGamepadState(pads, {",
   "return effectiveBindingsData(settings, CONTROL_PRESETS)",
-  "const rebound = rebindActionData(settings.customBindings"
+  "const rebound = rebindActionData(settings.customBindings",
+  "tickInputBuffers(player, dt)",
+  'setInputBuffer(player, "jump", JUMP_BUFFER_TIME)',
+  'consumeInputBuffer(player, "dash")',
+  "clearInputBuffers(player)"
 ]) {
   if (!runtimeSource.includes(delegation)) {
     fail(`public runtime must delegate input ownership through ${delegation}`);

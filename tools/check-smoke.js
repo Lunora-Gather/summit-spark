@@ -202,7 +202,7 @@ async function main() {
       .forEach((marker) => expectIncludes("room data", roomData, marker));
     ["export function finiteNonNegativeNumber(", "export function normalizeSettingsData(", "export function readStoredJson(", "export function normalizeRoomFocusData(", "export function parseSaveArchiveText(", "export function createSaveArchiveData(", "export function createSaveBackupData(", "export function writeStorageTransaction("]
       .forEach((marker) => expectIncludes("storage module", storageModule, marker));
-    ["export function resolveGamepadState(", "export function newlyPressedActions(", "export function effectiveBindingsData(", "export function rebindActionData("]
+    ["export function resolveGamepadState(", "export function newlyPressedActions(", "export function effectiveBindingsData(", "export function rebindActionData(", "export function setInputBuffer(", "export function tickInputBuffers(", "export function consumeInputBuffer(", "export function clearInputBuffers("]
       .forEach((marker) => expectIncludes("input module", inputModule, marker));
 
     [

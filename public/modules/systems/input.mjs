@@ -1,5 +1,9 @@
 const GAMEPAD_ACTIONS = ["left", "right", "up", "down", "jump", "dash", "grab", "recall"];
 const GAMEPAD_EDGE_ACTIONS = ["jump", "dash", "grab", "recall"];
+const INPUT_BUFFER_FIELDS = Object.freeze({
+  jump: "jumpBuffer",
+  dash: "dashBuffer"
+});
 
 function gamepadButtonPressed(pad, index, threshold = 0.5) {
   return Boolean(pad?.buttons?.[index]?.pressed || pad?.buttons?.[index]?.value > threshold);
@@ -111,6 +115,36 @@ export function releaseInputState({
       input[action] = false;
     });
   });
+}
+
+export function setInputBuffer(state, action, duration) {
+  const field = Object.hasOwn(INPUT_BUFFER_FIELDS, action) ? INPUT_BUFFER_FIELDS[action] : "";
+  if (!field) return false;
+  state[field] = Number.isFinite(duration) ? Math.max(0, duration) : 0;
+  return true;
+}
+
+export function tickInputBuffers(state, dt) {
+  const elapsed = Number.isFinite(dt) ? Math.max(0, dt) : 0;
+  Object.values(INPUT_BUFFER_FIELDS).forEach((field) => {
+    const remaining = Number.isFinite(state[field]) ? Math.max(0, state[field]) : 0;
+    state[field] = Math.max(0, remaining - elapsed);
+  });
+}
+
+export function consumeInputBuffer(state, action) {
+  return setInputBuffer(state, action, 0);
+}
+
+export function clearInputBuffers(state) {
+  Object.keys(INPUT_BUFFER_FIELDS).forEach((action) => {
+    consumeInputBuffer(state, action);
+  });
+}
+
+export function hasInputBuffer(state, action) {
+  const field = Object.hasOwn(INPUT_BUFFER_FIELDS, action) ? INPUT_BUFFER_FIELDS[action] : "";
+  return Boolean(field && Number.isFinite(state[field]) && state[field] > 0);
 }
 
 export function resolveMovementInput({

@@ -67,6 +67,9 @@
       defaultBindingsForLayoutData,
       effectiveBindingsData,
       clearInputEdges,
+      clearInputBuffers,
+      consumeInputBuffer,
+      hasInputBuffer,
       inputHeldAny,
       inputPressedAny,
       isStartCodeData,
@@ -78,16 +81,18 @@
       resolveGamepadState,
       resolveMovementInput,
       shouldBlockKeyData,
+      setInputBuffer,
       syncInputHeld,
+      tickInputBuffers,
       transitionDigitalInput,
       validBindingCodeData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p188"),
-    import("./modules/core/math.mjs?v=20260729-p188"),
-    import("./modules/game/room-data.mjs?v=20260729-p188"),
-    import("./modules/systems/storage.mjs?v=20260729-p188"),
-    import("./modules/systems/input.mjs?v=20260729-p188")
+    import("./modules/core/format.mjs?v=20260729-p189"),
+    import("./modules/core/math.mjs?v=20260729-p189"),
+    import("./modules/game/room-data.mjs?v=20260729-p189"),
+    import("./modules/systems/storage.mjs?v=20260729-p189"),
+    import("./modules/systems/input.mjs?v=20260729-p189")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1012,8 +1017,7 @@
     });
     clearGrabToggle();
     document.querySelectorAll("[data-touch]").forEach((button) => button.classList.remove("active"));
-    player.jumpBuffer = 0;
-    player.dashBuffer = 0;
+    clearInputBuffers(player);
     resetActionPulses();
   }
 
@@ -1377,8 +1381,8 @@
       const transition = transitionDigitalInput(touch, touchPressed, action, value);
       button.classList.toggle("active", value);
       if (transition.pressed) {
-        if (action === "jump") player.jumpBuffer = JUMP_BUFFER_TIME;
-        if (action === "dash") player.dashBuffer = DASH_BUFFER_TIME;
+        if (action === "jump") setInputBuffer(player, "jump", JUMP_BUFFER_TIME);
+        if (action === "dash") setInputBuffer(player, "dash", DASH_BUFFER_TIME);
         if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
         if (!started) begin();
       } else if (transition.released && action === "jump") {
@@ -2051,7 +2055,7 @@
       player.wallCoyoteDir = 0;
     }
 
-    const wantsDash = player.dashBuffer > 0 && player.dashes > 0 && player.dashCooldown <= 0;
+    const wantsDash = hasInputBuffer(player, "dash") && player.dashes > 0 && player.dashCooldown <= 0;
     if (wantsDash) {
       startDash(input);
     }
@@ -2105,14 +2109,13 @@
 
   function updateBuffers(dt) {
     updateGamepad();
-    player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
-    player.dashBuffer = Math.max(0, player.dashBuffer - dt);
+    tickInputBuffers(player, dt);
 
     if (justPressedAny(actionCodes("jump")) || touchPressed.has("jump") || gamepadPressed.has("jump")) {
-      player.jumpBuffer = JUMP_BUFFER_TIME;
+      setInputBuffer(player, "jump", JUMP_BUFFER_TIME);
     }
     if (justPressedAny(actionCodes("dash")) || touchPressed.has("dash") || gamepadPressed.has("dash")) {
-      player.dashBuffer = DASH_BUFFER_TIME;
+      setInputBuffer(player, "dash", DASH_BUFFER_TIME);
     }
     if ((touchPressed.has("recall") || gamepadPressed.has("recall")) && started && !won) {
       recallToAnchor();
@@ -2166,13 +2169,13 @@
   }
 
   function jump(input) {
-    if (player.jumpBuffer <= 0) return;
+    if (!hasInputBuffer(player, "jump")) return;
     const bufferedJump = player.jumpBuffer < JUMP_BUFFER_TIME - 0.026;
 
     if (player.coyote > 0 || player.wasGrounded) {
       const coyoteJump = !player.wasGrounded && player.coyote > 0;
       player.vy = -JUMP;
-      player.jumpBuffer = 0;
+      consumeInputBuffer(player, "jump");
       player.coyote = 0;
       addFlow(4, "jump");
       triggerActionVisual("jump", 0.2);
@@ -2197,7 +2200,7 @@
       const lift = climbJump ? JUMP * (input.y > 0 ? 0.9 : 1.02) : away ? JUMP * 0.96 : JUMP * 0.91;
       player.vx = -wallJumpDir * push;
       player.vy = -lift;
-      player.jumpBuffer = 0;
+      consumeInputBuffer(player, "jump");
       player.facing = -wallJumpDir;
       player.wallJumpLock = WALL_JUMP_LOCK_TIME;
       player.wallCoyote = 0;
@@ -2223,7 +2226,7 @@
       player.vx = Math.sign(dir) * Math.max(Math.abs(player.vx), SPARK_HOP_X * xMult);
     }
     player.vy = Math.min(player.vy, -SPARK_HOP_Y * yMult);
-    player.jumpBuffer = 0;
+    consumeInputBuffer(player, "jump");
     player.sparkHopTimer = 0;
     player.sparkHopVariant = "spark";
     player.wallJumpLock = WALL_JUMP_LOCK_TIME;
@@ -2269,7 +2272,7 @@
     player.dashDirY = dy;
     player.sparkHopTimer = 0;
     player.ghostTimer = 0;
-    player.dashBuffer = 0;
+    consumeInputBuffer(player, "dash");
     player.coyote = 0;
     player.facing = dx === 0 ? player.facing : Math.sign(dx);
     addFlow(player.overdrive > 0 ? 8 : 5, player.overdrive > 0 ? "over" : "dash");
@@ -3025,8 +3028,7 @@
     player.wallCoyote = 0;
     player.wallCoyoteDir = 0;
     player.coyote = 0;
-    player.jumpBuffer = 0;
-    player.dashBuffer = 0;
+    clearInputBuffers(player);
     restoreDashCharge();
     player.stamina = MAX_STAMINA;
     player.dashTimer = 0;
@@ -5177,11 +5179,11 @@
 
   function queueAction(code) {
     if (isActionCode(code, "jump")) {
-      player.jumpBuffer = JUMP_BUFFER_TIME;
+      setInputBuffer(player, "jump", JUMP_BUFFER_TIME);
       actionPulse.jump = ACTION_PULSE_TIME;
     }
     if (isActionCode(code, "dash")) {
-      player.dashBuffer = DASH_BUFFER_TIME;
+      setInputBuffer(player, "dash", DASH_BUFFER_TIME);
       actionPulse.dash = ACTION_PULSE_TIME;
     }
     if (isActionCode(code, "grab")) {

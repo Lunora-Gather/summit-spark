@@ -6,6 +6,9 @@ import {
   defaultBindingsForLayoutData,
   effectiveBindingsData,
   clearInputEdges,
+  clearInputBuffers,
+  consumeInputBuffer,
+  hasInputBuffer,
   inputHeldAny,
   inputPressedAny,
   isStartCodeData,
@@ -19,7 +22,9 @@ import {
   resolveGamepadState,
   resolveMovementInput,
   shouldBlockKeyData,
+  setInputBuffer,
   syncInputHeld,
+  tickInputBuffers,
   transitionDigitalInput,
   validBindingCodeData
 } from "../public/modules/systems/input.mjs";
@@ -143,6 +148,29 @@ assert.equal(touchEdges.size, 0);
 assert.equal(gamepadEdges.size, 0);
 assert.deepEqual(touchInput, { jump: false, dash: false }, "focus release must neutralize digital device state");
 
+const buffers = { jumpBuffer: 0, dashBuffer: 0 };
+assert.equal(setInputBuffer(buffers, "jump", 0.13), true);
+assert.equal(setInputBuffer(buffers, "dash", 0.13), true);
+assert.deepEqual(buffers, { jumpBuffer: 0.13, dashBuffer: 0.13 });
+tickInputBuffers(buffers, 0.03);
+assert.ok(Math.abs(buffers.jumpBuffer - 0.1) < 1e-10);
+assert.ok(Math.abs(buffers.dashBuffer - 0.1) < 1e-10);
+assert.equal(hasInputBuffer(buffers, "jump"), true);
+assert.equal(consumeInputBuffer(buffers, "jump"), true);
+assert.equal(hasInputBuffer(buffers, "jump"), false);
+assert.equal(hasInputBuffer(buffers, "dash"), true, "consuming jump must preserve dash");
+tickInputBuffers(buffers, 0.2);
+assert.equal(buffers.dashBuffer, 0, "buffer countdown must clamp at zero");
+assert.equal(setInputBuffer(buffers, "__proto__", 1), false, "unknown action names must not mutate state");
+assert.equal(setInputBuffer(buffers, "jump", Number.NaN), true);
+assert.equal(buffers.jumpBuffer, 0, "invalid duration must fail closed");
+setInputBuffer(buffers, "jump", 0.13);
+setInputBuffer(buffers, "dash", 0.13);
+tickInputBuffers(buffers, -1);
+assert.deepEqual(buffers, { jumpBuffer: 0.13, dashBuffer: 0.13 }, "negative frame time must not extend buffers");
+clearInputBuffers(buffers);
+assert.deepEqual(buffers, { jumpBuffer: 0, dashBuffer: 0 });
+
 assert.deepEqual(resolveMovementInput({
   left: true,
   right: true,
@@ -214,4 +242,4 @@ assert.equal(isStartCodeData("Enter", {}), true);
 assert.equal(isStartCodeData("Space", { jump: "Space" }), true);
 assert.equal(isStartCodeData("KeyQ", { recall: "KeyQ" }), false);
 
-console.log("Input module check passed: state edges/releases, gamepad thresholds, drift, movement, presets and rebinding.");
+console.log("Input module check passed: state edges/releases, action buffers, gamepad thresholds, drift, movement, presets and rebinding.");

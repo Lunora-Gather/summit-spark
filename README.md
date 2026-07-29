@@ -67,8 +67,9 @@ public/                 可直接部署的唯一运行目录
   summit-spark.css      UI、响应式与视觉
   summit-spark.js       当前游戏运行时
   modules/core/         已迁移且有独立契约的格式与数学纯函数
-  modules/game/         十房地图、章节文案、路线合同与氛围的只读数据源
+  modules/game/         十房地图、章节文案、路线、氛围、材质与地标数据
   modules/systems/      存档规则，以及手柄/键位输入映射
+  modules/training/     Drill、Route、Feel、Focus 与挑战状态规则
   modules/ui/           章节完成度与练习优先级展示模型
   vendor/               固定 Appwrite SDK 与许可证
 data/                   房间/训练数据验证快照

@@ -74,6 +74,27 @@ for (const [relativePath, markers] of requiredMarkers) {
   }
 }
 
+const readme = read("README.md");
+const contentBible = read("docs/CONTENT_BIBLE.md");
+const architecture = read("docs/ARCHITECTURE.md");
+const contributing = read("CONTRIBUTING.md");
+
+for (const modulePath of ["modules/core/", "modules/game/", "modules/systems/", "modules/training/", "modules/ui/"]) {
+  if (!readme.includes(modulePath)) errors.push(`README.md repository tree missing ${modulePath}`);
+}
+if (contentBible.includes("- 不做账号、排行榜、云存档。")) {
+  errors.push("docs/CONTENT_BIBLE.md must not deny the existing optional private cloud-save boundary");
+}
+for (const marker of ["联网保持可选", "游客模式必须能完整游玩", "每用户私有云存档", "不得参与玩法判定"]) {
+  if (!contentBible.includes(marker)) errors.push(`docs/CONTENT_BIBLE.md missing optional-network boundary: ${marker}`);
+}
+if (!architecture.includes("游戏玩法不依赖网络") || !readme.includes("Appwrite 私有云存档")) {
+  errors.push("README and architecture must agree that private cloud saves are optional infrastructure");
+}
+if (!contributing.includes("新增第二套账号体系、公开排行榜，或让核心玩法依赖联网服务")) {
+  errors.push("CONTRIBUTING.md must prohibit network-dependent gameplay without denying the existing account system");
+}
+
 if (errors.length > 0) {
   console.error("Documentation check failed:");
   for (const error of errors) console.error(`- ${error}`);

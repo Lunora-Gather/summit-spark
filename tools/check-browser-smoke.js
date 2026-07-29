@@ -3583,6 +3583,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       ? {
           label: button.getAttribute("aria-label"),
           available: button.classList.contains("available"),
+          recallReady: /recall 1/.test(debug),
           width: Math.round(rect.width),
           crumbleActive: Number(crumble?.[1]),
           crumbleTotal: Number(crumble?.[2])
@@ -3595,15 +3596,16 @@ async function runMobileSmoke(cdp, baseUrl) {
   const afterTouchRecall = await waitUntil("touch Echo recall returns to the active anchor", () => evaluate(cdp, `(() => {
     const match = document.querySelector("#debugPanel").textContent.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     const button = document.querySelector('[data-touch="recall"]');
+    const debug = document.querySelector("#debugPanel").textContent;
     if (!match || !button.disabled) return null;
     const x = Number(match[1]);
     return x > ${Math.round(beforeTouchRecall.x + 20)}
-      ? { x, label: button.getAttribute("aria-label"), active: button.classList.contains("active"), status: document.querySelector("#gameStatus").textContent }
+      ? { x, label: button.getAttribute("aria-label"), active: button.classList.contains("active"), recallReady: /recall 1/.test(debug), status: document.querySelector("#gameStatus").textContent }
       : null;
   })()`), 3500);
-  if (!echoRecallReady.available || echoRecallReady.width < 44 || echoRecallReady.label !== "召回到回声锚点"
+  if (!echoRecallReady.available || !echoRecallReady.recallReady || echoRecallReady.width < 44 || echoRecallReady.label !== "召回到回声锚点"
     || echoRecallReady.crumbleActive !== 16 || echoRecallReady.crumbleTotal !== 16
-    || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active || !/回声召回.*恢复/.test(afterTouchRecall.status)) {
+    || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active || afterTouchRecall.recallReady || !/回声召回.*恢复/.test(afterTouchRecall.status)) {
     errors.push("R9 should expose contextual Echo recall from its safe pocket, load the recovered 16-crumble route, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
   }
   await keyTap(cdp, "Digit0", "0");
@@ -4132,7 +4134,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p239"),
-    import("./modules/core/math.mjs?v=20260729-p239"),
-    import("./modules/game/room-data.mjs?v=20260729-p239"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p239"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p239"),
-    import("./modules/systems/storage.mjs?v=20260729-p239"),
-    import("./modules/systems/input.mjs?v=20260729-p239"),
-    import("./modules/training/state.mjs?v=20260729-p239"),
-    import("./modules/training/replay.mjs?v=20260729-p239"),
-    import("./modules/ui/presentation.mjs?v=20260729-p239")
+    import("./modules/core/format.mjs?v=20260729-p240"),
+    import("./modules/core/math.mjs?v=20260729-p240"),
+    import("./modules/game/room-data.mjs?v=20260729-p240"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p240"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p240"),
+    import("./modules/systems/storage.mjs?v=20260729-p240"),
+    import("./modules/systems/input.mjs?v=20260729-p240"),
+    import("./modules/training/state.mjs?v=20260729-p240"),
+    import("./modules/training/replay.mjs?v=20260729-p240"),
+    import("./modules/ui/presentation.mjs?v=20260729-p240")
   ]);
 
   const canvas = document.getElementById("game");
@@ -10131,19 +10131,33 @@
     }
     ctx.restore();
 
-    if (active && player.deadTimer <= 0 && recallCooldown <= 0) {
-      ctx.save();
-      ctx.globalAlpha = 0.18 + Math.sin(time * 8) * 0.04;
-      ctx.strokeStyle = palette.green;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 7]);
-      ctx.beginPath();
-      ctx.moveTo(anchor.x, anchor.y);
-      ctx.lineTo(player.x + player.w / 2, player.y + player.h / 2);
-      ctx.stroke();
-      ctx.restore();
-    }
+    if (active && player.deadTimer <= 0 && recallCooldown <= 0) drawActiveEchoMemory(anchor, time);
     if (active && echoLessonTimer > 0) drawEchoLessonCue(anchor, time);
+  }
+
+  function drawActiveEchoMemory(anchor, time) {
+    const distance = Math.hypot(player.x + player.w / 2 - anchor.x, player.y + player.h / 2 - anchor.y);
+    const separation = Math.max(0, Math.min(1, (distance - 48) / 260));
+    const breathe = prefersReducedMotion ? 0.45 : 0.5 + Math.sin(time * 3.4) * 0.5;
+    const radius = 20 + separation * 5 + breathe * 2;
+    ctx.save();
+    ctx.translate(anchor.x, anchor.y);
+    ctx.globalAlpha = (settings.calmEffects ? 0.18 : 0.25) + separation * 0.12;
+    ctx.strokeStyle = palette.green;
+    ctx.lineWidth = 1.4;
+    ctx.lineCap = "round";
+    ctx.shadowColor = palette.green;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 1 : 5);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, -Math.PI * 0.82, -Math.PI * 0.18);
+    ctx.arc(0, 0, radius, Math.PI * 0.18, Math.PI * 0.82);
+    ctx.stroke();
+    ctx.globalAlpha *= 0.62;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + 6, -Math.PI * 0.62, -Math.PI * 0.38);
+    ctx.arc(0, 0, radius + 6, Math.PI * 0.38, Math.PI * 0.62);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawCooldownRing(x, y, radius, progress, color) {
@@ -10779,7 +10793,7 @@
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,
       `room focus ${roomFocusDetails(roomIndex)}`,
       `coach ${practiceCoachText()}`,
-      `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,
+      `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  recall ${echoAnchor && echoAnchor.room === roomIndex && recallCooldown <= 0 && player.deadTimer <= 0 ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
       `relays ${room.entities.relays.length}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total}  surface ${surfaceFeedbackForRoom().kind}`,

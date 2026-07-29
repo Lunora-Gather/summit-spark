@@ -708,6 +708,17 @@ if (!js.includes("drawUpdraftPlayerWake(fieldBounds, motionTime, pulse);")
   || js.indexOf("drawEntities(time);") > js.indexOf("if (player.deadTimer <= 0) drawPlayer(time);")) {
   errors.push("an occupied updraft must draw one player-relative paired wake behind the climber with bounded comfort fallbacks");
 }
+if (!js.includes("drawActiveEchoMemory(anchor, time);")
+  || !js.includes("function drawActiveEchoMemory(anchor, time)")
+  || !js.includes("(distance - 48) / 260")
+  || !js.includes("20 + separation * 5 + breathe * 2")
+  || !js.includes("prefersReducedMotion ? 0.45")
+  || !js.includes("recall ${echoAnchor && echoAnchor.room === roomIndex && recallCooldown <= 0")
+  || js.indexOf("drawEntities(time);") > js.indexOf("if (player.deadTimer <= 0) drawPlayer(time);")
+  || js.includes("ctx.moveTo(anchor.x, anchor.y);")
+  || js.includes("ctx.lineTo(player.x + player.w / 2, player.y + player.h / 2);")) {
+  errors.push("Echo readiness must stay as a bounded local anchor memory instead of a persistent room-spanning tether");
+}
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length !== 2
   || (maps[5]?.join("").match(/T/g) || []).length !== 2

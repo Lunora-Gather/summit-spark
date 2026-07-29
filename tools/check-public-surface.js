@@ -412,6 +412,17 @@ if (!runtimeSource.includes("drawUpdraftPlayerWake(fieldBounds, motionTime, puls
   || runtimeSource.includes("hairColor = player.inUpdraft")) {
   fail("occupied updrafts should draw a player-relative paired wake behind the fixed-hair climber with comfort fallbacks");
 }
+if (!runtimeSource.includes("drawActiveEchoMemory(anchor, time);")
+  || !runtimeSource.includes("function drawActiveEchoMemory(anchor, time)")
+  || !runtimeSource.includes("(distance - 48) / 260")
+  || !runtimeSource.includes("20 + separation * 5 + breathe * 2")
+  || !runtimeSource.includes("prefersReducedMotion ? 0.45")
+  || runtimeSource.indexOf("drawEntities(time);") > runtimeSource.indexOf("if (player.deadTimer <= 0) drawPlayer(time);")
+  || runtimeSource.includes("ctx.moveTo(anchor.x, anchor.y);")
+  || runtimeSource.includes("ctx.lineTo(player.x + player.w / 2, player.y + player.h / 2);")
+  || runtimeSource.includes("hairColor = echoAnchor")) {
+  fail("Echo readiness should stay local to the active anchor instead of drawing a room-spanning tether");
+}
 if (!runtimeSource.includes("Number.isFinite(soundCooldowns[name])")) {
   fail("sound cooldowns should suppress same-frame world feedback even at audio time zero");
 }

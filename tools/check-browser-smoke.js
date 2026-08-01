@@ -1615,27 +1615,40 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
       ? { text }
       : null;
   })()`), 4500, 20);
-  let r2Awake;
-  await keyDown(cdp, "KeyD", "D");
-  try {
-    await keyTap(cdp, "Space", " ");
-    await sleep(350);
-    await keyTap(cdp, "KeyK", "K");
-    try {
-      r2Awake = await waitUntil("R2 first unique Relay wakes half the bridge", () => evaluate(cdp, `(() => {
+  let r2Awake = null;
+  const r2AttemptSnapshots = [];
+  const r2LaunchDelays = [350, 320];
+  for (let attempt = 0; attempt < r2LaunchDelays.length && !r2Awake; attempt += 1) {
+    if (attempt > 0) {
+      await keyTap(cdp, "KeyR", "R");
+      await waitUntil("R2 bounded Relay retry restores its start", () => evaluate(cdp, `(() => {
         const text = document.querySelector("#debugPanel").textContent;
-        const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-        return /relays 2  gate 0\\.50  relic 0\\.00/.test(text) && position
-          ? { x: Number(position[1]), y: Number(position[2]), text }
-          : null;
-      })()`), 2200, 20);
-    } catch (error) {
-      const snapshot = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
-      throw new Error(`${error.message}: ${snapshot}`);
+        return /快速重开 · R2/.test(document.querySelector("#gameStatus").textContent)
+          && /ground 1/.test(text)
+          && /relays 2  gate 0\\.00  relic 0\\.00/.test(text);
+      })()`), 3500, 20);
     }
-  } finally {
-    await keyUp(cdp, "KeyD", "D");
+    await keyDown(cdp, "KeyD", "D");
+    try {
+      await keyTap(cdp, "Space", " ");
+      await sleep(r2LaunchDelays[attempt]);
+      await keyTap(cdp, "KeyK", "K");
+      try {
+        r2Awake = await waitUntil("R2 first unique Relay wakes half the bridge", () => evaluate(cdp, `(() => {
+          const text = document.querySelector("#debugPanel").textContent;
+          const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+          return /relays 2  gate 0\\.50  relic 0\\.00/.test(text) && position
+            ? { x: Number(position[1]), y: Number(position[2]), text }
+            : null;
+        })()`), 2200, 20);
+      } catch {
+        r2AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel").textContent`));
+      }
+    } finally {
+      await keyUp(cdp, "KeyD", "D");
+    }
   }
+  if (!r2Awake) throw new Error(`R2 first unique Relay wakes half the bridge failed after two bounded input attempts: ${JSON.stringify(r2AttemptSnapshots)}`);
   await sleep(4350);
   const r2Cooldown = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
   await keyTap(cdp, "KeyR", "R");

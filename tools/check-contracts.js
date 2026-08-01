@@ -530,6 +530,11 @@ for (const helper of ["aabb", "distRectPoint", "approach"]) {
 if (!indexHtml.includes("boot-noscript")) errors.push("start overlay should explain when JavaScript is disabled");
 if (!indexHtml.includes("settings-panel")) errors.push("settings panel shell is missing");
 const browserSmoke = fs.readFileSync(path.join(root, "tools", "check-browser-smoke.js"), "utf8");
+if (!browserSmoke.includes("const r2LaunchDelays = [350, 320];")
+  || !browserSmoke.includes("R2 bounded Relay retry restores its start")
+  || !browserSmoke.includes("failed after two bounded input attempts")) {
+  errors.push("R2 Relay landmark smoke must tolerate only one real-input timing retry and fail with both attempt snapshots");
+}
 if (!browserSmoke.includes("chapter transition should expire early Jump/Dash")
   || !browserSmoke.includes("chapter transition should preserve a Jump pressed inside the final normal buffer window")) {
   errors.push("browser smoke must prove chapter-transition stale-input expiry and final-window acceptance");

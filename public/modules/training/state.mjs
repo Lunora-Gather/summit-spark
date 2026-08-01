@@ -279,6 +279,79 @@ export function roomReviewModeData({
   return "expert";
 }
 
+export function practiceRoomRecommendationsData(rows = []) {
+  const seen = new Set();
+  const rooms = Array.isArray(rows)
+    ? rows.filter((row) => {
+        if (!row || typeof row !== "object" || !Number.isInteger(row.index) || row.index < 0 || seen.has(row.index)) return false;
+        seen.add(row.index);
+        return true;
+      })
+    : [];
+  if (!rooms.length) {
+    return { recommended: -1, clean: -1, pace: -1, style: -1, expert: -1 };
+  }
+
+  const number = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  const count = (row, key) => Math.max(0, Math.trunc(number(row.entry?.[key])));
+  const firstIndex = (predicate) => rooms.find(predicate)?.index ?? -1;
+
+  let strongest = { index: -1, score: 0 };
+  for (const row of rooms) {
+    const score = Math.max(0, number(row.focusScore));
+    if (score > strongest.score) strongest = { index: row.index, score };
+  }
+
+  let recommended = strongest.score >= 2 ? strongest.index : firstIndex((row) => !(number(row.best) > 0));
+  if (recommended < 0) recommended = firstIndex((row) => row.grade !== "S");
+  if (recommended < 0) {
+    let closest = -Infinity;
+    recommended = rooms[0].index;
+    for (const row of rooms) {
+      const target = number(row.target, 1) || 1;
+      const ratio = number(row.best) / target;
+      if (ratio > closest) {
+        closest = ratio;
+        recommended = row.index;
+      }
+    }
+  }
+
+  const cleanCandidate = firstIndex((row) => count(row, "clean") <= 0);
+  const clean = cleanCandidate >= 0 ? cleanCandidate : recommended;
+
+  let largestLoss = { index: -1, loss: -Infinity };
+  for (const row of rooms) {
+    if (row.loss === null) continue;
+    const loss = number(row.loss, -Infinity);
+    if (loss > largestLoss.loss) largestLoss = { index: row.index, loss };
+  }
+  let pace = largestLoss.index >= 0 && largestLoss.loss > 0
+    ? largestLoss.index
+    : firstIndex((row) => row.grade !== "S");
+  if (pace < 0) pace = recommended;
+
+  let style = firstIndex((row) => count(row, "clean") > 0 && row.grade === "S" && count(row, "styleWins") <= 0);
+  if (style < 0) {
+    style = firstIndex((row) => (number(row.best) > 0 || count(row, "clean") > 0) && count(row, "styleWins") <= 0);
+  }
+  if (style < 0) style = pace;
+
+  let expert = firstIndex((row) => (
+    row.grade === "S"
+    && count(row, "clean") > 0
+    && count(row, "styleWins") > 0
+    && count(row, "expertWins") <= 0
+  ));
+  if (expert < 0) expert = firstIndex((row) => row.grade === "S");
+  if (expert < 0) expert = pace;
+
+  return { recommended, clean, pace, style, expert };
+}
+
 function boundedProgress(current, target) {
   if (!(target > 0)) return 0;
   return Math.round(Math.max(0, Math.min(1, current / target)) * 100);

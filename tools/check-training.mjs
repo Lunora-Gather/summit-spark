@@ -23,6 +23,7 @@ import {
   feelFixtureModeData,
   feelFixturePresentationData,
   leadingRoomReasonData,
+  practiceRoomRecommendationsData,
   recordDrillClearData,
   recordDrillStartData,
   recordRoomClearData,
@@ -248,6 +249,50 @@ assert.equal(roomReviewModeData({
   grade: "S"
 }), "expert");
 
+const recommendationRows = [
+  { index: 0, entry: {}, best: 0, target: 9, grade: "", focusScore: 0, loss: null },
+  { index: 1, entry: { clean: 1 }, best: 12, target: 10, grade: "A", focusScore: 0, loss: 2 },
+  { index: 2, entry: { clean: 1, styleWins: 0 }, best: 8, target: 9, grade: "S", focusScore: 3, loss: -1 },
+  { index: 3, entry: { clean: 1, styleWins: 1, expertWins: 0 }, best: 9, target: 10, grade: "S", focusScore: 0, loss: -1 }
+];
+assert.deepEqual(practiceRoomRecommendationsData(recommendationRows), {
+  recommended: 2,
+  clean: 0,
+  pace: 1,
+  style: 2,
+  expert: 3
+}, "one snapshot should preserve Focus, Clean, largest-loss, Style and Expert priorities");
+assert.deepEqual(practiceRoomRecommendationsData(recommendationRows.map((row) => ({ ...row, focusScore: 0 }))), {
+  recommended: 0,
+  clean: 0,
+  pace: 1,
+  style: 2,
+  expert: 3
+}, "without actionable Focus, the first unplayed room should lead the general recommendation");
+assert.deepEqual(practiceRoomRecommendationsData([
+  { index: 4, entry: { clean: 1, styleWins: 1, expertWins: 1 }, best: 9.6, target: 10, grade: "S", focusScore: 0, loss: -0.4 },
+  { index: 5, entry: { clean: 1, styleWins: 1, expertWins: 1 }, best: 9.9, target: 10, grade: "S", focusScore: 0, loss: -0.1 }
+]), {
+  recommended: 5,
+  clean: 5,
+  pace: 5,
+  style: 5,
+  expert: 4
+}, "a fully mastered set should fall back deterministically to the closest PB while Expert keeps the first S room");
+assert.deepEqual(practiceRoomRecommendationsData([
+  { index: 1, entry: {}, best: 0, target: 10, grade: "", focusScore: 0, loss: null },
+  { index: 1, entry: { clean: 1 }, best: 8, target: 10, grade: "S", focusScore: 99, loss: -2 },
+  { index: -1 },
+  null
+]), { recommended: 1, clean: 1, pace: 1, style: 1, expert: 1 }, "invalid and duplicate room rows must fail closed without changing authored order");
+assert.deepEqual(practiceRoomRecommendationsData([]), {
+  recommended: -1,
+  clean: -1,
+  pace: -1,
+  style: -1,
+  expert: -1
+});
+
 const challenge = { id: "nodeath", kind: "nodeath", label: "零失误登顶", goal: "完整通关且失误数为 0" };
 assert.deepEqual(createActiveChallengeData(challenge, 45.9), {
   ...challenge,
@@ -435,4 +480,4 @@ assert.deepEqual(feelFixturePresentationData(fixtures[0], null, null, "未开练
   className: ""
 });
 
-console.log("Training module check passed: state, Focus/challenges and exact Route/Feel result assembly.");
+console.log("Training module check passed: state, Focus/challenges, five-mode room recommendations and exact Route/Feel result assembly.");

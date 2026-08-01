@@ -127,6 +127,7 @@
       feelFixtureModeData,
       feelFixturePresentationData,
       leadingRoomReasonData,
+      practiceRoomRecommendationsData,
       recordDrillClearData,
       recordDrillStartData,
       recordRoomClearData,
@@ -162,17 +163,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260801-p248"),
-    import("./modules/core/math.mjs?v=20260801-p248"),
-    import("./modules/game/room-data.mjs?v=20260801-p248"),
-    import("./modules/game/effect-budget.mjs?v=20260801-p248"),
-    import("./modules/game/landmark-progress.mjs?v=20260801-p248"),
-    import("./modules/game/audio-cues.mjs?v=20260801-p248"),
-    import("./modules/systems/storage.mjs?v=20260801-p248"),
-    import("./modules/systems/input.mjs?v=20260801-p248"),
-    import("./modules/training/state.mjs?v=20260801-p248"),
-    import("./modules/training/replay.mjs?v=20260801-p248"),
-    import("./modules/ui/presentation.mjs?v=20260801-p248")
+    import("./modules/core/format.mjs?v=20260801-p249"),
+    import("./modules/core/math.mjs?v=20260801-p249"),
+    import("./modules/game/room-data.mjs?v=20260801-p249"),
+    import("./modules/game/effect-budget.mjs?v=20260801-p249"),
+    import("./modules/game/landmark-progress.mjs?v=20260801-p249"),
+    import("./modules/game/audio-cues.mjs?v=20260801-p249"),
+    import("./modules/systems/storage.mjs?v=20260801-p249"),
+    import("./modules/systems/input.mjs?v=20260801-p249"),
+    import("./modules/training/state.mjs?v=20260801-p249"),
+    import("./modules/training/replay.mjs?v=20260801-p249"),
+    import("./modules/ui/presentation.mjs?v=20260801-p249")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3725,24 +3726,20 @@
     return ` / 重点 R${focus.index + 1} ${deathReasonLabel(focus.reason)} ${detail}`;
   }
 
+  function practiceRoomRecommendations() {
+    return practiceRoomRecommendationsData(maps.map((_, index) => ({
+      index,
+      entry: roomFocus[index] || createRoomFocusEntry(),
+      best: bestRoomTimes[index] || 0,
+      target: ROOM_TARGETS[index] || 0,
+      grade: splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]),
+      focusScore: roomFocusScore(index),
+      loss: roomSplitLoss(index)
+    })));
+  }
+
   function recommendedPracticeRoom() {
-    const focus = strongestFocusRoom();
-    if (focus) return focus.index;
-    const unplayed = maps.findIndex((_, index) => !(bestRoomTimes[index] > 0));
-    if (unplayed >= 0) return unplayed;
-    const nonS = maps.findIndex((_, index) => splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) !== "S");
-    if (nonS >= 0) return nonS;
-    let candidate = 0;
-    let closest = -Infinity;
-    maps.forEach((_, index) => {
-      const target = ROOM_TARGETS[index] || 1;
-      const ratio = (bestRoomTimes[index] || 0) / target;
-      if (ratio > closest) {
-        closest = ratio;
-        candidate = index;
-      }
-    });
-    return candidate;
+    return practiceRoomRecommendations().recommended;
   }
 
   function practiceTargetRoom() {
@@ -4432,10 +4429,11 @@
   }
 
   function practiceQueueItems() {
-    const cleanIndex = cleanPracticeRoom();
-    const paceIndex = pacePracticeRoom();
-    const styleIndex = stylePracticeRoom();
-    const expertIndex = expertPracticeRoom();
+    const recommendations = practiceRoomRecommendations();
+    const cleanIndex = recommendations.clean;
+    const paceIndex = recommendations.pace;
+    const styleIndex = recommendations.style;
+    const expertIndex = recommendations.expert;
     return [
       {
         mode: "clean",
@@ -4523,41 +4521,19 @@
   }
 
   function cleanPracticeRoom() {
-    const index = maps.findIndex((_, roomId) => {
-      const entry = roomFocus[roomId] || createRoomFocusEntry();
-      return entry.clean <= 0;
-    });
-    return index >= 0 ? index : recommendedPracticeRoom();
+    return practiceRoomRecommendations().clean;
   }
 
   function pacePracticeRoom() {
-    const loss = largestSplitLossRoom();
-    if (loss && loss.loss > 0) return loss.index;
-    const nonS = maps.findIndex((_, index) => splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) !== "S");
-    return nonS >= 0 ? nonS : recommendedPracticeRoom();
+    return practiceRoomRecommendations().pace;
   }
 
   function expertPracticeRoom() {
-    const ready = maps.findIndex((_, index) => {
-      const entry = roomFocus[index] || createRoomFocusEntry();
-      return splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S" && entry.clean > 0 && entry.styleWins > 0 && entry.expertWins <= 0;
-    });
-    if (ready >= 0) return ready;
-    const cleanS = maps.findIndex((_, index) => splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S");
-    return cleanS >= 0 ? cleanS : pacePracticeRoom();
+    return practiceRoomRecommendations().expert;
   }
 
   function stylePracticeRoom() {
-    const ready = maps.findIndex((_, index) => {
-      const entry = roomFocus[index] || createRoomFocusEntry();
-      return entry.clean > 0 && splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S" && entry.styleWins <= 0;
-    });
-    if (ready >= 0) return ready;
-    const played = maps.findIndex((_, index) => {
-      const entry = roomFocus[index] || createRoomFocusEntry();
-      return (bestRoomTimes[index] > 0 || entry.clean > 0) && entry.styleWins <= 0;
-    });
-    return played >= 0 ? played : pacePracticeRoom();
+    return practiceRoomRecommendations().style;
   }
 
   function updatePracticeQueue() {

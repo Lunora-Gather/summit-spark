@@ -13,6 +13,7 @@ import {
   runChapterSplitsData,
   runReportTextData,
   roomSplitFeedbackData,
+  roomTrainingRecommendationData,
   roomReviewPriorityData
 } from "../public/modules/ui/presentation.mjs";
 
@@ -236,6 +237,58 @@ assert.equal(
   "none",
   "invalid references must fail closed instead of fabricating a PB comparison"
 );
+
+assert.deepEqual(roomTrainingRecommendationData({
+  entry: { faults: 1, clean: 0, fall: 1 },
+  currentMistakes: 2,
+  best: 10,
+  target: 9,
+  grade: "A",
+  leadReason: "fall"
+}), {
+  reasonKind: "current",
+  reasonCount: 2,
+  loss: 1,
+  lineKind: "coach",
+  routeSlot: null,
+  coachReason: "fall"
+}, "current mistakes should immediately select the contextual coach line");
+assert.deepEqual(roomTrainingRecommendationData({
+  entry: { faults: 3, clean: 0, spike: 2 },
+  currentMistakes: 0,
+  best: 0,
+  target: 9,
+  leadReason: "spike"
+}), {
+  reasonKind: "archive",
+  reasonCount: 2,
+  loss: null,
+  lineKind: "coach",
+  routeSlot: null,
+  coachReason: "spike"
+}, "three unresolved archive faults should select the contextual coach line");
+assert.equal(roomTrainingRecommendationData({
+  entry: { faults: 1, clean: 0, fall: 1 },
+  target: 9,
+  leadReason: "fall"
+}).routeSlot, 0, "a light archive warning may explain the room while keeping the safe route");
+assert.equal(roomTrainingRecommendationData({
+  entry: { clean: 1 },
+  best: 12,
+  target: 9,
+  grade: "A"
+}).routeSlot, 1, "a split more than 1.5 seconds slow should keep the progression route");
+assert.equal(roomTrainingRecommendationData({
+  entry: { clean: 1 },
+  best: 8.5,
+  target: 9,
+  grade: "S"
+}).routeSlot, 2, "a clean S split should unlock the expert route recommendation");
+assert.equal(roomTrainingRecommendationData({
+  entry: { clean: 1 },
+  best: 0,
+  target: 9
+}).reasonKind, "unplayed", "missing completion evidence should fail closed as unplayed");
 
 assert.deepEqual(postRunReviewData({
   roomTimes: [8, 12, 14, 0],

@@ -157,20 +157,21 @@
       runChapterSplitsData,
       runReportTextData,
       roomSplitFeedbackData,
+      roomTrainingRecommendationData,
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260801-p246"),
-    import("./modules/core/math.mjs?v=20260801-p246"),
-    import("./modules/game/room-data.mjs?v=20260801-p246"),
-    import("./modules/game/effect-budget.mjs?v=20260801-p246"),
-    import("./modules/game/landmark-progress.mjs?v=20260801-p246"),
-    import("./modules/game/audio-cues.mjs?v=20260801-p246"),
-    import("./modules/systems/storage.mjs?v=20260801-p246"),
-    import("./modules/systems/input.mjs?v=20260801-p246"),
-    import("./modules/training/state.mjs?v=20260801-p246"),
-    import("./modules/training/replay.mjs?v=20260801-p246"),
-    import("./modules/ui/presentation.mjs?v=20260801-p246")
+    import("./modules/core/format.mjs?v=20260801-p247"),
+    import("./modules/core/math.mjs?v=20260801-p247"),
+    import("./modules/game/room-data.mjs?v=20260801-p247"),
+    import("./modules/game/effect-budget.mjs?v=20260801-p247"),
+    import("./modules/game/landmark-progress.mjs?v=20260801-p247"),
+    import("./modules/game/audio-cues.mjs?v=20260801-p247"),
+    import("./modules/systems/storage.mjs?v=20260801-p247"),
+    import("./modules/systems/input.mjs?v=20260801-p247"),
+    import("./modules/training/state.mjs?v=20260801-p247"),
+    import("./modules/training/replay.mjs?v=20260801-p247"),
+    import("./modules/ui/presentation.mjs?v=20260801-p247")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3668,34 +3669,38 @@
     return best - target;
   }
 
-  function routePracticeLine(index) {
+  function roomTrainingRecommendation(index) {
     const entry = roomFocus[index] || createRoomFocusEntry();
     const current = roomMistakes[index] || 0;
     const lead = leadingRoomReason(entry);
-    const loss = roomSplitLoss(index);
     const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
-    if (current > 0) return roomCoachHint(index, lead);
-    if (entry.faults >= 3 && entry.faults - entry.clean * 2 > 0) return roomCoachHint(index, lead);
-    if (entry.clean <= 0) return roomRouteLine(index, 0);
-    if (loss !== null && loss > 1.5) return roomRouteLine(index, 1);
-    if (grade === "S") return roomRouteLine(index, 2);
-    return roomRouteLine(index, 1);
+    return roomTrainingRecommendationData({
+      entry,
+      currentMistakes: current,
+      best: bestRoomTimes[index] || 0,
+      target: ROOM_TARGETS[index] || 0,
+      grade,
+      leadReason: lead
+    });
   }
 
-  function roomPracticeReason(index) {
+  function routePracticeLine(index, recommendation = roomTrainingRecommendation(index)) {
+    if (recommendation.lineKind === "coach") return roomCoachHint(index, recommendation.coachReason);
+    return roomRouteLine(index, recommendation.routeSlot);
+  }
+
+  function roomPracticeReason(index, recommendation = roomTrainingRecommendation(index)) {
     const entry = roomFocus[index] || createRoomFocusEntry();
-    const current = roomMistakes[index] || 0;
-    const lead = leadingRoomReason(entry);
-    const loss = roomSplitLoss(index);
-    if (current > 0) return `本轮失误 ${current}`;
-    if (entry.faults > 0 && entry.faults - entry.clean * 2 > 0) return `${deathReasonLabel(lead)} ${entry[lead] || 0}/${entry.faults}`;
-    if (loss === null) return "未通关";
-    if (loss > 0) return `慢 ${formatDelta(loss)}`;
+    if (recommendation.reasonKind === "current") return `本轮失误 ${recommendation.reasonCount}`;
+    if (recommendation.reasonKind === "archive") return `${deathReasonLabel(recommendation.coachReason || leadingRoomReason(entry))} ${recommendation.reasonCount}/${entry.faults}`;
+    if (recommendation.reasonKind === "unplayed") return "未通关";
+    if (recommendation.reasonKind === "pace") return `慢 ${formatDelta(recommendation.loss)}`;
     return "冲高手线";
   }
 
   function roomTrainingAdvice(index) {
-    return `R${index + 1} ${ROOM_NAMES[index] || "Summit"}：${roomPracticeReason(index)}；${routePracticeLine(index)}`;
+    const recommendation = roomTrainingRecommendation(index);
+    return `R${index + 1} ${ROOM_NAMES[index] || "Summit"}：${roomPracticeReason(index, recommendation)}；${routePracticeLine(index, recommendation)}`;
   }
 
   function roomFocusScore(index) {

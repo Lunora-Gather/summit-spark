@@ -120,6 +120,58 @@ export function roomSplitFeedbackData(input = {}) {
   };
 }
 
+export function roomTrainingRecommendationData(input = {}) {
+  const entry = input.entry && typeof input.entry === "object" ? input.entry : {};
+  const currentMistakes = Math.floor(nonNegativeNumber(input.currentMistakes));
+  const faults = Math.floor(nonNegativeNumber(entry.faults));
+  const clean = Math.floor(nonNegativeNumber(entry.clean));
+  const pressure = faults - clean * 2;
+  const best = nonNegativeNumber(input.best);
+  const target = nonNegativeNumber(input.target);
+  const loss = best > 0 && target > 0 ? best - target : null;
+  const leadReason = typeof input.leadReason === "string" && input.leadReason
+    ? input.leadReason
+    : "fall";
+
+  let reasonKind = "expert";
+  let reasonCount = 0;
+  if (currentMistakes > 0) {
+    reasonKind = "current";
+    reasonCount = currentMistakes;
+  } else if (faults > 0 && pressure > 0) {
+    reasonKind = "archive";
+    reasonCount = Math.floor(nonNegativeNumber(entry[leadReason]));
+  } else if (loss === null) {
+    reasonKind = "unplayed";
+  } else if (loss > 0) {
+    reasonKind = "pace";
+  }
+
+  if (currentMistakes > 0 || (faults >= 3 && pressure > 0)) {
+    return {
+      reasonKind,
+      reasonCount,
+      loss,
+      lineKind: "coach",
+      routeSlot: null,
+      coachReason: leadReason
+    };
+  }
+
+  let routeSlot = 1;
+  if (clean <= 0) routeSlot = 0;
+  else if (loss !== null && loss > 1.5) routeSlot = 1;
+  else if (input.grade === "S") routeSlot = 2;
+  return {
+    reasonKind,
+    reasonCount,
+    loss,
+    lineKind: "route",
+    routeSlot,
+    coachReason: null
+  };
+}
+
 export function postRunReviewData(input = {}) {
   const roomTimes = Array.isArray(input.roomTimes) ? input.roomTimes : [];
   const roomMistakes = Array.isArray(input.roomMistakes) ? input.roomMistakes : [];

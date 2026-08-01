@@ -625,6 +625,7 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterGrade(")
   || !uiPresentationSource.includes("export function chapterTransitionResultData(")
   || !uiPresentationSource.includes("export function roomSplitFeedbackData(")
+  || !uiPresentationSource.includes("export function roomTrainingRecommendationData(")
   || !uiPresentationSource.includes("export function roomReviewPriorityData(")
   || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")
   || !uiPresentationSource.includes("export function runChapterSplitsData(")
@@ -636,6 +637,7 @@ for (const delegation of [
   "return chapterCompletionModelData({",
   "return chapterTransitionResultData({",
   "const result = roomSplitFeedbackData({",
+  "return roomTrainingRecommendationData({",
   "return roomReviewPriorityData({",
   "return rankPracticeLedgerRowsData(maps.map(",
   "return runChapterSplitsData({",

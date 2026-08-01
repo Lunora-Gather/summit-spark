@@ -319,6 +319,17 @@ if (!runtimeSource.includes("awakened: false")
   || runtimeSource.includes("hairColor = relayLandmarkProgress")) {
   fail("Old Peak Relay progress should remain an attempt-local environmental landmark response without recoloring the climber");
 }
+if (!runtimeSource.includes("function gateLandmarkProgress()")
+  || !runtimeSource.includes('if (kind === "gate-steps") return roomTech.spark ? 1 : 0;')
+  || !runtimeSource.includes('if (kind === "relay-bridge")')
+  || !runtimeSource.includes('if (kind === "mist-springs")')
+  || !runtimeSource.includes("(Number(roomTech.spring) + Number(roomTech.springApex)) / 2")
+  || !runtimeSource.includes("function drawGateLandmarkResponse(kind, progress, time)")
+  || !runtimeSource.includes("drawGateLandmarkResponse(landmark.kind, gateLandmarkProgress(), time);")
+  || !runtimeSource.includes("gate ${gateLandmarkProgress().toFixed(2)}")
+  || runtimeSource.includes("hairColor = gateLandmarkProgress")) {
+  fail("Mountain Gate lesson progress should wake only its existing room landmarks without adding UI or recoloring the climber");
+}
 for (const trigger of [
   'showMechanicFirstTouchCue("relay")',
   'showMechanicFirstTouchCue("spring")',

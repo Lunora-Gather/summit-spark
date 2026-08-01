@@ -1485,7 +1485,7 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     || earlyExpired.jump !== 0
     || earlyExpired.dash !== 0
     || !/surface warm-dust/.test(earlyStart.text)
-    || !/relays 3  relic 0\.00/.test(earlyStart.text)
+    || !/relays 3  gate 0\.00  relic 0\.00/.test(earlyStart.text)
     || Math.abs(earlySettled.x - earlyStart.x) > 2
     || Math.abs(earlySettled.y - earlyStart.y) > 2
     || Math.abs(earlySettled.vx) > 2
@@ -1499,24 +1499,30 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     const act = text.match(/act ([\\d.]+)/);
     const remaining = act ? Number(act[1]) : -1;
-    return remaining >= 0.055 && remaining <= 0.105 ? { remaining, text } : null;
-  })()`), 3500, 20);
+    return remaining >= 0.085 && remaining <= 0.12 ? { remaining, text } : null;
+  })()`), 3500, 10);
   await keyTap(cdp, "Space", " ");
-  const lateJump = await waitUntil("late chapter Jump connects after transition", () => evaluate(cdp, `(() => {
-    const text = document.querySelector("#debugPanel").textContent;
-    const act = text.match(/act ([\\d.]+)/);
-    const pos = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-    const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
-    if (!act || Number(act[1]) !== 0 || !pos || !velocity) return null;
-    const state = {
-      x: Number(pos[1]),
-      y: Number(pos[2]),
-      vx: Number(velocity[1]),
-      vy: Number(velocity[2]),
-      text
-    };
-    return state.y < ${lateStart.y - 3} && state.vy < -20 ? state : null;
-  })()`), 1800);
+  let lateJump;
+  try {
+    lateJump = await waitUntil("late chapter Jump connects after transition", () => evaluate(cdp, `(() => {
+      const text = document.querySelector("#debugPanel").textContent;
+      const act = text.match(/act ([\\d.]+)/);
+      const pos = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+      const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
+      if (!act || Number(act[1]) !== 0 || !pos || !velocity) return null;
+      const state = {
+        x: Number(pos[1]),
+        y: Number(pos[2]),
+        vx: Number(velocity[1]),
+        vy: Number(velocity[2]),
+        text
+      };
+      return state.y < ${lateStart.y - 3} && state.vy < -20 ? state : null;
+    })()`), 1800, 10);
+  } catch (error) {
+    const snapshot = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
+    throw new Error(`${error.message}: ${snapshot}`);
+  }
   if (!(lateWindow.remaining > 0)
     || lateJump.y >= lateStart.y - 3
     || lateJump.vy >= -20) {
@@ -1531,13 +1537,13 @@ async function runOldPeakRelicSmoke(cdp, baseUrl) {
   await keyTap(cdp, "Digit5", "5");
   const dormant = await waitUntil("R5 Relay relic starts dormant", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
-    return /room 5\\/10/.test(text) && /relays 3  relic 0\\.00/.test(text) ? { text } : null;
+    return /room 5\\/10/.test(text) && /relays 3  gate 0\\.00  relic 0\\.00/.test(text) ? { text } : null;
   })()`), 3500);
   await keyDown(cdp, "KeyD", "D");
   const awakened = await waitUntil("R5 first Relay awakens its switchback relic", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-    return /relays 3  relic 0\\.33/.test(text) && position
+    return /relays 3  gate 0\\.00  relic 0\\.33/.test(text) && position
       ? { x: Number(position[1]), y: Number(position[2]), text }
       : null;
   })()`), 1800, 20);
@@ -1548,7 +1554,7 @@ async function runOldPeakRelicSmoke(cdp, baseUrl) {
   const reset = await waitUntil("R5 retry clears attempt-local Relay relic", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R5/.test(document.querySelector("#gameStatus").textContent)
-      && /relays 3  relic 0\\.00/.test(text)
+      && /relays 3  gate 0\\.00  relic 0\\.00/.test(text)
       ? { text }
       : null;
   })()`), 3500);
@@ -1558,6 +1564,97 @@ async function runOldPeakRelicSmoke(cdp, baseUrl) {
     || !/relic 0\.33/.test(afterCooldown)
     || !/relic 0\.00/.test(reset.text)) {
     errors.push("R5 Relay relic should awaken once, survive node cooldown and clear through the room retry lifecycle: " + JSON.stringify({ dormant, awakened, afterCooldown, reset }));
+  }
+}
+
+async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
+  await navigateApp(cdp, baseUrl, "Mountain Gate landmark seed");
+  await evaluate(cdp, `(() => {
+    const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
+    saved.assistMode = "off";
+    saved.controlsPreset = "comfort";
+    saved.keyboardLayout = "pc";
+    localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
+  })()`);
+  await navigateApp(cdp, baseUrl, "Mountain Gate landmarks");
+  await clickSelector(cdp, "#startButton");
+  await enableDebugPanel(cdp);
+  const r1Dormant = await waitUntil("R1 gate landmark starts dormant", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /room 1\\/10/.test(text) && /gate 0\\.00  relic 0\\.00/.test(text) ? { text } : null;
+  })()`), 2500, 20);
+  await keyDown(cdp, "KeyD", "D");
+  try {
+    await keyTap(cdp, "Space", " ");
+    await sleep(80);
+    await keyTap(cdp, "KeyK", "K");
+    await sleep(155);
+    await keyTap(cdp, "Space", " ");
+  } finally {
+    await keyUp(cdp, "KeyD", "D");
+  }
+  const r1Awake = await waitUntil("R1 Spark wakes the gate steps", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /room 1\\/10/.test(text) && /gate 1\\.00  relic 0\\.00/.test(text)
+      ? { text }
+      : null;
+  })()`), 1200, 20);
+  await keyTap(cdp, "KeyR", "R");
+  const r1Reset = await waitUntil("R1 retry restores the dormant gate steps", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /快速重开 · R1/.test(document.querySelector("#gameStatus").textContent)
+      && /gate 0\\.00  relic 0\\.00/.test(text)
+      ? { text }
+      : null;
+  })()`), 2500, 20);
+  await keyTap(cdp, "Digit2", "2");
+  const r2Dormant = await waitUntil("R2 Relay bridge starts dormant", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /room 2\\/10/.test(text) && /ground 1/.test(text) && /act 0\\.000/.test(text)
+      && /relays 2  gate 0\\.00  relic 0\\.00/.test(text)
+      ? { text }
+      : null;
+  })()`), 4500, 20);
+  let r2Awake;
+  await keyDown(cdp, "KeyD", "D");
+  try {
+    await keyTap(cdp, "Space", " ");
+    await sleep(350);
+    await keyTap(cdp, "KeyK", "K");
+    try {
+      r2Awake = await waitUntil("R2 first unique Relay wakes half the bridge", () => evaluate(cdp, `(() => {
+        const text = document.querySelector("#debugPanel").textContent;
+        const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+        return /relays 2  gate 0\\.50  relic 0\\.00/.test(text) && position
+          ? { x: Number(position[1]), y: Number(position[2]), text }
+          : null;
+      })()`), 2200, 20);
+    } catch (error) {
+      const snapshot = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
+      throw new Error(`${error.message}: ${snapshot}`);
+    }
+  } finally {
+    await keyUp(cdp, "KeyD", "D");
+  }
+  await sleep(4350);
+  const r2Cooldown = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
+  await keyTap(cdp, "KeyR", "R");
+  const r2Reset = await waitUntil("R2 retry restores the dormant Relay bridge", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /快速重开 · R2/.test(document.querySelector("#gameStatus").textContent)
+      && /relays 2  gate 0\\.00  relic 0\\.00/.test(text)
+      ? { text }
+      : null;
+  })()`), 3500, 20);
+  if (!/gate 0\.00/.test(r1Dormant.text)
+    || !/gate 1\.00/.test(r1Awake.text)
+    || !/gate 0\.00/.test(r1Reset.text)
+    || !/gate 0\.00/.test(r2Dormant.text)
+    || r2Awake.x < 270
+    || r2Awake.x > 355
+    || !/gate 0\.50/.test(r2Cooldown)
+    || !/gate 0\.00/.test(r2Reset.text)) {
+    errors.push("Mountain Gate landmarks should wake from authored attempt-local actions, survive ordinary Relay cooldown and clear on retry: " + JSON.stringify({ r1Dormant, r1Awake, r1Reset, r2Dormant, r2Awake, r2Cooldown, r2Reset }));
   }
 }
 
@@ -4278,6 +4375,7 @@ async function main() {
 
     await runDesktopSmoke(cdp, baseUrl);
     await runChapterTransitionInputSmoke(cdp, baseUrl);
+    await runMountainGateLandmarkSmoke(cdp, baseUrl);
     await runOldPeakRelicSmoke(cdp, baseUrl);
     await runWindGorgeCrumbleRippleSmoke(cdp, baseUrl);
     await runSpringApexSmoke(cdp, baseUrl);
@@ -4318,7 +4416,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, R1 Spark gate-step wake/retry and R2 Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

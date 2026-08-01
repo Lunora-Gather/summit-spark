@@ -273,6 +273,20 @@ if (!js.includes("awakened: false")
   || !js.includes("relic ${relayLandmarkProgress().toFixed(2)}")) {
   errors.push("Old Peak landmarks must retain current-attempt Relay awakenings and answer with distinct bounded world-space paths");
 }
+if (!js.includes("function gateLandmarkProgress()")
+  || !js.includes('if (kind === "gate-steps") return roomTech.spark ? 1 : 0;')
+  || !js.includes('if (kind === "relay-bridge")')
+  || !js.includes("relays.filter((relay) => relay.awakened).length / relays.length")
+  || !js.includes('if (kind === "mist-springs")')
+  || !js.includes("(Number(roomTech.spring) + Number(roomTech.springApex)) / 2")
+  || !js.includes("function drawGateLandmarkResponse(kind, progress, time)")
+  || !js.includes("drawGateLandmarkResponse(landmark.kind, gateLandmarkProgress(), time);")
+  || !js.includes('"gate-steps": [[-82, 54], [-42, 54], [-42, 34], [-4, 34], [-4, 14], [35, 14], [35, -8], [78, -8]]')
+  || !js.includes('"relay-bridge": [[-100, 22], [-52, 48], [0, 12], [52, -18], [104, 10]]')
+  || !js.includes('"mist-springs": [[-58, 52], [-34, 30], [-10, 52], [14, 30], [38, 52], [62, 30], [34, -2], [0, -36]]')
+  || !js.includes("gate ${gateLandmarkProgress().toFixed(2)}")) {
+  errors.push("Mountain Gate landmarks must answer R1 Spark, R2 unique Relays and the two-stage R3 spring-apex lesson through bounded attempt-local world paths");
+}
 if (!js.includes("ctx.lineWidth = 2.65") || !js.includes("ctx.lineWidth = 2.55") || !js.includes('const handSkin = "#d6aa8f"') || !js.includes("walling ? 1.3 : 1.15") || js.includes("ctx.arc(cx + player.wallDir * 12, y + 15, 2")) errors.push("player arms and muted hands should stay compact and wall grip must not add a duplicate glowing hand dot");
 if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missing");
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");

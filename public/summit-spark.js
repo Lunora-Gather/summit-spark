@@ -156,16 +156,16 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p244"),
-    import("./modules/core/math.mjs?v=20260729-p244"),
-    import("./modules/game/room-data.mjs?v=20260729-p244"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p244"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p244"),
-    import("./modules/systems/storage.mjs?v=20260729-p244"),
-    import("./modules/systems/input.mjs?v=20260729-p244"),
-    import("./modules/training/state.mjs?v=20260729-p244"),
-    import("./modules/training/replay.mjs?v=20260729-p244"),
-    import("./modules/ui/presentation.mjs?v=20260729-p244")
+    import("./modules/core/format.mjs?v=20260729-p245"),
+    import("./modules/core/math.mjs?v=20260729-p245"),
+    import("./modules/game/room-data.mjs?v=20260729-p245"),
+    import("./modules/game/effect-budget.mjs?v=20260729-p245"),
+    import("./modules/game/audio-cues.mjs?v=20260729-p245"),
+    import("./modules/systems/storage.mjs?v=20260729-p245"),
+    import("./modules/systems/input.mjs?v=20260729-p245"),
+    import("./modules/training/state.mjs?v=20260729-p245"),
+    import("./modules/training/replay.mjs?v=20260729-p245"),
+    import("./modules/ui/presentation.mjs?v=20260729-p245")
   ]);
 
   const canvas = document.getElementById("game");
@@ -9211,8 +9211,23 @@
         ctx.stroke();
       }
     }
+    drawGateLandmarkResponse(landmark.kind, gateLandmarkProgress(), time);
     drawRelayLandmarkResponse(landmark.kind, relayLandmarkProgress(), time, atmosphere);
     ctx.restore();
+  }
+
+  function gateLandmarkProgress() {
+    const kind = ROOM_LANDMARKS[roomIndex]?.kind;
+    if (kind === "gate-steps") return roomTech.spark ? 1 : 0;
+    if (kind === "relay-bridge") {
+      const relays = room.entities.relays;
+      if (!Array.isArray(relays) || relays.length === 0) return 0;
+      return relays.filter((relay) => relay.awakened).length / relays.length;
+    }
+    if (kind === "mist-springs") {
+      return (Number(roomTech.spring) + Number(roomTech.springApex)) / 2;
+    }
+    return 0;
   }
 
   function relayLandmarkProgress() {
@@ -9236,6 +9251,34 @@
       if (amount < 1) break;
     }
     ctx.stroke();
+  }
+
+  function drawGateLandmarkResponse(kind, progress, time) {
+    if (progress <= 0) return;
+    const breathe = prefersReducedMotion ? 0 : Math.sin(time * 1.8 + roomIndex) * 0.022;
+    const paths = {
+      "gate-steps": [[-82, 54], [-42, 54], [-42, 34], [-4, 34], [-4, 14], [35, 14], [35, -8], [78, -8]],
+      "relay-bridge": [[-100, 22], [-52, 48], [0, 12], [52, -18], [104, 10]],
+      "mist-springs": [[-58, 52], [-34, 30], [-10, 52], [14, 30], [38, 52], [62, 30], [34, -2], [0, -36]]
+    };
+    const path = paths[kind];
+    if (!path) return;
+    const color = progress >= 1 ? palette.green : palette.cyan;
+    ctx.save();
+    ctx.globalAlpha = (settings.calmEffects ? 0.18 : 0.28) + progress * 0.2 + breathe;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = settings.calmEffects ? 1.8 : 2.4;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 1 : 6);
+    drawProgressiveLandmarkPath(path, progress);
+    path.forEach(([x, y], index) => {
+      const amount = Math.max(0, Math.min(1, progress * path.length - index));
+      if (amount <= 0) return;
+      const size = 1.8 + amount * 1.8;
+      ctx.fillRect(x - size / 2, y - size / 2, size, size);
+    });
+    ctx.restore();
   }
 
   function drawRelayLandmarkResponse(kind, progress, time, atmosphere) {
@@ -11007,7 +11050,7 @@
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  recall ${echoAnchor && echoAnchor.room === roomIndex && recallCooldown <= 0 && player.deadTimer <= 0 ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
-      `relays ${room.entities.relays.length}  relic ${relayLandmarkProgress().toFixed(2)}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total} q${crumble.queued} a${crumble.armed}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
+      `relays ${room.entities.relays.length}  gate ${gateLandmarkProgress().toFixed(2)}  relic ${relayLandmarkProgress().toFixed(2)}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total} q${crumble.queued} a${crumble.armed}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
       `replay actions ${replayActionMarkersFor(bestRoomPaths[roomIndex]).length}  active ${practiceVisualsActive() ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,

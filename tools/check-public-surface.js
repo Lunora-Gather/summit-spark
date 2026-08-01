@@ -625,6 +625,7 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterGrade(")
   || !uiPresentationSource.includes("export function chapterTransitionResultData(")
   || !uiPresentationSource.includes("export function roomSplitFeedbackData(")
+  || !uiPresentationSource.includes("export function roomProgressSummaryData(")
   || !uiPresentationSource.includes("export function roomTrainingRecommendationData(")
   || !uiPresentationSource.includes("export function roomReviewPriorityData(")
   || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")
@@ -637,6 +638,7 @@ for (const delegation of [
   "return chapterCompletionModelData({",
   "return chapterTransitionResultData({",
   "const result = roomSplitFeedbackData({",
+  "return roomProgressSummaryData({",
   "return roomTrainingRecommendationData({",
   "return roomReviewPriorityData({",
   "return rankPracticeLedgerRowsData(maps.map(",
@@ -650,6 +652,11 @@ for (const delegation of [
 }
 if (/\bfunction\s+chapterGrade\s*\(/.test(runtimeSource)) {
   fail("public runtime must not duplicate the UI-owned chapter grade rule");
+}
+for (const retiredHelper of ["roomMedalLabel", "roomCleanText", "roomDrillText", "roomDrillContractText", "roomPaceLabel", "roomTierLabel"]) {
+  if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {
+    fail(`public runtime must not duplicate UI-owned room summary helper ${retiredHelper}`);
+  }
 }
 
 if (errors.length > 0) {

@@ -7,6 +7,13 @@ function nonNegativeNumber(value) {
   return Math.max(0, finiteNumber(value));
 }
 
+const ROOM_TIER_LABELS = Object.freeze({
+  learn: "教学",
+  combine: "组合",
+  pressure: "压力",
+  finale: "终盘"
+});
+
 export function chapterCompletionData(input = {}) {
   const roomTotal = Math.max(1, Math.floor(nonNegativeNumber(input.roomTotal)));
   const clear = nonNegativeNumber(input.clear);
@@ -169,6 +176,33 @@ export function roomTrainingRecommendationData(input = {}) {
     lineKind: "route",
     routeSlot,
     coachReason: null
+  };
+}
+
+export function roomProgressSummaryData(input = {}) {
+  const entry = input.entry && typeof input.entry === "object" ? input.entry : {};
+  const best = nonNegativeNumber(input.best);
+  const target = nonNegativeNumber(input.target);
+  const grade = typeof input.grade === "string" ? input.grade : "";
+  const formatTime = typeof input.formatTime === "function" ? input.formatTime : (value) => String(value);
+  const formatDelta = typeof input.formatDelta === "function" ? input.formatDelta : (value) => String(value);
+  const count = (key) => Math.floor(nonNegativeNumber(entry[key]));
+  const clears = count("clears");
+  const clean = count("clean");
+  const drills = count("drills");
+  const drillClears = count("drillClears");
+  const drillClean = count("drillClean");
+  const tier = typeof input.tier === "string" && input.tier ? input.tier : "route";
+  const paceDelta = best > 0 && target > 0 ? best - target : null;
+
+  return {
+    medal: best > 0 ? `${grade || "PB"} ${formatTime(best)}` : `T ${formatTime(target)}`,
+    clean: clears > 0 ? `无失误 ${clean}/${clears}` : "无失误 0/0",
+    drill: drills > 0 ? `Drill ${drillClean}/${drillClears}/${drills}` : "Drill 0",
+    contract: `C ${count("cleanWins")}/${count("cleanDrills")} · P ${count("paceWins")}/${count("paceDrills")} · S ${count("styleWins")}/${count("styleDrills")} · X ${count("expertWins")}/${count("expertDrills")}`,
+    pace: paceDelta === null ? "未游玩" : paceDelta <= 0 ? "已达标" : `慢 ${formatDelta(paceDelta)}`,
+    paceDelta,
+    tier: ROOM_TIER_LABELS[tier] || tier
   };
 }
 

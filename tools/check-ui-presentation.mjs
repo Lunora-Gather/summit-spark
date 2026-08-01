@@ -13,6 +13,7 @@ import {
   runChapterSplitsData,
   runReportTextData,
   roomSplitFeedbackData,
+  roomProgressSummaryData,
   roomTrainingRecommendationData,
   roomReviewPriorityData
 } from "../public/modules/ui/presentation.mjs";
@@ -290,6 +291,65 @@ assert.equal(roomTrainingRecommendationData({
   target: 9
 }).reasonKind, "unplayed", "missing completion evidence should fail closed as unplayed");
 
+const summaryFormatTime = (value) => `${Number(value).toFixed(2)}s`;
+const summaryFormatDelta = (value) => `${Number(value).toFixed(2)}s`;
+assert.deepEqual(roomProgressSummaryData({
+  entry: {
+    clears: 4,
+    clean: 3,
+    drills: 5,
+    drillClears: 4,
+    drillClean: 2,
+    cleanWins: 1,
+    cleanDrills: 2,
+    paceWins: 2,
+    paceDrills: 3,
+    styleWins: 1,
+    styleDrills: 1,
+    expertWins: 0,
+    expertDrills: 1
+  },
+  best: 8.5,
+  target: 9,
+  grade: "S",
+  tier: "combine",
+  formatTime: summaryFormatTime,
+  formatDelta: summaryFormatDelta
+}), {
+  medal: "S 8.50s",
+  clean: "无失误 3/4",
+  drill: "Drill 2/4/5",
+  contract: "C 1/2 · P 2/3 · S 1/1 · X 0/1",
+  pace: "已达标",
+  paceDelta: -0.5,
+  tier: "组合"
+});
+assert.deepEqual(roomProgressSummaryData({
+  entry: {},
+  best: 0,
+  target: 12,
+  tier: "learn",
+  formatTime: summaryFormatTime,
+  formatDelta: summaryFormatDelta
+}), {
+  medal: "T 12.00s",
+  clean: "无失误 0/0",
+  drill: "Drill 0",
+  contract: "C 0/0 · P 0/0 · S 0/0 · X 0/0",
+  pace: "未游玩",
+  paceDelta: null,
+  tier: "教学"
+}, "an unplayed room should keep the compact target-first summary");
+assert.equal(roomProgressSummaryData({
+  entry: { clears: -2, drills: Number.NaN, paceWins: 99 },
+  best: 11,
+  target: 9,
+  tier: "custom",
+  formatTime: summaryFormatTime,
+  formatDelta: summaryFormatDelta
+}).pace, "慢 2.00s", "a played room above target should expose one bounded pace delta");
+assert.equal(roomProgressSummaryData({ tier: "custom" }).tier, "custom", "future room tiers should remain visible instead of being discarded");
+
 assert.deepEqual(postRunReviewData({
   roomTimes: [8, 12, 14, 0],
   roomMistakes: [0, 2, 1, 9],
@@ -467,4 +527,4 @@ assert.ok(runReportTextData({
   }))
 }).length < 4000, "run reports must stay bounded even when display labels are malformed");
 
-console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, post-run evidence, run reports and practice priority ranking preserved.");
+console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, room training/progress summaries, post-run evidence, run reports and practice priority ranking preserved.");

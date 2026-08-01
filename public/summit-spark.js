@@ -157,21 +157,22 @@
       runChapterSplitsData,
       runReportTextData,
       roomSplitFeedbackData,
+      roomProgressSummaryData,
       roomTrainingRecommendationData,
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260801-p247"),
-    import("./modules/core/math.mjs?v=20260801-p247"),
-    import("./modules/game/room-data.mjs?v=20260801-p247"),
-    import("./modules/game/effect-budget.mjs?v=20260801-p247"),
-    import("./modules/game/landmark-progress.mjs?v=20260801-p247"),
-    import("./modules/game/audio-cues.mjs?v=20260801-p247"),
-    import("./modules/systems/storage.mjs?v=20260801-p247"),
-    import("./modules/systems/input.mjs?v=20260801-p247"),
-    import("./modules/training/state.mjs?v=20260801-p247"),
-    import("./modules/training/replay.mjs?v=20260801-p247"),
-    import("./modules/ui/presentation.mjs?v=20260801-p247")
+    import("./modules/core/format.mjs?v=20260801-p248"),
+    import("./modules/core/math.mjs?v=20260801-p248"),
+    import("./modules/game/room-data.mjs?v=20260801-p248"),
+    import("./modules/game/effect-budget.mjs?v=20260801-p248"),
+    import("./modules/game/landmark-progress.mjs?v=20260801-p248"),
+    import("./modules/game/audio-cues.mjs?v=20260801-p248"),
+    import("./modules/systems/storage.mjs?v=20260801-p248"),
+    import("./modules/systems/input.mjs?v=20260801-p248"),
+    import("./modules/training/state.mjs?v=20260801-p248"),
+    import("./modules/training/replay.mjs?v=20260801-p248"),
+    import("./modules/ui/presentation.mjs?v=20260801-p248")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3532,7 +3533,7 @@
       line: roomRouteLine(index, slot),
       core: routeLineCore(index, slot),
       reason: routeCueReason || "路线",
-      detail: `${routeFocusReason(index, slot)} / ${roomMasteryLevel(score)} ${score} / ${roomPaceLabel(index)}`,
+      detail: `${routeFocusReason(index, slot)} / ${roomMasteryLevel(score)} ${score} / ${roomProgressSummary(index).pace}`,
       objective: active ? activeDrill.objective : drillObjectiveForRoom(index, mode)
     };
   }
@@ -3610,47 +3611,20 @@
     masteryPopupDetail = "";
   }
 
-  function roomMedalLabel(index) {
+  function roomProgressSummary(index) {
+    const entry = roomFocus[index] || createRoomFocusEntry();
     const best = bestRoomTimes[index] || 0;
     const target = ROOM_TARGETS[index] || 0;
     const grade = splitGrade(best, target);
-    if (!best) return `T ${formatTime(target)}`;
-    return `${grade || "PB"} ${formatTime(best)}`;
-  }
-
-  function roomCleanText(index) {
-    const entry = roomFocus[index] || createRoomFocusEntry();
-    if (entry.clears > 0) return `无失误 ${entry.clean}/${entry.clears}`;
-    return "无失误 0/0";
-  }
-
-  function roomDrillText(index) {
-    const entry = roomFocus[index] || createRoomFocusEntry();
-    if (entry.drills <= 0) return "Drill 0";
-    return `Drill ${entry.drillClean}/${entry.drillClears}/${entry.drills}`;
-  }
-
-  function roomDrillContractText(index) {
-    const entry = roomFocus[index] || createRoomFocusEntry();
-    return `C ${entry.cleanWins}/${entry.cleanDrills} · P ${entry.paceWins}/${entry.paceDrills} · S ${entry.styleWins}/${entry.styleDrills} · X ${entry.expertWins}/${entry.expertDrills}`;
-  }
-
-  function roomPaceLabel(index) {
-    const best = bestRoomTimes[index] || 0;
-    const target = ROOM_TARGETS[index] || 0;
-    if (!best || !target) return "未游玩";
-    const delta = best - target;
-    if (delta <= 0) return "已达标";
-    return `慢 ${formatDelta(delta)}`;
-  }
-
-  function roomTierLabel(index) {
-    const tier = ROOM_TIERS[index] || "route";
-    if (tier === "learn") return "教学";
-    if (tier === "combine") return "组合";
-    if (tier === "pressure") return "压力";
-    if (tier === "finale") return "终盘";
-    return tier;
+    return roomProgressSummaryData({
+      entry,
+      best,
+      target,
+      grade,
+      tier: ROOM_TIERS[index] || "route",
+      formatTime,
+      formatDelta
+    });
   }
 
   function roomCoachHint(index, reason = "fall") {
@@ -3721,12 +3695,13 @@
 
   function roomFocusDetails(index) {
     const entry = roomFocus[index] || createRoomFocusEntry();
+    const progress = roomProgressSummary(index);
     const current = roomMistakes[index] || 0;
     const lead = leadingRoomReason(entry);
     const run = current > 0 ? `本轮失误 ${current}` : "本轮无失误";
     const saved = entry.faults > 0 ? `档案${deathReasonLabel(lead)} ${entry[lead] || 0}/${entry.faults}` : "档案无失误";
     const clears = entry.clears > 0 ? `无失误 ${entry.clean}/${entry.clears}` : "无失误 0/0";
-    return `${run} / ${saved} / ${clears} / ${roomDrillText(index)} / ${roomDrillContractText(index)} / ${roomPaceLabel(index)} / ${roomTierLabel(index)} / ${styleTrialText(index)} / ${roomSkillLabel(index)} / ${roomPurposeLabel(index)} / ${roomRouteLine(index, 0)} / ${roomRouteLine(index, 1)} / ${roomRouteLine(index, 2)} / ${ROOM_GUIDES[index] || ""}`;
+    return `${run} / ${saved} / ${clears} / ${progress.drill} / ${progress.contract} / ${progress.pace} / ${progress.tier} / ${styleTrialText(index)} / ${roomSkillLabel(index)} / ${roomPurposeLabel(index)} / ${roomRouteLine(index, 0)} / ${roomRouteLine(index, 1)} / ${roomRouteLine(index, 2)} / ${ROOM_GUIDES[index] || ""}`;
   }
 
   function strongestFocusRoom() {
@@ -4811,8 +4786,9 @@
         const entry = roomFocus[row.index] || createRoomFocusEntry();
         const title = `R${row.index + 1} ${ROOM_NAMES[row.index] || "Summit"}`;
         const reason = `${roomPracticeReason(row.index)} · ${routePracticeLine(row.index)}`;
-        const contract = roomDrillContractText(row.index);
-        const stats = `${roomMedalLabel(row.index)} / ${roomPaceLabel(row.index)} / ${roomCleanText(row.index)}`;
+        const progress = roomProgressSummary(row.index);
+        const contract = progress.contract;
+        const stats = `${progress.medal} / ${progress.pace} / ${progress.clean}`;
         const className = row.score >= 66 ? "strong" : row.score >= 30 ? "warming" : "weak";
         const focus = roomFocusScore(row.index) > 0 ? ` · 重点 ${deathReasonLabel(leadingRoomReason(entry))}` : "";
         return `<button class="ledger-row ${className}" type="button" data-ledger-room="${row.index}" data-ledger-mode="${row.mode}" title="${escapeHtml(row.action)}">`
@@ -5231,9 +5207,10 @@
   }
 
   function roomBriefHtml(index) {
+    const progress = roomProgressSummary(index);
     const route = (tone, label, slot) => `<span class="room-route ${tone}"><b>${label}</b><em>${escapeHtml(routeLineCore(index, slot))}</em></span>`;
-    return `<span class="room-brief-head"><strong>R${index + 1} ${escapeHtml(ROOM_NAMES[index] || "Summit")}</strong><em>${escapeHtml(roomMedalLabel(index))} · ${escapeHtml(roomPaceLabel(index))}</em></span>`
-      + `<span class="room-brief-stats">${escapeHtml(roomCleanText(index))} · ${escapeHtml(roomDrillText(index))} · ${escapeHtml(roomSkillLabel(index))}<small>合同 ${escapeHtml(roomDrillContractText(index))}</small></span>`
+    return `<span class="room-brief-head"><strong>R${index + 1} ${escapeHtml(ROOM_NAMES[index] || "Summit")}</strong><em>${escapeHtml(progress.medal)} · ${escapeHtml(progress.pace)}</em></span>`
+      + `<span class="room-brief-stats">${escapeHtml(progress.clean)} · ${escapeHtml(progress.drill)} · ${escapeHtml(roomSkillLabel(index))}<small>合同 ${escapeHtml(progress.contract)}</small></span>`
       + `<span class="room-brief-focus"><b>本房目标</b><em>${escapeHtml(roomPurposeLabel(index))}</em><small>${escapeHtml(styleTrialText(index))}</small></span>`
       + `<span class="room-route-grid">${route("safe", "稳健", 0)}${route("fast", "快速", 1)}${route("expert", "高手", 2)}</span>`;
   }

@@ -295,8 +295,11 @@ if (!js.includes("roomPurposeLabel")) errors.push("room purpose helper is missin
 if (!js.includes("roomRouteLine")) errors.push("room route line helper is missing");
 if (!js.includes("routeLineCore")) errors.push("drill route line core helper is missing");
 if (!js.includes("roomTrainingAdvice")) errors.push("room training advice helper is missing");
-if (!js.includes("roomDrillText")) errors.push("room drill stats helper is missing");
-if (!js.includes("roomPaceLabel")) errors.push("room pace helper is missing");
+if (!js.includes("function roomProgressSummary(index)")
+  || !js.includes("return roomProgressSummaryData({")
+  || !uiPresentationModule.includes("export function roomProgressSummaryData(")) {
+  errors.push("room progress surfaces must share the UI-owned summary model");
+}
 if (!js.includes("summitReviewCardsHtml")) errors.push("summit review card helper is missing");
 if (!js.includes("function runChapterSplits(") || !js.includes("function runChapterReview(") || !js.includes('reviewCardHtml("本轮分幕"') || !js.includes("runRoomTimes[roomIndex]")) errors.push("summit review must retain per-room timing and a quiet four-act breakdown");
 if (!js.includes("roomTimes: runRoomTimes.map(") || !js.includes("roomMistakes: roomMistakes.slice()") || !js.includes("chapterSplits: runChapterSplits().map(")) errors.push("diagnostics must expose current-run room and chapter evidence for full-pass tuning");

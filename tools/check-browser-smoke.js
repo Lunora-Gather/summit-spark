@@ -2914,8 +2914,9 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
     || surfaces.plan[0].room !== 2
     || surfaces.plan[0].mode !== "style"
     || new Set(surfaces.plan.map((item) => `${item.room}:${item.mode}`)).size !== 3
+    || new Set(surfaces.plan.map((item) => item.room)).size !== 3
     || challengeKey !== "全 Clean:R1:clean|全 S:R2:pace|全 Style:R3:style|全 Expert:R4:expert") {
-    errors.push("start, non-repeating three-step plan, queue and challenge recommendations must share the same causal ten-room evidence: " + JSON.stringify({ ...surfaces, queueKey, planKey, challengeKey }));
+    errors.push("start, three-room three-step plan, queue and challenge recommendations must share the same causal ten-room evidence: " + JSON.stringify({ ...surfaces, queueKey, planKey, challengeKey }));
   }
 
   await clickSelector(cdp, "#settingsClose");

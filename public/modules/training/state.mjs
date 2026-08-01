@@ -393,7 +393,8 @@ export function practicePlanTargetsData({
     !sameTarget({ index: first.index, mode }, firstTarget)
     && !sameTarget({ index: first.index, mode }, secondTarget)
   )) || "expert";
-  const thirdTarget = rows.find((row) => !sameTarget(row, firstTarget) && !sameTarget(row, secondTarget))
+  const thirdTarget = rows.find((row) => row.index !== firstTarget.index && row.index !== secondTarget.index)
+    || rows.find((row) => !sameTarget(row, firstTarget) && !sameTarget(row, secondTarget))
     || {
       index: first.index,
       mode: fallbackMode,

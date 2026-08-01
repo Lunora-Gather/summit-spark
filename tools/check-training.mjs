@@ -300,6 +300,7 @@ assert.deepEqual(practicePlanTargetsData({
   grade: "",
   recommendations: { style: 2, expert: 3 },
   ledgerRows: [
+    { index: 0, mode: "clean", score: 35, level: "成形" },
     { index: 2, mode: "style", score: 58, level: "成形" },
     { index: 4, mode: "clean", score: 20, level: "可通" }
   ]
@@ -307,7 +308,19 @@ assert.deepEqual(practicePlanTargetsData({
   first: { index: 0, mode: "pace", score: 40, level: "成形" },
   second: { index: 2, mode: "style" },
   third: { index: 4, mode: "clean", score: 20, level: "可通" }
-}, "the third plan step must skip a ledger row that exactly repeats the second target");
+}, "the third plan step must prefer a new room over valid same-room and duplicate-target ledger rows");
+assert.deepEqual(practicePlanTargetsData({
+  first: { index: 0, mode: "pace", score: 40, level: "成形" },
+  entry: { clean: 0 },
+  best: 0,
+  grade: "",
+  recommendations: { style: 2, expert: 3 },
+  ledgerRows: [{ index: 0, mode: "clean", score: 35, level: "成形" }]
+}), {
+  first: { index: 0, mode: "pace", score: 40, level: "成形" },
+  second: { index: 2, mode: "style" },
+  third: { index: 0, mode: "clean", score: 35, level: "成形" }
+}, "the plan may reuse a room with a distinct mode when no third room has supporting evidence");
 assert.deepEqual(practicePlanTargetsData({
   first: { index: 3, mode: "expert", score: 90, level: "掌握" },
   entry: { clean: 1 },

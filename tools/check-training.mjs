@@ -23,6 +23,7 @@ import {
   feelFixtureModeData,
   feelFixturePresentationData,
   leadingRoomReasonData,
+  practicePlanTargetsData,
   practiceRoomRecommendationsData,
   recordDrillClearData,
   recordDrillStartData,
@@ -291,6 +292,38 @@ assert.deepEqual(practiceRoomRecommendationsData([]), {
   pace: -1,
   style: -1,
   expert: -1
+});
+assert.deepEqual(practicePlanTargetsData({
+  first: { index: 0, mode: "pace", score: 40, level: "成形" },
+  entry: { clean: 0 },
+  best: 0,
+  grade: "",
+  recommendations: { style: 2, expert: 3 },
+  ledgerRows: [
+    { index: 2, mode: "style", score: 58, level: "成形" },
+    { index: 4, mode: "clean", score: 20, level: "可通" }
+  ]
+}), {
+  first: { index: 0, mode: "pace", score: 40, level: "成形" },
+  second: { index: 2, mode: "style" },
+  third: { index: 4, mode: "clean", score: 20, level: "可通" }
+}, "the third plan step must skip a ledger row that exactly repeats the second target");
+assert.deepEqual(practicePlanTargetsData({
+  first: { index: 3, mode: "expert", score: 90, level: "掌握" },
+  entry: { clean: 1 },
+  best: 9,
+  grade: "S",
+  recommendations: { style: 3, expert: 3 },
+  ledgerRows: [{ index: 3, mode: "expert", score: 90, level: "掌握" }]
+}), {
+  first: { index: 3, mode: "expert", score: 90, level: "掌握" },
+  second: { index: 3, mode: "style" },
+  third: { index: 3, mode: "clean", score: 90, level: "掌握" }
+}, "a one-room fallback should still offer three distinct Drill modes");
+assert.deepEqual(practicePlanTargetsData({ first: { index: -1, mode: "clean" } }), {
+  first: null,
+  second: null,
+  third: null
 });
 
 const challenge = { id: "nodeath", kind: "nodeath", label: "零失误登顶", goal: "完整通关且失误数为 0" };

@@ -352,6 +352,62 @@ export function practiceRoomRecommendationsData(rows = []) {
   return { recommended, clean, pace, style, expert };
 }
 
+export function practicePlanTargetsData({
+  first,
+  entry,
+  best,
+  grade,
+  recommendations,
+  ledgerRows
+} = {}) {
+  if (!first || !Number.isInteger(first.index) || first.index < 0 || typeof first.mode !== "string" || !first.mode) {
+    return { first: null, second: null, third: null };
+  }
+  const firstTarget = { ...first };
+  const nextMode = first.mode === "clean"
+    ? "pace"
+    : first.mode === "pace"
+      ? "style"
+      : first.mode === "style"
+        ? "expert"
+        : "style";
+  const count = (key) => Math.max(0, Math.trunc(Number(entry?.[key]) || 0));
+  const validRecommendation = (key) => {
+    const index = recommendations?.[key];
+    return Number.isInteger(index) && index >= 0 ? index : first.index;
+  };
+
+  let secondIndex = first.index;
+  if (nextMode === "style" && !(count("clean") > 0 || Number(best) > 0)) {
+    secondIndex = validRecommendation("style");
+  } else if (nextMode === "expert") {
+    const ready = grade === "S" && count("clean") > 0 && count("styleWins") > 0;
+    if (!ready) secondIndex = validRecommendation("expert");
+  }
+  const secondTarget = { index: secondIndex, mode: nextMode };
+  const rows = Array.isArray(ledgerRows)
+    ? ledgerRows.filter((row) => row && Number.isInteger(row.index) && row.index >= 0 && typeof row.mode === "string" && row.mode)
+    : [];
+  const sameTarget = (left, right) => left.index === right.index && left.mode === right.mode;
+  const fallbackMode = ["clean", "pace", "style", "expert"].find((mode) => (
+    !sameTarget({ index: first.index, mode }, firstTarget)
+    && !sameTarget({ index: first.index, mode }, secondTarget)
+  )) || "expert";
+  const thirdTarget = rows.find((row) => !sameTarget(row, firstTarget) && !sameTarget(row, secondTarget))
+    || {
+      index: first.index,
+      mode: fallbackMode,
+      score: first.score,
+      level: first.level
+    };
+
+  return {
+    first: firstTarget,
+    second: secondTarget,
+    third: { ...thirdTarget }
+  };
+}
+
 function boundedProgress(current, target) {
   if (!(target > 0)) return 0;
   return Math.round(Math.max(0, Math.min(1, current / target)) * 100);

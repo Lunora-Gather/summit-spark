@@ -537,9 +537,11 @@ if (!browserSmoke.includes("const r2LaunchDelays = [350, 320];")
 }
 if (!browserSmoke.includes("runPracticeRecommendationIntegrationSmoke")
   || !browserSmoke.includes("clean:R1|pace:R2|style:R3|expert:R4")
+  || !browserSmoke.includes("non-repeating three-step plan")
+  || !browserSmoke.includes("new Set(surfaces.plan.map")
   || !browserSmoke.includes("全 Clean:R1:clean|全 S:R2:pace|全 Style:R3:style|全 Expert:R4:expert")
   || !browserSmoke.includes("shared recommendation launches the exact R3 Style Drill")) {
-  errors.push("browser smoke must prove start, plan, queue, challenges and direct resume consume one causal recommendation snapshot");
+  errors.push("browser smoke must prove the distinct three-step plan, start, queue, challenges and direct resume consume one causal recommendation snapshot");
 }
 if (!browserSmoke.includes("chapter transition should expire early Jump/Dash")
   || !browserSmoke.includes("chapter transition should preserve a Jump pressed inside the final normal buffer window")) {

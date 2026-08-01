@@ -2908,12 +2908,14 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
     return { queue, plan, challenges };
   })()`));
   const queueKey = surfaces.queue.map((item) => `${item.mode}:R${item.room + 1}`).join("|");
+  const planKey = surfaces.plan.map((item) => `${item.mode}:R${item.room + 1}`).join("|");
   const challengeKey = surfaces.challenges.map((item) => `${item.label}:R${item.room + 1}:${item.mode}`).join("|");
   if (queueKey !== "clean:R1|pace:R2|style:R3|expert:R4"
     || surfaces.plan[0].room !== 2
     || surfaces.plan[0].mode !== "style"
+    || new Set(surfaces.plan.map((item) => `${item.room}:${item.mode}`)).size !== 3
     || challengeKey !== "全 Clean:R1:clean|全 S:R2:pace|全 Style:R3:style|全 Expert:R4:expert") {
-    errors.push("start, plan, queue and challenge recommendations must share the same causal ten-room evidence: " + JSON.stringify({ ...surfaces, queueKey, challengeKey }));
+    errors.push("start, non-repeating three-step plan, queue and challenge recommendations must share the same causal ten-room evidence: " + JSON.stringify({ ...surfaces, queueKey, planKey, challengeKey }));
   }
 
   await clickSelector(cdp, "#settingsClose");

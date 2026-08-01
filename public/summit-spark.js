@@ -128,6 +128,7 @@
       feelFixturePresentationData,
       leadingRoomReasonData,
       practiceRoomRecommendationsData,
+      practicePlanTargetsData,
       recordDrillClearData,
       recordDrillStartData,
       recordRoomClearData,
@@ -163,17 +164,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260801-p249"),
-    import("./modules/core/math.mjs?v=20260801-p249"),
-    import("./modules/game/room-data.mjs?v=20260801-p249"),
-    import("./modules/game/effect-budget.mjs?v=20260801-p249"),
-    import("./modules/game/landmark-progress.mjs?v=20260801-p249"),
-    import("./modules/game/audio-cues.mjs?v=20260801-p249"),
-    import("./modules/systems/storage.mjs?v=20260801-p249"),
-    import("./modules/systems/input.mjs?v=20260801-p249"),
-    import("./modules/training/state.mjs?v=20260801-p249"),
-    import("./modules/training/replay.mjs?v=20260801-p249"),
-    import("./modules/ui/presentation.mjs?v=20260801-p249")
+    import("./modules/core/format.mjs?v=20260801-p250"),
+    import("./modules/core/math.mjs?v=20260801-p250"),
+    import("./modules/game/room-data.mjs?v=20260801-p250"),
+    import("./modules/game/effect-budget.mjs?v=20260801-p250"),
+    import("./modules/game/landmark-progress.mjs?v=20260801-p250"),
+    import("./modules/game/audio-cues.mjs?v=20260801-p250"),
+    import("./modules/systems/storage.mjs?v=20260801-p250"),
+    import("./modules/systems/input.mjs?v=20260801-p250"),
+    import("./modules/training/state.mjs?v=20260801-p250"),
+    import("./modules/training/replay.mjs?v=20260801-p250"),
+    import("./modules/ui/presentation.mjs?v=20260801-p250")
   ]);
 
   const canvas = document.getElementById("game");
@@ -4034,13 +4035,6 @@
     chapterOverview.innerHTML = html;
   }
 
-  function nextContractMode(mode) {
-    if (mode === "clean") return "pace";
-    if (mode === "pace") return "style";
-    if (mode === "style") return "expert";
-    return "style";
-  }
-
   function contractPlanLabel(mode) {
     if (mode === "clean") return "稳";
     if (mode === "pace") return "快";
@@ -4049,31 +4043,26 @@
     return "练";
   }
 
-  function complementaryPracticeTarget(index, mode) {
-    const nextMode = nextContractMode(mode);
-    if (nextMode === "style") {
-      const entry = roomFocus[index] || createRoomFocusEntry();
-      if (entry.clean > 0 || bestRoomTimes[index] > 0) return { index, mode: nextMode };
-      return { index: stylePracticeRoom(), mode: nextMode };
-    }
-    if (nextMode === "expert") {
-      const entry = roomFocus[index] || createRoomFocusEntry();
-      const ready = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]) === "S" && entry.clean > 0 && entry.styleWins > 0;
-      return { index: ready ? index : expertPracticeRoom(), mode: nextMode };
-    }
-    return { index, mode: nextMode };
-  }
-
   function practicePlanSteps() {
-    const firstIndex = recommendedPracticeRoom();
+    const recommendations = practiceRoomRecommendations();
+    const firstIndex = recommendations.recommended;
     const firstMode = resolveDrillMode(firstIndex);
-    const second = complementaryPracticeTarget(firstIndex, firstMode);
-    const thirdRow = practiceLedgerRows().find((row) => row.index !== firstIndex || row.mode !== firstMode) || {
+    const first = {
       index: firstIndex,
-      mode: "expert",
+      mode: firstMode,
       score: roomMasteryScore(firstIndex),
       level: roomMasteryLevel(roomMasteryScore(firstIndex))
     };
+    const targets = practicePlanTargetsData({
+      first,
+      entry: roomFocus[firstIndex] || createRoomFocusEntry(),
+      best: bestRoomTimes[firstIndex] || 0,
+      grade: splitGrade(bestRoomTimes[firstIndex] || 0, ROOM_TARGETS[firstIndex]),
+      recommendations,
+      ledgerRows: practiceLedgerRows()
+    });
+    const second = targets.second;
+    const thirdRow = targets.third;
     return [
       {
         label: "现在",

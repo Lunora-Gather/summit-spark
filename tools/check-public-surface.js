@@ -589,6 +589,7 @@ if (!runtimeSource.includes('import("./modules/training/state.mjs?v=')
   || !trainingSource.includes("export function roomMasteryScoreData(")
   || !trainingSource.includes("export function roomReviewModeData(")
   || !trainingSource.includes("export function practiceRoomRecommendationsData(")
+  || !trainingSource.includes("export function practicePlanTargetsData(")
   || !trainingSource.includes("export function activeChallengeStateData(")
   || !trainingSource.includes("export function challengeProgressData(")
   || !trainingSource.includes("export function reconcileChallengeWinsData(")
@@ -609,6 +610,7 @@ for (const delegation of [
   "return roomMasteryScoreData({",
   "return roomReviewModeData({ entry, loss, pressure, grade })",
   "return practiceRoomRecommendationsData(maps.map(",
+  "const targets = practicePlanTargetsData({",
   "return practiceRoomRecommendations().recommended;",
   "return practiceRoomRecommendations().clean;",
   "return practiceRoomRecommendations().pace;",

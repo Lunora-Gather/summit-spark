@@ -535,6 +535,12 @@ if (!browserSmoke.includes("const r2LaunchDelays = [350, 320];")
   || !browserSmoke.includes("failed after two bounded input attempts")) {
   errors.push("R2 Relay landmark smoke must tolerate only one real-input timing retry and fail with both attempt snapshots");
 }
+if (!browserSmoke.includes("runPracticeRecommendationIntegrationSmoke")
+  || !browserSmoke.includes("clean:R1|pace:R2|style:R3|expert:R4")
+  || !browserSmoke.includes("全 Clean:R1:clean|全 S:R2:pace|全 Style:R3:style|全 Expert:R4:expert")
+  || !browserSmoke.includes("shared recommendation launches the exact R3 Style Drill")) {
+  errors.push("browser smoke must prove start, plan, queue, challenges and direct resume consume one causal recommendation snapshot");
+}
 if (!browserSmoke.includes("chapter transition should expire early Jump/Dash")
   || !browserSmoke.includes("chapter transition should preserve a Jump pressed inside the final normal buffer window")) {
   errors.push("browser smoke must prove chapter-transition stale-input expiry and final-window acceptance");

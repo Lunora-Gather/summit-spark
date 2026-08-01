@@ -2854,6 +2854,82 @@ async function runCloudConflictGuardSmoke(cdp, baseUrl) {
   }
 }
 
+async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 720,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
+  await navigateApp(cdp, baseUrl, "practice recommendation seed");
+  await evaluate(cdp, `(() => {
+    localStorage.clear();
+    localStorage.setItem("summit-spark-room-bests", JSON.stringify([8.5, 12, 12, 13]));
+    localStorage.setItem("summit-spark-room-focus", JSON.stringify({
+      schemaVersion: 2,
+      rooms: [
+        { clears: 1, clean: 0 },
+        { clears: 1, clean: 1 },
+        { faults: 5, fall: 5, last: "fall", clears: 1, clean: 1 },
+        { clears: 1, clean: 1, drills: 1, drillClears: 1, styleDrills: 1, styleWins: 1 }
+      ]
+    }));
+  })()`);
+  await navigateApp(cdp, baseUrl, "practice recommendation reload");
+
+  const startRecommendation = await waitUntil("start resume exposes the Focus-led recommendation", () => evaluate(cdp, `(() => {
+    const button = document.querySelector("#resumeTrainingButton");
+    if (!button || button.classList.contains("hidden")) return null;
+    return { text: button.textContent.trim(), ariaHidden: button.getAttribute("aria-hidden") };
+  })()`));
+  if (startRecommendation.text !== "继续训练 · R3 Style" || startRecommendation.ariaHidden !== "false") {
+    errors.push("start resume should expose the shared Focus-led R3 Style recommendation: " + JSON.stringify(startRecommendation));
+  }
+
+  await clickSelector(cdp, "#openTrainingButton");
+  await waitUntil("recommendation practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(cdp, ".settings-group-training");
+  await openSettingsGroup(cdp, ".practice-subgroup-advanced");
+  const surfaces = await waitUntil("all recommendation surfaces render from the seeded evidence", () => evaluate(cdp, `(() => {
+    const queue = [...document.querySelectorAll("#practiceQueue [data-queue-room]")].map((card) => ({
+      room: Number(card.getAttribute("data-queue-room")),
+      mode: card.getAttribute("data-queue-mode")
+    }));
+    const plan = [...document.querySelectorAll("#practicePlan [data-plan-room]")].map((card) => ({
+      room: Number(card.getAttribute("data-plan-room")),
+      mode: card.getAttribute("data-plan-mode")
+    }));
+    const challenges = [...document.querySelectorAll("#challengeBoard [data-challenge-room]")].map((card) => ({
+      label: card.querySelector(".challenge-meta b")?.textContent.trim() || "",
+      room: Number(card.getAttribute("data-challenge-room")),
+      mode: card.getAttribute("data-challenge-mode")
+    }));
+    if (queue.length !== 4 || plan.length !== 3 || challenges.length !== 4) return null;
+    return { queue, plan, challenges };
+  })()`));
+  const queueKey = surfaces.queue.map((item) => `${item.mode}:R${item.room + 1}`).join("|");
+  const challengeKey = surfaces.challenges.map((item) => `${item.label}:R${item.room + 1}:${item.mode}`).join("|");
+  if (queueKey !== "clean:R1|pace:R2|style:R3|expert:R4"
+    || surfaces.plan[0].room !== 2
+    || surfaces.plan[0].mode !== "style"
+    || challengeKey !== "全 Clean:R1:clean|全 S:R2:pace|全 Style:R3:style|全 Expert:R4:expert") {
+    errors.push("start, plan, queue and challenge recommendations must share the same causal ten-room evidence: " + JSON.stringify({ ...surfaces, queueKey, challengeKey }));
+  }
+
+  await clickSelector(cdp, "#settingsClose");
+  await clickSelector(cdp, "#resumeTrainingButton");
+  const launched = await waitUntil("shared recommendation launches the exact R3 Style Drill", () => evaluate(cdp, `(() => {
+    const status = document.querySelector("#gameStatus")?.textContent || "";
+    const room = document.querySelector("#roomCount")?.textContent || "";
+    return /Style Drill R3/.test(status) && room.startsWith("R3/") && document.querySelector("#overlay").classList.contains("hidden")
+      ? { status, room }
+      : null;
+  })()`), 5000, 20);
+  if (!/Style Drill R3/.test(launched.status) || !launched.room.startsWith("R3/")) {
+    errors.push("direct resume must launch the room and mode advertised by every recommendation surface: " + JSON.stringify(launched));
+  }
+}
+
 async function runResumeSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
@@ -4395,6 +4471,7 @@ async function main() {
     await runGroundRechargeSmoke(cdp, baseUrl);
     await runKeyboardSettingsSmoke(cdp, baseUrl);
     await runAssistModeSmoke(cdp, baseUrl);
+    await runPracticeRecommendationIntegrationSmoke(cdp, baseUrl);
     await runResumeSmoke(cdp, baseUrl);
     await runTrainingInterruptionSmoke(cdp, baseUrl);
     await runStorageSmoke(cdp, baseUrl);
@@ -4429,7 +4506,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, R1 Spark gate-step wake/retry and R2 Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, R1 Spark gate-step wake/retry and R2 Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

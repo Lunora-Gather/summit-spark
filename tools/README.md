@@ -15,6 +15,8 @@
 
 `check-core-format.mjs`、`check-core-math.mjs`、`check-room-data.mjs`、`check-effect-budget.mjs`、`check-landmark-progress.mjs`、`check-audio-cues.mjs`、`check-storage.mjs`、`check-input.mjs`、`check-training.mjs`、`check-training-replay.mjs` 和 `check-ui-presentation.mjs` 直接导入公开模块，固定纯函数、十房只读边界、长局视觉效果预算、山门/旧峰当前尝试地标进度、四幕声纹与转场节拍、存档精确同步/云冲突保护规则、输入映射、训练状态与五类房间推荐、PB 路线动作语义，以及章节完成度、房间训练/进度摘要、练习优先级、四幕汇总和本轮报告展示模型；它们由 `npm run check` 自动执行。
 
+浏览器回归会构造一份因果合法的十房训练档案，同时验证开始页、三步计划、四类队列、四张长期挑战和实际“继续训练”启动均消费同一组综合/Clean/Pace/Style/Expert 推荐结果。
+
 ## 房间数据
 
 - `lib/read-summit-data.js`：唯一允许合并解析 `public/modules/game/room-data.mjs` 与主运行时训练夹具的共享读取器。

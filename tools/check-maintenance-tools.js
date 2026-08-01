@@ -15,6 +15,7 @@ const requiredTools = [
   "tools/check-core-math.mjs",
   "tools/check-room-data.mjs",
   "tools/check-effect-budget.mjs",
+  "tools/check-landmark-progress.mjs",
   "tools/check-audio-cues.mjs",
   "tools/check-storage.mjs",
   "tools/check-input.mjs",

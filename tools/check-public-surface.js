@@ -33,6 +33,7 @@ const coreFormatSource = read("public/modules/core/format.mjs");
 const coreMathSource = read("public/modules/core/math.mjs");
 const roomDataSource = read("public/modules/game/room-data.mjs");
 const effectBudgetSource = read("public/modules/game/effect-budget.mjs");
+const landmarkProgressSource = read("public/modules/game/landmark-progress.mjs");
 const audioCuesSource = read("public/modules/game/audio-cues.mjs");
 const storageSource = read("public/modules/systems/storage.mjs");
 const inputSource = read("public/modules/systems/input.mjs");
@@ -74,6 +75,11 @@ const effectBudgetVersion = extractOne(
   "effect budget module version",
   runtimeSource,
   /modules\/game\/effect-budget\.mjs\?v=([^"]+)"/
+);
+const landmarkProgressVersion = extractOne(
+  "landmark progress module version",
+  runtimeSource,
+  /modules\/game\/landmark-progress\.mjs\?v=([^"]+)"/
 );
 const audioCuesVersion = extractOne(
   "audio cues module version",
@@ -127,6 +133,9 @@ if (buildVersion && roomDataVersion && buildVersion !== roomDataVersion) {
 }
 if (buildVersion && effectBudgetVersion && buildVersion !== effectBudgetVersion) {
   fail(`effect budget version ${effectBudgetVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && landmarkProgressVersion && buildVersion !== landmarkProgressVersion) {
+  fail(`landmark progress version ${landmarkProgressVersion} does not match build version ${buildVersion}`);
 }
 if (buildVersion && audioCuesVersion && buildVersion !== audioCuesVersion) {
   fail(`audio cues version ${audioCuesVersion} does not match build version ${buildVersion}`);
@@ -214,6 +223,13 @@ if (!runtimeSource.includes('import("./modules/game/effect-budget.mjs?v=')
   || !runtimeSource.includes('budgetEffectQueue("shards", shards)')
   || !runtimeSource.includes('budgetEffectQueue("lightTrails", lightTrails)')) {
   fail("public runtime must consume and enforce the shared effect queue budgets");
+}
+if (!runtimeSource.includes('import("./modules/game/landmark-progress.mjs?v=')
+  || !landmarkProgressSource.includes("export function mountainGateLandmarkProgress(")
+  || !landmarkProgressSource.includes("export function oldPeakRelayLandmarkProgress(")
+  || !runtimeSource.includes("mountainGateLandmarkProgress: mountainGateLandmarkProgressData")
+  || !runtimeSource.includes("oldPeakRelayLandmarkProgress: oldPeakRelayLandmarkProgressData")) {
+  fail("public runtime must consume the versioned pure landmark progress module");
 }
 if (runtimeSource.includes("while (lightTrails.length > 18)")) {
   fail("public runtime must not retain an independent light-trail queue limit");
@@ -311,7 +327,9 @@ if (!runtimeSource.includes("const relayChainPath = [];")
 if (!runtimeSource.includes("awakened: false")
   || !runtimeSource.includes("relay.awakened = true;")
   || !runtimeSource.includes("function relayLandmarkProgress()")
-  || !runtimeSource.includes("relays.filter((relay) => relay.awakened).length / relays.length")
+  || !runtimeSource.includes("return oldPeakRelayLandmarkProgressData(")
+  || !landmarkProgressSource.includes('"triple-link",\n  "switchback",\n  "broken-gate"')
+  || !landmarkProgressSource.includes("return awakenedRelayProgress(relays);")
   || !runtimeSource.includes("function drawProgressiveLandmarkPath(points, progress)")
   || !runtimeSource.includes("function drawRelayLandmarkResponse(kind, progress, time, atmosphere)")
   || !runtimeSource.includes("drawRelayLandmarkResponse(landmark.kind, relayLandmarkProgress(), time, atmosphere);")
@@ -320,13 +338,14 @@ if (!runtimeSource.includes("awakened: false")
   fail("Old Peak Relay progress should remain an attempt-local environmental landmark response without recoloring the climber");
 }
 if (!runtimeSource.includes("function gateLandmarkProgress()")
-  || !runtimeSource.includes('if (kind === "gate-steps") return roomTech.spark ? 1 : 0;')
-  || !runtimeSource.includes('if (kind === "relay-bridge")')
-  || !runtimeSource.includes('if (kind === "mist-springs")')
-  || !runtimeSource.includes("(Number(roomTech.spring) + Number(roomTech.springApex)) / 2")
+  || !runtimeSource.includes("return mountainGateLandmarkProgressData(kind, {")
+  || !runtimeSource.includes("return oldPeakRelayLandmarkProgressData(")
   || !runtimeSource.includes("function drawGateLandmarkResponse(kind, progress, time)")
   || !runtimeSource.includes("drawGateLandmarkResponse(landmark.kind, gateLandmarkProgress(), time);")
   || !runtimeSource.includes("gate ${gateLandmarkProgress().toFixed(2)}")
+  || !landmarkProgressSource.includes('if (kind === "gate-steps") return roomTech.spark === true ? 1 : 0;')
+  || !landmarkProgressSource.includes('if (kind === "relay-bridge") return awakenedRelayProgress(options?.relays);')
+  || !landmarkProgressSource.includes('if (kind === "mist-springs")')
   || runtimeSource.includes("hairColor = gateLandmarkProgress")) {
   fail("Mountain Gate lesson progress should wake only its existing room landmarks without adding UI or recoloring the climber");
 }

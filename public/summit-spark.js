@@ -55,6 +55,10 @@
       enforceEffectQueueBudget
     },
     {
+      mountainGateLandmarkProgress: mountainGateLandmarkProgressData,
+      oldPeakRelayLandmarkProgress: oldPeakRelayLandmarkProgressData
+    },
+    {
       ambientChapterCueData,
       chapterEntryCueData,
       summitCueData
@@ -156,16 +160,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260729-p245"),
-    import("./modules/core/math.mjs?v=20260729-p245"),
-    import("./modules/game/room-data.mjs?v=20260729-p245"),
-    import("./modules/game/effect-budget.mjs?v=20260729-p245"),
-    import("./modules/game/audio-cues.mjs?v=20260729-p245"),
-    import("./modules/systems/storage.mjs?v=20260729-p245"),
-    import("./modules/systems/input.mjs?v=20260729-p245"),
-    import("./modules/training/state.mjs?v=20260729-p245"),
-    import("./modules/training/replay.mjs?v=20260729-p245"),
-    import("./modules/ui/presentation.mjs?v=20260729-p245")
+    import("./modules/core/format.mjs?v=20260801-p246"),
+    import("./modules/core/math.mjs?v=20260801-p246"),
+    import("./modules/game/room-data.mjs?v=20260801-p246"),
+    import("./modules/game/effect-budget.mjs?v=20260801-p246"),
+    import("./modules/game/landmark-progress.mjs?v=20260801-p246"),
+    import("./modules/game/audio-cues.mjs?v=20260801-p246"),
+    import("./modules/systems/storage.mjs?v=20260801-p246"),
+    import("./modules/systems/input.mjs?v=20260801-p246"),
+    import("./modules/training/state.mjs?v=20260801-p246"),
+    import("./modules/training/replay.mjs?v=20260801-p246"),
+    import("./modules/ui/presentation.mjs?v=20260801-p246")
   ]);
 
   const canvas = document.getElementById("game");
@@ -9218,23 +9223,17 @@
 
   function gateLandmarkProgress() {
     const kind = ROOM_LANDMARKS[roomIndex]?.kind;
-    if (kind === "gate-steps") return roomTech.spark ? 1 : 0;
-    if (kind === "relay-bridge") {
-      const relays = room.entities.relays;
-      if (!Array.isArray(relays) || relays.length === 0) return 0;
-      return relays.filter((relay) => relay.awakened).length / relays.length;
-    }
-    if (kind === "mist-springs") {
-      return (Number(roomTech.spring) + Number(roomTech.springApex)) / 2;
-    }
-    return 0;
+    return mountainGateLandmarkProgressData(kind, {
+      roomTech,
+      relays: room.entities.relays
+    });
   }
 
   function relayLandmarkProgress() {
-    if (!["triple-link", "switchback", "broken-gate"].includes(ROOM_LANDMARKS[roomIndex]?.kind)) return 0;
-    const relays = room.entities.relays;
-    if (!Array.isArray(relays) || relays.length === 0) return 0;
-    return relays.filter((relay) => relay.awakened).length / relays.length;
+    return oldPeakRelayLandmarkProgressData(
+      ROOM_LANDMARKS[roomIndex]?.kind,
+      room.entities.relays
+    );
   }
 
   function drawProgressiveLandmarkPath(points, progress) {

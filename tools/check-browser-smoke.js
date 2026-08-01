@@ -1499,7 +1499,7 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     const act = text.match(/act ([\\d.]+)/);
     const remaining = act ? Number(act[1]) : -1;
-    return remaining >= 0.085 && remaining <= 0.12 ? { remaining, text } : null;
+    return remaining >= 0.025 && remaining <= 0.055 ? { remaining, text } : null;
   })()`), 3500, 10);
   await keyTap(cdp, "Space", " ");
   let lateJump;

@@ -164,17 +164,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260801-p251"),
-    import("./modules/core/math.mjs?v=20260801-p251"),
-    import("./modules/game/room-data.mjs?v=20260801-p251"),
-    import("./modules/game/effect-budget.mjs?v=20260801-p251"),
-    import("./modules/game/landmark-progress.mjs?v=20260801-p251"),
-    import("./modules/game/audio-cues.mjs?v=20260801-p251"),
-    import("./modules/systems/storage.mjs?v=20260801-p251"),
-    import("./modules/systems/input.mjs?v=20260801-p251"),
-    import("./modules/training/state.mjs?v=20260801-p251"),
-    import("./modules/training/replay.mjs?v=20260801-p251"),
-    import("./modules/ui/presentation.mjs?v=20260801-p251")
+    import("./modules/core/format.mjs?v=20260801-p252"),
+    import("./modules/core/math.mjs?v=20260801-p252"),
+    import("./modules/game/room-data.mjs?v=20260801-p252"),
+    import("./modules/game/effect-budget.mjs?v=20260801-p252"),
+    import("./modules/game/landmark-progress.mjs?v=20260801-p252"),
+    import("./modules/game/audio-cues.mjs?v=20260801-p252"),
+    import("./modules/systems/storage.mjs?v=20260801-p252"),
+    import("./modules/systems/input.mjs?v=20260801-p252"),
+    import("./modules/training/state.mjs?v=20260801-p252"),
+    import("./modules/training/replay.mjs?v=20260801-p252"),
+    import("./modules/ui/presentation.mjs?v=20260801-p252")
   ]);
 
   const canvas = document.getElementById("game");
@@ -4043,6 +4043,15 @@
     return "练";
   }
 
+  function practicePlanStepTitle(mode, index) {
+    if (index === 0) return "修最短板";
+    if (index === 1) return "换一种能力";
+    if (mode === "clean") return "补稳定";
+    if (mode === "pace") return "补节奏";
+    if (mode === "style") return "补变化";
+    return "补高手线";
+  }
+
   function practicePlanSteps() {
     const recommendations = practiceRoomRecommendations();
     const firstIndex = recommendations.recommended;
@@ -4069,7 +4078,7 @@
         index: firstIndex,
         mode: firstMode,
         reason: roomPracticeReason(firstIndex),
-        title: "修最短板",
+        title: practicePlanStepTitle(firstMode, 0),
         objective: drillObjectiveForRoom(firstIndex, firstMode)
       },
       {
@@ -4077,7 +4086,7 @@
         index: second.index,
         mode: second.mode,
         reason: drillContractStatus(drillContractStats(second.index, second.mode)),
-        title: "换一种能力",
+        title: practicePlanStepTitle(second.mode, 1),
         objective: drillObjectiveForRoom(second.index, second.mode)
       },
       {
@@ -4085,7 +4094,7 @@
         index: thirdRow.index,
         mode: thirdRow.mode,
         reason: `${thirdRow.level || roomMasteryLevel(roomMasteryScore(thirdRow.index))} ${thirdRow.score ?? roomMasteryScore(thirdRow.index)}`,
-        title: "补路线链",
+        title: practicePlanStepTitle(thirdRow.mode, 2),
         objective: drillObjectiveForRoom(thirdRow.index, thirdRow.mode)
       }
     ];
@@ -4094,7 +4103,7 @@
   function updatePracticePlan() {
     if (!practicePlan || !settingsVisible) return;
     const steps = practicePlanSteps();
-    const html = `<div class="plan-head"><span>训练计划</span><em>短板 → 类型 → 高手线</em></div>`
+    const html = `<div class="plan-head"><span>训练计划</span><em>短板 → 迁移 → 跨房</em></div>`
       + steps.map((step, index) => {
         const stats = drillContractStats(step.index, step.mode);
         const progress = drillContractProgress(stats);

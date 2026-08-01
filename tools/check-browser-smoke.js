@@ -2897,15 +2897,17 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
     }));
     const plan = [...document.querySelectorAll("#practicePlan [data-plan-room]")].map((card) => ({
       room: Number(card.getAttribute("data-plan-room")),
-      mode: card.getAttribute("data-plan-mode")
+      mode: card.getAttribute("data-plan-mode"),
+      title: card.querySelector(".plan-main em")?.textContent.trim().split(" · ")[0] || ""
     }));
     const challenges = [...document.querySelectorAll("#challengeBoard [data-challenge-room]")].map((card) => ({
       label: card.querySelector(".challenge-meta b")?.textContent.trim() || "",
       room: Number(card.getAttribute("data-challenge-room")),
       mode: card.getAttribute("data-challenge-mode")
     }));
+    const planHeader = document.querySelector("#practicePlan .plan-head em")?.textContent.trim() || "";
     if (queue.length !== 4 || plan.length !== 3 || challenges.length !== 4) return null;
-    return { queue, plan, challenges };
+    return { queue, plan, planHeader, challenges };
   })()`));
   const queueKey = surfaces.queue.map((item) => `${item.mode}:R${item.room + 1}`).join("|");
   const planKey = surfaces.plan.map((item) => `${item.mode}:R${item.room + 1}`).join("|");
@@ -2915,8 +2917,12 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
     || surfaces.plan[0].mode !== "style"
     || new Set(surfaces.plan.map((item) => `${item.room}:${item.mode}`)).size !== 3
     || new Set(surfaces.plan.map((item) => item.room)).size !== 3
+    || surfaces.planHeader !== "短板 → 迁移 → 跨房"
+    || surfaces.plan[0].title !== "修最短板"
+    || surfaces.plan[1].title !== "换一种能力"
+    || !surfaces.plan[2].title.startsWith("补")
     || challengeKey !== "全 Clean:R1:clean|全 S:R2:pace|全 Style:R3:style|全 Expert:R4:expert") {
-    errors.push("start, three-room three-step plan, queue and challenge recommendations must share the same causal ten-room evidence: " + JSON.stringify({ ...surfaces, queueKey, planKey, challengeKey }));
+    errors.push("start, labeled three-room three-step plan, queue and challenge recommendations must share the same causal ten-room evidence: " + JSON.stringify({ ...surfaces, queueKey, planKey, challengeKey }));
   }
 
   await clickSelector(cdp, "#settingsClose");

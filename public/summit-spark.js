@@ -164,17 +164,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260801-p252"),
-    import("./modules/core/math.mjs?v=20260801-p252"),
-    import("./modules/game/room-data.mjs?v=20260801-p252"),
-    import("./modules/game/effect-budget.mjs?v=20260801-p252"),
-    import("./modules/game/landmark-progress.mjs?v=20260801-p252"),
-    import("./modules/game/audio-cues.mjs?v=20260801-p252"),
-    import("./modules/systems/storage.mjs?v=20260801-p252"),
-    import("./modules/systems/input.mjs?v=20260801-p252"),
-    import("./modules/training/state.mjs?v=20260801-p252"),
-    import("./modules/training/replay.mjs?v=20260801-p252"),
-    import("./modules/ui/presentation.mjs?v=20260801-p252")
+    import("./modules/core/format.mjs?v=20260807-p253"),
+    import("./modules/core/math.mjs?v=20260807-p253"),
+    import("./modules/game/room-data.mjs?v=20260807-p253"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p253"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p253"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p253"),
+    import("./modules/systems/storage.mjs?v=20260807-p253"),
+    import("./modules/systems/input.mjs?v=20260807-p253"),
+    import("./modules/training/state.mjs?v=20260807-p253"),
+    import("./modules/training/replay.mjs?v=20260807-p253"),
+    import("./modules/ui/presentation.mjs?v=20260807-p253")
   ]);
 
   const canvas = document.getElementById("game");
@@ -711,6 +711,7 @@
   let lastChallengeBoardHtml = "";
   let lastProfileSummaryHtml = "";
   let lastPracticeLedgerHtml = "";
+  let lastRoomBriefHtml = "";
   let storageHealthMessage = "";
   let storageHealthToastShown = false;
   let authMode = "code";
@@ -3946,6 +3947,7 @@
   }
 
   function updatePracticeCoach() {
+    if (!settingsVisible) return;
     if (focusRoomButton) {
       const target = practiceTargetRoom();
       const mode = resolveDrillMode(target);
@@ -5176,7 +5178,9 @@
   function syncRoomSelect() {
     if (!roomSelect || document.activeElement === roomSelect) return;
     if (settingsVisible && panelMode === "practice") return;
-    roomSelect.value = String(roomIndex);
+    const value = String(roomIndex);
+    if (roomSelect.value === value) return;
+    roomSelect.value = value;
     updateRoomBrief();
   }
 
@@ -5193,7 +5197,10 @@
     if (!roomBrief || !roomSelect) return;
     const index = Number(roomSelect.value);
     const target = Number.isInteger(index) && index >= 0 && index < maps.length ? index : roomIndex;
-    roomBrief.innerHTML = roomBriefHtml(target);
+    const html = roomBriefHtml(target);
+    if (html === lastRoomBriefHtml) return;
+    lastRoomBriefHtml = html;
+    roomBrief.innerHTML = html;
     updateDrillVariantButtons();
   }
 
@@ -10917,6 +10924,22 @@
     return { active, total: room.entities.crumble.size, queued, armed };
   }
 
+  function setElementText(element, value) {
+    if (element && element.textContent !== value) element.textContent = value;
+  }
+
+  function setElementTitle(element, value) {
+    if (element && element.title !== value) element.title = value;
+  }
+
+  function setElementAttribute(element, name, value) {
+    if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);
+  }
+
+  function setElementTransform(element, value) {
+    if (element && element.style.transform !== value) element.style.transform = value;
+  }
+
   function updatePortraitBrief() {
     if (!portraitChapter || !portraitRoomTitle || !portraitRoomGoal) return;
     const startContext = !started;
@@ -10926,11 +10949,11 @@
     const chapterTone = target < 3 ? "gate" : target < 6 ? "old-peak" : target < 8 ? "wind" : "summit";
     if (shell && shell.dataset.portraitChapter !== chapterTone) shell.dataset.portraitChapter = chapterTone;
     const mode = resolveDrillMode(target);
-    portraitChapter.textContent = startContext
+    setElementText(portraitChapter, startContext
       ? `${hasProgress ? "上次训练" : "攀登起点"} · ${chapter}`
-      : chapter;
-    portraitRoomTitle.textContent = `R${target + 1} · ${ROOM_NAMES[target] || "Summit"}`;
-    portraitRoomGoal.textContent = `${hasProgress ? `${drillModeLabel(mode)} · ` : ""}${ROOM_PURPOSES[target] || ROOM_GUIDES[target] || "保持节奏，向上。"}`;
+      : chapter);
+    setElementText(portraitRoomTitle, `R${target + 1} · ${ROOM_NAMES[target] || "Summit"}`);
+    setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(mode)} · ` : ""}${ROOM_PURPOSES[target] || ROOM_GUIDES[target] || "保持节奏，向上。"}`);
   }
 
   function updateHud() {
@@ -10938,41 +10961,40 @@
     const found = collected.size;
     const roomBest = bestRoomTimes[roomIndex] || 0;
     const grade = splitGrade(roomBest, ROOM_TARGETS[roomIndex]);
-    lumenCount.textContent = `✦ ${found}/${totalLumens}`;
-    lumenCount.title = "微光会恢复冲刺；满冲刺拾取时可储备第二次冲刺";
-    roomCount.textContent = `R${roomIndex + 1}/${maps.length}${grade ? ` ${grade}` : ""}`;
+    setElementText(lumenCount, `✦ ${found}/${totalLumens}`);
+    setElementTitle(lumenCount, "微光会恢复冲刺；满冲刺拾取时可储备第二次冲刺");
+    setElementText(roomCount, `R${roomIndex + 1}/${maps.length}${grade ? ` ${grade}` : ""}`);
     syncTouchRecallButton();
     updatePortraitBrief();
-    splitTimeText.textContent = formatTime(roomTime);
+    setElementText(splitTimeText, formatTime(roomTime));
     const splitReference = roomBest || ROOM_TARGETS[roomIndex] || 0;
     const splitDelta = splitReference > 0 ? roomTime - splitReference : 0;
     if (splitDeltaText) {
-      splitDeltaText.textContent = splitReference > 0 ? formatDelta(splitDelta) : "--";
-    splitDeltaText.title = roomBest > 0 ? "房间最佳差值" : "目标时间差值";
+      setElementText(splitDeltaText, splitReference > 0 ? formatDelta(splitDelta) : "--");
+      setElementTitle(splitDeltaText, roomBest > 0 ? "房间最佳差值" : "目标时间差值");
     }
-    if (flowCountText) flowCountText.textContent = `F ${Math.floor(flowPeak || flowScore)}`;
-    if (flowCountText) flowCountText.title = `${flowTierLabel(flowPeak || flowScore)} flow`;
-    updatePracticeCoach();
-    runTimeText.textContent = formatTime(runTime);
-    deathCountText.textContent = `失 ${deathCount}`;
+    setElementText(flowCountText, `F ${Math.floor(flowPeak || flowScore)}`);
+    setElementTitle(flowCountText, `${flowTierLabel(flowPeak || flowScore)} flow`);
+    setElementText(runTimeText, formatTime(runTime));
+    setElementText(deathCountText, `失 ${deathCount}`);
     splitTimeText.classList.toggle("best", roomBest > 0 && roomTime > 0 && roomTime <= roomBest);
     splitDeltaText?.classList.toggle("best", splitReference > 0 && splitDelta <= 0);
     splitDeltaText?.classList.toggle("behind", splitReference > 0 && splitDelta > 0);
     flowCountText?.classList.toggle("best", bestFlow > 0 && Math.floor(flowPeak) >= Math.floor(bestFlow));
     runTimeText.classList.toggle("best", bestTime > 0 && runTime > 0 && runTime <= bestTime);
     const dashCharges = Math.max(0, Math.min(2, Math.round(player.dashes)));
-    dashFill.style.transform = `scaleX(${dashCharges > 0 ? 1 : 0.12})`;
-    dashMeter?.setAttribute("aria-valuenow", String(dashCharges));
-    dashMeter?.setAttribute("aria-valuetext", dashCharges > 0 ? `${dashCharges} 次冲刺可用` : "冲刺已耗尽");
+    setElementTransform(dashFill, `scaleX(${dashCharges > 0 ? 1 : 0.12})`);
+    setElementAttribute(dashMeter, "aria-valuenow", String(dashCharges));
+    setElementAttribute(dashMeter, "aria-valuetext", dashCharges > 0 ? `${dashCharges} 次冲刺可用` : "冲刺已耗尽");
     stage.classList.toggle("lumen-reserve", player.lumenReserve || player.dashes > 1);
     const staminaRatio = Math.max(0, Math.min(1, player.stamina / MAX_STAMINA));
     const staminaPercent = Math.round(staminaRatio * 100);
-    staminaFill.style.transform = `scaleX(${Math.max(0.08, staminaRatio)})`;
-    staminaMeter?.setAttribute("aria-valuenow", String(staminaPercent));
-    staminaMeter?.setAttribute("aria-valuetext", `体力 ${staminaPercent}%`);
+    setElementTransform(staminaFill, `scaleX(${Math.max(0.08, staminaRatio)})`);
+    setElementAttribute(staminaMeter, "aria-valuenow", String(staminaPercent));
+    setElementAttribute(staminaMeter, "aria-valuetext", `体力 ${staminaPercent}%`);
     const paceLimit = activeRoomTimeLimit(roomIndex) || splitReference;
     const paceProgress = paceLimit > 0 && timingArmed ? Math.max(0, Math.min(1, roomTime / paceLimit)) : 0;
-    if (paceFill) paceFill.style.transform = `scaleX(${paceProgress})`;
+    setElementTransform(paceFill, `scaleX(${paceProgress})`);
     if (paceMeter) {
       paceMeter.classList.toggle("ahead", paceLimit > 0 && roomTime <= paceLimit);
       paceMeter.classList.toggle("behind", paceLimit > 0 && roomTime > paceLimit);

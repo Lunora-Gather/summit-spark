@@ -569,6 +569,16 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("settings close after start", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === 0`));
+  const hiddenPanelMutations = await evaluate(cdp, `(async () => {
+    const panel = document.querySelector("#settingsPanel");
+    let count = 0;
+    const observer = new MutationObserver((records) => { count += records.length; });
+    observer.observe(panel, { attributes: true, childList: true, characterData: true, subtree: true });
+    await new Promise((resolve) => setTimeout(resolve, 420));
+    observer.disconnect();
+    return count;
+  })()`);
+  if (hiddenPanelMutations !== 0) errors.push(`hidden practice/settings DOM should remain mutation-free during gameplay, observed ${hiddenPanelMutations}`);
   await enableDebugPanel(cdp);
   const beforeMove = await debugPosition(cdp);
   if (!/relay chain 0  path 0/.test(beforeMove.text)) {
@@ -1499,8 +1509,8 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     const act = text.match(/act ([\\d.]+)/);
     const remaining = act ? Number(act[1]) : -1;
-    return remaining >= 0.025 && remaining <= 0.055 ? { remaining, text } : null;
-  })()`), 3500, 10);
+    return remaining > 0 && remaining <= 0.09 ? { remaining, text } : null;
+  })()`), 3500, 8);
   await keyTap(cdp, "Space", " ");
   let lateJump;
   try {
@@ -1617,8 +1627,8 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
   })()`), 4500, 20);
   let r2Awake = null;
   const r2AttemptSnapshots = [];
-  const r2LaunchDelays = [350, 320];
-  for (let attempt = 0; attempt < r2LaunchDelays.length && !r2Awake; attempt += 1) {
+  const r2LaunchCues = [{ jumpX: 105, dashX: 155 }, { jumpX: 95, dashX: 145 }];
+  for (let attempt = 0; attempt < r2LaunchCues.length && !r2Awake; attempt += 1) {
     if (attempt > 0) {
       await keyTap(cdp, "KeyR", "R");
       await waitUntil("R2 bounded Relay retry restores its start", () => evaluate(cdp, `(() => {
@@ -1630,8 +1640,36 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
     }
     await keyDown(cdp, "KeyD", "D");
     try {
+      try {
+        await waitUntil("R2 real-input run-up reaches jump cue", () => evaluate(cdp, `(() => {
+          const text = document.querySelector("#debugPanel").textContent;
+          const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+          return position && Number(position[1]) >= ${r2LaunchCues[attempt].jumpX} && /ground 1/.test(text)
+            ? { x: Number(position[1]), y: Number(position[2]), text }
+            : null;
+        })()`), 1200, 8);
+      } catch {
+        r2AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel").textContent`));
+        continue;
+      }
       await keyTap(cdp, "Space", " ");
-      await sleep(r2LaunchDelays[attempt]);
+      let launchCue;
+      try {
+        launchCue = await waitUntil("R2 real-input launch reaches dash cue", () => evaluate(cdp, `(() => {
+          const text = document.querySelector("#debugPanel").textContent;
+          const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+          if (!position) return null;
+          const state = { x: Number(position[1]), y: Number(position[2]), text };
+          return state.x >= ${r2LaunchCues[attempt].dashX} ? state : null;
+        })()`), 1500, 8);
+      } catch {
+        r2AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel").textContent`));
+        continue;
+      }
+      if (launchCue.x > 245) {
+        r2AttemptSnapshots.push(launchCue.text);
+        continue;
+      }
       await keyTap(cdp, "KeyK", "K");
       try {
         r2Awake = await waitUntil("R2 first unique Relay wakes half the bridge", () => evaluate(cdp, `(() => {

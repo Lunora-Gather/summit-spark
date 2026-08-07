@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-07
+
+- Removed hidden-panel work from the live gameplay frame in `20260807-p253`. `updateHud()` previously called the complete Practice renderer every frame and repeatedly rebuilt the hidden room brief, report, plan, route, Feel, challenge, profile and ledger surfaces; it also rewrote unchanged HUD text, attributes and transforms. Practice rendering now runs only while its panel is visible or when that visible state changes, the hidden room selector updates only when the room actually changes, room-brief HTML is cached, and small guarded DOM setters skip identical HUD writes. A real-browser `MutationObserver` requires the entire hidden settings subtree to remain mutation-free during active play. The flaky R2 Relay and late chapter-buffer proofs now trigger real keyboard input from live player/transition state instead of narrow host-millisecond sleeps, while retaining one bounded room-reset retry and all collision/lifecycle assertions. No visible UI, physics, maps, save data, classic climber silhouette or fixed `#294657` hair changed.
+
 ## 2026-08-01
 
 - Aligned the existing Practice plan language with its actual cross-room behavior in `20260801-p252`. The header now describes the sequence as `短板 → 迁移 → 跨房`; the first two cards keep their current roles, while the third names the evidence-backed mode it is filling—稳定、节奏、变化 or 高手线—instead of always claiming to “补路线链”. This is a copy-only refinement inside the same three cards, with browser coverage requiring the header and all three role labels to remain truthful. No new UI surface, map, physics, save field, character change or hair-color behavior was added.

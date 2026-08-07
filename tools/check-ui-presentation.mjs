@@ -12,6 +12,8 @@ import {
   runChapterReviewData,
   runChapterSplitsData,
   runReportTextData,
+  saveArchiveSummaryData,
+  saveBackupSummaryData,
   roomSplitFeedbackData,
   roomProgressSummaryData,
   roomTrainingRecommendationData,
@@ -527,4 +529,32 @@ assert.ok(runReportTextData({
   }))
 }).length < 4000, "run reports must stay bounded even when display labels are malformed");
 
-console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, room training/progress summaries, post-run evidence, run reports and practice priority ranking preserved.");
+assert.equal(saveBackupSummaryData({
+  savedAt: "2026-08-07T14:05:09.123Z",
+  archive: { build: "20260807-p253" }
+}), "可恢复：20260807-p253 / 2026-08-07 14:05:09");
+assert.equal(
+  saveBackupSummaryData({ savedAt: "\n", archive: { build: "bad\r\nbuild" } }),
+  "可恢复：bad build / 未知时间",
+  "backup summaries must stay single-line and tolerate malformed timestamps"
+);
+assert.equal(saveBackupSummaryData(null), "可恢复：未知版本 / 未知时间");
+
+assert.equal(saveArchiveSummaryData({
+  archive: {
+    sourceBuild: "20260807-p253",
+    profile: { summitClears: 2 },
+    bestFlow: 42.9,
+    roomBests: [8.2, 0, 11.4, -2, Number.NaN, 15],
+    settings: { touchSize: 62 }
+  },
+  roomTotal: 10
+}), "可导入：20260807-p253 / 登顶 2 / 房间 PB 3/10 / Flow 42 / 触控 62px");
+assert.equal(
+  saveArchiveSummaryData({ archive: { sourceBuild: "old\nforged", roomBests: "invalid" }, roomTotal: 10 }),
+  "可导入：old forged / 登顶 0 / 房间 PB 0/10 / Flow 0 / 触控 48px",
+  "archive summaries must fail closed when normalized fields are absent or malformed"
+);
+assert.equal(saveArchiveSummaryData(null), "可导入：未知版本 / 登顶 0 / 房间 PB 0/0 / Flow 0 / 触控 48px");
+
+console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, room training/progress summaries, save previews, post-run evidence, run reports and practice priority ranking preserved.");

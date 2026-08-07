@@ -343,6 +343,38 @@ function reportLineText(value, fallback = "") {
   return (text || fallback).slice(0, 120);
 }
 
+export function saveBackupSummaryData(backup = {}) {
+  const value = backup && typeof backup === "object" ? backup : {};
+  const archive = value.archive && typeof value.archive === "object" ? value.archive : {};
+  const rawSavedAt = typeof value.savedAt === "string" ? reportLineText(value.savedAt) : "";
+  const savedAt = rawSavedAt ? rawSavedAt.slice(0, 19).replace("T", " ") : "未知时间";
+  const build = typeof archive.build === "string"
+    ? reportLineText(archive.build, "未知版本")
+    : "未知版本";
+  return `可恢复：${build} / ${savedAt}`;
+}
+
+export function saveArchiveSummaryData(input = {}) {
+  const value = input && typeof input === "object" ? input : {};
+  const archive = value.archive && typeof value.archive === "object" ? value.archive : {};
+  const profile = archive.profile && typeof archive.profile === "object" ? archive.profile : {};
+  const settings = archive.settings && typeof archive.settings === "object" ? archive.settings : {};
+  const roomBests = Array.isArray(archive.roomBests) ? archive.roomBests : [];
+  const requestedRoomTotal = Math.floor(nonNegativeNumber(value.roomTotal));
+  const roomTotal = requestedRoomTotal || roomBests.length;
+  const bestRooms = roomBests
+    .slice(0, roomTotal)
+    .filter((seconds) => finiteNumber(seconds) > 0)
+    .length;
+  const build = typeof archive.sourceBuild === "string"
+    ? reportLineText(archive.sourceBuild, "未知版本")
+    : "未知版本";
+  const cleared = Math.floor(nonNegativeNumber(profile.summitClears));
+  const bestFlow = Math.floor(nonNegativeNumber(archive.bestFlow));
+  const touchSize = Math.floor(nonNegativeNumber(settings.touchSize)) || 48;
+  return `可导入：${build} / 登顶 ${cleared} / 房间 PB ${bestRooms}/${roomTotal} / Flow ${bestFlow} / 触控 ${touchSize}px`;
+}
+
 export function lumenRunSummaryData(input = {}) {
   const total = Math.floor(nonNegativeNumber(input.total));
   const found = Math.min(total, Math.floor(nonNegativeNumber(input.found)));

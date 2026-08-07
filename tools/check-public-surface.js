@@ -640,7 +640,9 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")
   || !uiPresentationSource.includes("export function runChapterSplitsData(")
   || !uiPresentationSource.includes("export function runChapterReviewData(")
-  || !uiPresentationSource.includes("export function runReportTextData(")) {
+  || !uiPresentationSource.includes("export function runReportTextData(")
+  || !uiPresentationSource.includes("export function saveArchiveSummaryData(")
+  || !uiPresentationSource.includes("export function saveBackupSummaryData(")) {
   fail("public runtime must consume the versioned UI presentation module");
 }
 for (const delegation of [
@@ -653,7 +655,9 @@ for (const delegation of [
   "return rankPracticeLedgerRowsData(maps.map(",
   "return runChapterSplitsData({",
   "const review = runChapterReviewData({",
-  "const text = runReportTextData({"
+  "const text = runReportTextData({",
+  "saveArchiveSummaryData({ archive: result, roomTotal: maps.length })",
+  "saveBackupSummaryData(backup)"
 ]) {
   if (!runtimeSource.includes(delegation)) {
     fail(`public runtime must delegate UI presentation ownership through ${delegation}`);
@@ -661,6 +665,11 @@ for (const delegation of [
 }
 if (/\bfunction\s+chapterGrade\s*\(/.test(runtimeSource)) {
   fail("public runtime must not duplicate the UI-owned chapter grade rule");
+}
+for (const retiredHelper of ["saveArchiveSummary", "saveBackupSummary"]) {
+  if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {
+    fail(`public runtime must not duplicate UI-owned save summary helper ${retiredHelper}`);
+  }
 }
 for (const retiredHelper of ["roomMedalLabel", "roomCleanText", "roomDrillText", "roomDrillContractText", "roomPaceLabel", "roomTierLabel"]) {
   if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {

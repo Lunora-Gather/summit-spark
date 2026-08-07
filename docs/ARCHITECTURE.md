@@ -25,7 +25,7 @@ summit-spark/
 │  │  ├─ state.mjs          # Drill、Route、Feel、Focus、五类房间推荐、三步计划、挑战与转场纯规则
 │  │  └─ replay.mjs         # PB 路线动作切换点与移动影子状态语义
 │  ├─ modules/ui/
-│  │  └─ presentation.mjs   # 章节/过房成绩、房间训练/进度摘要、练习优先级、四幕汇总与本轮报告模型
+│  │  └─ presentation.mjs   # 章节/过房成绩、训练/存档摘要、练习优先级、四幕汇总与本轮报告模型
 │  └─ vendor/               # 固定版本 Appwrite SDK 与许可证
 ├─ data/
 │  └─ rooms.generated.json # 房间/训练数据验证快照，不参与运行
@@ -79,7 +79,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、章节声纹、当前尝试地标进度、视觉效果队列预算、存档规则与云冲突前的本地进度保护、输入状态/缓冲/映射，Drill/Route/Feel/Focus/挑战的纯状态与结果组装规则、PB 路线动作语义，以及章节完成度、转场成绩、过房成绩、练习优先级、四幕汇总和隐私受限本轮报告模型，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出格式、安全文本、数学、只读房间内容、章节声纹、当前尝试地标进度、视觉效果队列预算、存档规则与云冲突前的本地进度保护、输入状态/缓冲/映射，Drill/Route/Feel/Focus/挑战的纯状态与结果组装规则、PB 路线动作语义，以及章节完成度、转场成绩、过房成绩、练习优先级、存档导入/备份摘要、四幕汇总和隐私受限本轮报告模型，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
 
 短期修改遵守：
 
@@ -92,7 +92,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成；五类房间推荐、优先跨房且目标不重复的三步计划、训练原因/路线推荐和多处共用的进度摘要也已统一由纯模型裁决。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成；五类房间推荐、优先跨房且目标不重复的三步计划、训练原因/路线推荐、多处共用的进度摘要及存档预览摘要也已统一由纯模型裁决。接下来的顺序是：
 
 1. `ui/`：只在有直接消费者与契约时继续迁移无副作用的面板/HUD 展示模型，DOM 事件仍留主运行时。
 2. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。

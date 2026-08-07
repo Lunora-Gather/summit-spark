@@ -300,6 +300,14 @@ if (!js.includes("function roomProgressSummary(index)")
   || !uiPresentationModule.includes("export function roomProgressSummaryData(")) {
   errors.push("room progress surfaces must share the UI-owned summary model");
 }
+if (!uiPresentationModule.includes("export function saveArchiveSummaryData(")
+  || !uiPresentationModule.includes("export function saveBackupSummaryData(")
+  || !js.includes("saveArchiveSummaryData({ archive: result, roomTotal: maps.length })")
+  || !js.includes("saveBackupSummaryData(backup)")
+  || /\bfunction\s+saveArchiveSummary\s*\(/.test(js)
+  || /\bfunction\s+saveBackupSummary\s*\(/.test(js)) {
+  errors.push("save import previews and backup summaries must share the defensive UI-owned presentation model");
+}
 if (!js.includes("summitReviewCardsHtml")) errors.push("summit review card helper is missing");
 if (!js.includes("function runChapterSplits(") || !js.includes("function runChapterReview(") || !js.includes('reviewCardHtml("本轮分幕"') || !js.includes("runRoomTimes[roomIndex]")) errors.push("summit review must retain per-room timing and a quiet four-act breakdown");
 if (!js.includes("roomTimes: runRoomTimes.map(") || !js.includes("roomMistakes: roomMistakes.slice()") || !js.includes("chapterSplits: runChapterSplits().map(")) errors.push("diagnostics must expose current-run room and chapter evidence for full-pass tuning");

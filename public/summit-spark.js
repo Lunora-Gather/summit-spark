@@ -158,23 +158,25 @@
       runChapterReviewData,
       runChapterSplitsData,
       runReportTextData,
+      saveArchiveSummaryData,
+      saveBackupSummaryData,
       roomSplitFeedbackData,
       roomProgressSummaryData,
       roomTrainingRecommendationData,
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p253"),
-    import("./modules/core/math.mjs?v=20260807-p253"),
-    import("./modules/game/room-data.mjs?v=20260807-p253"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p253"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p253"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p253"),
-    import("./modules/systems/storage.mjs?v=20260807-p253"),
-    import("./modules/systems/input.mjs?v=20260807-p253"),
-    import("./modules/training/state.mjs?v=20260807-p253"),
-    import("./modules/training/replay.mjs?v=20260807-p253"),
-    import("./modules/ui/presentation.mjs?v=20260807-p253")
+    import("./modules/core/format.mjs?v=20260807-p254"),
+    import("./modules/core/math.mjs?v=20260807-p254"),
+    import("./modules/game/room-data.mjs?v=20260807-p254"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p254"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p254"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p254"),
+    import("./modules/systems/storage.mjs?v=20260807-p254"),
+    import("./modules/systems/input.mjs?v=20260807-p254"),
+    import("./modules/training/state.mjs?v=20260807-p254"),
+    import("./modules/training/replay.mjs?v=20260807-p254"),
+    import("./modules/ui/presentation.mjs?v=20260807-p254")
   ]);
 
   const canvas = document.getElementById("game");
@@ -6236,17 +6238,10 @@
     }
   }
 
-  function saveBackupSummary(backup) {
-    const savedAt = typeof backup.savedAt === "string" ? backup.savedAt.slice(0, 19).replace("T", " ") : "未知时间";
-    const archive = backup.archive || {};
-    const build = typeof archive.build === "string" && archive.build ? archive.build : "未知版本";
-    return `可恢复：${build} / ${savedAt}`;
-  }
-
   function updateSaveBackupStatus() {
     const backup = readSaveBackup();
     if (saveBackupStatus) {
-      saveBackupStatus.textContent = backup ? saveBackupSummary(backup) : "暂无导入前备份";
+      saveBackupStatus.textContent = backup ? saveBackupSummaryData(backup) : "暂无导入前备份";
       saveBackupStatus.classList.toggle("valid", Boolean(backup));
       saveBackupStatus.classList.toggle("error", false);
     }
@@ -6265,20 +6260,12 @@
     }
     try {
       const result = normalizeSaveArchiveText(text);
-      setSaveImportStatus(saveArchiveSummary(result), "valid");
+      setSaveImportStatus(saveArchiveSummaryData({ archive: result, roomTotal: maps.length }), "valid");
       return result;
     } catch (error) {
       setSaveImportStatus(error.message || "存档 JSON 无法识别", "error");
       return null;
     }
-  }
-
-  function saveArchiveSummary(result) {
-    const build = result.sourceBuild || "未知版本";
-    const cleared = result.profile.summitClears || 0;
-    const bestFlowValue = Math.floor(result.bestFlow || 0);
-    const bestRooms = result.roomBests.filter((value) => value > 0).length;
-    return `可导入：${build} / 登顶 ${cleared} / 房间 PB ${bestRooms}/${maps.length} / Flow ${bestFlowValue} / 触控 ${result.settings.touchSize}px`;
   }
 
   async function copySaveArchive() {
@@ -6338,7 +6325,7 @@
       showGameTip("存档导入失败", error.message || "JSON 无法识别", "death", GAME_TIP_TIME, 3);
       return;
     }
-    setSaveImportStatus(`已导入：${saveArchiveSummary(result)}`, "valid");
+    setSaveImportStatus(`已导入：${saveArchiveSummaryData({ archive: result, roomTotal: maps.length })}`, "valid");
     setGameStatus("存档已导入，正在刷新");
     showGameTip("存档已导入", "旧档已本地备份，刷新后使用导入档案", "storage", GAME_TIP_TIME, 3);
     playSound("ui", 0.74);
@@ -6365,7 +6352,7 @@
       showGameTip("备份恢复失败", error.message || "备份无法识别", "death", GAME_TIP_TIME, 3);
       return;
     }
-    setSaveImportStatus(`已恢复：${saveArchiveSummary(result)}`, "valid");
+    setSaveImportStatus(`已恢复：${saveArchiveSummaryData({ archive: result, roomTotal: maps.length })}`, "valid");
     updateSaveBackupStatus();
     setGameStatus("备份已恢复，正在刷新");
     showGameTip("备份已恢复", "当前档案已先保存为新的备份", "storage", GAME_TIP_TIME, 3);

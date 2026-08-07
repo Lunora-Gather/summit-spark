@@ -470,6 +470,69 @@ export function feedbackTemplateTextData(input = {}) {
   ].join("\n");
 }
 
+export function gamepadStatusTextData(status = {}) {
+  const value = status && typeof status === "object" ? status : {};
+  if (value.supported !== true) return "不支持";
+  if (value.connected !== true) return "未连接";
+  const activeActions = Array.isArray(value.activeActions)
+    ? value.activeActions
+      .filter((action) => typeof action === "string" && action.trim())
+      .slice(0, 2)
+      .map((action) => reportLineText(action))
+    : [];
+  const active = activeActions.length ? ` · ${activeActions.join("/")}` : "";
+  const axisMagnitude = nonNegativeNumber(value.axisMagnitude);
+  const axis = axisMagnitude > 0.05 ? ` · 轴 ${axisMagnitude.toFixed(2)}` : "";
+  const drift = value.driftRisk === true ? " · 接近死区" : "";
+  const count = Math.floor(nonNegativeNumber(value.count));
+  return `${count} 个 · standard ${value.standardMapping === true}${axis}${drift}${active}`;
+}
+
+export function practiceProgressSummaryData(input = {}) {
+  const value = input && typeof input === "object" ? input : {};
+  const entries = Array.isArray(value.roomFocus) ? value.roomFocus : [];
+  const requestedRoomTotal = Math.floor(nonNegativeNumber(value.roomTotal));
+  const roomTotal = requestedRoomTotal || entries.length;
+  const boundedEntries = entries
+    .slice(0, roomTotal)
+    .map((entry) => entry && typeof entry === "object" ? entry : {});
+  const cleanRooms = boundedEntries.filter((entry) => nonNegativeNumber(entry.clean) > 0).length;
+  const chapterPercent = Math.max(0, Math.min(100, Math.round(nonNegativeNumber(value.chapterPercent))));
+  const chapterGrade = reportLineText(value.chapterGrade, "D");
+  const challenges = Array.isArray(value.challenges)
+    ? value.challenges.filter((item) => item && typeof item === "object")
+    : [];
+  const challengeWins = challenges.filter((item) => item.done === true).length;
+  const nextChallenge = challenges.find((item) => item.done !== true) || null;
+  const challengeText = nextChallenge
+    ? `挑战 ${challengeWins}/${challenges.length} ${reportLineText(nextChallenge.label, "未命名挑战")} ${Math.max(0, Math.min(100, Math.round(nonNegativeNumber(nextChallenge.progress))))}%`
+    : `挑战 ${challengeWins}/${challenges.length} 全完成`;
+  const totals = boundedEntries.reduce((sum, entry) => {
+    for (const key of Object.keys(sum)) sum[key] += Math.floor(nonNegativeNumber(entry[key]));
+    return sum;
+  }, {
+    drills: 0,
+    drillClears: 0,
+    drillClean: 0,
+    cleanWins: 0,
+    cleanDrills: 0,
+    paceWins: 0,
+    paceDrills: 0,
+    styleWins: 0,
+    styleDrills: 0,
+    expertWins: 0,
+    expertDrills: 0
+  });
+  return {
+    cleanRooms,
+    roomTotal,
+    chapter: `章节 ${chapterGrade} ${chapterPercent}%`,
+    challenge: challengeText,
+    drill: totals.drills > 0 ? `Drill ${totals.drillClean}/${totals.drillClears}/${totals.drills}` : "Drill 0",
+    contract: `合约 C ${totals.cleanWins}/${totals.cleanDrills} · P ${totals.paceWins}/${totals.paceDrills} · S ${totals.styleWins}/${totals.styleDrills} · X ${totals.expertWins}/${totals.expertDrills}`
+  };
+}
+
 export function lumenRunSummaryData(input = {}) {
   const total = Math.floor(nonNegativeNumber(input.total));
   const found = Math.min(total, Math.floor(nonNegativeNumber(input.found)));

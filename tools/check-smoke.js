@@ -254,7 +254,7 @@ async function main() {
       .forEach((marker) => expectIncludes("training module", trainingModule, marker));
     ["export const REPLAY_ACTION_LABELS =", "export function replayActionMarkersData(", "export function replayGhostStateData("]
       .forEach((marker) => expectIncludes("training replay module", trainingReplayModule, marker));
-    ["export function chapterCompletionData(", "export function chapterGrade(", "export function feedbackDiagnosticsData(", "export function feedbackTemplateTextData(", "export function roomReviewPriorityData(", "export function rankPracticeLedgerRowsData(", "export function saveArchiveSummaryData(", "export function saveBackupSummaryData("]
+    ["export function chapterCompletionData(", "export function chapterGrade(", "export function feedbackDiagnosticsData(", "export function feedbackTemplateTextData(", "export function gamepadStatusTextData(", "export function practiceProgressSummaryData(", "export function roomReviewPriorityData(", "export function rankPracticeLedgerRowsData(", "export function saveArchiveSummaryData(", "export function saveBackupSummaryData("]
       .forEach((marker) => expectIncludes("UI presentation module", uiPresentationModule, marker));
 
     [

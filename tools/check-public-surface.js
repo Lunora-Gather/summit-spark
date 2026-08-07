@@ -637,6 +637,8 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function summitChapterResultTextData(")
   || !uiPresentationSource.includes("export function feedbackDiagnosticsData(")
   || !uiPresentationSource.includes("export function feedbackTemplateTextData(")
+  || !uiPresentationSource.includes("export function gamepadStatusTextData(")
+  || !uiPresentationSource.includes("export function practiceProgressSummaryData(")
   || !uiPresentationSource.includes("export function roomSplitFeedbackData(")
   || !uiPresentationSource.includes("export function roomProgressSummaryData(")
   || !uiPresentationSource.includes("export function roomTrainingRecommendationData(")
@@ -656,10 +658,12 @@ for (const delegation of [
   "return summitChapterResultTextModelData({",
   "return feedbackDiagnosticsData({",
   "return feedbackTemplateTextData({",
+  "return gamepadStatusTextData(lastGamepadStatus)",
   "const result = roomSplitFeedbackData({",
   "return roomProgressSummaryData({",
   "return roomTrainingRecommendationData({",
   "return roomReviewPriorityData({",
+  "return practiceProgressSummaryData({",
   "return rankPracticeLedgerRowsData(maps.map(",
   "return runChapterSplitsData({",
   "const review = runChapterReviewData({",
@@ -677,6 +681,11 @@ if (/\bfunction\s+chapterGrade\s*\(/.test(runtimeSource)) {
 for (const retiredHelper of ["feedbackTypeLabel", "saveArchiveSummary", "saveBackupSummary"]) {
   if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {
     fail(`public runtime must not duplicate UI-owned save summary helper ${retiredHelper}`);
+  }
+}
+for (const retiredHelper of ["chapterSummary", "challengeSummary", "contractSummary"]) {
+  if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {
+    fail(`public runtime must not duplicate UI-owned practice summary helper ${retiredHelper}`);
   }
 }
 for (const retiredHelper of ["roomMedalLabel", "roomCleanText", "roomDrillText", "roomDrillContractText", "roomPaceLabel", "roomTierLabel"]) {

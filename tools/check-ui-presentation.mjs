@@ -9,9 +9,11 @@ import {
   summitChapterResultTextData,
   feedbackDiagnosticsData,
   feedbackTemplateTextData,
+  gamepadStatusTextData,
   fullRunRecordEligibilityData,
   lumenRunSummaryData,
   postRunReviewData,
+  practiceProgressSummaryData,
   rankPracticeLedgerRowsData,
   runChapterReviewData,
   runChapterSplitsData,
@@ -627,5 +629,60 @@ assert.doesNotMatch(malformedFeedbackTemplate, /bad\nforged|line\nforge|route\nf
 assert.match(malformedFeedbackTemplate, /反馈类型：路线摩擦/);
 assert.match(malformedFeedbackTemplate, /视口：0x0 dpr 1 coarse no/);
 assert.match(malformedFeedbackTemplate, /dz 0\.00/);
+
+assert.equal(gamepadStatusTextData(), "不支持");
+assert.equal(gamepadStatusTextData({ supported: true }), "未连接");
+assert.equal(gamepadStatusTextData({
+  supported: true,
+  connected: true,
+  count: 2,
+  standardMapping: true,
+  axisMagnitude: 0.347,
+  driftRisk: true,
+  activeActions: ["跳", "冲", "抓"]
+}), "2 个 · standard true · 轴 0.35 · 接近死区 · 跳/冲");
+assert.equal(gamepadStatusTextData({
+  supported: true,
+  connected: true,
+  count: -2,
+  axisMagnitude: "invalid",
+  activeActions: "invalid"
+}), "0 个 · standard false");
+
+assert.deepEqual(practiceProgressSummaryData({
+  roomTotal: 3,
+  chapterPercent: 64,
+  chapterGrade: "A",
+  challenges: [
+    { done: true, label: "完成项", progress: 100 },
+    { done: false, label: "下一项", progress: 42 }
+  ],
+  roomFocus: [
+    { clean: 1, drills: 3, drillClears: 2, drillClean: 1, cleanWins: 1, cleanDrills: 2, paceWins: 2, paceDrills: 3 },
+    { clean: 0, drills: 2, drillClears: 1, drillClean: 1, styleWins: 1, styleDrills: 2, expertWins: 1, expertDrills: 4 },
+    { clean: 2, drills: 0 }
+  ]
+}), {
+  cleanRooms: 2,
+  roomTotal: 3,
+  chapter: "章节 A 64%",
+  challenge: "挑战 1/2 下一项 42%",
+  drill: "Drill 2/3/5",
+  contract: "合约 C 1/2 · P 2/3 · S 1/2 · X 1/4"
+});
+assert.deepEqual(practiceProgressSummaryData({
+  roomTotal: 2,
+  chapterPercent: 999,
+  chapterGrade: "SS\nforged",
+  challenges: [{ done: true }, { done: true }],
+  roomFocus: [{ drills: -2, cleanWins: Number.NaN }, null, { clean: 9, drills: 99 }]
+}), {
+  cleanRooms: 0,
+  roomTotal: 2,
+  chapter: "章节 SS forged 100%",
+  challenge: "挑战 2/2 全完成",
+  drill: "Drill 0",
+  contract: "合约 C 0/0 · P 0/0 · S 0/0 · X 0/0"
+});
 
 console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, room training/progress summaries, save/feedback previews, post-run evidence, run reports and practice priority ranking preserved.");

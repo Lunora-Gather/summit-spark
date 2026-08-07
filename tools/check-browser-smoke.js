@@ -1405,7 +1405,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     if (!position || !/wind 1/.test(debug)) return null;
     return { x: Number(position[1]), y: Number(position[2]), debug };
-  })()`), 1400, 20);
+  })()`), 2400, 20);
   await keyUp(cdp, "KeyD", "D");
   await keyHold(cdp, "KeyA", "A", 520);
   const r7WindExit = await waitUntil("R7 updraft wake clears after leaving the exact field", () => evaluate(cdp, `(() => {

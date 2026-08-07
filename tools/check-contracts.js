@@ -338,7 +338,9 @@ if (!js.includes("practicePlanSteps")) errors.push("practice plan must generate 
 if (!js.includes("updatePracticeQueue")) errors.push("practice queue helper is missing");
 if (!js.includes("updatePracticeLedger")) errors.push("practice ledger helper is missing");
 if (!js.includes("roomMasteryScore")) errors.push("room mastery score helper is missing");
-if (!js.includes("contractSummary")) errors.push("drill contract summary helper is missing");
+if (!js.includes("function practiceProgressSummary()")
+  || !js.includes("return practiceProgressSummaryData({")
+  || !uiPresentationModule.includes("export function practiceProgressSummaryData(")) errors.push("practice progress and drill-contract summaries must share the UI-owned model");
 if (!js.includes("drillContractStats")) errors.push("drill contract card stats helper is missing");
 if (!js.includes("practiceRouteSummary")) errors.push("practice route summary helper is missing");
 if (!js.includes("practiceLedgerSummary")) errors.push("practice ledger summary helper is missing");
@@ -381,6 +383,8 @@ if (!js.includes("function buildFeedbackTemplate(")
   || !uiPresentationModule.includes("export function feedbackTemplateTextData(")
   || /\bfunction\s+feedbackTypeLabel\s*\(/.test(js)) errors.push("feedback template copy must use the defensive UI-owned presentation model");
 if (!js.includes("copyFeedbackTemplate")) errors.push("feedback template copy helper is missing");
+if (!js.includes("return gamepadStatusTextData(lastGamepadStatus)")
+  || !uiPresentationModule.includes("export function gamepadStatusTextData(")) errors.push("gamepad settings status must use the defensive UI-owned presentation model");
 if (!js.includes("SAVE_ARCHIVE_KIND")) errors.push("save archive kind guard is missing");
 if (!js.includes("buildSaveArchive")) errors.push("save archive export helper is missing");
 if (!js.includes("copySaveArchive")) errors.push("save archive copy helper is missing");

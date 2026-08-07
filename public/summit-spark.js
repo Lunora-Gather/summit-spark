@@ -156,8 +156,10 @@
       fullRunRecordEligibilityData,
       feedbackDiagnosticsData,
       feedbackTemplateTextData,
+      gamepadStatusTextData,
       lumenRunSummaryData,
       postRunReviewData,
+      practiceProgressSummaryData,
       rankPracticeLedgerRowsData,
       runChapterReviewData,
       runChapterSplitsData,
@@ -170,17 +172,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p256"),
-    import("./modules/core/math.mjs?v=20260807-p256"),
-    import("./modules/game/room-data.mjs?v=20260807-p256"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p256"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p256"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p256"),
-    import("./modules/systems/storage.mjs?v=20260807-p256"),
-    import("./modules/systems/input.mjs?v=20260807-p256"),
-    import("./modules/training/state.mjs?v=20260807-p256"),
-    import("./modules/training/replay.mjs?v=20260807-p256"),
-    import("./modules/ui/presentation.mjs?v=20260807-p256")
+    import("./modules/core/format.mjs?v=20260807-p257"),
+    import("./modules/core/math.mjs?v=20260807-p257"),
+    import("./modules/game/room-data.mjs?v=20260807-p257"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p257"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p257"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p257"),
+    import("./modules/systems/storage.mjs?v=20260807-p257"),
+    import("./modules/systems/input.mjs?v=20260807-p257"),
+    import("./modules/training/state.mjs?v=20260807-p257"),
+    import("./modules/training/replay.mjs?v=20260807-p257"),
+    import("./modules/ui/presentation.mjs?v=20260807-p257")
   ]);
 
   const canvas = document.getElementById("game");
@@ -4890,12 +4892,7 @@
   }
 
   function gamepadStatusLabel() {
-    if (!lastGamepadStatus.supported) return "不支持";
-    if (!lastGamepadStatus.connected) return "未连接";
-    const active = lastGamepadStatus.activeActions.length ? ` · ${lastGamepadStatus.activeActions.slice(0, 2).join("/")}` : "";
-    const axis = lastGamepadStatus.axisMagnitude > 0.05 ? ` · 轴 ${lastGamepadStatus.axisMagnitude.toFixed(2)}` : "";
-    const drift = lastGamepadStatus.driftRisk ? " · 接近死区" : "";
-    return `${lastGamepadStatus.count} 个 · standard ${lastGamepadStatus.standardMapping}${axis}${drift}${active}`;
+    return gamepadStatusTextData(lastGamepadStatus);
   }
 
   function recallToAnchor() {
@@ -8291,43 +8288,24 @@
   }
 
   function practiceReportText() {
-    const cleanRooms = roomFocus.filter((entry) => entry && entry.clean > 0).length;
+    const progress = practiceProgressSummary();
     const next = recommendedPracticeRoom();
-    return `无失误 ${cleanRooms}/${maps.length} / ${chapterSummary()} / ${challengeSummary()} / ${drillSummary()} / ${contractSummary()} / ${routeContractSummaryText()} / 路线图 ${masteryRoadmapSummary()} / ${practiceRouteSummary()} / 优先 ${practiceLedgerSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 建议 ${roomTrainingAdvice(next)}`;
+    return `无失误 ${progress.cleanRooms}/${progress.roomTotal} / ${progress.chapter} / ${progress.challenge} / ${progress.drill} / ${progress.contract} / ${routeContractSummaryText()} / 路线图 ${masteryRoadmapSummary()} / ${practiceRouteSummary()} / 优先 ${practiceLedgerSummary()} / ${weakestRoomSummary()} / ${splitLossSummary()} / 建议 ${roomTrainingAdvice(next)}`;
   }
 
-  function chapterSummary() {
+  function practiceProgressSummary() {
     const data = chapterCompletionData();
-    return `章节 ${chapterGrade(data.percent)} ${data.percent}%`;
-  }
-
-  function challengeSummary() {
-    const items = challengeBoardItems();
-    const wins = items.filter((item) => item.done).length;
-    const next = items.find((item) => !item.done);
-    return next ? `挑战 ${wins}/${items.length} ${next.label} ${next.progress}%` : `挑战 ${wins}/${items.length} 全完成`;
+    return practiceProgressSummaryData({
+      roomFocus,
+      roomTotal: maps.length,
+      chapterPercent: data.percent,
+      chapterGrade: chapterGrade(data.percent),
+      challenges: challengeBoardItems()
+    });
   }
 
   function drillSummary() {
-    const starts = roomFocus.reduce((sum, entry) => sum + (entry?.drills || 0), 0);
-    const clears = roomFocus.reduce((sum, entry) => sum + (entry?.drillClears || 0), 0);
-    const clean = roomFocus.reduce((sum, entry) => sum + (entry?.drillClean || 0), 0);
-    return starts > 0 ? `Drill ${clean}/${clears}/${starts}` : "Drill 0";
-  }
-
-  function contractSummary() {
-    const totals = roomFocus.reduce((sum, entry) => {
-      sum.cleanWins += entry?.cleanWins || 0;
-      sum.cleanDrills += entry?.cleanDrills || 0;
-      sum.paceWins += entry?.paceWins || 0;
-      sum.paceDrills += entry?.paceDrills || 0;
-      sum.styleWins += entry?.styleWins || 0;
-      sum.styleDrills += entry?.styleDrills || 0;
-      sum.expertWins += entry?.expertWins || 0;
-      sum.expertDrills += entry?.expertDrills || 0;
-      return sum;
-    }, { cleanWins: 0, cleanDrills: 0, paceWins: 0, paceDrills: 0, styleWins: 0, styleDrills: 0, expertWins: 0, expertDrills: 0 });
-    return `合约 C ${totals.cleanWins}/${totals.cleanDrills} · P ${totals.paceWins}/${totals.paceDrills} · S ${totals.styleWins}/${totals.styleDrills} · X ${totals.expertWins}/${totals.expertDrills}`;
+    return practiceProgressSummaryData({ roomFocus, roomTotal: maps.length }).drill;
   }
 
   function practiceRouteSummary() {

@@ -68,7 +68,7 @@ node tools/report-room-data.js
 - 实体触控和手柄手感；
 - 音量与疲劳感；
 - R1–R10 连续通关和难度曲线；
-- 部署后的真实 Pages 缓存与 Appwrite 邮件流程。
+- 真实 Appwrite 邮件流程。
 
 详见 `PLAYTEST_CHECKLIST.md` 和 `KNOWN_ISSUES.md`。
 
@@ -84,6 +84,7 @@ node tools/report-room-data.js
 6. 确认 Pages workflow 只复制 `public/`
 7. 确认 Pages workflow 的外部 Action 固定到完整 SHA，并原生使用 Node 24，不依赖旧版 Node 20 兼容覆盖
 8. 推送后等待 GitHub Pages workflow 成功，且不出现 Node 20 Action 弃用警告
-9. 在线检查构建号、开始按钮、Canvas、设置、账号 SDK 和移动端视口
+9. 运行 `npm run live-check`，逐文件核对线上构建号、CSP、版本化资源、账号 SDK 与本地 `public/` 内容
+10. 打开线上版本一次，确认开始按钮与 Canvas；只有账号或部署配置变化时才重复真实邮件流程
 
 失败时保留日志和最小复现，不通过跳过检查或删除断言来“修复”。

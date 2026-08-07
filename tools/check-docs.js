@@ -44,6 +44,7 @@ const requiredFiles = [
   "tools/check-effect-budget.mjs",
   "tools/check-landmark-progress.mjs",
   "tools/check-audio-cues.mjs",
+  "tools/check-live-deployment.js",
   "tools/check-storage.mjs",
   "tools/check-input.mjs",
   "tools/check-training.mjs",
@@ -86,6 +87,8 @@ const readme = read("README.md");
 const contentBible = read("docs/CONTENT_BIBLE.md");
 const architecture = read("docs/ARCHITECTURE.md");
 const contributing = read("CONTRIBUTING.md");
+const packageJson = read("package.json");
+const releaseChecklist = read("RELEASE_CHECKLIST.md");
 
 for (const modulePath of ["modules/core/", "modules/game/", "modules/systems/", "modules/training/", "modules/ui/"]) {
   if (!readme.includes(modulePath)) errors.push(`README.md repository tree missing ${modulePath}`);
@@ -101,6 +104,12 @@ if (!architecture.includes("游戏玩法不依赖网络") || !readme.includes("A
 }
 if (!contributing.includes("新增第二套账号体系、公开排行榜，或让核心玩法依赖联网服务")) {
   errors.push("CONTRIBUTING.md must prohibit network-dependent gameplay without denying the existing account system");
+}
+if (!packageJson.includes('"live-check": "node tools/check-live-deployment.js"')) {
+  errors.push("package.json must expose the post-deployment live check");
+}
+if (!readme.includes("npm run live-check") || !releaseChecklist.includes("npm run live-check")) {
+  errors.push("README and release checklist must document the post-deployment live check");
 }
 
 if (errors.length > 0) {

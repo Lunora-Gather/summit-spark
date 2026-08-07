@@ -1082,9 +1082,10 @@ if (!playtestChecklist.includes("诊断 / 复制")) errors.push("PLAYTEST_CHECKL
 if (!playtestChecklist.includes("meta build-version") || !playtestChecklist.includes("node tools/check-public-surface.js") || /20\d{6}-p\d+/.test(playtestChecklist)) errors.push("PLAYTEST_CHECKLIST.md should verify the current public build dynamically instead of pinning a stale release version");
 if (!playtestChecklist.includes("redundant Move → Jump → Dash strip") || !playtestChecklist.includes("labelled touch controls remain the only persistent input labels") || !releaseChecklist.includes("does not show a redundant Move → Jump → Dash strip")) errors.push("manual release guidance should forbid retired keyboard coaching while preserving labelled touch controls");
 if (!playtestChecklist.includes("operating system's reduced-motion preference") || !releaseChecklist.includes("reduced-motion preference") || !releaseChecklist.includes("64px setting")) errors.push("manual and release checks should cover reduced motion plus the narrow-phone 64px touch-control boundary");
-if (!knownIssues.includes("Physical gamepad") || !knownIssues.includes("Full 10-room human pass") || !knownIssues.includes("Online Pages freshness")) {
+if (!knownIssues.includes("Physical gamepad") || !knownIssues.includes("Full 10-room human pass") || !knownIssues.includes("Audio perception")) {
   errors.push("KNOWN_ISSUES.md must keep current real-world verification limits visible");
 }
+if (!releaseChecklist.includes("npm run live-check") || !knownIssues.includes("npm run live-check")) errors.push("deployment freshness must be an automated release gate instead of a human-play issue");
 if (!knownIssues.includes("Diagnostics, feedback templates and summit run reports are local-only")) errors.push("KNOWN_ISSUES.md must describe diagnostics, templates and run reports as local-only");
 
 if (errors.length > 0) {

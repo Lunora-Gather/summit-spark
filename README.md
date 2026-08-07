@@ -4,7 +4,7 @@
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260807-p260`
+当前公开构建：`20260807-p261`
 
 ## 快速开始
 
@@ -96,6 +96,12 @@ npm run check
 npm run browser-smoke
 ```
 
+部署后逐文件核对线上版本：
+
+```bash
+npm run live-check
+```
+
 专项检查：
 
 ```bash
@@ -147,7 +153,7 @@ Appwrite 仅启用 Account、Database/TablesDB 和 REST：
 2. 只把 `public/` 复制到 `_site`；
 3. 上传并部署 Pages artifact。
 
-所有外部 GitHub Actions 固定到完整提交 SHA。发布前执行 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)，部署后确认页面 meta 构建号与本次版本一致。
+所有外部 GitHub Actions 固定到完整提交 SHA。发布前执行 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)，部署后运行 `npm run live-check`，确认线上构建与本地 `public/` 完全一致。
 
 ## 文档
 

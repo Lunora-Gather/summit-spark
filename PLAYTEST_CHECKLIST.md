@@ -1,121 +1,101 @@
 # Playtest Checklist
 
-This checklist is for one focused manual pass after `npm run check` and `npm run browser-smoke` pass. It catches real-use issues that scripts cannot prove: route readability, friction, input trust, and whether the training cockpit actually helps a player recover.
+This checklist begins only after `npm run check` and `npm run browser-smoke` pass. Those commands already prove deterministic UI, save, input, map and state behavior. The human pass answers what scripts cannot: whether the route reads clearly, inputs feel trustworthy, audio remains comfortable and the ten-room difficulty curve teaches before it tests.
 
 ## Setup
 
-1. Open the local page from `npm start`.
-2. Inspect the page markup and confirm `meta build-version` matches the current CSS/JS asset version; `node tools/check-public-surface.js` should report the same build before manual play begins.
-3. Use a clean browser profile for first-run checks, then repeat with an existing profile that has training progress.
-4. Keep audio on for one pass and off for one pass. With audio on, each act boundary should first release the previous harmony and then introduce a recognizably different destination motif; no old-act pad should bleed across a room jump or summit reveal.
-5. Test desktop keyboard first; test touch and a physical gamepad when devices are available.
+1. Open the local page from `npm start` or the deployed page after `npm run live-check` passes.
+2. Confirm `meta build-version` matches the intended release; `node tools/check-public-surface.js` should report the same local build before play begins.
+3. Use a clean profile for first-run checks and an existing profile for training/recovery checks.
+4. Record device, input type, viewport, build and whether Audio, Calm Effects, reduced motion, low performance or assist mode is active.
+5. Do not tune physics, targets or maps from one failed attempt. Record the exact room, action and repeatability first.
 
 ## First Three Minutes
 
-- Start from a clean profile and do not open settings first.
-- Verify the first room starts without an automatic teaching toast, head-level coaching copy, or a redundant Move → Jump → Dash strip. The labelled touch controls remain the only persistent input labels during touch play.
-- Confirm free play shows only core HUD status; split delta, Flow, and pace meter should stay out of the default view until training/challenge context needs them.
-- Die once to spikes and once by falling; the game should not interrupt with explanatory coaching copy.
-- Press `O`, open settings, press `Escape`, and return to play without stuck movement.
-- Press `P`, open the practice panel, press `Escape`, and return to play without stuck movement.
-- From the start menu, open Settings and click the visible Start region: the drawer must close without starting play. Reopen Settings, click a blank region to close it, then reopen it and click the visible Practice and Account regions in separate passes; each must switch directly instead of swallowing or passing through the pointer, and closing must return focus to the action just selected.
-- From the entry chooser, open Email Login and immediately click outside; the drawer must stay closed/inert and focus must remain on the Email Login trigger after its delayed autofocus window.
-- On a throttled connection, log out while the first cloud-save inspection is still pending; once the old request finishes, the account and cloud summaries must remain logged out instead of showing stale sync, conflict or corruption state.
-- During that pending inspection, confirm the account summary says “检查中”, both cloud replacement actions are disabled, Logout remains available, and a valid conflict later enables both explicit choices.
-- Confirm a cloud read failure keeps both replacement actions locked; if the remote response is present but its archive is corrupt, only Upload Local should unlock as an explicit repair path.
-- While signed in, change a setting and verify “待同步” appears immediately; on a throttled upload, change another setting and leave the page, then confirm the latest archive eventually contains both changes instead of dropping the second.
-- Clear a room once, improve its PB, then finish slower: the result line should name the actual room time and compare against the target or PB, while only one mastery card appears and no separate CLEAR/CLEAN focus line is stacked underneath.
-- On a fresh save, touch Relay, Spring, Updraft, Crumble and Prism for the first time: each mechanic should show one short restrained lesson and announce the same text to assistive technology; repeat contacts and ordinary Spark actions must stay quiet.
-- Cross R3→R4, R6→R7 and R8→R9: the outgoing act should retain its quiet resolve line while the small footer reports that act's current-run time and “无失误” or mistake count before the next act vow appears; direct Practice entry must not fabricate an outgoing-act result.
-- Make one light and one hard landing in each act: the brief contact debris should read respectively as slate chips, warm old-stone dust, ice flakes and restrained summit sparks, then clear quickly without resembling hazards or obscuring the next landing. Repeat in Calm Effects, reduced motion and low-performance mode to confirm density stays bounded.
-- Wall-slide, climb and wall-jump once in each act: contact debris must match the same local material as landing feedback, trail away from the touched wall instead of spawning through it, and retain the green climb-jump action accent without changing stamina use or launch distance.
-- Spend the final dash and regain ground contact: one brief cyan ring should expand from the climber's feet exactly when the dash meter becomes ready, then disappear without changing the fixed dark-blue hair. Standing with a full dash, ordinary stamina refill, respawn, Relay/Prism/refill pickups and repeated grounded frames must not retrigger this ground-recharge cue.
-- In R1, land one Spark and confirm the existing gate-step landmark wakes once; in R2, trigger the two distinct Relays and confirm the existing bridge traces half then fully; in R3, touch a spring and then land a spring-apex dash to wake the mist-spring landmark in two stages. Ordinary Relay cooldown must retain the current attempt's bridge state, while death, retry, room restart and transition restore all three landmarks. Confirm there is no new HUD counter, route guide, collision change or climber recolor, and repeat with Calm Effects, reduced motion and low-performance mode.
-- Chain two, three and four Relay nodes in R4/R6: only nodes activated inside the live 1.35-second chain window should be joined by a thin in-world light thread, the third node may warm toward gold, and the entire thread must clear when the chain expires, on death/retry/recall or on room transition. Calm Effects, reduced motion and low-performance mode must remove travelling motes/glow without hiding the readable connection.
-- Trigger distinct Relay nodes one at a time in R4, R5 and R6, waiting for each node's ordinary cooldown before continuing: the existing background relic should retain current-attempt progress even after a node becomes ready again, with R4 illuminating its linked stones, R5 tracing its switchback and R6 repairing its broken gate. Repeating one already-awakened node must not add progress; death, retry, room restart and transition must restore the dormant relic. Confirm there is no new HUD counter or collision change, reduced motion freezes breathing, and Calm/low-performance settings restrain glow.
-- Enter and leave one Updraft in R7/R8 at low, neutral and rising vertical speed: a paired upward wake should bend around the climber only while the player overlaps that exact field, remain behind the body, strengthen modestly with lift and disappear immediately on exit. Reduced motion must freeze sway, while Calm Effects and low-performance mode remove wake motes/heavy glow without erasing the two readable streams.
-- Step onto the supported three-tile crumble lesson in R7 and the five-tile corridor strip in R8: one contacted tile should enter its ordinary red break warning immediately while a restrained cyan-white ripple queues only contiguous tiles on that row, then the strip should fracture outward with roughly 65ms spacing. Queued tiles must remain solid until their own 0.42-second warning expires, gaps/other rows must not join, and retry must restore every tile with no queued/armed residue. Repeat on R9/R10 to confirm Star Summit still arms only the contacted tile; audio should read as one bounded cascade rather than one loud voice per tile.
-- Activate Echo in R9/R10, move across the room and recall: the ready state should remain a compact pair of broken rings around the saved anchor, grow only slightly with separation and never draw a dashed line across platforms or through the climber. The rings must pause during recall cooldown and return when recall becomes available; reduced motion freezes breathing and Calm/low-performance modes keep glow restrained.
-- Enter R9/R10 with zero, partial and all 12 current-run Lumens: the existing five-point background constellation should remain a faint dormant outline at zero, progressively illuminate lines/stars as the ratio rises, and become fully but quietly connected at 12/12. It must not expose twelve discrete counters, alter the HUD, grant the all-Lumen ending early or persist progress across a fresh run; reduced motion freezes breathing and Calm/low-performance settings cap glow.
-- Start a fresh full route, finish and choose “再来”, then launch a long-term challenge: every R1 entry must re-arm the existing non-blocking title, pair “第一幕 · 山门” with its vow and announce the new run while movement remains immediately available; do not add a separate opening panel or repeat the later act-transition pause.
-- Reach the summit from direct R10 Practice or a debug room jump: the finish line must say “练习登顶，不计总纪录”, and neither summit clears nor best total time may change; room PB and Drill results may still record when genuinely earned.
-- Reach the summit once with fewer than 12 Lumens and once with all 12: the existing finish line and copied run report must show the exact current-run `微光 x/12`; only the all-Lumen route may replace the existing whisper with “所有微光，都抵达了山顶。”, without adding a card or persistent achievement.
-- During an automatic death, tap Jump or Dash inside the final input-buffer window before the climber reappears: the action must fire immediately after respawn. Repeat with an earlier stale input and with manual Quick Retry/room restart: stale actions must remain cleared and must not launch the new attempt.
-- During a chapter transition, tap Jump and Dash once near the beginning: neither action may fire when the new act becomes playable. Repeat inside the final normal input-buffer window with keyboard, touch and gamepad where available: the late action should connect immediately, without shortening the transition or requiring a held button.
-- Import a Focus archive where a mode has wins without starts, Clean exceeds clears, or a death reason exceeds total faults: preview may remain importable, but the applied profile must conservatively remove unsupported completion evidence rather than lighting challenges or changing the recommended Drill.
-- Seed a high Practice `bestFlow` with a lower `profile.bestFlowPeak`: the long-term card and profile summary must show only the lower “整局 Flow”; completing a later formal route may raise it only to that route's own peak, never copy the historical Practice value.
-- Reach the R10 goal: the summit pause should retain “山风停了一瞬。” and add one small fourth-act time/mistake line; the earlier room split and mastery overlays must not remain stacked behind it, and the review must still open without extending the pause.
-- Complete a run with a deliberate mistake in one late room while older Focus pressure exists elsewhere: “下一 Drill” must choose the current-run mistake for Clean; on a clean run it must instead choose the largest current split over target for Pace, and “本轮最大损失” must show that split rather than a historical PB gap.
-- Hold a password update or another account request open, close the drawer and change a setting; the change must sync after the account request clears. A failed upload must keep “同步失败” visible without repeatedly retrying until a deliberate retry trigger occurs.
-- After one summit clear, activate “再来”; confirm the review disappears, keyboard focus returns to the game, movement starts immediately, and opening/closing settings in the second run does not revive or focus hidden review content.
-- Confirm settings opens as a quiet system list with Controls, Audio, Display, and Feedback/Save only; Room, Route, Feel, Profile, Training, and Advanced should not crowd the settings view.
-- Confirm the entry descriptions, collapsed setting labels, account status, key labels, placeholders, and training details remain crisp at normal viewing distance instead of fading into the pale panel.
-- Confirm the compact “移动 / 动作” headings and every collapsed disclosure arrow remain visibly distinct from their local card backgrounds; on touch, tap the exposed blank margin beside an open Settings drawer and confirm it closes without activating anything behind it.
-- Confirm the practice panel initially exposes only room selection and training history; Route, Feel, Profile, and long-term goals remain reachable one level deeper without hiding the close button.
-- Start a recommended Drill from the practice panel and confirm the goal is clear before moving.
-- In a room with a saved PB path, start a Drill and confirm the gold `PB 路线` and cyan `本次` line are immediately distinguishable; the PB line should use at most one static label for each Dash/Spark/Overdrive family while combined transitions retain distinct symbols, and the moving PB ghost should name only its current key action.
+- Start from a clean profile without opening Settings or Practice first.
+- Confirm the start choice and primary action are obvious at normal viewing distance.
+- Verify the first room starts without routine coaching cards or a redundant Move → Jump → Dash strip; labelled touch controls remain the only persistent input labels during touch play.
+- Confirm free play remains visually quiet: no training report, split analysis or extra cards compete with the route.
+- Note the first death, the first point of uncertainty and any place where the player pauses for more than 20 seconds.
+- Open and close Settings and Practice once. Judge discoverability and visual weight; deterministic focus and click-through behavior is already covered by browser smoke.
+
+Pass when a new player can begin moving, jumping and dashing without README knowledge, and either clear R1 or accurately explain what they are trying to do.
 
 ## Ten-Room Route Pass
 
-For each room, record `pass`, `friction`, or `blocked`.
+Complete one uninterrupted R1–R10 route. For each room record `pass`, `friction` or `blocked` plus the largest uncertainty.
 
-| Room | Must Be Readable | Manual Check |
+| Room | Teaching / test sentence | Human question |
 | --- | --- | --- |
-| R1 | basic jump, dash, safe landing | First clear should not require menu knowledge. |
-| R2 | relay timing and recovery | Light relay should read as a reset, not a platform. |
-| R3 | full-route entry, value-aware refill, offset two-spring capstone and late dash | Direct Practice and continuous play should both begin on the left recovery platform. Walking into the nearby refill at full dash/stamina must not consume it or award Flow; after spending a resource it should restore normally. Both spring landings should be visible before committing. |
-| R4 | relay chain under hazard pressure | Safe line and faster chain should both be understandable. |
-| R5 | foldback route memory | Wall Spark line should look optional, not mandatory. |
-| R6 | four-relay sequence plus two-stage spring exit rhythm | Four relay nodes should read as deliberate route beats before the two springs complete the Old Peak sentence, not as two unmentioned extras. |
-| R7 | grounded Wind Gorge entry, then wind plus crumble introduction | Direct Practice must begin on the left-bottom checkpoint; crumble warning and wind lift must be readable together, and with audio on wind should sound once before ice cracks and breaks. |
-| R8 | prism/crumble route into a final updraft | Overdrive should not obscure hazards, and the late wind should feel like a deliberate Wind Gorge exam. |
-| R9 | safe entry anchor, recall, wind, recovery shelf, prism | The anchor should activate beside the checkpoint before pressure begins; the first wind should resolve onto stable middle ground before crumble pressure returns, and recall should return cleanly. |
-| R10 | whole-run synthesis | The grounded spring should feed the low relay as a readable Act I callback before Echo, wind, prism and crumble pressure; the finale should feel varied and fair after R1-R9. |
+| R1 | jump, dash, safe landing | Does the first route read before punishment arrives? |
+| R2 | Relay timing and recovery | Does the Relay read as a reset rather than a platform? |
+| R3 | refill, two-spring capstone, late dash | Are both spring landings readable before commitment? |
+| R4 | Relay chain under hazard pressure | Are safe and fast lines both understandable? |
+| R5 | foldback route memory | Does Wall Spark look optional rather than mandatory? |
+| R6 | four Relay beats, two spring exits | Does the sequence feel deliberate rather than cluttered? |
+| R7 | grounded Wind Gorge entry, wind and crumble | Can wind lift and crumble warning be read together? |
+| R8 | prism/crumble route into final updraft | Does Overdrive preserve hazard readability? |
+| R9 | safe Echo anchor, wind, recovery shelf, prism | Does recovery arrive before renewed pressure? |
+| R10 | whole-run synthesis | Does the finale feel varied, fair and earned? |
+
+During the route, judge these chapter-level questions:
+
+- R1–R3: does each room establish one sentence and then combine it, without tutorial clutter?
+- R4–R6: does the old-peak act deepen timing and memory without becoming repetitive?
+- R7–R8: can the player distinguish wind, brittle ground and prism pressure at play speed?
+- R9–R10: is Echo introduced safely, and does the summit synthesize rather than merely stack mechanics?
+- Do existing in-world landmarks, material particles, Relay threads, updraft wakes, Echo rings and the constellation clarify the route without becoming a second HUD?
+- Does the classic small climber remain readable at desktop and portrait sizes, with the same fixed dark-blue hair throughout every state?
+- Does the summit review identify a useful next practice step without feeling like a dashboard?
 
 ## Training And Recovery
 
-- Start one Route contract, interrupt it with a different Drill, reopen the practice panel, and resume from the visible interrupted card.
-- Start one Feel Lab card, interrupt it with a different Drill, reopen the practice panel, and confirm the card says it was interrupted.
-- Finish or fail at least one Clean/Pace/Style/Expert Drill and confirm retry/review text names the missing condition.
-- Complete a full run, open “更多复盘” and “掌握路线图”, and confirm a screen reader announces only those names plus their collapsed/expanded state—not `+`, `-`, or arrow characters—while the visible chevron still rotates.
-- In “更多复盘”, confirm “本轮分幕” lists all four acts, their current-run times and mistakes; the slowest act must match the room-by-room notes from this pass.
-- Click “复制本轮” and confirm the pasted report matches the four-act/ten-room notes, stays under 4,000 characters, contains no identity, device name, raw input history or route coordinates, and does not make a network request.
-- In the same summit-review modal, Tab forward from the last visible control and Shift+Tab backward from the first; both must wrap inside the review without moving focus to browser chrome or hidden gameplay controls.
-- Use the direct resume button from the start screen after creating progress; it should enter a useful recommended Drill.
-- Choose a feedback type, write a short note, then click `诊断 / 复制`; keep the local snapshot with the note. It should not upload anything by itself.
-- Click `反馈模板 / 复制` and confirm the pasted text has enough context for a tester to file a useful issue without copying raw input history.
-- Export a `summit-spark-save` JSON, paste a broken JSON once and confirm the preview reports an error without refreshing, then import it in another profile and confirm low-performance, touch size, Focus stats, best flow, and room bests survive.
-- After one valid import, confirm the browser has a `summit-spark-save-backup` entry for the prior local archive, then use the settings Restore action once and confirm the pre-import settings/progress return.
-- Corrupt or clear storage only after saving a copy of the browser profile; the app should keep running and explain repair once.
+- Start a recommended Drill and decide whether its goal is clear before moving.
+- Run one Route interruption/resume path and judge whether returning to it feels obvious.
+- Run one Feel interruption path and judge whether the interrupted state is understandable.
+- Fail and finish at least one Drill; confirm the result helps the player change the next attempt rather than merely scoring it.
+- Compare a saved PB route and the current route at normal play speed. Gold/cyan paths and action markers should be distinguishable without obscuring platforms.
+- Complete a run, open the deeper review, and decide whether four-act evidence and the next Drill answer “where did I lose the run?” quickly.
+- Click `诊断 / 复制` only when filing an issue; confirm the snapshot stays local. Use the feedback template for reproduction steps, not as another in-game task list.
 
-## Mobile And Comfort
+## Touch, Gamepad And Audio
 
-- At around 390x700, the start screen must show title, start, resume when present, practice, and settings entries without horizontal scroll.
-- In 390x700 portrait play, touch controls should sit below the playfield instead of covering the character, spikes, or bottom landings.
-- In 390x700 portrait practice, expand Room and confirm the room select, room brief, Drill variant buttons, and fixed launch action stay inside the panel.
-- At around 700x390, settings must scroll vertically and keep audio, low performance, touch size, gamepad deadzone, save import, and restore reachable.
-- At around 700x390, practice must scroll vertically and keep Route, Feel, Room, and Profile reachable.
-- On a notched phone, confirm the entry chooser, close button, account fields, and practice launch action stay clear of the notch and Home indicator; open the keyboard on the email field and confirm it remains reachable by scrolling.
-- Confirm settings opens with every group collapsed, the group labels remain easy to scan, and the separate practice entry keeps the primary Drill path obvious.
-- With a screen reader or accessibility inspector, confirm disclosure names are just “账号与云存档 / 控制 / 声音 / 显示 / 反馈与存档” or the corresponding practice labels, without an announced arrow; verify collapsed/expanded state changes immediately and hidden settings/practice groups do not produce stray arrow text.
-- Set one custom key, switch between Mac and Windows/Linux labels twice, and confirm the custom scheme and key remain unchanged until Restore Layout is explicitly pressed.
-- Send a code to one email, edit the email before entering the code, and confirm the old code is cleared with a prompt to resend instead of attempting a mismatched login.
-- With a screen reader or accessibility inspector, confirm “邮箱验证码 / 密码” is announced as one labelled button group with exactly one pressed option, the state changes after switching, and account inputs announce the live status/error text.
-- With a screen reader or accessibility inspector, confirm Email, OTP, Login Password, New Password, and Current Password each announce a distinct purpose; New and Current Password must not depend on placeholder text alone.
-- Before signing into an account with existing cloud progress, create only a local custom setting, path, or failed Drill; confirm the account drawer asks which version to use rather than silently replacing the local data.
-- Confirm the hand-held/mobile view has no horizontal scroll after opening feedback, save import, backup restore status, Route cards, and Feel Lab sections.
-- Increase touch size to 64 and confirm both clusters stay fully inside the viewport, remain separated, and keep Jump/Dash paired without covering critical HUD text or the playfield.
-- Enter R9 on touch: `召` must be absent in R1-R8, appear dormant only until the entry anchor activates, then become usable without covering Jump/Dash. Move away, tap it once, confirm the player returns to the anchor and the button visibly enters cooldown.
-- Enable low-performance mode and confirm the solid, non-blurred HUD, tips and touch controls remain crisp while hazards, route compass, and Drill guidance stay readable.
-- Enable the operating system's reduced-motion preference and confirm UI transitions, ambient ribbons, snowfall, velocity wakes, and idle entity drift stop while player movement, hazards, and action confirmation remain visible.
-- If a physical gamepad is available, verify the settings panel reports connected standard mapping, axis strength, and near-deadzone risk without exposing the controller name.
+Physical hardware is required for these judgments.
+
+- Phone/tablet: test portrait and landscape, browser chrome appearing/disappearing, thumb reach, accidental presses, notch/Home-indicator clearance and the 64px touch setting.
+- Touch Echo: in R9, activate the anchor, move away and recall once without covering Jump/Dash or losing track of the character.
+- Gamepad: check stick drift, deadzone comfort, A/B/X/RT/shoulder intuition and long-session grab fatigue. Do not record the controller name.
+- Audio: play once with sound and once muted. With sound on, judge mechanic separation, act-to-act identity, relative volume and fatigue; in R7, wind should read before the crumble cascade.
+- Comfort: inspect Calm Effects, low performance and the operating system's reduced-motion preference. Motion may quiet, but hazards, route meaning and action confirmation must remain clear.
+
+## Accessibility And Readability
+
+- At normal viewing distance, entry copy, collapsed group labels, account status, key labels and training details must remain crisp.
+- With a screen reader or accessibility inspector, sample the changed surface only. Names should describe the control without decorative arrows or symbols, and hidden panels should stay silent.
+- Keyboard-only Settings access must remain understandable. Browser smoke owns exact focus trapping; the human check judges whether the order makes sense.
+- At approximately 390x700 and 700x390, confirm no important control feels clipped or visually crowded even when automated overflow checks pass.
+
+## Evidence Record
+
+Use `docs/PLAYTEST_PROTOCOL.md` or this compact record:
+
+```text
+Build:
+Device / input / viewport:
+Mode and room:
+Result: pass / friction / blocked
+What happened:
+Expected:
+Repeatable steps:
+Deaths / retries:
+Audio / comfort settings:
+Screenshot or copied diagnostics:
+```
 
 ## Exit Criteria
 
-The build is ready for a public demo only when:
-
 - No room is `blocked`.
-- Any `friction` note has a concrete follow-up in `KNOWN_ISSUES.md` or the next plan.
-- Keyboard-only settings access works.
-- One Route interruption/resume and one Feel interruption path work manually.
-- Mobile portrait and landscape checks have no horizontal overflow.
+- Every `friction` note has repeatable evidence and either a fix or a `KNOWN_ISSUES.md` entry.
+- One uninterrupted keyboard route has been completed for difficulty/order evidence.
+- Any release claiming touch, gamepad or audio improvement has corresponding real-device evidence.
+- The default page remains quiet, the classic climber remains unchanged and no fix depends on speculative physics/map tuning.

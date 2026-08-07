@@ -1,50 +1,35 @@
 # Release Checklist
 
-Use this before publishing a public demo update.
+Use this before publishing a public demo update. Deterministic behavior belongs to automation; manual checks are reserved for perception, comfort and real-device evidence.
+
+## Automated Gate
 
 1. Run `npm run check`.
-2. Run `npm run state-check` if training state, resume, or storage schema changed.
-3. Run `npm run browser-smoke` on a machine with Chrome or Edge.
-4. Run `git diff --check`.
-5. Confirm `public/index.html` is the only HTML entry and no obsolete root/standalone entry has returned.
-6. Confirm the build version in HTML and asset query strings matches the intended release.
-7. Start `npm start` and open the local page once.
-8. Verify the start button, direct resume button when progress exists, settings panel, practice panel, one Route contract, one Feel Lab card, audio test, keyboard `O/P/Escape`, and both panel close paths.
-9. Create one custom keyboard binding, switch Windows/Linux → Mac → Windows/Linux, and confirm the custom preset and every binding remain unchanged; only Restore Layout may load platform defaults.
-10. Send an email OTP, edit the email before submitting, and confirm the old code/token is cleared and no session request is made; repeat with an autofill-style value change or rely on `npm run browser-smoke` to verify the submit-time identity guard.
-11. Inspect the account method switch with accessibility tooling or rely on `npm run browser-smoke`: it must be one labelled button group, expose only one pressed choice, update that state after switching, and give every account field a name, autocomplete purpose, and live-status description.
-12. Seed local data separately with only a Focus/Drill counter, only a recorded room path, and only a customized setting, then restore a signed-in account with a different cloud save or rely on `npm run browser-smoke`; each case must stop at “待确认” without applying the remote save.
-13. Confirm settings opens with only system groups visible: Controls, Audio, Display, and Feedback/Save. Confirm the practice panel owns Room, Route, Feel, Profile, Training, and Advanced.
-14. Inspect every settings/practice disclosure with accessibility tooling or rely on `npm run browser-smoke`: its name must exclude the decorative chevron, hidden-mode groups must not leak anonymous arrow text, and `aria-expanded` must match the real open state after both clicking and programmatic mode changes.
-15. Verify one Route interruption/resume and one Feel Lab interruption manually or through `npm run browser-smoke`.
-16. Complete a run and inspect “更多复盘 / 掌握路线图” with accessibility tooling or rely on `npm run browser-smoke`; names must exclude decorative `+ / - / ›` symbols, both disclosures must start collapsed, and expanded state must update immediately while the visible chevron rotates.
-17. In the summit-review modal, focus the last visible control and press Tab, then focus the first and press Shift+Tab; focus must wrap in both directions and never enter browser chrome or a hidden game surface.
-18. Activate “再来” from the summit review or rely on `npm run browser-smoke`; the review must become hidden/inert, lose its finish-layout class and every dialog/modal/label attribute, and return focus to the active game canvas before the second run accepts input.
-19. Open Settings from the start action, Account from the entry chooser and Settings over the summit review, then dismiss each by clicking outside or rely on `npm run browser-smoke`; focus must return respectively to the live Settings trigger, Account trigger and finish title. With Settings open, clicking the visible Start region must only dismiss the drawer without starting play; clicking Practice or Account once must switch directly despite the inert background, and closing the switched panel must return focus to that newly selected action rather than Settings. Rapidly open/close Account once and confirm delayed autofocus never enters the hidden inert drawer.
-20. While restoring a signed-in session, delay the first cloud-save read, log out, then release that old response or rely on `npm run browser-smoke`; the account summary, cloud status and account form must remain logged out and the stale response must not upload, download or report a conflict.
-21. During the delayed cloud read, open Account or rely on `npm run browser-smoke`; the summary must say “检查中”, Upload Local and Use Cloud must be disabled, Logout must remain enabled, and focus must remain on the close action instead of entering disabled cloud controls. After a valid conflict arrives, both explicit conflict choices must become enabled.
-22. Simulate a non-404 cloud read failure or rely on `npm run browser-smoke`; Upload Local and Use Cloud must both remain disabled because the remote is unknown. Repeat with a fetched but corrupt archive: Upload Local must become available as an explicit repair action, while Use Cloud remains disabled.
-23. Change a local setting while signed in and confirm the summary immediately changes from “已同步” to “待同步”. Hold the resulting upload open, change another setting and trigger pagehide or rely on `npm run browser-smoke`; no concurrent write may start, but after the first completes a second upload must contain both latest values and return to “已同步”.
-24. Hold a signed-in password update open, close Account and change a setting or rely on `npm run browser-smoke`; no cloud write may overlap the password request, but the dirty change must upload after it clears. Force that upload to fail once: “同步失败” must remain visible without a retry loop until another change, explicit upload or page-leave flush.
-25. Inspect Email, OTP, Login Password, New Password, and Current Password with accessibility tooling or rely on `npm run browser-smoke`; all five must have non-empty unique names from a real label/ARIA source, correct autocomplete purpose, and an `accountStatus` description. Placeholder text alone is not sufficient.
-26. Add a short feedback note, click the diagnostics copy button once, and confirm it produces a local feedback snapshot without uploading data.
-27. Click feedback template copy once and confirm the template includes build, viewport, current training state, and blank reproduction fields.
-28. Export a `summit-spark-save` archive, paste invalid JSON once to confirm the preview catches it without refreshing, then import a valid archive into a clean profile or rely on `npm run browser-smoke`; confirm settings/progress survive normalization, `summit-spark-save-backup` is written in the same transaction as every replacement, the Restore action can recover it, and a simulated mid-write storage rejection restores every save key plus the exact prior backup without reloading.
-29. Verify mobile viewport around 390x700 and 700x390 has no horizontal scroll or clipped controls in both the settings and practice panels, including the expanded Room group. With all system groups collapsed, Settings should content-fit its five rows with no large empty lower sheet; open a long group and confirm it grows only to the safe-area/keyboard ceiling. Tap blank space above, below and beside it to confirm the full-viewport backdrop closes without click-through.
-30. Verify touch controls use separate direction/action clusters, stay at least 44px, and sit below the portrait playfield on mobile; at the 64px setting, every button must remain inside 390px width with Jump/Dash paired.
-31. On a notched-device emulator or through `npm run browser-smoke`, verify the entry chooser and settings/account drawer remain inside top, right, bottom, and left safe areas; shrink the portrait viewport to about 390x420 and confirm the focused email field remains reachable while the drawer body scrolls.
-32. Verify a clean keyboard profile does not show a redundant Move → Jump → Dash strip or routine coaching card, while labelled touch controls remain available on touch devices.
-33. Toggle the operating system's reduced-motion preference manually or through `npm run browser-smoke`; confirm UI/ambient motion quiets without hiding gameplay movement, hazards, or action confirmation. Confirm the entry and settings small-text contrast samples—including Move/Action binding headings and disclosure chevrons—remain at or above 4.5:1 using composited local backgrounds.
-34. Clear the current tab's entry mode and load at 320×568 portrait with safe-area insets; confirm the chooser focuses “Guest”, both choices remain at least 44px, and no room-coaching card appears behind the guest/email decision.
-35. On that first-run chooser, confirm the focused Guest action uses the teal interface focus ring instead of a browser-default black outline. Open Email → Password and verify the recovery action remains crisp at 4.5:1 or better and at least 44px tall.
-36. Toggle low-performance mode and confirm the canvas switches to a 1x buffer, the canvas filter and gameplay overlay backdrop filters become `none`, canvas shadow blur is budgeted to zero, and HUD, tips, touch controls, hazards, and route guidance remain readable.
-37. Verify corrupted storage recovery by relying on `npm run browser-smoke` or manually seeding bad localStorage.
-38. Verify `appwrite project get`, `project list-platforms`, and the live `summit-spark/saves` table still match `appwrite.config.json`; run the browser smoke's 4,200-point archive case and confirm it uploads once, then opens the real Settings/Feedback & Save textarea, accepts the entire archive through browser text input without the legacy 240KB truncation, and reports it as importable.
-39. With Appwrite CLI 23.1.0 or newer, verify the live project exposes only the required Account/Database REST surface, then read `session-duration`, `session-limit`, `password-history`, and `session-alert` individually. They must be 2,592,000 seconds, 5, 3, and enabled; do not trust only the aggregate push success message.
-40. Confirm the local server returns CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, no-referrer and Permissions-Policy headers; it must reject POST and return 404 for `appwrite.config.json`, `package.json`, `.git/config`, and `docs/`. Embed the production page once and confirm it replaces every game/account control with the direct-open safety notice. Confirm Pages uploads `_site`, not the repository root, and every external GitHub Action is pinned to a reviewed 40-character commit SHA.
-41. Clear both the current tab entry mode and the non-sensitive account hint, then load with a deliberately stalled Appwrite account request or rely on `npm run browser-smoke`; Guest/Email must appear immediately. Repeat with the hint present: a valid account must restore without chooser flash, 401 must clear the hint and reveal Guest, while a timeout must reveal Guest but retain the hint for a later retry.
-42. Block the first `vendor/appwrite-26.2.0.js` request or rely on `npm run browser-smoke`; the account status must explain that Account can retry and the failed script must be removed. Restore networking and open Email Login once: the account drawer and SDK must recover without a page refresh or duplicate script.
-43. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for any public demo release.
-44. Update `KNOWN_ISSUES.md` if a manual pass finds friction that is real but not fixed in this release.
-45. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `RELEASE_CHECKLIST.md`, `KNOWN_ISSUES.md`, and `CHANGELOG.md` when user-facing behavior changes.
-46. Confirm the Pages workflow uses `node-version: 24`, reviewed native-Node-24 releases of Configure Pages, Upload Pages Artifact and Deploy Pages, and no retired `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` compatibility override.
+2. Run `npm run browser-smoke` on a machine with Chrome or Edge.
+3. Run `git diff --check`.
+4. Run `node tools/export-room-data.js --check`.
+5. Confirm `public/index.html` is the only HTML entry and its build meta, CSS query, main-script query and all runtime module queries use the intended release version.
+6. If Appwrite configuration changed, verify the live project and private save table against `appwrite.config.json` before pushing.
+
+The two automated gates already own deterministic coverage for controls, hidden-panel stability, account recovery, cloud conflicts, large archives, atomic save rollback, mobile safe areas, keyboard-resized forms, focus traps, disclosure semantics, real keyboard movement, mocked gamepad deadzones, reduced-motion preference, low-performance rendering, Route interruption/resume, Feel interruption, R1–R10 authored state transitions and the fixed climber-hair invariant. Do not repeat those cases manually unless the related implementation changed or automation reports a failure.
+
+## Focused Human Gate
+
+1. Start locally and complete the three-minute first-run check in `PLAYTEST_CHECKLIST.md`. Confirm a clean keyboard profile does not show a redundant Move → Jump → Dash strip, while labelled touch controls remain the only persistent input labels on touch.
+2. For gameplay, room, effect or audio changes, run the relevant ten-room route section. Record real friction instead of adjusting physics or geometry from speculation.
+3. For UI changes, inspect only the affected desktop and mobile surfaces. At the 64px setting, touch controls must remain reachable and separated.
+4. For motion or visual-effect changes, inspect the operating system's reduced-motion preference, Calm Effects and low-performance mode without accepting hidden hazards or lost action confirmation.
+5. For account changes, complete one real email flow. Browser mocks are sufficient for unchanged account code.
+6. For feedback/save changes, use the diagnostics copy button, feedback template, one invalid import preview and one backup restore. Confirm nothing uploads automatically.
+7. Listen to changed cues on real speakers or headphones; automation proves trigger order, not balance or fatigue.
+8. Use a physical phone/tablet or gamepad when the release claims improved device feel. Emulation and mocked gamepads are not evidence for thumb reach, drift or long-session comfort.
+
+## Deploy And Verify
+
+1. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `KNOWN_ISSUES.md` and `CHANGELOG.md` when their user-facing facts changed.
+2. Push `main` and wait for the Pages workflow to succeed without Node compatibility warnings.
+3. Run `npm run live-check`. It must match every canonical file in local `public/`, the build version, CSP, pinned Appwrite SDK and fixed `#294657` hair invariant.
+4. Open the public URL once and confirm the start action and Canvas render. Repeat the real Appwrite email flow only when auth or deployment configuration changed.
+5. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for a public demo release and move reproducible unresolved friction to `KNOWN_ISSUES.md`.
+
+Do not bypass a failed gate by weakening assertions, deleting coverage or silently accepting an older online build.

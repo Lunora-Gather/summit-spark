@@ -23,6 +23,47 @@ const FEEDBACK_TYPE_LABELS = Object.freeze({
   other: "其他"
 });
 
+const DRILL_MODE_LABELS = Object.freeze({
+  auto: "Auto",
+  clean: "Clean",
+  pace: "Pace",
+  style: "Style",
+  expert: "Expert"
+});
+
+const DRILL_MODE_SHORTS = Object.freeze({
+  clean: "C",
+  pace: "P",
+  style: "S",
+  expert: "X"
+});
+
+export function drillModeLabel(mode = "auto") {
+  return DRILL_MODE_LABELS[mode] || DRILL_MODE_LABELS.auto;
+}
+
+export function drillModeShort(mode = "auto") {
+  return DRILL_MODE_SHORTS[mode] || "?";
+}
+
+export function routeSlotForMode(mode = "auto") {
+  if (mode === "clean") return 0;
+  if (mode === "expert") return 2;
+  return 1;
+}
+
+export function routeSlotLabel(slot) {
+  if (slot === 0) return "安全线";
+  if (slot === 2) return "高手线";
+  return "进阶线";
+}
+
+export function routeSlotShort(slot) {
+  if (slot === 0) return "稳健";
+  if (slot === 2) return "高手";
+  return "快速";
+}
+
 export function chapterCompletionData(input = {}) {
   const roomTotal = Math.max(1, Math.floor(nonNegativeNumber(input.roomTotal)));
   const clear = nonNegativeNumber(input.clear);

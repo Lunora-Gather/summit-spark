@@ -7,6 +7,8 @@ import {
   chapterTransitionResultData,
   chapterTransitionResultTextData,
   challengeProgressSummaryData,
+  drillModeLabel,
+  drillModeShort,
   summitChapterResultTextData,
   feedbackDiagnosticsData,
   feedbackTemplateTextData,
@@ -24,7 +26,10 @@ import {
   roomSplitFeedbackData,
   roomProgressSummaryData,
   roomTrainingRecommendationData,
-  roomReviewPriorityData
+  roomReviewPriorityData,
+  routeSlotForMode,
+  routeSlotLabel,
+  routeSlotShort
 } from "../public/modules/ui/presentation.mjs";
 
 assert.deepEqual(lumenRunSummaryData({ found: 5, total: 12 }), {
@@ -91,6 +96,27 @@ assert.equal(chapterGrade(62), "A");
 assert.equal(chapterGrade(78), "S");
 assert.equal(chapterGrade(92), "SS");
 assert.equal(chapterGrade(Number.NaN), "D");
+
+assert.equal(drillModeLabel("clean"), "Clean");
+assert.equal(drillModeLabel("pace"), "Pace");
+assert.equal(drillModeLabel("style"), "Style");
+assert.equal(drillModeLabel("expert"), "Expert");
+assert.equal(drillModeLabel("unknown"), "Auto");
+assert.equal(drillModeShort("clean"), "C");
+assert.equal(drillModeShort("pace"), "P");
+assert.equal(drillModeShort("style"), "S");
+assert.equal(drillModeShort("expert"), "X");
+assert.equal(drillModeShort("unknown"), "?");
+assert.equal(routeSlotForMode("clean"), 0);
+assert.equal(routeSlotForMode("expert"), 2);
+assert.equal(routeSlotForMode("pace"), 1);
+assert.equal(routeSlotForMode("unknown"), 1);
+assert.equal(routeSlotLabel(0), "安全线");
+assert.equal(routeSlotLabel(1), "进阶线");
+assert.equal(routeSlotLabel(2), "高手线");
+assert.equal(routeSlotShort(0), "稳健");
+assert.equal(routeSlotShort(1), "快速");
+assert.equal(routeSlotShort(2), "高手");
 
 assert.deepEqual(chapterTransitionResultData({
   roomIndexes: [0, 1, 2],

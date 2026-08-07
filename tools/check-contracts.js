@@ -360,6 +360,12 @@ if (!js.includes("readProfile")) errors.push("long-term profile read helper is m
 if (!storageModule.includes("profile.summitClears <= 0")) errors.push("profile normalization must not turn missing death data into zero-death completion");
 if (!js.includes("recordSummitProfile")) errors.push("summit clear should update the long-term profile");
 if (!js.includes("chapterCompletionData")) errors.push("chapter completion data helper is missing");
+for (const helper of ["drillModeLabel", "drillModeShort", "routeSlotForMode", "routeSlotLabel", "routeSlotShort"]) {
+  if (!uiPresentationModule.includes(`export function ${helper}(`) || new RegExp(`\\bfunction\\s+${helper}\\s*\\(`).test(js)) {
+    errors.push(`Drill/route presentation helper ${helper} must have one UI-owned implementation`);
+  }
+}
+if (/\bfunction\s+contractMode(?:Label|Short)\s*\(/.test(js)) errors.push("contract labels must reuse shared Drill mode presentation");
 if (!js.includes("updateChapterOverview")) errors.push("settings panel should expose chapter completion");
 if (!js.includes("challengeBoardItems")) errors.push("challenge board item helper is missing");
 if ((js.match(/challengeProgressSummaryData\(challengeBoardItems\(\)\)/g) || []).length < 3

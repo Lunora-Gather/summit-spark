@@ -154,6 +154,8 @@
       chapterTransitionResultData,
       chapterTransitionResultTextData: chapterTransitionResultTextModelData,
       challengeProgressSummaryData,
+      drillModeLabel,
+      drillModeShort,
       summitChapterResultTextData: summitChapterResultTextModelData,
       fullRunRecordEligibilityData,
       feedbackDiagnosticsData,
@@ -171,20 +173,23 @@
       roomSplitFeedbackData,
       roomProgressSummaryData,
       roomTrainingRecommendationData,
-      roomReviewPriorityData
+      roomReviewPriorityData,
+      routeSlotForMode,
+      routeSlotLabel,
+      routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p259"),
-    import("./modules/core/math.mjs?v=20260807-p259"),
-    import("./modules/game/room-data.mjs?v=20260807-p259"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p259"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p259"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p259"),
-    import("./modules/systems/storage.mjs?v=20260807-p259"),
-    import("./modules/systems/input.mjs?v=20260807-p259"),
-    import("./modules/training/state.mjs?v=20260807-p259"),
-    import("./modules/training/replay.mjs?v=20260807-p259"),
-    import("./modules/ui/presentation.mjs?v=20260807-p259")
+    import("./modules/core/format.mjs?v=20260807-p260"),
+    import("./modules/core/math.mjs?v=20260807-p260"),
+    import("./modules/game/room-data.mjs?v=20260807-p260"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p260"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p260"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p260"),
+    import("./modules/systems/storage.mjs?v=20260807-p260"),
+    import("./modules/systems/input.mjs?v=20260807-p260"),
+    import("./modules/training/state.mjs?v=20260807-p260"),
+    import("./modules/training/replay.mjs?v=20260807-p260"),
+    import("./modules/ui/presentation.mjs?v=20260807-p260")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3498,24 +3503,6 @@
     return roomRouteLine(index, slot).replace(/^(安全线|进阶线|高手线)：/, "");
   }
 
-  function routeSlotForMode(mode) {
-    if (mode === "clean") return 0;
-    if (mode === "expert") return 2;
-    return 1;
-  }
-
-  function routeSlotLabel(slot) {
-    if (slot === 0) return "安全线";
-    if (slot === 2) return "高手线";
-    return "进阶线";
-  }
-
-  function routeSlotShort(slot) {
-    if (slot === 0) return "稳健";
-    if (slot === 2) return "高手";
-    return "快速";
-  }
-
   function routeSlotColor(slot) {
     if (slot === 0) return palette.green;
     if (slot === 2) return palette.cyan;
@@ -3763,14 +3750,6 @@
     const selected = Number(roomSelect?.value);
     if (Number.isInteger(selected) && selected >= 0 && selected < maps.length) return selected;
     return recommendedPracticeRoom();
-  }
-
-  function drillModeLabel(mode = "auto") {
-    if (mode === "clean") return "Clean";
-    if (mode === "pace") return "Pace";
-    if (mode === "style") return "Style";
-    if (mode === "expert") return "Expert";
-    return "Auto";
   }
 
   function resolveDrillMode(index, mode = "auto") {
@@ -4500,30 +4479,18 @@
     return drillContractProgressData(stats);
   }
 
-  function contractModeShort(mode) {
-    if (mode === "clean") return "C";
-    if (mode === "pace") return "P";
-    if (mode === "style") return "S";
-    if (mode === "expert") return "X";
-    return "?";
-  }
-
-  function contractModeLabel(mode) {
-    return mode === "expert" ? "Expert" : drillModeLabel(mode);
-  }
-
   function contractGapText(index, mode) {
     const stats = drillContractStats(index, mode);
-    if (stats.wins > 0) return `${contractModeLabel(mode)} 已完成`;
-    if (stats.starts > 0) return `${contractModeLabel(mode)} 重试 ${stats.wins}/${stats.starts}`;
-    return `${contractModeLabel(mode)} 未开练`;
+    if (stats.wins > 0) return `${drillModeLabel(mode)} 已完成`;
+    if (stats.starts > 0) return `${drillModeLabel(mode)} 重试 ${stats.wins}/${stats.starts}`;
+    return `${drillModeLabel(mode)} 未开练`;
   }
 
   function nextMasteryStepText(index) {
     const mode = roomReviewMode(index);
     const stats = drillContractStats(index, mode);
     if (roomMasteryScore(index) >= 86 && stats.wins > 0) return "维护 PB / Flow";
-    return `下一 ${contractModeLabel(mode)} Drill`;
+    return `下一 ${drillModeLabel(mode)} Drill`;
   }
 
   function masteryContractPillsHtml(index, activeMode = roomReviewMode(index)) {
@@ -4531,7 +4498,7 @@
     return `<span class="contract-pills" aria-hidden="true">` + modes.map((mode) => {
       const stats = drillContractStats(index, mode);
       const state = stats.wins > 0 ? "done" : mode === activeMode ? "active" : stats.starts > 0 ? "tried" : "todo";
-      return `<i class="contract-pill ${state} ${escapeHtml(mode)}">${escapeHtml(contractModeShort(mode))}</i>`;
+      return `<i class="contract-pill ${state} ${escapeHtml(mode)}">${escapeHtml(drillModeShort(mode))}</i>`;
     }).join("") + `</span>`;
   }
 
@@ -4758,7 +4725,7 @@
 
   function masteryRoadmapSummary() {
     return masteryRoadmapRows(3)
-      .map((row) => `R${row.index + 1} ${contractModeShort(row.mode)}`)
+      .map((row) => `R${row.index + 1} ${drillModeShort(row.mode)}`)
       .join(" → ");
   }
 

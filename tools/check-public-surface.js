@@ -640,6 +640,8 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterTransitionResultTextData(")
   || !uiPresentationSource.includes("export function summitChapterResultTextData(")
   || !uiPresentationSource.includes("export function challengeProgressSummaryData(")
+  || !uiPresentationSource.includes("export function drillModeLabel(")
+  || !uiPresentationSource.includes("export function drillModeShort(")
   || !uiPresentationSource.includes("export function feedbackDiagnosticsData(")
   || !uiPresentationSource.includes("export function feedbackTemplateTextData(")
   || !uiPresentationSource.includes("export function gamepadStatusTextData(")
@@ -648,6 +650,9 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function roomProgressSummaryData(")
   || !uiPresentationSource.includes("export function roomTrainingRecommendationData(")
   || !uiPresentationSource.includes("export function roomReviewPriorityData(")
+  || !uiPresentationSource.includes("export function routeSlotForMode(")
+  || !uiPresentationSource.includes("export function routeSlotLabel(")
+  || !uiPresentationSource.includes("export function routeSlotShort(")
   || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")
   || !uiPresentationSource.includes("export function runChapterSplitsData(")
   || !uiPresentationSource.includes("export function runChapterReviewData(")
@@ -692,6 +697,11 @@ for (const retiredHelper of ["feedbackTypeLabel", "saveArchiveSummary", "saveBac
 for (const retiredHelper of ["chapterSummary", "challengeSummary", "contractSummary"]) {
   if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {
     fail(`public runtime must not duplicate UI-owned practice summary helper ${retiredHelper}`);
+  }
+}
+for (const retiredHelper of ["drillModeLabel", "contractModeLabel", "contractModeShort", "routeSlotForMode", "routeSlotLabel", "routeSlotShort"]) {
+  if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {
+    fail(`public runtime must not duplicate UI-owned Drill/route label helper ${retiredHelper}`);
   }
 }
 for (const retiredHelper of ["roomMedalLabel", "roomCleanText", "roomDrillText", "roomDrillContractText", "roomPaceLabel", "roomTierLabel"]) {

@@ -13,7 +13,7 @@
 | `npm run state-check` | Route、Feel、Drill、Challenge 和存档状态迁移矩阵 |
 | `npm run smoke` | 本地服务器、安全响应头、公开文件白名单和关键资源检查 |
 
-`check-core-format.mjs`、`check-core-math.mjs`、`check-room-data.mjs`、`check-effect-budget.mjs`、`check-landmark-progress.mjs`、`check-audio-cues.mjs`、`check-storage.mjs`、`check-input.mjs`、`check-training.mjs`、`check-training-replay.mjs` 和 `check-ui-presentation.mjs` 直接导入公开模块，固定有限计时/差值、本地云时间、安全文本、数学、十房只读边界、长局视觉效果预算、山门/旧峰当前尝试地标进度、四幕声纹与转场节拍、存档精确同步/云冲突保护规则、输入映射、训练状态、五类房间推荐与三步计划目标、PB 路线动作语义，以及章节完成度/收束文案、房间训练/进度摘要、练习优先级、练习档案/长期挑战/手柄状态摘要、存档导入/备份摘要、安全反馈备注/模板、四幕汇总和本轮报告展示模型；它们由 `npm run check` 自动执行。
+`check-core-format.mjs`、`check-core-math.mjs`、`check-room-data.mjs`、`check-effect-budget.mjs`、`check-landmark-progress.mjs`、`check-audio-cues.mjs`、`check-storage.mjs`、`check-input.mjs`、`check-training.mjs`、`check-training-replay.mjs` 和 `check-ui-presentation.mjs` 直接导入公开模块，固定有限计时/差值、本地云时间、安全文本、数学、十房只读边界、长局视觉效果预算、山门/旧峰当前尝试地标进度、四幕声纹与转场节拍、存档精确同步/云冲突保护规则、输入映射、训练状态、五类房间推荐与三步计划目标、PB 路线动作语义，以及章节完成度/收束文案、Drill/合约/路线槽标签、房间训练/进度摘要、练习优先级、练习档案/长期挑战/手柄状态摘要、存档导入/备份摘要、安全反馈备注/模板、四幕汇总和本轮报告展示模型；它们由 `npm run check` 自动执行。
 
 浏览器回归会构造一份因果合法的十房训练档案，同时验证开始页、三步计划、四类队列、四张长期挑战和实际“继续训练”启动均消费同一组综合/Clean/Pace/Style/Expert 推荐结果。
 

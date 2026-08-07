@@ -152,6 +152,7 @@
       chapterGrade,
       chapterTransitionResultData,
       chapterTransitionResultTextData: chapterTransitionResultTextModelData,
+      challengeProgressSummaryData,
       summitChapterResultTextData: summitChapterResultTextModelData,
       fullRunRecordEligibilityData,
       feedbackDiagnosticsData,
@@ -172,17 +173,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p257"),
-    import("./modules/core/math.mjs?v=20260807-p257"),
-    import("./modules/game/room-data.mjs?v=20260807-p257"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p257"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p257"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p257"),
-    import("./modules/systems/storage.mjs?v=20260807-p257"),
-    import("./modules/systems/input.mjs?v=20260807-p257"),
-    import("./modules/training/state.mjs?v=20260807-p257"),
-    import("./modules/training/replay.mjs?v=20260807-p257"),
-    import("./modules/ui/presentation.mjs?v=20260807-p257")
+    import("./modules/core/format.mjs?v=20260807-p258"),
+    import("./modules/core/math.mjs?v=20260807-p258"),
+    import("./modules/game/room-data.mjs?v=20260807-p258"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p258"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p258"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p258"),
+    import("./modules/systems/storage.mjs?v=20260807-p258"),
+    import("./modules/systems/input.mjs?v=20260807-p258"),
+    import("./modules/training/state.mjs?v=20260807-p258"),
+    import("./modules/training/replay.mjs?v=20260807-p258"),
+    import("./modules/ui/presentation.mjs?v=20260807-p258")
   ]);
 
   const canvas = document.getElementById("game");
@@ -4674,7 +4675,7 @@
   function updateProfileSummary() {
     if (!profileSummary || !settingsVisible) return;
     const data = chapterCompletionData();
-    const challengeWins = challengeBoardItems().filter((item) => item.done).length;
+    const challengeSummary = challengeProgressSummaryData(challengeBoardItems());
     const bestDeath = profile.bestDeathCount === null ? "未记录" : `失 ${profile.bestDeathCount}`;
     const html = `<div class="profile-head"><span>长期档案</span><strong>${escapeHtml(chapterGrade(data.percent))} · ${data.percent}%</strong></div>`
       + `<div class="profile-grid">`
@@ -4682,7 +4683,7 @@
       + `<span><b>${escapeHtml(bestDeath)}</b><em>最佳失误</em></span>`
       + `<span><b>${Math.floor(profile.bestFlowPeak || 0)}</b><em>整局 Flow</em></span>`
       + `<span><b>${contractWinCount()}</b><em>合约完成</em></span>`
-      + `<span><b>${challengeWins}/${LONG_TERM_CHALLENGES.length}</b><em>挑战</em></span>`
+      + `<span><b>${challengeSummary.wins}/${challengeSummary.total}</b><em>挑战</em></span>`
       + `<span><b>${profile.bestRelayChain}</b><em>Relay</em></span>`
       + `</div>`
       + `${storageHealthMessage ? `<small class="storage-note">${escapeHtml(storageHealthMessage)}</small>` : ""}`;
@@ -5250,7 +5251,7 @@
       id: contract.id,
       progress: routeContractProgress(contract)
     }));
-    const challengeWins = Object.keys(profile.challengeWins || {}).filter((key) => profile.challengeWins[key]).length;
+    const challengeSummary = challengeProgressSummaryData(challengeBoardItems());
     const snapshot = {
       schemaVersion: 1,
       build: document.querySelector('meta[name="build-version"]')?.content || "dev",
@@ -5321,7 +5322,7 @@
         styleRooms: chapter.style,
         expertRooms: chapter.expert,
         contractWins: contractWinCount(),
-        challengeWins,
+        challengeWins: challengeSummary.wins,
         summitClears: profile.summitClears || 0,
         bestDeathCount: profile.bestDeathCount,
         bestFlow: Math.floor(Math.max(bestFlow, profile.bestFlowPeak || 0)),
@@ -8341,9 +8342,8 @@
     const focus = strongestFocusRoom();
     const chapter = chapterCompletionData();
     const chapterText = `${chapterGrade(chapter.percent)} · ${chapter.percent}%`;
-    const challengeItems = challengeBoardItems();
-    const challengeWins = challengeItems.filter((item) => item.done).length;
-    const nextChallenge = challengeItems.find((item) => !item.done) || challengeItems[challengeItems.length - 1];
+    const challengeSummary = challengeProgressSummaryData(challengeBoardItems());
+    const nextChallenge = challengeSummary.review;
     const challengeReview = activeChallengeReview();
     const runReview = runChapterReview();
     const challengeReviewCard = challengeReview ? reviewCardHtml("本轮挑战", challengeReview.value, challengeReview.detail, "primary") : "";
@@ -8360,7 +8360,7 @@
     const styleButton = `<button class="review-button" type="button" data-finish-drill="${styleIndex}" data-finish-mode="style">类型 Style</button>`;
     const primaryCards = reviewCardHtml("下一 Drill", `R${next + 1} ${drillModeLabel(nextMode)}`, postRunTrainingAdvice(runPlan), "primary")
       + reviewCardHtml("章节完成度", chapterText, `Clean ${chapter.clean}/${maps.length} · S ${chapter.pace}/${maps.length} · X ${chapter.expert}/${maps.length}`, "primary")
-      + (challengeReviewCard || reviewCardHtml("长期挑战", `${challengeWins}/${LONG_TERM_CHALLENGES.length}`, nextChallenge ? `${nextChallenge.label}：${nextChallenge.detail}` : "挑战已全部完成", "primary"))
+      + (challengeReviewCard || reviewCardHtml("长期挑战", `${challengeSummary.wins}/${challengeSummary.total}`, nextChallenge ? `${nextChallenge.label}：${nextChallenge.detail}` : "挑战已全部完成", "primary"))
       + (lastRouteContractResult ? routeContractCard : "");
     const extraCards = reviewCardHtml("本轮分幕", runReview.value, runReview.detail)
       + reviewCardHtml("本轮最大损失", splitValue, splitDetail)

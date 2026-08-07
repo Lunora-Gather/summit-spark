@@ -6,6 +6,7 @@ import {
   chapterGrade,
   chapterTransitionResultData,
   chapterTransitionResultTextData,
+  challengeProgressSummaryData,
   summitChapterResultTextData,
   feedbackDiagnosticsData,
   feedbackTemplateTextData,
@@ -648,6 +649,38 @@ assert.equal(gamepadStatusTextData({
   axisMagnitude: "invalid",
   activeActions: "invalid"
 }), "0 个 · standard false");
+
+const challengeRows = [
+  { id: "clear", done: true, label: "稳定登顶", progress: 100 },
+  { id: "flow", done: false, label: "整局 Flow", progress: 42 },
+  null
+];
+const challengeSummary = challengeProgressSummaryData(challengeRows);
+assert.deepEqual(challengeSummary, {
+  wins: 1,
+  total: 2,
+  complete: false,
+  next: { id: "flow", done: false, label: "整局 Flow", progress: 42 },
+  review: { id: "flow", done: false, label: "整局 Flow", progress: 42 }
+});
+assert.notEqual(challengeSummary.next, challengeRows[1], "challenge summaries must not expose mutable source rows");
+assert.deepEqual(challengeProgressSummaryData([
+  { id: "a", done: true },
+  { id: "b", done: true }
+]), {
+  wins: 2,
+  total: 2,
+  complete: true,
+  next: null,
+  review: { id: "b", done: true }
+});
+assert.deepEqual(challengeProgressSummaryData("invalid"), {
+  wins: 0,
+  total: 0,
+  complete: false,
+  next: null,
+  review: null
+});
 
 assert.deepEqual(practiceProgressSummaryData({
   roomTotal: 3,

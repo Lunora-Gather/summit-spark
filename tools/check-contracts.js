@@ -362,6 +362,8 @@ if (!js.includes("recordSummitProfile")) errors.push("summit clear should update
 if (!js.includes("chapterCompletionData")) errors.push("chapter completion data helper is missing");
 if (!js.includes("updateChapterOverview")) errors.push("settings panel should expose chapter completion");
 if (!js.includes("challengeBoardItems")) errors.push("challenge board item helper is missing");
+if ((js.match(/challengeProgressSummaryData\(challengeBoardItems\(\)\)/g) || []).length < 3
+  || !uiPresentationModule.includes("export function challengeProgressSummaryData(")) errors.push("profile, diagnostics and summit review must share the UI-owned challenge summary");
 if (!js.includes("updateChallengeBoard")) errors.push("settings panel should expose long-term challenges");
 if (!js.includes("updateProfileSummary")) errors.push("settings panel should expose the long-term profile");
 if (!js.includes("startSummitChallenge")) errors.push("full-run challenge start helper is missing");

@@ -635,6 +635,7 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterTransitionResultData(")
   || !uiPresentationSource.includes("export function chapterTransitionResultTextData(")
   || !uiPresentationSource.includes("export function summitChapterResultTextData(")
+  || !uiPresentationSource.includes("export function challengeProgressSummaryData(")
   || !uiPresentationSource.includes("export function feedbackDiagnosticsData(")
   || !uiPresentationSource.includes("export function feedbackTemplateTextData(")
   || !uiPresentationSource.includes("export function gamepadStatusTextData(")
@@ -656,6 +657,7 @@ for (const delegation of [
   "return chapterTransitionResultData({",
   "return chapterTransitionResultTextModelData({",
   "return summitChapterResultTextModelData({",
+  "challengeProgressSummaryData(challengeBoardItems())",
   "return feedbackDiagnosticsData({",
   "return feedbackTemplateTextData({",
   "return gamepadStatusTextData(lastGamepadStatus)",

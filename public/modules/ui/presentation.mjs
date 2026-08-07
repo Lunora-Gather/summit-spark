@@ -488,6 +488,22 @@ export function gamepadStatusTextData(status = {}) {
   return `${count} 个 · standard ${value.standardMapping === true}${axis}${drift}${active}`;
 }
 
+export function challengeProgressSummaryData(items = []) {
+  const challenges = Array.isArray(items)
+    ? items.filter((item) => item && typeof item === "object")
+    : [];
+  const wins = challenges.filter((item) => item.done === true).length;
+  const next = challenges.find((item) => item.done !== true) || null;
+  const review = next || challenges.at(-1) || null;
+  return {
+    wins,
+    total: challenges.length,
+    complete: challenges.length > 0 && wins === challenges.length,
+    next: next ? { ...next } : null,
+    review: review ? { ...review } : null
+  };
+}
+
 export function practiceProgressSummaryData(input = {}) {
   const value = input && typeof input === "object" ? input : {};
   const entries = Array.isArray(value.roomFocus) ? value.roomFocus : [];
@@ -499,14 +515,10 @@ export function practiceProgressSummaryData(input = {}) {
   const cleanRooms = boundedEntries.filter((entry) => nonNegativeNumber(entry.clean) > 0).length;
   const chapterPercent = Math.max(0, Math.min(100, Math.round(nonNegativeNumber(value.chapterPercent))));
   const chapterGrade = reportLineText(value.chapterGrade, "D");
-  const challenges = Array.isArray(value.challenges)
-    ? value.challenges.filter((item) => item && typeof item === "object")
-    : [];
-  const challengeWins = challenges.filter((item) => item.done === true).length;
-  const nextChallenge = challenges.find((item) => item.done !== true) || null;
-  const challengeText = nextChallenge
-    ? `挑战 ${challengeWins}/${challenges.length} ${reportLineText(nextChallenge.label, "未命名挑战")} ${Math.max(0, Math.min(100, Math.round(nonNegativeNumber(nextChallenge.progress))))}%`
-    : `挑战 ${challengeWins}/${challenges.length} 全完成`;
+  const challengeSummary = challengeProgressSummaryData(value.challenges);
+  const challengeText = challengeSummary.next
+    ? `挑战 ${challengeSummary.wins}/${challengeSummary.total} ${reportLineText(challengeSummary.next.label, "未命名挑战")} ${Math.max(0, Math.min(100, Math.round(nonNegativeNumber(challengeSummary.next.progress))))}%`
+    : `挑战 ${challengeSummary.wins}/${challengeSummary.total} 全完成`;
   const totals = boundedEntries.reduce((sum, entry) => {
     for (const key of Object.keys(sum)) sum[key] += Math.floor(nonNegativeNumber(entry[key]));
     return sum;

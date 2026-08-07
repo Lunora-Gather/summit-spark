@@ -1656,7 +1656,7 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
         r2AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel").textContent`));
         continue;
       }
-      await keyTap(cdp, "Space", " ");
+      await keyHold(cdp, "Space", " ", 90);
       let launchCue;
       try {
         launchCue = await waitUntil("R2 real-input launch reaches dash cue", () => evaluate(cdp, `(() => {

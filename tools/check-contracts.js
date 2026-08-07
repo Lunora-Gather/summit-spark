@@ -536,7 +536,7 @@ if (buildVersion && !indexHtml.includes("summit-spark.css?v=" + buildVersion)) e
 if (buildVersion && !indexHtml.includes("summit-spark.js?v=" + buildVersion)) errors.push("HTML should version the JS asset with the build version");
 if (buildVersion && !js.includes("modules/core/format.mjs?v=" + buildVersion)) errors.push("runtime should version the core format module with the build version");
 if (buildVersion && !js.includes("modules/core/math.mjs?v=" + buildVersion)) errors.push("runtime should version the core math module with the build version");
-for (const helper of ["formatTime", "formatDelta", "splitGrade", "escapeHtml"]) {
+for (const helper of ["formatTime", "formatDelta", "formatLocalDateTime", "splitGrade", "escapeHtml"]) {
   if (!coreFormat.includes(`export function ${helper}(`) || js.includes(`function ${helper}(`)) {
     errors.push(`pure helper ${helper} should have one exported implementation in the core format module`);
   }

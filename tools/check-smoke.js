@@ -234,7 +234,7 @@ async function main() {
     expectIncludes("UI presentation", uiPresentationModule, "export function chapterTransitionResultData(");
     expectIncludes("UI presentation", uiPresentationModule, "export function chapterTransitionResultTextData(");
     expectIncludes("UI presentation", uiPresentationModule, "export function summitChapterResultTextData(");
-    ["export function formatTime(", "export function formatDelta(", "export function splitGrade(", "export function escapeHtml("]
+    ["export function formatTime(", "export function formatDelta(", "export function formatLocalDateTime(", "export function splitGrade(", "export function escapeHtml("]
       .forEach((marker) => expectIncludes("core format", coreFormat, marker));
     ["export function aabb(", "export function distRectPoint(", "export function approach("]
       .forEach((marker) => expectIncludes("core math", coreMath, marker));

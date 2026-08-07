@@ -198,7 +198,11 @@ if (pagesWorkflow.includes("path: .\n")) {
 if (!runtimeSource.includes("window.self !== window.top") || !runtimeSource.includes("document.body.replaceChildren(notice)")) {
   fail("public runtime must stop before initialization when embedded by another page");
 }
-if (!runtimeSource.includes('import("./modules/core/format.mjs?v=') || !coreFormatSource.includes("export function formatTime(")) {
+if (!runtimeSource.includes('import("./modules/core/format.mjs?v=')
+  || !coreFormatSource.includes("export function formatTime(")
+  || !coreFormatSource.includes("export function formatLocalDateTime(")
+  || !runtimeSource.includes("formatLocalDateTime(cloudRow.$updatedAt)")
+  || /\bfunction\s+formatCloudTime\s*\(/.test(runtimeSource)) {
   fail("public runtime must consume the versioned core format module");
 }
 if (!runtimeSource.includes('import("./modules/core/math.mjs?v=') || !coreMathSource.includes("export function aabb(")) {

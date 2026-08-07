@@ -18,6 +18,7 @@
     {
       escapeHtml,
       formatDelta,
+      formatLocalDateTime,
       formatTime,
       splitGrade
     },
@@ -173,17 +174,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p258"),
-    import("./modules/core/math.mjs?v=20260807-p258"),
-    import("./modules/game/room-data.mjs?v=20260807-p258"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p258"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p258"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p258"),
-    import("./modules/systems/storage.mjs?v=20260807-p258"),
-    import("./modules/systems/input.mjs?v=20260807-p258"),
-    import("./modules/training/state.mjs?v=20260807-p258"),
-    import("./modules/training/replay.mjs?v=20260807-p258"),
-    import("./modules/ui/presentation.mjs?v=20260807-p258")
+    import("./modules/core/format.mjs?v=20260807-p259"),
+    import("./modules/core/math.mjs?v=20260807-p259"),
+    import("./modules/game/room-data.mjs?v=20260807-p259"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p259"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p259"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p259"),
+    import("./modules/systems/storage.mjs?v=20260807-p259"),
+    import("./modules/systems/input.mjs?v=20260807-p259"),
+    import("./modules/training/state.mjs?v=20260807-p259"),
+    import("./modules/training/replay.mjs?v=20260807-p259"),
+    import("./modules/ui/presentation.mjs?v=20260807-p259")
   ]);
 
   const canvas = document.getElementById("game");
@@ -5925,7 +5926,7 @@
       lastCloudArchiveSyncKey = localSyncKey;
       cloudSyncReady = true;
       cloudSaveDirty = false;
-      setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
+      setCloudStatus(`已同步 · ${formatLocalDateTime(cloudRow.$updatedAt)}`);
       setAccountStatus("本地与云端进度一致", "valid");
       return;
     }
@@ -5933,7 +5934,7 @@
       await downloadCloudSave();
       return;
     }
-    setCloudStatus(`发现不同进度 · ${formatCloudTime(cloudRow.$updatedAt)}`);
+    setCloudStatus(`发现不同进度 · ${formatLocalDateTime(cloudRow.$updatedAt)}`);
     setAccountStatus("请选择“使用云端”或“上传本地”，确认后将自动同步");
   }
 
@@ -5957,13 +5958,6 @@
       bestTime: readBestTime(),
       bestFlow: readBestFlow()
     });
-  }
-
-  function formatCloudTime(value) {
-    if (!value) return "刚刚";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "刚刚";
-    return date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
   }
 
   function setCloudStatus(message, summary = "") {
@@ -6010,7 +6004,7 @@
     const syncKey = saveArchiveSyncKeyData(archive);
     if (!force && syncKey === lastCloudArchiveSyncKey) {
       cloudSaveDirty = false;
-      setCloudStatus(`已同步 · ${formatCloudTime(cloudRow?.$updatedAt)}`);
+      setCloudStatus(`已同步 · ${formatLocalDateTime(cloudRow?.$updatedAt)}`);
       return true;
     }
     if (cloudSyncTimer) {
@@ -6040,7 +6034,7 @@
       cloudUploadPermitted = true;
       lastCloudArchiveSyncKey = syncKey;
       cloudSyncReady = true;
-      setCloudStatus(`已同步 · ${formatCloudTime(cloudRow.$updatedAt)}`);
+      setCloudStatus(`已同步 · ${formatLocalDateTime(cloudRow.$updatedAt)}`);
       setAccountStatus("进度已安全保存到云端", "valid");
       uploadSucceeded = true;
       return true;

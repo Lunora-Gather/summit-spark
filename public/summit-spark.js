@@ -152,6 +152,8 @@
       chapterGrade,
       chapterTransitionResultData,
       fullRunRecordEligibilityData,
+      feedbackDiagnosticsData,
+      feedbackTemplateTextData,
       lumenRunSummaryData,
       postRunReviewData,
       rankPracticeLedgerRowsData,
@@ -166,17 +168,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p254"),
-    import("./modules/core/math.mjs?v=20260807-p254"),
-    import("./modules/game/room-data.mjs?v=20260807-p254"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p254"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p254"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p254"),
-    import("./modules/systems/storage.mjs?v=20260807-p254"),
-    import("./modules/systems/input.mjs?v=20260807-p254"),
-    import("./modules/training/state.mjs?v=20260807-p254"),
-    import("./modules/training/replay.mjs?v=20260807-p254"),
-    import("./modules/ui/presentation.mjs?v=20260807-p254")
+    import("./modules/core/format.mjs?v=20260807-p255"),
+    import("./modules/core/math.mjs?v=20260807-p255"),
+    import("./modules/game/room-data.mjs?v=20260807-p255"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p255"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p255"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p255"),
+    import("./modules/systems/storage.mjs?v=20260807-p255"),
+    import("./modules/systems/input.mjs?v=20260807-p255"),
+    import("./modules/training/state.mjs?v=20260807-p255"),
+    import("./modules/training/replay.mjs?v=20260807-p255"),
+    import("./modules/ui/presentation.mjs?v=20260807-p255")
   ]);
 
   const canvas = document.getElementById("game");
@@ -5327,11 +5329,10 @@
   }
 
   function feedbackDiagnostics() {
-    const allowed = new Set(["route", "feel", "mobile", "audio", "storage", "other"]);
-    const type = allowed.has(feedbackTypeSelect?.value) ? feedbackTypeSelect.value : "route";
-    const raw = typeof feedbackNoteInput?.value === "string" ? feedbackNoteInput.value : "";
-    const note = raw.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 240);
-    return { type, note, noteLength: note.length };
+    return feedbackDiagnosticsData({
+      type: feedbackTypeSelect?.value,
+      note: feedbackNoteInput?.value
+    });
   }
 
   function gamepadDiagnostics() {
@@ -5350,36 +5351,11 @@
   }
 
   function buildFeedbackTemplate(snapshot = buildDiagnosticsSnapshot()) {
-    const feedback = snapshot.feedback || { type: "route", note: "" };
-    const active = snapshot.run?.activeDrill ? `R${snapshot.run.activeDrill.room} ${drillModeLabel(snapshot.run.activeDrill.mode)}` : "自由游玩";
-    const route = snapshot.run?.activeRoute ? `${snapshot.run.activeRoute.label} ${snapshot.run.activeRoute.step}/${snapshot.run.activeRoute.total}` : "无";
-    const feel = snapshot.run?.activeFeel ? `${snapshot.run.activeFeel.id} R${snapshot.run.activeFeel.room}` : "无";
-    return [
-      `Summit Spark ${snapshot.build}`,
-      `反馈类型：${feedbackTypeLabel(feedback.type)}`,
-      `备注：${feedback.note || "未填写"}`,
-      `当前位置：R${snapshot.run?.room || 1} / ${active}`,
-      `航线：${route}`,
-      `Feel Lab：${feel}`,
-      `视口：${snapshot.viewport.width}x${snapshot.viewport.height} dpr ${snapshot.viewport.dpr} coarse ${snapshot.viewport.coarsePointer ? "yes" : "no"}`,
-      `手柄：${snapshot.gamepad.connected ? `${snapshot.gamepad.count} 个 / standard ${snapshot.gamepad.standardMapping}` : "未连接"} / dz ${snapshot.gamepad.deadzone.toFixed(2)}`,
-      `进度：${snapshot.progress.clearedRooms}/${maps.length} clear / 合同 ${snapshot.progress.contractWins}`,
-      "复现步骤：",
-      "实际结果：",
-      "期望结果："
-    ].join("\n");
-  }
-
-  function feedbackTypeLabel(type) {
-    const labels = {
-      route: "路线摩擦",
-      feel: "输入手感",
-      mobile: "移动端",
-      audio: "音频",
-      storage: "存档",
-      other: "其他"
-    };
-    return labels[type] || labels.route;
+    return feedbackTemplateTextData({
+      snapshot,
+      roomTotal: maps.length,
+      activeDrillModeLabel: snapshot.run?.activeDrill ? drillModeLabel(snapshot.run.activeDrill.mode) : ""
+    });
   }
 
   function downloadTextFile(text, filename, type = "text/plain") {

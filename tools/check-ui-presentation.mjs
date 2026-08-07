@@ -5,6 +5,8 @@ import {
   chapterCompletionData,
   chapterGrade,
   chapterTransitionResultData,
+  feedbackDiagnosticsData,
+  feedbackTemplateTextData,
   fullRunRecordEligibilityData,
   lumenRunSummaryData,
   postRunReviewData,
@@ -557,4 +559,51 @@ assert.equal(
 );
 assert.equal(saveArchiveSummaryData(null), "可导入：未知版本 / 登顶 0 / 房间 PB 0/0 / Flow 0 / 触控 48px");
 
-console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, room training/progress summaries, save previews, post-run evidence, run reports and practice priority ranking preserved.");
+assert.deepEqual(feedbackDiagnosticsData({
+  type: "mobile",
+  note: "  R7\u0000 touch\n note  "
+}), { type: "mobile", note: "R7 touch note", noteLength: 13 });
+assert.deepEqual(feedbackDiagnosticsData({ type: "forged", note: 42 }), { type: "route", note: "", noteLength: 0 });
+assert.equal(feedbackDiagnosticsData({ note: "a".repeat(300) }).note.length, 240);
+
+const feedbackTemplate = feedbackTemplateTextData({
+  snapshot: {
+    build: "20260807-p254",
+    feedback: { type: "mobile", note: "R7 touch note" },
+    run: {
+      room: 7,
+      activeDrill: { room: 7, mode: "style" },
+      activeRoute: { label: "风峡迁移", step: 2, total: 3 },
+      activeFeel: { id: "wind-entry", room: 7 }
+    },
+    viewport: { width: 960, height: 544, dpr: 1.25, coarsePointer: true },
+    gamepad: { connected: true, count: 1, standardMapping: true, deadzone: 0.18 },
+    progress: { clearedRooms: 6, contractWins: 2 }
+  },
+  roomTotal: 10,
+  activeDrillModeLabel: "Style"
+});
+assert.match(feedbackTemplate, /^Summit Spark 20260807-p254/m);
+assert.match(feedbackTemplate, /反馈类型：移动端\n备注：R7 touch note/);
+assert.match(feedbackTemplate, /当前位置：R7 \/ R7 Style/);
+assert.match(feedbackTemplate, /航线：风峡迁移 2\/3/);
+assert.match(feedbackTemplate, /Feel Lab：wind-entry R7/);
+assert.match(feedbackTemplate, /视口：960x544 dpr 1\.25 coarse yes/);
+assert.match(feedbackTemplate, /手柄：1 个 \/ standard true \/ dz 0\.18/);
+assert.match(feedbackTemplate, /进度：6\/10 clear \/ 合同 2/);
+assert.match(feedbackTemplate, /复现步骤：\n实际结果：\n期望结果：$/);
+const malformedFeedbackTemplate = feedbackTemplateTextData({
+  snapshot: {
+    build: "bad\nforged",
+    feedback: { type: "unknown", note: "line\nforge" },
+    run: { activeRoute: { label: "route\nforge" }, activeFeel: {} },
+    gamepad: { connected: true, deadzone: "invalid" }
+  },
+  roomTotal: 10
+});
+assert.doesNotMatch(malformedFeedbackTemplate, /bad\nforged|line\nforge|route\nforge/);
+assert.match(malformedFeedbackTemplate, /反馈类型：路线摩擦/);
+assert.match(malformedFeedbackTemplate, /视口：0x0 dpr 1 coarse no/);
+assert.match(malformedFeedbackTemplate, /dz 0\.00/);
+
+console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, room training/progress summaries, save/feedback previews, post-run evidence, run reports and practice priority ranking preserved.");

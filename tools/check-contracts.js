@@ -373,8 +373,13 @@ if (!js.includes("playSound")) errors.push("audio feedback helper is missing");
 if (!js.includes("playAudioTestPattern")) errors.push("audio settings should expose a test pattern");
 if (!js.includes("buildDiagnosticsSnapshot")) errors.push("feedback diagnostics snapshot helper is missing");
 if (!js.includes("copyDiagnosticsSnapshot")) errors.push("feedback diagnostics copy helper is missing");
-if (!js.includes("feedbackDiagnostics")) errors.push("feedback diagnostics note helper is missing");
-if (!js.includes("buildFeedbackTemplate")) errors.push("feedback template helper is missing");
+if (!js.includes("function feedbackDiagnostics()")
+  || !js.includes("return feedbackDiagnosticsData({")
+  || !uiPresentationModule.includes("export function feedbackDiagnosticsData(")) errors.push("feedback diagnostics notes must use the UI-owned sanitizer");
+if (!js.includes("function buildFeedbackTemplate(")
+  || !js.includes("return feedbackTemplateTextData({")
+  || !uiPresentationModule.includes("export function feedbackTemplateTextData(")
+  || /\bfunction\s+feedbackTypeLabel\s*\(/.test(js)) errors.push("feedback template copy must use the defensive UI-owned presentation model");
 if (!js.includes("copyFeedbackTemplate")) errors.push("feedback template copy helper is missing");
 if (!js.includes("SAVE_ARCHIVE_KIND")) errors.push("save archive kind guard is missing");
 if (!js.includes("buildSaveArchive")) errors.push("save archive export helper is missing");

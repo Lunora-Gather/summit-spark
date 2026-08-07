@@ -633,6 +633,8 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterCompletionData(")
   || !uiPresentationSource.includes("export function chapterGrade(")
   || !uiPresentationSource.includes("export function chapterTransitionResultData(")
+  || !uiPresentationSource.includes("export function feedbackDiagnosticsData(")
+  || !uiPresentationSource.includes("export function feedbackTemplateTextData(")
   || !uiPresentationSource.includes("export function roomSplitFeedbackData(")
   || !uiPresentationSource.includes("export function roomProgressSummaryData(")
   || !uiPresentationSource.includes("export function roomTrainingRecommendationData(")
@@ -648,6 +650,8 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
 for (const delegation of [
   "return chapterCompletionModelData({",
   "return chapterTransitionResultData({",
+  "return feedbackDiagnosticsData({",
+  "return feedbackTemplateTextData({",
   "const result = roomSplitFeedbackData({",
   "return roomProgressSummaryData({",
   "return roomTrainingRecommendationData({",
@@ -666,7 +670,7 @@ for (const delegation of [
 if (/\bfunction\s+chapterGrade\s*\(/.test(runtimeSource)) {
   fail("public runtime must not duplicate the UI-owned chapter grade rule");
 }
-for (const retiredHelper of ["saveArchiveSummary", "saveBackupSummary"]) {
+for (const retiredHelper of ["feedbackTypeLabel", "saveArchiveSummary", "saveBackupSummary"]) {
   if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {
     fail(`public runtime must not duplicate UI-owned save summary helper ${retiredHelper}`);
   }

@@ -14,6 +14,15 @@ const ROOM_TIER_LABELS = Object.freeze({
   finale: "终盘"
 });
 
+const FEEDBACK_TYPE_LABELS = Object.freeze({
+  route: "路线摩擦",
+  feel: "输入手感",
+  mobile: "移动端",
+  audio: "音频",
+  storage: "存档",
+  other: "其他"
+});
+
 export function chapterCompletionData(input = {}) {
   const roomTotal = Math.max(1, Math.floor(nonNegativeNumber(input.roomTotal)));
   const clear = nonNegativeNumber(input.clear);
@@ -373,6 +382,63 @@ export function saveArchiveSummaryData(input = {}) {
   const bestFlow = Math.floor(nonNegativeNumber(archive.bestFlow));
   const touchSize = Math.floor(nonNegativeNumber(settings.touchSize)) || 48;
   return `可导入：${build} / 登顶 ${cleared} / 房间 PB ${bestRooms}/${roomTotal} / Flow ${bestFlow} / 触控 ${touchSize}px`;
+}
+
+export function feedbackDiagnosticsData(input = {}) {
+  const value = input && typeof input === "object" ? input : {};
+  const type = Object.hasOwn(FEEDBACK_TYPE_LABELS, value.type) ? value.type : "route";
+  const rawNote = typeof value.note === "string" ? value.note : "";
+  const note = rawNote
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+  return { type, note, noteLength: note.length };
+}
+
+export function feedbackTemplateTextData(input = {}) {
+  const value = input && typeof input === "object" ? input : {};
+  const snapshot = value.snapshot && typeof value.snapshot === "object" ? value.snapshot : {};
+  const run = snapshot.run && typeof snapshot.run === "object" ? snapshot.run : {};
+  const viewport = snapshot.viewport && typeof snapshot.viewport === "object" ? snapshot.viewport : {};
+  const gamepad = snapshot.gamepad && typeof snapshot.gamepad === "object" ? snapshot.gamepad : {};
+  const progress = snapshot.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+  const activeDrill = run.activeDrill && typeof run.activeDrill === "object" ? run.activeDrill : null;
+  const activeRoute = run.activeRoute && typeof run.activeRoute === "object" ? run.activeRoute : null;
+  const activeFeel = run.activeFeel && typeof run.activeFeel === "object" ? run.activeFeel : null;
+  const feedback = feedbackDiagnosticsData(snapshot.feedback);
+  const build = reportLineText(snapshot.build, "dev");
+  const room = Math.max(1, Math.floor(nonNegativeNumber(run.room)) || 1);
+  const drillRoom = activeDrill ? Math.max(1, Math.floor(nonNegativeNumber(activeDrill.room)) || 1) : 1;
+  const drillModeLabel = reportLineText(value.activeDrillModeLabel);
+  const active = activeDrill ? `R${drillRoom} ${drillModeLabel || "Drill"}` : "自由游玩";
+  const route = activeRoute
+    ? `${reportLineText(activeRoute.label, "未命名航线")} ${Math.floor(nonNegativeNumber(activeRoute.step))}/${Math.floor(nonNegativeNumber(activeRoute.total))}`
+    : "无";
+  const feel = activeFeel
+    ? `${reportLineText(activeFeel.id, "未命名 Feel")} R${Math.max(1, Math.floor(nonNegativeNumber(activeFeel.room)) || 1)}`
+    : "无";
+  const width = Math.floor(nonNegativeNumber(viewport.width));
+  const height = Math.floor(nonNegativeNumber(viewport.height));
+  const dpr = nonNegativeNumber(viewport.dpr) || 1;
+  const deadzone = nonNegativeNumber(gamepad.deadzone);
+  const roomTotal = Math.floor(nonNegativeNumber(value.roomTotal));
+  const clearedRooms = Math.min(roomTotal || Number.MAX_SAFE_INTEGER, Math.floor(nonNegativeNumber(progress.clearedRooms)));
+  const feedbackLabel = FEEDBACK_TYPE_LABELS[feedback.type];
+  return [
+    `Summit Spark ${build}`,
+    `反馈类型：${feedbackLabel}`,
+    `备注：${feedback.note || "未填写"}`,
+    `当前位置：R${room} / ${active}`,
+    `航线：${route}`,
+    `Feel Lab：${feel}`,
+    `视口：${width}x${height} dpr ${dpr} coarse ${viewport.coarsePointer === true ? "yes" : "no"}`,
+    `手柄：${gamepad.connected === true ? `${Math.floor(nonNegativeNumber(gamepad.count))} 个 / standard ${gamepad.standardMapping === true}` : "未连接"} / dz ${deadzone.toFixed(2)}`,
+    `进度：${clearedRooms}/${roomTotal} clear / 合同 ${Math.floor(nonNegativeNumber(progress.contractWins))}`,
+    "复现步骤：",
+    "实际结果：",
+    "期望结果："
+  ].join("\n");
 }
 
 export function lumenRunSummaryData(input = {}) {

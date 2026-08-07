@@ -390,7 +390,11 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })()`);
   await waitUntil("entry chooser after session check", () => evaluate(cdp, `(() => {
     const gate = document.querySelector("#entryGate");
-    return !!gate && !gate.classList.contains("hidden") && !document.querySelector("#overlay")?.classList.contains("entry-checking");
+    const guest = document.querySelector("#guestEntryButton");
+    return !!gate
+      && !gate.classList.contains("hidden")
+      && !document.querySelector("#overlay")?.classList.contains("entry-checking")
+      && document.activeElement === guest;
   })()`), 7000);
   const entryChoice = await evaluate(cdp, `(() => {
     const gate = document.querySelector("#entryGate");

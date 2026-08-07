@@ -9,6 +9,7 @@ import {
   challengeProgressSummaryData,
   drillModeLabel,
   drillModeShort,
+  drillPresentationData,
   summitChapterResultTextData,
   feedbackDiagnosticsData,
   feedbackTemplateTextData,
@@ -31,6 +32,55 @@ import {
   routeSlotLabel,
   routeSlotShort
 } from "../public/modules/ui/presentation.mjs";
+
+const drillPresentationInput = {
+  formattedTarget: "0:18.50",
+  routeCores: ["先稳住落点", "两次光继后直冲", "顶点冲刺收尾"],
+  styleLabel: "节奏",
+  styleObjective: "节奏：连续光继 / 无失误 / ≤0:20.00",
+  expertRequirementText: "高手动作：relayChain+springApex",
+  autoObjective: "减少尖刺失误"
+};
+assert.deepEqual(drillPresentationData({ ...drillPresentationInput, mode: "auto" }), {
+  mode: "auto",
+  target: "目标：完成推荐路线",
+  objective: "减少尖刺失误",
+  brief: "目标：完成推荐路线 · 减少尖刺失误"
+});
+assert.deepEqual(drillPresentationData({ ...drillPresentationInput, mode: "clean" }), {
+  mode: "clean",
+  target: "目标：无失误通过",
+  objective: "无失误：先稳住落点",
+  brief: "目标：无失误通过 · 路线：先稳住落点"
+});
+assert.deepEqual(drillPresentationData({ ...drillPresentationInput, mode: "pace" }), {
+  mode: "pace",
+  target: "目标：0:18.50 内通关",
+  objective: "达标 0:18.50：两次光继后直冲",
+  brief: "目标：0:18.50 内通关 · 路线：两次光继后直冲"
+});
+assert.deepEqual(drillPresentationData({ ...drillPresentationInput, mode: "style" }), {
+  mode: "style",
+  target: "目标：节奏挑战",
+  objective: "节奏：连续光继 / 无失误 / ≤0:20.00",
+  brief: "目标：节奏挑战 · 节奏：连续光继 / 无失误 / ≤0:20.00"
+});
+assert.deepEqual(drillPresentationData({ ...drillPresentationInput, mode: "expert" }), {
+  mode: "expert",
+  target: "目标：S + 无失误 + 高手动作",
+  objective: "高手线：顶点冲刺收尾 / 高手动作：relayChain+springApex",
+  brief: "目标：S + 无失误 + 高手动作 · 路线：顶点冲刺收尾 · 高手动作：relayChain+springApex"
+});
+assert.deepEqual(drillPresentationData({
+  mode: "forged",
+  routeCores: ["安全\n伪造", null, "高手\r\n伪造"],
+  autoObjective: "恢复\n路线"
+}), {
+  mode: "auto",
+  target: "目标：完成推荐路线",
+  objective: "恢复 路线",
+  brief: "目标：完成推荐路线 · 恢复 路线"
+}, "Drill presentation must fail closed to Auto and keep malformed copy on one line");
 
 assert.deepEqual(lumenRunSummaryData({ found: 5, total: 12 }), {
   found: 5,
@@ -744,4 +794,4 @@ assert.deepEqual(practiceProgressSummaryData({
   contract: "合约 C 0/0 · P 0/0 · S 0/0 · X 0/0"
 });
 
-console.log("UI presentation check passed: chapter completion/grades, full-run record eligibility, transition results, room split feedback, room training/progress summaries, save/feedback previews, post-run evidence, run reports and practice priority ranking preserved.");
+console.log("UI presentation check passed: Drill objectives/briefs, chapter completion/grades, full-run record eligibility, transition results, room split feedback, room training/progress summaries, save/feedback previews, post-run evidence, run reports and practice priority ranking preserved.");

@@ -64,6 +64,40 @@ export function routeSlotShort(slot) {
   return "快速";
 }
 
+export function drillPresentationData(input = {}) {
+  const value = input && typeof input === "object" ? input : {};
+  const mode = Object.hasOwn(DRILL_MODE_LABELS, value.mode) ? value.mode : "auto";
+  const routeCores = Array.isArray(value.routeCores) ? value.routeCores : [];
+  const routeCore = (slot) => reportLineText(routeCores[slot], "推荐路线");
+  const formattedTarget = reportLineText(value.formattedTarget, "0:00.00");
+  const styleLabel = reportLineText(value.styleLabel, "类型");
+  const styleObjective = reportLineText(value.styleObjective, `${styleLabel}：完成路线`);
+  const expertRequirementText = reportLineText(value.expertRequirementText, "高手动作：自由路线");
+  const autoObjective = reportLineText(value.autoObjective, routeCore(1));
+
+  let target = "目标：完成推荐路线";
+  let objective = autoObjective;
+  let brief = `${target} · ${objective}`;
+  if (mode === "clean") {
+    target = "目标：无失误通过";
+    objective = `无失误：${routeCore(0)}`;
+    brief = `${target} · 路线：${routeCore(0)}`;
+  } else if (mode === "pace") {
+    target = `目标：${formattedTarget} 内通关`;
+    objective = `达标 ${formattedTarget}：${routeCore(1)}`;
+    brief = `${target} · 路线：${routeCore(1)}`;
+  } else if (mode === "style") {
+    target = `目标：${styleLabel}挑战`;
+    objective = styleObjective;
+    brief = `${target} · ${styleObjective}`;
+  } else if (mode === "expert") {
+    target = "目标：S + 无失误 + 高手动作";
+    objective = `高手线：${routeCore(2)} / ${expertRequirementText}`;
+    brief = `${target} · 路线：${routeCore(2)} · ${expertRequirementText}`;
+  }
+  return { mode, target, objective, brief };
+}
+
 export function chapterCompletionData(input = {}) {
   const roomTotal = Math.max(1, Math.floor(nonNegativeNumber(input.roomTotal)));
   const clear = nonNegativeNumber(input.clear);

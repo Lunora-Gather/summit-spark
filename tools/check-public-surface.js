@@ -642,6 +642,7 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function challengeProgressSummaryData(")
   || !uiPresentationSource.includes("export function drillModeLabel(")
   || !uiPresentationSource.includes("export function drillModeShort(")
+  || !uiPresentationSource.includes("export function drillPresentationData(")
   || !uiPresentationSource.includes("export function feedbackDiagnosticsData(")
   || !uiPresentationSource.includes("export function feedbackTemplateTextData(")
   || !uiPresentationSource.includes("export function gamepadStatusTextData(")
@@ -663,6 +664,7 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
 }
 for (const delegation of [
   "return chapterCompletionModelData({",
+  "return drillPresentationData(input);",
   "return chapterTransitionResultData({",
   "return chapterTransitionResultTextModelData({",
   "return summitChapterResultTextModelData({",
@@ -699,7 +701,7 @@ for (const retiredHelper of ["chapterSummary", "challengeSummary", "contractSumm
     fail(`public runtime must not duplicate UI-owned practice summary helper ${retiredHelper}`);
   }
 }
-for (const retiredHelper of ["drillModeLabel", "contractModeLabel", "contractModeShort", "routeSlotForMode", "routeSlotLabel", "routeSlotShort"]) {
+for (const retiredHelper of ["drillModeLabel", "contractModeLabel", "contractModeShort", "drillTargetText", "drillObjectiveForRoom", "drillBriefText", "routeSlotForMode", "routeSlotLabel", "routeSlotShort"]) {
   if (new RegExp(`\\bfunction\\s+${retiredHelper}\\s*\\(`).test(runtimeSource)) {
     fail(`public runtime must not duplicate UI-owned Drill/route label helper ${retiredHelper}`);
   }

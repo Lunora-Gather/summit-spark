@@ -156,6 +156,7 @@
       challengeProgressSummaryData,
       drillModeLabel,
       drillModeShort,
+      drillPresentationData,
       summitChapterResultTextData: summitChapterResultTextModelData,
       fullRunRecordEligibilityData,
       feedbackDiagnosticsData,
@@ -179,17 +180,17 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p261"),
-    import("./modules/core/math.mjs?v=20260807-p261"),
-    import("./modules/game/room-data.mjs?v=20260807-p261"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p261"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p261"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p261"),
-    import("./modules/systems/storage.mjs?v=20260807-p261"),
-    import("./modules/systems/input.mjs?v=20260807-p261"),
-    import("./modules/training/state.mjs?v=20260807-p261"),
-    import("./modules/training/replay.mjs?v=20260807-p261"),
-    import("./modules/ui/presentation.mjs?v=20260807-p261")
+    import("./modules/core/format.mjs?v=20260807-p262"),
+    import("./modules/core/math.mjs?v=20260807-p262"),
+    import("./modules/game/room-data.mjs?v=20260807-p262"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p262"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p262"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p262"),
+    import("./modules/systems/storage.mjs?v=20260807-p262"),
+    import("./modules/systems/input.mjs?v=20260807-p262"),
+    import("./modules/training/state.mjs?v=20260807-p262"),
+    import("./modules/training/replay.mjs?v=20260807-p262"),
+    import("./modules/ui/presentation.mjs?v=20260807-p262")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3539,7 +3540,7 @@
       core: routeLineCore(index, slot),
       reason: routeCueReason || "路线",
       detail: `${routeFocusReason(index, slot)} / ${roomMasteryLevel(score)} ${score} / ${roomProgressSummary(index).pace}`,
-      objective: active ? activeDrill.objective : drillObjectiveForRoom(index, mode)
+      objective: active ? activeDrill.objective : drillPresentation(index, mode).objective
     };
   }
 
@@ -3778,22 +3779,7 @@
     return requirements.length ? `高手动作：${requirements.map(expertRequirementLabel).join("+")}` : "高手动作：自由路线";
   }
 
-  function drillTargetText(index, mode = "auto") {
-    const resolvedMode = resolveDrillMode(index, mode);
-    const target = ROOM_TARGETS[index] || 0;
-    if (resolvedMode === "clean") return "目标：无失误通过";
-    if (resolvedMode === "pace") return `目标：${formatTime(target)} 内通关`;
-    if (resolvedMode === "style") return `目标：${styleTrialLabel(index)}挑战`;
-    if (resolvedMode === "expert") return `目标：S + 无失误 + 高手动作`;
-    return "目标：完成推荐路线";
-  }
-
-  function drillObjectiveForRoom(index, mode = "auto") {
-    const resolvedMode = resolveDrillMode(index, mode);
-    if (resolvedMode === "clean") return `无失误：${routeLineCore(index, 0)}`;
-    if (resolvedMode === "pace") return `达标 ${formatTime(ROOM_TARGETS[index] || 0)}：${routeLineCore(index, 1)}`;
-    if (resolvedMode === "style") return styleTrialObjective(index);
-    if (resolvedMode === "expert") return `高手线：${routeLineCore(index, 2)} / ${expertRequirementText(index)}`;
+  function automaticDrillObjective(index) {
     const entry = roomFocus[index] || createRoomFocusEntry();
     const lead = leadingRoomReason(entry);
     const grade = splitGrade(bestRoomTimes[index] || 0, ROOM_TARGETS[index]);
@@ -3806,19 +3792,26 @@
     return roomRouteLine(index, 2);
   }
 
-  function drillBriefText(index, mode = "auto") {
+  function drillPresentation(index, mode = "auto") {
     const resolvedMode = resolveDrillMode(index, mode);
-    const target = drillTargetText(index, resolvedMode);
-    if (resolvedMode === "clean") return `${target} · 路线：${routeLineCore(index, 0)}`;
-    if (resolvedMode === "pace") return `${target} · 路线：${routeLineCore(index, 1)}`;
-    if (resolvedMode === "style") return `${target} · ${styleTrialObjective(index)}`;
-    if (resolvedMode === "expert") return `${target} · 路线：${routeLineCore(index, 2)} · ${expertRequirementText(index)}`;
-    return `${target} · ${drillObjectiveForRoom(index, resolvedMode)}`;
+    const input = { mode: resolvedMode, routeCores: [] };
+    if (resolvedMode === "clean") input.routeCores[0] = routeLineCore(index, 0);
+    else if (resolvedMode === "pace") {
+      input.formattedTarget = formatTime(ROOM_TARGETS[index] || 0);
+      input.routeCores[1] = routeLineCore(index, 1);
+    } else if (resolvedMode === "style") {
+      input.styleLabel = styleTrialLabel(index);
+      input.styleObjective = styleTrialObjective(index);
+    } else if (resolvedMode === "expert") {
+      input.routeCores[2] = routeLineCore(index, 2);
+      input.expertRequirementText = expertRequirementText(index);
+    } else input.autoObjective = automaticDrillObjective(index);
+    return drillPresentationData(input);
   }
 
   function startRoomDrill(index, mode = "auto", options = {}) {
     const resolvedMode = resolveDrillMode(index, mode);
-    const objective = drillObjectiveForRoom(index, resolvedMode);
+    const objective = drillPresentation(index, resolvedMode).objective;
     if (!options.keepRoute) cancelActiveRouteContract("改练中断");
     if (options.feelFixture && activeFeelFixture && activeFeelFixture.id !== options.feelFixture) cancelActiveFeelFixture("改练中断");
     if (!options.keepFeel && !options.feelFixture) cancelActiveFeelFixture("改练中断");
@@ -3947,7 +3940,7 @@
       const mode = resolveDrillMode(target);
       const label = `开始 R${target + 1} ${drillModeLabel(mode)}`;
       if (focusRoomButton.textContent !== label) focusRoomButton.textContent = label;
-      focusRoomButton.title = drillBriefText(target, mode);
+      focusRoomButton.title = drillPresentation(target, mode).brief;
     }
     updatePracticePlan();
     updateRouteContracts();
@@ -4075,7 +4068,7 @@
         mode: firstMode,
         reason: roomPracticeReason(firstIndex),
         title: practicePlanStepTitle(firstMode, 0),
-        objective: drillObjectiveForRoom(firstIndex, firstMode)
+        objective: drillPresentation(firstIndex, firstMode).objective
       },
       {
         label: "接着",
@@ -4083,7 +4076,7 @@
         mode: second.mode,
         reason: drillContractStatus(drillContractStats(second.index, second.mode)),
         title: practicePlanStepTitle(second.mode, 1),
-        objective: drillObjectiveForRoom(second.index, second.mode)
+        objective: drillPresentation(second.index, second.mode).objective
       },
       {
         label: "然后",
@@ -4091,7 +4084,7 @@
         mode: thirdRow.mode,
         reason: `${thirdRow.level || roomMasteryLevel(roomMasteryScore(thirdRow.index))} ${thirdRow.score ?? roomMasteryScore(thirdRow.index)}`,
         title: practicePlanStepTitle(thirdRow.mode, 2),
-        objective: drillObjectiveForRoom(thirdRow.index, thirdRow.mode)
+        objective: drillPresentation(thirdRow.index, thirdRow.mode).objective
       }
     ];
   }
@@ -4246,7 +4239,7 @@
     const { contract, step } = data;
     startRoomDrill(step.index, step.mode, { keepRoute: true });
     focusPopupText = `${contract.label} ${activeRouteContract.step + 1}/${contract.steps.length}`;
-    focusPopupDetail = `${routeContractStepLabel(step)} / ${drillObjectiveForRoom(step.index, step.mode)}`;
+    focusPopupDetail = `${routeContractStepLabel(step)} / ${drillPresentation(step.index, step.mode).objective}`;
     focusPopupTimer = FOCUS_POPUP_TIME;
     setGameStatus(`${contract.label}：${routeContractStepLabel(step)}`);
   }
@@ -4278,7 +4271,7 @@
     const generation = activeRouteContract.generation;
     const expectedStep = activeRouteContract.step;
     focusPopupText = `${contract.label} 下一步 ${nextStep}/${contract.steps.length}`;
-    focusPopupDetail = `${routeContractStepLabel(next)} / ${drillObjectiveForRoom(next.index, next.mode)}`;
+    focusPopupDetail = `${routeContractStepLabel(next)} / ${drillPresentation(next.index, next.mode).objective}`;
     focusPopupTimer = FOCUS_POPUP_TIME;
     clearRouteContractStepTimer();
     routeContractStepTimer = window.setTimeout(() => {
@@ -4404,20 +4397,20 @@
     const target = practiceTargetRoom();
     if (drillCleanButton) {
       drillCleanButton.textContent = "无失误 · Clean";
-      drillCleanButton.title = drillBriefText(target, "clean");
+      drillCleanButton.title = drillPresentation(target, "clean").brief;
     }
     if (drillPaceButton) {
       drillPaceButton.textContent = "节奏 · Pace";
-      drillPaceButton.title = drillBriefText(target, "pace");
+      drillPaceButton.title = drillPresentation(target, "pace").brief;
     }
     if (drillStyleButton) {
       drillStyleButton.textContent = "类型 · Style";
-      drillStyleButton.title = drillBriefText(target, "style");
+      drillStyleButton.title = drillPresentation(target, "style").brief;
       drillStyleButton.classList.add("style");
     }
     if (drillExpertButton) {
       drillExpertButton.textContent = "高手 · Expert";
-      drillExpertButton.title = drillBriefText(target, "expert");
+      drillExpertButton.title = drillPresentation(target, "expert").brief;
       drillExpertButton.classList.add("expert");
     }
   }
@@ -4522,7 +4515,7 @@
     if (!practiceQueue || !settingsVisible) return;
     const html = practiceQueueItems().map((item) => {
       const title = `R${item.index + 1} ${ROOM_NAMES[item.index] || "Summit"}`;
-      const objective = drillObjectiveForRoom(item.index, item.mode);
+      const objective = drillPresentation(item.index, item.mode).objective;
       const progress = drillContractProgress(item.stats);
       const status = drillContractStatus(item.stats);
       return `<button class="queue-card ${item.mode}" type="button" data-queue-room="${item.index}" data-queue-mode="${item.mode}" aria-label="${escapeHtml(item.label)} ${escapeHtml(title)} ${escapeHtml(objective)}">`
@@ -4717,7 +4710,7 @@
     return practiceLedgerRows().slice(0, limit).map((row) => ({
       ...row,
       title: `R${row.index + 1} ${ROOM_NAMES[row.index] || "Summit"}`,
-      objective: drillObjectiveForRoom(row.index, row.mode),
+      objective: drillPresentation(row.index, row.mode).objective,
       gap: contractGapText(row.index, row.mode),
       next: nextMasteryStepText(row.index)
     }));

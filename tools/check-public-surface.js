@@ -35,6 +35,7 @@ const roomDataSource = read("public/modules/game/room-data.mjs");
 const effectBudgetSource = read("public/modules/game/effect-budget.mjs");
 const landmarkProgressSource = read("public/modules/game/landmark-progress.mjs");
 const audioCuesSource = read("public/modules/game/audio-cues.mjs");
+const lumenProgressSource = read("public/modules/game/lumen-progress.mjs");
 const storageSource = read("public/modules/systems/storage.mjs");
 const inputSource = read("public/modules/systems/input.mjs");
 const trainingSource = read("public/modules/training/state.mjs");
@@ -85,6 +86,11 @@ const audioCuesVersion = extractOne(
   "audio cues module version",
   runtimeSource,
   /modules\/game\/audio-cues\.mjs\?v=([^"]+)"/
+);
+const lumenProgressVersion = extractOne(
+  "Lumen progress module version",
+  runtimeSource,
+  /modules\/game\/lumen-progress\.mjs\?v=([^"]+)"/
 );
 const storageVersion = extractOne(
   "storage module version",
@@ -139,6 +145,9 @@ if (buildVersion && landmarkProgressVersion && buildVersion !== landmarkProgress
 }
 if (buildVersion && audioCuesVersion && buildVersion !== audioCuesVersion) {
   fail(`audio cues version ${audioCuesVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && lumenProgressVersion && buildVersion !== lumenProgressVersion) {
+  fail(`Lumen progress version ${lumenProgressVersion} does not match build version ${buildVersion}`);
 }
 
 if (buildVersion && storageVersion && buildVersion !== storageVersion) {
@@ -281,6 +290,12 @@ if (!runtimeSource.includes('import("./modules/game/audio-cues.mjs?v=')
 }
 if (runtimeSource.includes("const AMBIENT_CHAPTER_CHORDS")) {
   fail("public runtime must not duplicate chapter audio profile ownership");
+}
+if (!runtimeSource.includes('import("./modules/game/lumen-progress.mjs?v=')
+  || !lumenProgressSource.includes("export function resetRoomLumenProgressData(")
+  || !runtimeSource.includes("const reset = resetRoomLumenProgressData(collected, roomIndex);")
+  || !runtimeSource.includes("collected = reset.collected;")) {
+  fail("public runtime must delegate provisional current-room Lumen rollback to the game model");
 }
 if (!runtimeSource.includes('import("./modules/training/replay.mjs?v=')
   || !trainingReplaySource.includes("export const REPLAY_ACTION_LABELS")

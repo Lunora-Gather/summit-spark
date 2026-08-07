@@ -432,7 +432,9 @@ export function activeChallengeStateData(active, challenge, {
   deathCount,
   flowPeak,
   flowTarget,
-  bestFlow
+  bestFlow,
+  collectedLumens,
+  totalLumens
 } = {}) {
   if (!active || !challenge || active.id !== challenge.id) return null;
   const total = Math.max(1, Math.trunc(Number(roomTotal) || 0));
@@ -454,6 +456,11 @@ export function activeChallengeStateData(active, challenge, {
     target = Math.max(1, Math.floor(Number(flowTarget) || 0));
     done = current >= target;
     detail = `本轮 ${current}/${target} · 历史整局 ${Math.floor(Math.max(0, Number(bestFlow) || 0))}`;
+  } else if (challenge.kind === "lumens") {
+    target = Math.max(1, Math.trunc(Number(totalLumens) || 0));
+    current = Math.min(target, Math.max(0, Math.trunc(Number(collectedLumens) || 0)));
+    done = Boolean(won) && current === target;
+    detail = `${current}/${target} · ${won ? "完整路线已结束" : `当前 R${room + 1}/${total}`}`;
   }
 
   return {
@@ -491,7 +498,9 @@ export function challengeProgressData(challenge, {
   expertRooms,
   bestDeathCount,
   bestFlow,
-  flowTarget
+  flowTarget,
+  bestLumens,
+  totalLumens
 } = {}) {
   const total = Math.max(1, Math.trunc(Number(roomTotal) || 0));
   const summitCount = Math.max(0, Math.trunc(Number(summitClears) || 0));
@@ -527,6 +536,10 @@ export function challengeProgressData(challenge, {
     target = Math.max(1, Math.floor(Number(flowTarget) || 0));
     current = Math.min(target, Math.max(0, Number(bestFlow) || 0));
     detail = `整局 Flow ${Math.floor(Math.max(0, Number(bestFlow) || 0))}/${target}`;
+  } else if (challenge?.kind === "lumens") {
+    target = Math.max(1, Math.trunc(Number(totalLumens) || 0));
+    current = Math.min(target, Math.max(0, Math.trunc(Number(bestLumens) || 0)));
+    detail = `最佳微光 ${current}/${target}`;
   }
 
   const progress = boundedProgress(current, target);

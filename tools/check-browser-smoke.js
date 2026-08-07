@@ -3317,7 +3317,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     build: "browser-smoke",
     storage: {
       settings: { touchSize: 62, lowPerformance: true, gamepadDeadzone: 0.18, audioEnabled: false },
-      profile: { summitClears: 2, bestDeathCount: 1, bestFlowPeak: 210, challengeWins: { clear: true } },
+      profile: { summitClears: 2, bestDeathCount: 1, bestFlowPeak: 210, bestLumenCount: 9, challengeWins: { clear: true } },
       roomBests: [12.5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       roomPaths: [[{ x: 20, y: 40, t: 0.1, dash: true, spark: false, over: false }]],
       roomFocus: {
@@ -3410,6 +3410,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       deadzone: settings.gamepadDeadzone,
       profileVersion: profile.version,
       clears: profile.summitClears,
+      bestLumens: profile.bestLumenCount,
       focusVersion: focus.schemaVersion,
       focusRooms: Array.isArray(focus.rooms) ? focus.rooms.length : 0,
       focusFaults: focus.rooms?.[0]?.faults,
@@ -3430,8 +3431,9 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     || imported.touchSize !== 62
     || !imported.lowPerformance
     || imported.deadzone !== 0.18
-    || imported.profileVersion !== 2
+    || imported.profileVersion !== 3
     || imported.clears !== 2
+    || imported.bestLumens !== 9
     || imported.focusVersion !== 2
     || imported.focusRooms !== 10
     || imported.focusFaults !== 3
@@ -3455,10 +3457,13 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
   await openSettingsGroup(cdp, ".practice-subgroup-advanced");
   const fullRouteFlowEvidence = await evaluate(cdp, `(() => {
     const card = document.querySelector(".challenge-card.flow");
+    const lumenCard = document.querySelector(".challenge-card.lumens");
     const profile = document.querySelector("#profileSummary");
     return {
       cardText: card?.textContent.replace(/\\s+/g, " ").trim() || "",
       cardDone: card?.classList.contains("done") || false,
+      lumenCardText: lumenCard?.textContent.replace(/\s+/g, " ").trim() || "",
+      lumenCardDone: lumenCard?.classList.contains("done") || false,
       profileText: profile?.textContent.replace(/\\s+/g, " ").trim() || "",
       practiceBest: Number(localStorage.getItem("summit-spark-best-flow") || 0),
       fullRouteBest: JSON.parse(localStorage.getItem("summit-spark-profile") || "{}").bestFlowPeak || 0
@@ -3467,7 +3472,9 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
   if (fullRouteFlowEvidence.practiceBest !== 999
     || fullRouteFlowEvidence.fullRouteBest !== 210
     || fullRouteFlowEvidence.cardDone
+    || fullRouteFlowEvidence.lumenCardDone
     || !/整局 Flow 210\/900/.test(fullRouteFlowEvidence.cardText)
+    || !/最佳微光 9\/12/.test(fullRouteFlowEvidence.lumenCardText)
     || !/210整局 Flow/.test(fullRouteFlowEvidence.profileText)
     || /999/.test(fullRouteFlowEvidence.cardText)
     || /999/.test(fullRouteFlowEvidence.profileText)) {
@@ -3500,7 +3507,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       stageTouchSize: getComputedStyle(document.querySelector(".stage")).getPropertyValue("--touch-size").trim()
     };
   })()`);
-  if (restored.touchSize !== 48 || restored.lowPerformance || restored.profileVersion !== 2 || restored.clears !== 0 || restored.backupArchiveKind !== "summit-spark-save" || restored.backupImportedTouchSize !== 62 || restored.stageTouchSize !== "48px") {
+  if (restored.touchSize !== 48 || restored.lowPerformance || restored.profileVersion !== 3 || restored.clears !== 0 || restored.backupArchiveKind !== "summit-spark-save" || restored.backupImportedTouchSize !== 62 || restored.stageTouchSize !== "48px") {
     errors.push("save backup restore did not restore prior archive and preserve imported archive as new backup: " + JSON.stringify(restored));
   }
 }

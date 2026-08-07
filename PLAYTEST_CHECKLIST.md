@@ -44,6 +44,9 @@ During the route, judge these chapter-level questions:
 - R4–R6: does the old-peak act deepen timing and memory without becoming repetitive?
 - R7–R8: can the player distinguish wind, brittle ground and prism pressure at play speed?
 - R9–R10: is Echo introduced safely, and does the summit synthesize rather than merely stack mechanics?
+- Attempt the R4–R10 Lumen detours once: do low Relay, switchback, spring/Relay, updraft, Prism/crumble, Echo recall and finale callback feel like seven different risks rather than the same upper-right pickup?
+- After collecting one current-room Lumen, die or retry before crossing the room boundary. Confirm the pickup returns and the unspent bonus dash is gone; then carry it across the boundary and confirm later retries preserve the banked count.
+- Compare ordinary completion with the tighter Pace/Expert route. The safe line should remain readable, while the mastery line should demand cleaner execution without feeling like hidden timing.
 - Do existing in-world landmarks, material particles, Relay threads, updraft wakes, Echo rings and the constellation clarify the route without becoming a second HUD?
 - Does the classic small climber remain readable at desktop and portrait sizes, with the same fixed dark-blue hair throughout every state?
 - Does the summit review identify a useful next practice step without feeling like a dashboard?

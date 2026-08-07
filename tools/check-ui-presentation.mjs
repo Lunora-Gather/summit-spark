@@ -87,6 +87,7 @@ assert.deepEqual(lumenRunSummaryData({ found: 5, total: 12 }), {
   total: 12,
   complete: false,
   label: "5/12",
+  rewardLabel: "",
   whisper: "山没有变轻，是你学会了继续向上。"
 });
 assert.deepEqual(lumenRunSummaryData({ found: 99, total: 12 }), {
@@ -94,6 +95,7 @@ assert.deepEqual(lumenRunSummaryData({ found: 99, total: 12 }), {
   total: 12,
   complete: true,
   label: "12/12",
+  rewardLabel: "全微光",
   whisper: "所有微光，都抵达了山顶。"
 });
 assert.equal(lumenRunSummaryData({ found: 0, total: 0 }).complete, false, "an empty route must not count as full Lumen collection");

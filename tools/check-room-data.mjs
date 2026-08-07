@@ -134,6 +134,30 @@ assert.equal(mechanicFirstTouchCueData("unknown"), null, "unknown mechanic cues 
 assert.equal(mechanicFirstTouchCueData("__proto__"), null, "prototype-named mechanic cues should fail closed");
 assert.equal(ROOM_NAMES[0], "起势山门");
 assert.equal(ROOM_NAMES.at(-1), "星顶终线");
+assert.deepEqual(
+  ROOM_TARGETS,
+  [8.8, 10, 12.4, 13, 14.8, 17.4, 18.4, 21.5, 22, 24.8],
+  "teaching rooms should stay readable while R4-R10 keep the tighter mastery pace"
+);
+const lumenCoordinates = maps.map((room) => {
+  const coordinates = [];
+  room.forEach((row, y) => [...row].forEach((tile, x) => {
+    if (tile === "L") coordinates.push([x, y]);
+  }));
+  return coordinates;
+});
+assert.deepEqual(lumenCoordinates, [
+  [[25, 3]],
+  [[17, 2], [26, 11]],
+  [[20, 2], [25, 10]],
+  [[6, 11]],
+  [[21, 14]],
+  [[21, 11]],
+  [[13, 1]],
+  [[26, 13]],
+  [[6, 12]],
+  [[7, 5]]
+], "Lumens should retain seven distinct late-game mechanic detours instead of repeating the upper-right exit");
 assert.equal(maps[2][5][2], "P", "Gate capstone Practice should begin from the full left-side route");
 assert.equal(maps[2][6].slice(0, 6), "######", "Gate capstone entry should keep broad stable support");
 assert.equal(maps[2][8][13], ".", "Gate capstone should not retain a mid-room Practice shortcut");

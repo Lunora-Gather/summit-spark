@@ -11,6 +11,7 @@ const coreMath = fs.readFileSync(path.join(root, "public", "modules", "core", "m
 const roomData = fs.readFileSync(path.join(root, "public", "modules", "game", "room-data.mjs"), "utf8");
 const landmarkProgressModule = fs.readFileSync(path.join(root, "public", "modules", "game", "landmark-progress.mjs"), "utf8");
 const audioCuesModule = fs.readFileSync(path.join(root, "public", "modules", "game", "audio-cues.mjs"), "utf8");
+const lumenProgressModule = fs.readFileSync(path.join(root, "public", "modules", "game", "lumen-progress.mjs"), "utf8");
 const storageModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "storage.mjs"), "utf8");
 const inputModule = fs.readFileSync(path.join(root, "public", "modules", "systems", "input.mjs"), "utf8");
 const trainingModule = fs.readFileSync(path.join(root, "public", "modules", "training", "state.mjs"), "utf8");
@@ -374,6 +375,13 @@ if (!js.includes("updateChallengeBoard")) errors.push("settings panel should exp
 if (!js.includes("updateProfileSummary")) errors.push("settings panel should expose the long-term profile");
 if (!js.includes("startSummitChallenge")) errors.push("full-run challenge start helper is missing");
 if (!js.includes("challengeStartsRun")) errors.push("full-run challenge cards should not fall back to room drills");
+if (!js.includes('{ id: "lumens", label: "全微光"')
+  || !js.includes("profile.bestLumenCount = Math.max(profile.bestLumenCount, collected.size);")
+  || !js.includes('challenge.kind === "lumens"')
+  || !storageModule.includes("bestLumenCount: 0")
+  || !trainingModule.includes("最佳微光")) {
+  errors.push("full-Lumen mastery must persist only eligible summit evidence through the existing challenge system");
+}
 if (!js.includes("activeChallengeState")) errors.push("active challenge state helper is missing");
 if (!js.includes("drawActiveChallengeHud")) errors.push("active challenge HUD is missing");
 if (!js.includes("activeChallengeReview")) errors.push("finish review should report the active challenge result");
@@ -982,8 +990,16 @@ if (!js.includes("lumenReserve: false") || !js.includes("player.dashes = Math.mi
   errors.push("lumens should create a bounded optional dash reserve");
 }
 if (!js.includes('stage.classList.toggle("lumen-reserve"')) errors.push("lumen reserve should have a quiet HUD state");
-if (!js.includes("function restoreDashCharge()") || !js.includes("dashes: player.lumenReserve ? 2 : 1")) {
-  errors.push("lumen reserve should survive retry and every dash-refill path consistently");
+if (!js.includes("function restoreDashCharge()") || !js.includes("player.dashes = player.lumenReserve ? 2 : 1")) {
+  errors.push("lumen reserve should survive grounded refill paths within the current attempt");
+}
+if (!lumenProgressModule.includes("export function resetRoomLumenProgressData(")
+  || !js.includes("function resetCurrentRoomLumenAttempt()")
+  || !js.includes("const reset = resetRoomLumenProgressData(collected, roomIndex);")
+  || !js.includes("collected = reset.collected;")
+  || !js.includes("player.lumenReserve = assistActive();")
+  || (js.match(/resetCurrentRoomLumenAttempt\(\);/g) || []).length !== 2) {
+  errors.push("death/retry and room restart must discard only the current room's provisional Lumen reward");
 }
 if (!js.includes("function playerNeedsRefill()")
   || !js.includes("player.dashes < dashCapacity || player.stamina < MAX_STAMINA - 0.001")

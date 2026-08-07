@@ -108,6 +108,7 @@ export function createProfileData(schemaVersion) {
     bestDeathCount: null,
     bestRelayChain: 0,
     bestFlowPeak: 0,
+    bestLumenCount: 0,
     lastClearTime: 0,
     lastClearAt: "",
     challengeWins: {}
@@ -125,6 +126,7 @@ export function normalizeProfileData(saved, { schemaVersion, challengeIds }) {
     : Number.isFinite(parsedBestDeath) ? finiteNonNegativeInt(parsedBestDeath, 0, 9999) : null;
   profile.bestRelayChain = finiteNonNegativeInt(source.bestRelayChain, 0, 9999);
   profile.bestFlowPeak = finiteNonNegativeNumber(source.bestFlowPeak, 0, 999);
+  profile.bestLumenCount = finiteNonNegativeInt(source.bestLumenCount, 0, 999);
   profile.lastClearTime = finiteNonNegativeNumber(source.lastClearTime, 0, 36000);
   profile.lastClearAt = typeof source.lastClearAt === "string" ? source.lastClearAt : "";
   const wins = source.challengeWins && typeof source.challengeWins === "object" ? source.challengeWins : {};
@@ -285,6 +287,7 @@ export function hasMeaningfulSaveData(input = {}) {
     || profile.bestDeathCount !== null && profile.bestDeathCount !== undefined
     || finiteNonNegativeInt(profile.bestRelayChain) > 0
     || finiteNonNegativeNumber(profile.bestFlowPeak) > 0
+    || finiteNonNegativeInt(profile.bestLumenCount) > 0
     || finiteNonNegativeNumber(profile.lastClearTime) > 0
     || Boolean(profile.lastClearAt)
     || Object.values(challengeWins).some((value) => value === true)) return true;

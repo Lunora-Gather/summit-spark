@@ -129,7 +129,7 @@ if (!feelPresentationBody.includes("feelFixturePresentationData(")) errors.push(
 if (js.includes("function routeContractById(") || js.includes("function feelFixtureById(")) errors.push("training state must not retain fallback-to-first Route or Feel lookup helpers");
 
 if (!js.includes("SETTINGS_SCHEMA_VERSION = 4")) errors.push("settings schema version should be current");
-if (!js.includes("PROFILE_SCHEMA_VERSION = 2")) errors.push("profile schema version should be current");
+if (!js.includes("PROFILE_SCHEMA_VERSION = 3")) errors.push("profile schema version should be current");
 if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION = 2")) errors.push("room focus schema version should be current");
 if (!js.includes("lowPerformance") || !js.includes("touchSize")) errors.push("comfort settings must include lowPerformance and touchSize");
 

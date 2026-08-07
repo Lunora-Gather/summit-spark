@@ -631,6 +631,7 @@ export function lumenRunSummaryData(input = {}) {
     total,
     complete,
     label: `${found}/${total}`,
+    rewardLabel: complete ? "全微光" : "",
     whisper: complete ? completeWhisper : defaultWhisper
   };
 }

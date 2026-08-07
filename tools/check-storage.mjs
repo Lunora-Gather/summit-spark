@@ -105,6 +105,7 @@ assert.deepEqual(createProfileData(2), {
   bestDeathCount: null,
   bestRelayChain: 0,
   bestFlowPeak: 0,
+  bestLumenCount: 0,
   lastClearTime: 0,
   lastClearAt: "",
   challengeWins: {}
@@ -114,6 +115,7 @@ const profile = normalizeProfileData({
   bestDeathCount: "7.9",
   bestRelayChain: -1,
   bestFlowPeak: 1200,
+  bestLumenCount: 1200,
   lastClearTime: 50000,
   lastClearAt: 123,
   challengeWins: { clear: "true", unknown: true }
@@ -124,6 +126,7 @@ assert.deepEqual(profile, {
   bestDeathCount: 7,
   bestRelayChain: 0,
   bestFlowPeak: 999,
+  bestLumenCount: 999,
   lastClearTime: 36000,
   lastClearAt: "",
   challengeWins: { clear: true }
@@ -277,6 +280,7 @@ for (const [label, patch] of [
   ["custom setting", { settings: { ...defaultSettings, touchSize: 64 } }],
   ["summit profile", { profile: { ...createProfileData(2), summitClears: 1 } }],
   ["challenge win", { profile: { ...createProfileData(2), challengeWins: { clear: true } } }],
+  ["Lumen record", { profile: { ...createProfileData(2), bestLumenCount: 4 } }],
   ["room PB", { roomBests: [0, 9.5] }],
   ["room path", { roomPaths: [[], [{ x: 20, y: 30 }]] }],
   ["failed Drill", { roomFocus: [{ ...createRoomFocusEntryData(2, deathKeys), paceDrills: 1 }] }],

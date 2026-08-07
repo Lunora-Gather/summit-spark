@@ -65,6 +65,9 @@
       summitCueData
     },
     {
+      resetRoomLumenProgressData
+    },
+    {
       clampGamepadDeadzoneData,
       clampTouchSizeData,
       createRoomFocusEntryData,
@@ -180,17 +183,18 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p262"),
-    import("./modules/core/math.mjs?v=20260807-p262"),
-    import("./modules/game/room-data.mjs?v=20260807-p262"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p262"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p262"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p262"),
-    import("./modules/systems/storage.mjs?v=20260807-p262"),
-    import("./modules/systems/input.mjs?v=20260807-p262"),
-    import("./modules/training/state.mjs?v=20260807-p262"),
-    import("./modules/training/replay.mjs?v=20260807-p262"),
-    import("./modules/ui/presentation.mjs?v=20260807-p262")
+    import("./modules/core/format.mjs?v=20260807-p263"),
+    import("./modules/core/math.mjs?v=20260807-p263"),
+    import("./modules/game/room-data.mjs?v=20260807-p263"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p263"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p263"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p263"),
+    import("./modules/game/lumen-progress.mjs?v=20260807-p263"),
+    import("./modules/systems/storage.mjs?v=20260807-p263"),
+    import("./modules/systems/input.mjs?v=20260807-p263"),
+    import("./modules/training/state.mjs?v=20260807-p263"),
+    import("./modules/training/replay.mjs?v=20260807-p263"),
+    import("./modules/ui/presentation.mjs?v=20260807-p263")
   ]);
 
   const canvas = document.getElementById("game");
@@ -390,7 +394,7 @@
   const MASTERY_POPUP_TIME = 1.8;
   const SETTINGS_KEY = "summit-spark-settings";
   const SETTINGS_SCHEMA_VERSION = 4;
-  const PROFILE_SCHEMA_VERSION = 2;
+  const PROFILE_SCHEMA_VERSION = 3;
   const ROOM_FOCUS_SCHEMA_VERSION = 2;
   const SAVE_ARCHIVE_SCHEMA_VERSION = 1;
   const SAVE_ARCHIVE_KIND = "summit-spark-save";
@@ -537,7 +541,8 @@
     { id: "style", label: "全 Style", goal: "每房完成类型挑战", kind: "style", mode: "style" },
     { id: "expert", label: "全 Expert", goal: "每房证明高手线", kind: "expert", mode: "expert" },
     { id: "nodeath", label: "零失误登顶", goal: "完整通关且失误数为 0", kind: "nodeath", mode: "clean" },
-    { id: "flow", label: "整局 Flow", goal: `完整路线 Flow 达到 ${FLOW_CHALLENGE_TARGET}`, kind: "flow", mode: "pace" }
+    { id: "flow", label: "整局 Flow", goal: `完整路线 Flow 达到 ${FLOW_CHALLENGE_TARGET}`, kind: "flow", mode: "pace" },
+    { id: "lumens", label: "全微光", goal: "完整路线带回全部微光", kind: "lumens", mode: "expert" }
   ];
   const ROUTE_CONTRACTS = [
     {
@@ -2638,7 +2643,7 @@
       total: totalLumens,
       completeWhisper: CHAPTER_EXPERIENCE.at(-1)?.resolve
     });
-    overlay.innerHTML = `<h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">${formatTime(runTime)}${record}${recordNote} · 失误 ${deathCount} · 微光 ${lumens.label} · 光继连锁 ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">再来</button>`;
+    overlay.innerHTML = `<h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">${formatTime(runTime)}${record}${recordNote} · 失误 ${deathCount} · 微光 ${lumens.label}${lumens.rewardLabel ? ` · ${escapeHtml(lumens.rewardLabel)}` : ""} · 光继连锁 ${bestRelayChain} · Flow ${Math.floor(flowPeak)}</p><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p><p>${escapeHtml(masterySummary())}</p>${summitReviewCardsHtml()}<button class="primary" id="restartButton" type="button">再来</button>`;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");
@@ -2658,6 +2663,7 @@
     }
     profile.bestRelayChain = Math.max(profile.bestRelayChain, bestRelayChain);
     profile.bestFlowPeak = Math.max(profile.bestFlowPeak, Math.floor(flowPeak));
+    profile.bestLumenCount = Math.max(profile.bestLumenCount, collected.size);
     syncChallengeWins({ persist: false });
     writeProfile();
   }
@@ -3120,6 +3126,7 @@
 
   function respawn(options = {}) {
     roomIndex = player.respawnRoom;
+    resetCurrentRoomLumenAttempt();
     room = parseRoom(roomIndex);
     resetRoomTech();
     player.x = player.respawnX;
@@ -3173,6 +3180,13 @@
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 7, 190);
   }
 
+  function resetCurrentRoomLumenAttempt() {
+    const reset = resetRoomLumenProgressData(collected, roomIndex);
+    collected = reset.collected;
+    player.lumenReserve = assistActive();
+    return reset.removed;
+  }
+
   function quickRetry() {
     if (player.deadTimer > 0) return;
     const deathReason = registerDeath("retry");
@@ -3193,6 +3207,7 @@
     clearFocusPopup();
     resetRelayChain();
     breakFlow();
+    resetCurrentRoomLumenAttempt();
     room = parseRoom(roomIndex);
     resetRoomTech();
     const checkpoint = room.entities.checkpoints[0];
@@ -3212,8 +3227,8 @@
       wallCoyoteDir: 0,
       overdrive: 0,
       stamina: MAX_STAMINA,
-      dashes: player.lumenReserve ? 2 : 1,
-      lumenReserve: player.lumenReserve,
+      dashes: assistActive() ? 2 : 1,
+      lumenReserve: assistActive(),
       dashTimer: 0,
       dashCooldown: 0,
       dashDirX: 1,
@@ -4537,7 +4552,7 @@
   }
 
   function challengeStartsRun(challenge) {
-    return Boolean(challenge && (challenge.kind === "run" || challenge.kind === "nodeath" || challenge.kind === "flow"));
+    return Boolean(challenge && (challenge.kind === "run" || challenge.kind === "nodeath" || challenge.kind === "flow" || challenge.kind === "lumens"));
   }
 
   function createActiveChallenge(id = "clear") {
@@ -4555,7 +4570,9 @@
       deathCount,
       flowPeak,
       flowTarget: FLOW_CHALLENGE_TARGET,
-      bestFlow: profile.bestFlowPeak || 0
+      bestFlow: profile.bestFlowPeak || 0,
+      collectedLumens: collected.size,
+      totalLumens
     });
   }
 
@@ -4582,7 +4599,9 @@
       expertRooms: expertWinRoomCount(),
       bestDeathCount: profile.bestDeathCount,
       bestFlow: profile.bestFlowPeak || 0,
-      flowTarget: FLOW_CHALLENGE_TARGET
+      flowTarget: FLOW_CHALLENGE_TARGET,
+      bestLumens: profile.bestLumenCount || 0,
+      totalLumens
     });
     return {
       ...progress,

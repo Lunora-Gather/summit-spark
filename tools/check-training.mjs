@@ -394,7 +394,9 @@ const progressMetrics = {
   expertRooms: 0,
   bestDeathCount: 0,
   bestFlow: 220.5,
-  flowTarget: 180
+  flowTarget: 180,
+  bestLumens: 9,
+  totalLumens: 12
 };
 assert.deepEqual(challengeProgressData({
   id: "run",
@@ -419,6 +421,33 @@ assert.deepEqual(challengeProgressData({ kind: "flow", goal: "" }, progressMetri
   done: true,
   detail: "整局 Flow 220/180"
 });
+assert.deepEqual(challengeProgressData({ kind: "lumens", goal: "" }, progressMetrics), {
+  current: 9,
+  target: 12,
+  progress: 75,
+  done: false,
+  detail: "最佳微光 9/12"
+});
+const lumenChallenge = { id: "lumens", kind: "lumens", label: "全微光", goal: "完整路线带回全部微光" };
+const lumenState = activeChallengeStateData(
+  createActiveChallengeData(lumenChallenge, 0),
+  lumenChallenge,
+  {
+    won: false,
+    roomIndex: 9,
+    roomTotal: 10,
+    collectedLumens: 12,
+    totalLumens: 12
+  }
+);
+assert.equal(lumenState.progress, 100);
+assert.equal(lumenState.done, false, "all Lumens should remain provisional until the summit resolves");
+assert.equal(lumenState.status, "进行中");
+assert.equal(activeChallengeStateData(
+  createActiveChallengeData(lumenChallenge, 0),
+  lumenChallenge,
+  { won: true, roomIndex: 9, roomTotal: 10, collectedLumens: 12, totalLumens: 12 }
+).done, true);
 const reconciled = reconcileChallengeWinsData(
   { clear: true, unknown: true },
   [{ id: "pace", done: true }, { id: "__proto__", done: true }, { id: "style", done: false }],

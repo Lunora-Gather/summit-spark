@@ -17,7 +17,8 @@ summit-spark/
 │  │  ├─ room-data.mjs      # 递归冻结的地图、章节、路线、氛围、地标与机制教学内容
 │  │  ├─ effect-budget.mjs  # 长局视觉效果队列预算与保留最新反馈的裁剪规则
 │  │  ├─ landmark-progress.mjs # 山门/旧峰当前尝试地标进度纯规则
-│  │  └─ audio-cues.mjs     # 四幕环境和弦、两段式换幕与登顶声纹
+│  │  ├─ audio-cues.mjs     # 四幕环境和弦、两段式换幕与登顶声纹
+│  │  └─ lumen-progress.mjs # 本房微光在死亡/重试时的精确回滚规则
 │  ├─ modules/systems/
 │  │  ├─ storage.mjs        # 设置/存档迁移、精确同步比较、冲突保护、档案/备份与事务回滚
 │  │  └─ input.mjs          # 三类设备状态、动作缓冲、手柄映射与键位规则
@@ -60,6 +61,7 @@ public/index.html
        ├─ public/modules/game/effect-budget.mjs
        ├─ public/modules/game/landmark-progress.mjs
        ├─ public/modules/game/audio-cues.mjs
+       ├─ public/modules/game/lumen-progress.mjs
        ├─ public/modules/systems/storage.mjs
        ├─ public/modules/systems/input.mjs
        ├─ public/modules/training/state.mjs
@@ -92,7 +94,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成；五类房间推荐、优先跨房且目标不重复的三步计划、训练原因/路线推荐、多处共用的进度摘要、存档预览摘要及反馈模板也已统一由纯模型裁决。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`game/lumen-progress.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成；五类房间推荐、优先跨房且目标不重复的三步计划、训练原因/路线推荐、多处共用的进度摘要、存档预览摘要及反馈模板也已统一由纯模型裁决。接下来的顺序是：
 
 1. `ui/`：只在有直接消费者与契约时继续迁移无副作用的面板/HUD 展示模型，DOM 事件仍留主运行时。
 2. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。

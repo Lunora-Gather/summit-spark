@@ -151,6 +151,8 @@
       chapterCompletionData: chapterCompletionModelData,
       chapterGrade,
       chapterTransitionResultData,
+      chapterTransitionResultTextData: chapterTransitionResultTextModelData,
+      summitChapterResultTextData: summitChapterResultTextModelData,
       fullRunRecordEligibilityData,
       feedbackDiagnosticsData,
       feedbackTemplateTextData,
@@ -168,17 +170,17 @@
       roomReviewPriorityData
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p255"),
-    import("./modules/core/math.mjs?v=20260807-p255"),
-    import("./modules/game/room-data.mjs?v=20260807-p255"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p255"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p255"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p255"),
-    import("./modules/systems/storage.mjs?v=20260807-p255"),
-    import("./modules/systems/input.mjs?v=20260807-p255"),
-    import("./modules/training/state.mjs?v=20260807-p255"),
-    import("./modules/training/replay.mjs?v=20260807-p255"),
-    import("./modules/ui/presentation.mjs?v=20260807-p255")
+    import("./modules/core/format.mjs?v=20260807-p256"),
+    import("./modules/core/math.mjs?v=20260807-p256"),
+    import("./modules/game/room-data.mjs?v=20260807-p256"),
+    import("./modules/game/effect-budget.mjs?v=20260807-p256"),
+    import("./modules/game/landmark-progress.mjs?v=20260807-p256"),
+    import("./modules/game/audio-cues.mjs?v=20260807-p256"),
+    import("./modules/systems/storage.mjs?v=20260807-p256"),
+    import("./modules/systems/input.mjs?v=20260807-p256"),
+    import("./modules/training/state.mjs?v=20260807-p256"),
+    import("./modules/training/replay.mjs?v=20260807-p256"),
+    import("./modules/ui/presentation.mjs?v=20260807-p256")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3011,16 +3013,21 @@
   }
 
   function chapterTransitionResultText(result) {
-    if (!result) return "章节收束";
-    const assist = runUsedAssist ? "辅助 · " : "";
-    const coverage = result.complete ? "" : `${result.visited}/${result.roomCount} 房 · `;
-    const mistakes = result.mistakes > 0 ? `失误 ${result.mistakes}` : result.clean ? "无失误" : "失误 0";
-    return `${assist}${coverage}${formatTime(result.seconds)} · ${mistakes}`;
+    return chapterTransitionResultTextModelData({
+      result,
+      assistUsed: runUsedAssist,
+      formattedTime: result ? formatTime(result.seconds) : ""
+    });
   }
 
   function summitChapterResultText(result) {
     const chapter = CHAPTER_EXPERIENCE[chapterIndexForRoom(roomIndex)]?.title || "第四幕 · 星顶";
-    return result ? `${chapter} · ${chapterTransitionResultText(result)}` : `${chapter} · 收束`;
+    return summitChapterResultTextModelData({
+      chapterTitle: chapter,
+      result,
+      assistUsed: runUsedAssist,
+      formattedTime: result ? formatTime(result.seconds) : ""
+    });
   }
 
   function resolveRoomTransition() {

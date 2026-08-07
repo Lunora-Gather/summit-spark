@@ -633,6 +633,8 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function chapterCompletionData(")
   || !uiPresentationSource.includes("export function chapterGrade(")
   || !uiPresentationSource.includes("export function chapterTransitionResultData(")
+  || !uiPresentationSource.includes("export function chapterTransitionResultTextData(")
+  || !uiPresentationSource.includes("export function summitChapterResultTextData(")
   || !uiPresentationSource.includes("export function feedbackDiagnosticsData(")
   || !uiPresentationSource.includes("export function feedbackTemplateTextData(")
   || !uiPresentationSource.includes("export function roomSplitFeedbackData(")
@@ -650,6 +652,8 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
 for (const delegation of [
   "return chapterCompletionModelData({",
   "return chapterTransitionResultData({",
+  "return chapterTransitionResultTextModelData({",
+  "return summitChapterResultTextModelData({",
   "return feedbackDiagnosticsData({",
   "return feedbackTemplateTextData({",
   "const result = roomSplitFeedbackData({",

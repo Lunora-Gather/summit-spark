@@ -753,7 +753,11 @@ if (!roomData.includes("export const ROOM_CHAPTER_INDEXES = [0, 0, 0, 1, 1, 1, 2
   errors.push("chapter ownership and the non-blocking first-act opening must stay canonical and visible");
 }
 if (!js.includes("CHAPTER_EXPERIENCE") || !js.includes("function beginChapterTransition(") || !js.includes("function drawChapterTransition(") || !js.includes("chapterEntry: true")) errors.push("chapter boundaries and direct chapter practice need a paced in-canvas transition");
-if (!js.includes("function chapterTransitionResultText(") || !js.includes("chapterTransitionFromResult") || !js.includes("result.visited}/${result.roomCount} 房")) errors.push("chapter closure should reuse current-run time, mistake and partial-coverage evidence");
+if (!js.includes("function chapterTransitionResultText(")
+  || !js.includes("return chapterTransitionResultTextModelData({")
+  || !uiPresentationModule.includes("export function chapterTransitionResultTextData(")
+  || !uiPresentationModule.includes("export function summitChapterResultTextData(")
+  || !js.includes("chapterTransitionFromResult")) errors.push("chapter closure should reuse the UI-owned current-run time, mistake and partial-coverage presentation model");
 if (!js.includes("function drawChapterWeather(") || !js.includes("chapterIndexForRoom(roomIndex)")) errors.push("each chapter needs a distinct environmental motion language");
 if (!js.includes("function beginSummitReveal(") || !js.includes("function finishSummitReveal(") || !js.includes("pendingSummitResult !== expectedResult") || !js.includes("function drawSummitReveal(") || !js.includes("SUMMIT_REVEAL_TIME") || !js.includes("summitReveal: summitRevealTimer > 0")) errors.push("the summit must pause for a testable in-world reveal and safely reach review even when animation frames are throttled");
 if (!js.includes("summitChapterResult = chapterResultForTransition(") || !js.includes("summitChapterResultText(summitChapterResult)") || !js.includes("clearSplitPopup();\n    clearMasteryPopup();\n    clearFocusPopup();")) errors.push("summit reveal should absorb final-act evidence instead of hiding expiring room-result overlays");

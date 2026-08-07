@@ -5,6 +5,8 @@ import {
   chapterCompletionData,
   chapterGrade,
   chapterTransitionResultData,
+  chapterTransitionResultTextData,
+  summitChapterResultTextData,
   feedbackDiagnosticsData,
   feedbackTemplateTextData,
   fullRunRecordEligibilityData,
@@ -128,6 +130,26 @@ assert.equal(chapterTransitionResultData({
   roomTimes: []
 }), null);
 assert.equal(chapterTransitionResultData({ roomIndexes: ["0", -1] }), null);
+assert.equal(chapterTransitionResultTextData(), "章节收束");
+assert.equal(chapterTransitionResultTextData({
+  result: { visited: 3, roomCount: 3, mistakes: 0, complete: true, clean: true },
+  formattedTime: "0:27.50"
+}), "0:27.50 · 无失误");
+assert.equal(chapterTransitionResultTextData({
+  result: { visited: 1, roomCount: 2, mistakes: 2, complete: false, clean: false },
+  assistUsed: true,
+  formattedTime: "0:21.00"
+}), "辅助 · 1/2 房 · 0:21.00 · 失误 2");
+assert.equal(chapterTransitionResultTextData({
+  result: { visited: 99, roomCount: 2, mistakes: -4, complete: false },
+  formattedTime: "bad\nforged"
+}), "2/2 房 · bad forged · 失误 0");
+assert.equal(summitChapterResultTextData({ chapterTitle: "第四幕 · 星顶" }), "第四幕 · 星顶 · 收束");
+assert.equal(summitChapterResultTextData({
+  chapterTitle: "第四幕\n伪造",
+  result: { visited: 2, roomCount: 2, mistakes: 1, complete: true },
+  formattedTime: "0:42.00"
+}), "第四幕 伪造 · 0:42.00 · 失误 1");
 
 assert.deepEqual(fullRunRecordEligibilityData({
   roomTimes: [8, 9, 10],

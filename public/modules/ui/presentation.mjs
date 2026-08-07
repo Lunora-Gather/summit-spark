@@ -87,6 +87,35 @@ export function chapterTransitionResultData(input = {}) {
   };
 }
 
+export function chapterTransitionResultTextData(input = {}) {
+  const value = input && typeof input === "object" ? input : {};
+  const result = value.result && typeof value.result === "object" && !Array.isArray(value.result)
+    ? value.result
+    : null;
+  if (!result) return reportLineText(value.fallback, "章节收束");
+  const roomCount = Math.floor(nonNegativeNumber(result.roomCount));
+  const visited = Math.min(roomCount, Math.floor(nonNegativeNumber(result.visited)));
+  const mistakes = Math.floor(nonNegativeNumber(result.mistakes));
+  const assist = value.assistUsed === true ? "辅助 · " : "";
+  const coverage = result.complete === true ? "" : `${visited}/${roomCount} 房 · `;
+  const mistakeText = mistakes > 0 ? `失误 ${mistakes}` : result.clean === true ? "无失误" : "失误 0";
+  return `${assist}${coverage}${reportLineText(value.formattedTime, "0:00.00")} · ${mistakeText}`;
+}
+
+export function summitChapterResultTextData(input = {}) {
+  const value = input && typeof input === "object" ? input : {};
+  const chapterTitle = reportLineText(value.chapterTitle, "第四幕 · 星顶");
+  const result = value.result && typeof value.result === "object" && !Array.isArray(value.result)
+    ? value.result
+    : null;
+  if (!result) return `${chapterTitle} · 收束`;
+  return `${chapterTitle} · ${chapterTransitionResultTextData({
+    result,
+    assistUsed: value.assistUsed,
+    formattedTime: value.formattedTime
+  })}`;
+}
+
 export function fullRunRecordEligibilityData(input = {}) {
   const roomTimes = Array.isArray(input.roomTimes) ? input.roomTimes : [];
   const roomCount = Math.max(1, Math.floor(nonNegativeNumber(input.roomCount || roomTimes.length)));

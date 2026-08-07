@@ -232,6 +232,8 @@ async function main() {
     expectIncludes("js", js, `modules/ui/presentation.mjs?v=${buildVersion}`);
     expectIncludes("UI presentation", uiPresentationModule, "export function roomSplitFeedbackData(");
     expectIncludes("UI presentation", uiPresentationModule, "export function chapterTransitionResultData(");
+    expectIncludes("UI presentation", uiPresentationModule, "export function chapterTransitionResultTextData(");
+    expectIncludes("UI presentation", uiPresentationModule, "export function summitChapterResultTextData(");
     ["export function formatTime(", "export function formatDelta(", "export function splitGrade(", "export function escapeHtml("]
       .forEach((marker) => expectIncludes("core format", coreFormat, marker));
     ["export function aabb(", "export function distRectPoint(", "export function approach("]

@@ -4271,12 +4271,12 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");
-    overlay.innerHTML = '<h1 id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">0:30.00 · 失误 1 · 微光 7/12 · 光继连锁 3 · Flow 120</p><div class="review-grid">' +
+    overlay.innerHTML = '<section class="finish-sheet"><h1 id="finishTitle" tabindex="-1">登顶</h1><p class="finish-line">0:30.00 · 失误 1 · 微光 7/12 · 光继连锁 3 · Flow 120</p><p class="finish-whisper">所有微光，都抵达了山顶。</p><p class="finish-mastery">S 9/10 / A 1 / 无失误 9/10 (20) / Drill 0/0/9 / Flow Best 999 / 失误 尖刺 4 / 坠落 4 / 碎冰 1 / 重点 R1 坠落</p><div class="review-grid">' +
       Array.from({ length: 9 }, (_, index) => '<article class="review-card ' + (index < 4 ? 'primary' : 'secondary') + '"><span>复盘项 ' + index + '</span><strong>长文本安全检查 R' + index + '</strong><p>这是一段用于横屏移动端滚动和断行的复盘内容，不能横向溢出。</p></article>').join('') +
       '</div><div class="review-actions"><button class="review-button primary-review" type="button">下一 Drill</button></div>' +
       '<details class="review-more"><summary aria-expanded="false"><span>更多复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><div class="review-grid review-grid-extra"></div></details>' +
       '<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>掌握路线图</span><span class="review-more-chevron" aria-hidden="true">›</span></summary></details>' +
-      '<button class="primary" id="restartButton" type="button">再来</button>';
+      '<button class="primary" id="restartButton" type="button">再来</button></section>';
     document.querySelector("#finishTitle").focus({ preventScroll: true });
     overlay.scrollTop = 0;
   })()`);
@@ -4335,12 +4335,23 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
     const overlayRect = overlay.getBoundingClientRect();
     const titleRect = document.querySelector("#finishTitle").getBoundingClientRect();
     const finishLine = document.querySelector(".finish-line");
+    const sheet = document.querySelector(".finish-sheet");
+    const sheetChildren = [...sheet.children].filter((element) => element.getClientRects().length > 0);
+    const flowRects = sheetChildren.map((element) => element.getBoundingClientRect());
+    const restartRect = document.querySelector("#restartButton").getBoundingClientRect();
+    const cardContentFits = [...document.querySelectorAll(".review-card")].every((card) => {
+      const cardRect = card.getBoundingClientRect();
+      return [...card.children].every((child) => child.getBoundingClientRect().bottom <= cardRect.bottom + 1);
+    });
     return {
       scrollSafe: getComputedStyle(overlay).overflowY === "auto" && overlay.scrollHeight >= overlay.clientHeight,
       topReachable: titleRect.top >= overlayRect.top - 1 && titleRect.bottom <= overlayRect.bottom + 1,
       focusInside: document.activeElement === document.querySelector("#finishTitle"),
       noHorizontalOverflow: articles.every((item) => item.scrollWidth <= item.width + 2),
       finishLineNoOverflow: finishLine.scrollWidth <= finishLine.clientWidth + 2,
+      verticalFlowSafe: flowRects.every((rect, index) => index === 0 || flowRects[index - 1].bottom <= rect.top + 1),
+      cardContentFits,
+      restartCompact: restartRect.width <= 282 && restartRect.width < sheet.getBoundingClientRect().width,
       primaryCount: document.querySelectorAll(".review-card.primary").length,
       disclosure: (() => {
         const details = document.querySelector(".review-more");
@@ -4360,6 +4371,7 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (!review.topReachable || !review.focusInside) errors.push("finish review should keep its labelled top reachable and focused on mobile landscape: " + JSON.stringify(review));
   if (!review.noHorizontalOverflow) errors.push("finish review cards overflow horizontally on mobile landscape");
   if (!review.finishLineNoOverflow) errors.push("finish review summary should wrap its current-run Lumen count without horizontal overflow");
+  if (!review.verticalFlowSafe || !review.cardContentFits || !review.restartCompact) errors.push("finish review should keep one non-overlapping vertical sheet with contained cards and a compact restart action: " + JSON.stringify(review));
   if (review.primaryCount < 4) errors.push("finish review should preserve primary card priority markers");
   if (!review.disclosure.open || review.disclosure.expanded !== "true" || review.disclosure.generatedContent !== "none" || review.disclosure.chevronHidden !== "true" || review.disclosure.transform === "none") {
     errors.push("finish review disclosures should synchronize expanded state while keeping their rotating chevron decorative: " + JSON.stringify(review.disclosure));

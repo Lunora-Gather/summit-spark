@@ -1931,7 +1931,7 @@ canvas:focus {
 }
 
 .overlay .finish-whisper {
-  color: rgba(45, 73, 78, 0.72);
+  color: rgba(221, 234, 225, 0.74);
   font-size: 0.92rem;
   font-style: italic;
   letter-spacing: 0.02em;
@@ -1949,8 +1949,73 @@ canvas:focus {
 .overlay.finish-overlay {
   place-items: start center;
   align-content: start;
-  gap: 12px;
   padding-block: clamp(18px, 5vh, 34px);
+}
+
+.finish-sheet {
+  width: min(820px, calc(100% - 32px));
+  min-width: 0;
+  display: grid;
+  grid-auto-flow: row;
+  grid-auto-rows: max-content;
+  justify-items: stretch;
+  gap: 12px;
+  padding: clamp(18px, 3vw, 26px);
+  border: 1px solid rgba(232, 241, 234, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(29, 46, 58, 0.88), rgba(24, 37, 49, 0.82));
+  box-shadow: 0 22px 54px rgba(13, 26, 36, 0.32);
+  backdrop-filter: blur(12px) saturate(0.9);
+}
+
+.finish-sheet > * {
+  min-width: 0;
+}
+
+.finish-sheet > .finish-title,
+.finish-sheet > .finish-line,
+.finish-sheet > .finish-whisper,
+.finish-sheet > .finish-mastery {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  text-align: center;
+}
+
+.finish-sheet > .finish-title {
+  justify-self: center;
+}
+
+.finish-sheet > .finish-mastery {
+  color: rgba(232, 240, 235, 0.78);
+  font-size: 12px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.finish-sheet > .review-grid,
+.finish-sheet > .review-advice,
+.finish-sheet > .review-more {
+  width: 100%;
+  max-width: none;
+}
+
+.finish-sheet .review-card {
+  min-height: 92px;
+  display: grid;
+  grid-template-rows: max-content max-content 1fr;
+  align-content: start;
+  overflow: visible;
+}
+
+.finish-sheet > .review-actions {
+  justify-self: center;
+}
+
+.finish-sheet > #restartButton {
+  width: min(280px, 100%);
+  justify-self: center;
+  margin-top: 2px;
 }
 
 .review-card.primary {

@@ -979,6 +979,13 @@ if (!css.includes(".start-panel .primary,\n  .start-panel .secondary-start {\n  
 if (!css.includes("#practiceButton,\n  #settingsButton {\n    width: 44px;") || !css.includes("height: 44px;\n    min-height: 44px;")) errors.push("narrow and coarse-pointer HUD practice/settings actions should retain 44px square hit targets");
 if (!css.includes("overflow-x: hidden")) errors.push("overlays should not create horizontal scrollbars");
 if (!css.includes("overflow-y: auto")) errors.push("finish review overlay should be scroll-safe");
+if (!js.includes('<section class="finish-sheet">')
+  || !css.includes(".finish-sheet {")
+  || !css.includes("grid-auto-rows: max-content")
+  || !css.includes(".finish-sheet .review-card {")
+  || !css.includes(".finish-sheet > #restartButton")) {
+  errors.push("finish review must keep one bounded vertical sheet with contained cards and a compact restart action");
+}
 if (!inputModule.includes("x: Number(Boolean(right)) - Number(Boolean(left))")) errors.push("opposing horizontal inputs should resolve to neutral");
 if (!inputModule.includes("y: Number(Boolean(down)) - Number(Boolean(up))")) errors.push("opposing vertical inputs should resolve to neutral");
 if (!js.includes('window.addEventListener("blur"') || !js.includes('document.addEventListener("visibilitychange"')) {

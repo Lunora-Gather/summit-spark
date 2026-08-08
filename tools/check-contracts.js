@@ -941,6 +941,16 @@ if (!js.includes("function drawTerrainArchitecture(time)")
   || !js.includes("const detailed = (gx * 5 + gy * 3 + roomIndex) % 4 === 0")) {
   errors.push("terrain should read as chapter-authored ledges with behind-collision supports and sparse run-level material accents");
 }
+if (!js.includes("function drawObstacleArchitecture(time)")
+  || !js.includes("function drawDashGateFrames(time)")
+  || !js.includes("function drawPhaseRails(time)")
+  || !js.includes("function drawCrumbleBridgeProfiles()")
+  || !js.includes("const visualGroups = {")
+  || !js.includes("return { tiles, entities, visualGroups, cols, worldWidth: world.width, dynamicTime: 0 };")
+  || !js.includes("drawHazardFields(time);\n    drawObstacleArchitecture(time);\n    drawTiles(time);")
+  || !js.includes("function drawWaypointCamp(waypoint, time, active)")) {
+  errors.push("late-room mechanisms should compose repeated tiles into coherent gates, phase rails and crumble bridges, with a readable midpoint camp");
+}
 if (!css.includes("1440px") || !css.includes("--shell-gap: clamp(6px, 1.4vmin, 16px)")) errors.push("the preferred desktop presentation should retain its bounded stage and atmospheric outer page frame");
 if (!js.includes('rockDark: "#30465b"') || !js.includes('rockLight: "#8298a8"') || !js.includes('spriteCtx.fillStyle = "#2b4054"') || js.includes('spriteCtx.fillStyle = "#101827"')) errors.push("ordinary platforms should use lifted blue-gray rock faces instead of near-black rectangular slabs");
 if (!js.includes('const shell = stage.closest(".shell")') || !js.includes('const chapterTone = target < 3 ? "gate"') || !js.includes("shell.dataset.portraitChapter = chapterTone") || !css.includes('.shell[data-portrait-chapter="old-peak"]') || !css.includes('.shell[data-portrait-chapter="wind"]') || !css.includes('.shell[data-portrait-chapter="summit"]') || !css.includes("--portrait-ridge-top") || !css.includes("clip-path: polygon(") || !css.includes("top: clamp(96px, calc(50dvh - 285px), 220px)")) errors.push("portrait play should extend a chapter-aware, static low-contrast atmosphere through the brief, stage and touch zones while using the upper safe field for its room brief");

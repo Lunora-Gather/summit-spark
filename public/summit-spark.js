@@ -191,19 +191,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260809-p269"),
-    import("./modules/core/math.mjs?v=20260809-p269"),
-    import("./modules/game/room-data.mjs?v=20260809-p269"),
-    import("./modules/game/world-model.mjs?v=20260809-p269"),
-    import("./modules/game/effect-budget.mjs?v=20260809-p269"),
-    import("./modules/game/landmark-progress.mjs?v=20260809-p269"),
-    import("./modules/game/audio-cues.mjs?v=20260809-p269"),
-    import("./modules/game/lumen-progress.mjs?v=20260809-p269"),
-    import("./modules/systems/storage.mjs?v=20260809-p269"),
-    import("./modules/systems/input.mjs?v=20260809-p269"),
-    import("./modules/training/state.mjs?v=20260809-p269"),
-    import("./modules/training/replay.mjs?v=20260809-p269"),
-    import("./modules/ui/presentation.mjs?v=20260809-p269")
+    import("./modules/core/format.mjs?v=20260809-p270"),
+    import("./modules/core/math.mjs?v=20260809-p270"),
+    import("./modules/game/room-data.mjs?v=20260809-p270"),
+    import("./modules/game/world-model.mjs?v=20260809-p270"),
+    import("./modules/game/effect-budget.mjs?v=20260809-p270"),
+    import("./modules/game/landmark-progress.mjs?v=20260809-p270"),
+    import("./modules/game/audio-cues.mjs?v=20260809-p270"),
+    import("./modules/game/lumen-progress.mjs?v=20260809-p270"),
+    import("./modules/systems/storage.mjs?v=20260809-p270"),
+    import("./modules/systems/input.mjs?v=20260809-p270"),
+    import("./modules/training/state.mjs?v=20260809-p270"),
+    import("./modules/training/replay.mjs?v=20260809-p270"),
+    import("./modules/ui/presentation.mjs?v=20260809-p270")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1595,7 +1595,12 @@
       }
     }
 
-    return { tiles, entities, cols, worldWidth: world.width, dynamicTime: 0 };
+    const visualGroups = {
+      dashGateColumns: dashGateColumns(entities.dashGates),
+      phaseRuns: phaseBlockRuns(entities.phaseBlocks),
+      crumbleRuns: crumbleBridgeRuns(entities.crumble)
+    };
+    return { tiles, entities, visualGroups, cols, worldWidth: world.width, dynamicTime: 0 };
   }
 
   function roomWorldWidth() {
@@ -7608,6 +7613,7 @@
     ctx.translate(offset.x - cameraX, offset.y);
     drawTerrainArchitecture(time);
     drawHazardFields(time);
+    drawObstacleArchitecture(time);
     drawTiles(time);
     drawTerrainAccents(time);
     drawBestRoomPath(time);
@@ -10296,18 +10302,17 @@
     for (const gate of room.entities.dashGates) {
       if (gate.broken) continue;
       ctx.save();
-      ctx.globalAlpha = 0.78;
-      ctx.fillStyle = "rgba(65,84,96,0.84)";
+      ctx.globalAlpha = 0.86;
+      ctx.fillStyle = "rgba(65,84,96,0.9)";
       ctx.strokeStyle = palette.gold;
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.2;
       roundRect(ctx, gate.x + 3, gate.y + 2, TILE - 6, TILE - 4, 4);
       ctx.fill();
       ctx.stroke();
+      ctx.globalAlpha = 0.5;
       ctx.beginPath();
-      ctx.moveTo(gate.x + 8, gate.y + 8);
-      ctx.lineTo(gate.x + TILE - 8, gate.y + TILE - 8);
-      ctx.moveTo(gate.x + TILE - 8, gate.y + 8);
-      ctx.lineTo(gate.x + 8, gate.y + TILE - 8);
+      ctx.moveTo(gate.x + 8, gate.y + TILE / 2);
+      ctx.lineTo(gate.x + TILE - 8, gate.y + TILE / 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -10346,6 +10351,170 @@
     }
   }
 
+  function drawObstacleArchitecture(time) {
+    const motionTime = prefersReducedMotion ? 0 : time;
+    drawDashGateFrames(motionTime);
+    drawPhaseRails(motionTime);
+    drawCrumbleBridgeProfiles();
+  }
+
+  function dashGateColumns(gates = room.entities.dashGates) {
+    const columns = new Map();
+    for (const gate of gates) {
+      if (!columns.has(gate.x)) columns.set(gate.x, []);
+      columns.get(gate.x).push(gate);
+    }
+    return [...columns.values()].map((column) => column.sort((a, b) => a.y - b.y));
+  }
+
+  function drawDashGateFrames(time) {
+    for (const column of room.visualGroups?.dashGateColumns || dashGateColumns()) {
+      if (!column.length) continue;
+      const left = column[0].x;
+      const top = column[0].y;
+      const bottom = column[column.length - 1].y + TILE;
+      const height = bottom - top;
+      const intact = column.some((gate) => !gate.broken);
+      const pulse = prefersReducedMotion ? 0 : Math.sin(time * 2.7 + left * 0.01) * 0.04;
+      ctx.save();
+      ctx.globalAlpha = intact ? 0.42 + pulse : 0.11;
+      ctx.fillStyle = "rgba(31,49,62,0.78)";
+      ctx.strokeStyle = palette.gold;
+      ctx.lineWidth = 1.6;
+      roundRect(ctx, left - 5, top - 6, TILE + 10, height + 12, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.globalAlpha *= 0.72;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(left - 8, top + 3);
+      ctx.lineTo(left - 8, bottom - 3);
+      ctx.moveTo(left + TILE + 8, top + 3);
+      ctx.lineTo(left + TILE + 8, bottom - 3);
+      ctx.stroke();
+      if (intact) {
+        const centerY = top + height / 2;
+        ctx.globalAlpha = 0.62;
+        ctx.beginPath();
+        ctx.moveTo(left + 8, centerY - 10);
+        ctx.lineTo(left + TILE / 2, centerY);
+        ctx.lineTo(left + 8, centerY + 10);
+        ctx.moveTo(left + TILE - 8, centerY - 10);
+        ctx.lineTo(left + TILE / 2, centerY);
+        ctx.lineTo(left + TILE - 8, centerY + 10);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  function phaseBlockRuns(blockList = room.entities.phaseBlocks) {
+    const rows = new Map();
+    for (const block of blockList) {
+      if (!rows.has(block.y)) rows.set(block.y, []);
+      rows.get(block.y).push(block);
+    }
+    const runs = [];
+    for (const blocks of rows.values()) {
+      blocks.sort((a, b) => a.x - b.x);
+      let run = [];
+      for (const block of blocks) {
+        if (run.length && block.x > run[run.length - 1].x + TILE + 1) {
+          runs.push(run);
+          run = [];
+        }
+        run.push(block);
+      }
+      if (run.length) runs.push(run);
+    }
+    return runs;
+  }
+
+  function drawPhaseRails(time) {
+    for (const run of room.visualGroups?.phaseRuns || phaseBlockRuns()) {
+      const left = run[0].x;
+      const top = run[0].y;
+      const width = run[run.length - 1].x + TILE - left;
+      const active = run.some((block) => block.active);
+      const warning = run.some((block) => block.warning);
+      const pulse = warning && !prefersReducedMotion ? Math.sin(time * 18) * 0.08 : 0;
+      ctx.save();
+      ctx.globalAlpha = (active ? 0.24 : 0.11) + pulse;
+      ctx.fillStyle = "rgba(71,112,126,0.52)";
+      ctx.strokeStyle = active ? palette.cyan : "rgba(159,205,215,0.54)";
+      ctx.lineWidth = 1.2;
+      roundRect(ctx, left - 5, top + 8, width + 10, TILE - 16, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.globalAlpha *= 0.85;
+      ctx.beginPath();
+      ctx.moveTo(left + 6, top + TILE / 2);
+      ctx.lineTo(left + width - 6, top + TILE / 2);
+      ctx.stroke();
+      for (let x = left + TILE / 2; x < left + width; x += TILE) {
+        ctx.save();
+        ctx.translate(x, top + TILE / 2);
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeRect(-4, -4, 8, 8);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  }
+
+  function crumbleBridgeRuns(crumble = room.entities.crumble) {
+    const rows = new Map();
+    for (const block of crumble.values()) {
+      if (!rows.has(block.y)) rows.set(block.y, []);
+      rows.get(block.y).push(block);
+    }
+    const runs = [];
+    for (const blocks of rows.values()) {
+      blocks.sort((a, b) => a.x - b.x);
+      let run = [];
+      for (const block of blocks) {
+        if (run.length && block.x !== run[run.length - 1].x + 1) {
+          if (run.length > 1) runs.push(run);
+          run = [];
+        }
+        run.push(block);
+      }
+      if (run.length > 1) runs.push(run);
+    }
+    return runs;
+  }
+
+  function drawCrumbleBridgeProfiles() {
+    const atmosphere = roomAtmosphere();
+    for (const run of room.visualGroups?.crumbleRuns || crumbleBridgeRuns()) {
+      const left = run[0].x * TILE;
+      const top = run[0].y * TILE;
+      const width = (run[run.length - 1].x - run[0].x + 1) * TILE;
+      ctx.save();
+      ctx.globalAlpha = settings.lowPerformance ? 0.12 : settings.calmEffects ? 0.17 : 0.22;
+      ctx.strokeStyle = atmosphere.haze;
+      ctx.fillStyle = "rgba(78,111,118,0.42)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(left + 4, top + TILE - 2);
+      ctx.lineTo(left + width - 4, top + TILE - 2);
+      ctx.lineTo(left + width - 12, top + TILE + 8);
+      ctx.lineTo(left + 12, top + TILE + 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      [left + 12, left + width / 2, left + width - 12].forEach((x, index) => {
+        const depth = index === 1 ? 12 : 8;
+        ctx.beginPath();
+        ctx.moveTo(x - 4, top + TILE + 3);
+        ctx.lineTo(x, top + TILE + depth);
+        ctx.lineTo(x + 4, top + TILE + 3);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+  }
+
   function drawEntities(time) {
     drawDynamicObstacles(time);
     for (const updraft of room.entities.updrafts) {
@@ -10356,27 +10525,7 @@
       const active = player.respawnRoom === roomIndex
         && Math.abs(player.respawnX - (waypoint.x - player.w / 2)) < 2
         && Math.abs(player.respawnY - (waypoint.y + TILE / 2 - player.h)) < 2;
-      const glowPulse = 0.58 + Math.sin(time * 3.2) * 0.1 + waypoint.pulse * 0.35;
-      ctx.save();
-      ctx.globalAlpha = active ? glowPulse : 0.38;
-      ctx.strokeStyle = active ? palette.gold : "rgba(239,204,112,0.58)";
-      ctx.fillStyle = active ? "rgba(239,204,112,0.34)" : "rgba(239,204,112,0.12)";
-      ctx.lineWidth = active ? 1.8 : 1.2;
-      ctx.beginPath();
-      ctx.moveTo(waypoint.x, waypoint.y - 9);
-      ctx.lineTo(waypoint.x + 7, waypoint.y - 2);
-      ctx.lineTo(waypoint.x, waypoint.y + 5);
-      ctx.lineTo(waypoint.x - 7, waypoint.y - 2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(waypoint.x, waypoint.y + 5);
-      ctx.lineTo(waypoint.x, waypoint.y + 15);
-      ctx.moveTo(waypoint.x - 6, waypoint.y + 15);
-      ctx.lineTo(waypoint.x + 6, waypoint.y + 15);
-      ctx.stroke();
-      ctx.restore();
+      drawWaypointCamp(waypoint, time, active);
     }
 
     for (const checkpoint of room.entities.checkpoints) {
@@ -10469,12 +10618,96 @@
     }
   }
 
+  function drawWaypointCamp(waypoint, time, active) {
+    const motionTime = prefersReducedMotion ? 0 : time;
+    const pulse = 0.5 + Math.sin(motionTime * 2.8 + waypoint.x * 0.01) * 0.5;
+    const flare = Math.max(0, Math.min(1, waypoint.pulse / 0.5));
+    const glowStrength = active ? 0.16 + pulse * 0.035 + flare * 0.08 : 0.075 + pulse * 0.02;
+    const baseY = waypoint.y + 16;
+    const lampY = waypoint.y - 7;
+    ctx.save();
+
+    const pool = ctx.createRadialGradient(waypoint.x, lampY, 4, waypoint.x, lampY, active ? 58 : 44);
+    pool.addColorStop(0, `rgba(247,198,93,${glowStrength})`);
+    pool.addColorStop(0.55, `rgba(247,198,93,${glowStrength * 0.42})`);
+    pool.addColorStop(1, "rgba(247,198,93,0)");
+    ctx.fillStyle = pool;
+    ctx.fillRect(waypoint.x - 62, lampY - 60, 124, 118);
+
+    ctx.globalAlpha = active ? 0.64 : 0.38;
+    ctx.strokeStyle = active ? palette.gold : "rgba(239,204,112,0.72)";
+    ctx.fillStyle = "rgba(43,61,70,0.72)";
+    ctx.lineWidth = active ? 1.8 : 1.3;
+    ctx.beginPath();
+    ctx.moveTo(waypoint.x - 26, baseY);
+    ctx.lineTo(waypoint.x - 18, baseY - 5);
+    ctx.lineTo(waypoint.x - 8, baseY - 2);
+    ctx.lineTo(waypoint.x, baseY - 7);
+    ctx.lineTo(waypoint.x + 9, baseY - 2);
+    ctx.lineTo(waypoint.x + 20, baseY - 5);
+    ctx.lineTo(waypoint.x + 27, baseY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(waypoint.x - 18, baseY - 6);
+    ctx.lineTo(waypoint.x - 18, lampY - 23);
+    ctx.quadraticCurveTo(waypoint.x, lampY - 35, waypoint.x + 18, lampY - 23);
+    ctx.lineTo(waypoint.x + 18, baseY - 6);
+    ctx.stroke();
+    ctx.globalAlpha *= 0.52;
+    ctx.beginPath();
+    ctx.moveTo(waypoint.x - 14, lampY - 25);
+    ctx.lineTo(waypoint.x, lampY - 15);
+    ctx.lineTo(waypoint.x + 14, lampY - 25);
+    ctx.stroke();
+
+    ctx.globalAlpha = active ? 0.88 : 0.62;
+    ctx.fillStyle = active ? palette.gold : "rgba(239,204,112,0.76)";
+    ctx.strokeStyle = "rgba(255,240,160,0.9)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(waypoint.x, lampY - 13 - flare * 2);
+    ctx.lineTo(waypoint.x + 7, lampY - 5);
+    ctx.lineTo(waypoint.x, lampY + 5);
+    ctx.lineTo(waypoint.x - 7, lampY - 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,249,211,0.9)";
+    ctx.fillRect(waypoint.x - 1.5, lampY - 7, 3, 7);
+
+    if (active && !settings.lowPerformance && !prefersReducedMotion) {
+      ctx.globalAlpha = 0.26 + pulse * 0.12;
+      ctx.fillStyle = palette.gold;
+      for (let i = 0; i < 3; i += 1) {
+        const rise = (motionTime * (9 + i * 2) + i * 11) % 24;
+        ctx.fillRect(waypoint.x - 8 + i * 8, lampY - 13 - rise, 1.5, 1.5);
+      }
+    }
+    ctx.restore();
+  }
+
   function drawSummitGoal(goal, time) {
     const motionTime = prefersReducedMotion ? 0 : time;
     const y = goal.y + Math.sin(motionTime * 3.2) * 1.5;
     const pulse = 0.86 + Math.sin(motionTime * 3.2) * 0.08;
     ctx.save();
     ctx.translate(goal.x, y);
+
+    const beacon = ctx.createLinearGradient(0, -92, 0, 30);
+    beacon.addColorStop(0, "rgba(255,240,200,0)");
+    beacon.addColorStop(0.72, `rgba(255,240,200,${0.025 + pulse * 0.025})`);
+    beacon.addColorStop(1, "rgba(255,240,200,0)");
+    ctx.fillStyle = beacon;
+    ctx.beginPath();
+    ctx.moveTo(-24, 28);
+    ctx.lineTo(-7, -92);
+    ctx.lineTo(7, -92);
+    ctx.lineTo(24, 28);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.globalAlpha = 0.08 + pulse * 0.05;
     ctx.fillStyle = "#fff0c8";

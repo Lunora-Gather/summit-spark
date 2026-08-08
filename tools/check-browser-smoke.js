@@ -713,12 +713,23 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const text = more.textContent || "";
     const nextCard = [...document.querySelectorAll(".review-card")].find((card) => card.querySelector("span")?.textContent.trim() === "下一 Drill");
     const lossCard = [...document.querySelectorAll(".review-card")].find((card) => card.querySelector("span")?.textContent.trim() === "本轮最大损失");
+    const sheetRect = document.querySelector(".finish-sheet")?.getBoundingClientRect();
+    const titleRect = title?.getBoundingClientRect();
     return {
       text,
       focused: document.activeElement === title,
       next: nextCard?.querySelector("strong")?.textContent.trim() || "",
       advice: document.querySelector(".review-advice")?.textContent.trim() || "",
-      lossLabel: lossCard?.querySelector("span")?.textContent.trim() || ""
+      lossLabel: lossCard?.querySelector("span")?.textContent.trim() || "",
+      compactKeepsake: Boolean(sheetRect)
+        && sheetRect.width <= 762
+        && sheetRect.left <= 72
+        && sheetRect.right <= window.innerWidth * 0.7
+        && sheetRect.bottom <= window.innerHeight,
+      emotionalHierarchy: Boolean(titleRect)
+        && titleRect.height >= 44
+        && document.querySelectorAll(".finish-stats > span").length === 4,
+      collapsedAnalysis: document.querySelectorAll(".finish-disclosures > .review-more:not([open])").length === 2
     };
   })()`) : { text: "", focused: false };
   if (finishProbe.hasTitle && (!/本轮分幕/.test(runEvidenceReview.text)
@@ -726,8 +737,11 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || runEvidenceReview.next !== "R10 Clean"
     || !/R10 星顶终线：本轮失误 1/.test(runEvidenceReview.advice)
     || runEvidenceReview.lossLabel !== "本轮最大损失"
+    || !runEvidenceReview.compactKeepsake
+    || !runEvidenceReview.emotionalHierarchy
+    || !runEvidenceReview.collapsedAnalysis
     || !runEvidenceReview.focused)) {
-    errors.push("summit review should expose bounded current-run act evidence without losing modal focus: " + JSON.stringify(runEvidenceReview));
+    errors.push("summit review should preserve the summit scene while exposing bounded current-run evidence without losing modal focus: " + JSON.stringify(runEvidenceReview));
   }
   if (finishProbe.hasTitle) {
     await evaluate(cdp, `document.querySelector(".review-more").open = true`);

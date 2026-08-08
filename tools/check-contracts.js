@@ -986,6 +986,15 @@ if (!js.includes('<section class="finish-sheet">')
   || !css.includes(".finish-sheet > #restartButton")) {
   errors.push("finish review must keep one bounded vertical sheet with contained cards and a compact restart action");
 }
+if (!js.includes('class="finish-top"')
+  || !js.includes('class="finish-stats" aria-label="本轮概览"')
+  || !js.includes('class="finish-disclosures"')
+  || !css.includes(".finish-top {")
+  || !css.includes(".finish-stats {")
+  || !css.includes(".finish-disclosures {")
+  || !browserSmoke.includes("compactKeepsake")) {
+  errors.push("summit review must preserve the final-room scene with one emotional hero, four quiet facts and collapsed analysis");
+}
 if (!inputModule.includes("x: Number(Boolean(right)) - Number(Boolean(left))")) errors.push("opposing horizontal inputs should resolve to neutral");
 if (!inputModule.includes("y: Number(Boolean(down)) - Number(Boolean(up))")) errors.push("opposing vertical inputs should resolve to neutral");
 if (!js.includes('window.addEventListener("blur"') || !js.includes('document.addEventListener("visibilitychange"')) {

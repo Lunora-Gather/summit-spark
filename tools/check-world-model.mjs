@@ -18,6 +18,11 @@ const resting = cameraFollowData({ cameraX: 0, targetX: 0, playerCenter: 420, wo
 assert.equal(resting.targetX, 0, "camera should remain still inside the horizontal safe zone");
 const following = cameraFollowData({ cameraX: 0, targetX: 0, playerCenter: 800, worldWidth: 1440, viewportWidth: 960, dt: 1 / 60 });
 assert.ok(following.targetX > 0 && following.cameraX > 0, "camera should follow after the player crosses the right guide");
+const anticipated = cameraFollowData({ cameraX: 0, targetX: 0, playerCenter: 590, velocityX: 420, worldWidth: 1440, viewportWidth: 960, dt: 1 / 60 });
+assert.equal(anticipated.lookAhead, 40, "camera look-ahead should stay capped during a fast dash");
+assert.ok(anticipated.targetX > 0, "camera should reveal the route slightly before a fast player crosses the guide");
+const reversing = cameraFollowData({ cameraX: 240, targetX: 240, playerCenter: 590, velocityX: -420, worldWidth: 1440, viewportWidth: 960, dt: 1 / 60 });
+assert.equal(reversing.lookAhead, -40, "camera anticipation should follow a genuine direction reversal");
 const rightEdge = cameraFollowData({ cameraX: 999, targetX: 999, playerCenter: 2000, worldWidth: 1440, viewportWidth: 960, dt: 1 });
 assert.equal(rightEdge.maxCamera, 480, "camera range should equal world width minus viewport width");
 assert.equal(rightEdge.targetX, 480, "camera target should clamp to the room edge");
@@ -27,6 +32,8 @@ assert.equal(phaseBlockActiveData({ elapsed: 0.4 }).active, true, "phase ledges 
 assert.equal(phaseBlockActiveData({ elapsed: 1.8 }).active, false, "phase ledges should become pass-through during their off beat");
 assert.equal(phaseBlockActiveData({ elapsed: 2.5, wasActive: false, overlapping: true }).active, false, "phase ledges must not rematerialize inside the player");
 assert.equal(phaseBlockActiveData({ elapsed: 2.5, wasActive: false, overlapping: false }).active, true, "phase ledges should rematerialize once clear");
+assert.equal(phaseBlockActiveData({ elapsed: 1.2 }).warning, true, "phase ledges should telegraph before disappearing");
+assert.equal(phaseBlockActiveData({ elapsed: 2.2 }).warning, true, "phase ledges should telegraph before rematerializing");
 
 assert.deepEqual(
   driftShardPositionData({ baseX: 100, baseY: 80, axis: "x", elapsed: 0, phase: Math.PI / 2, amplitude: 44 }),
@@ -39,4 +46,4 @@ assert.deepEqual(
   "vertical drift shards should remain deterministic"
 );
 
-console.log("World model check passed: variable room widths, bounded camera guides, fail-safe phase timing and deterministic drift rails.");
+console.log("World model check passed: variable room widths, predictive bounded camera guides, telegraphed fail-safe phase timing and deterministic drift rails.");

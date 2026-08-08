@@ -312,9 +312,11 @@ if (runtimeSource.includes("const AMBIENT_CHAPTER_CHORDS")) {
 }
 if (!runtimeSource.includes('import("./modules/game/lumen-progress.mjs?v=')
   || !lumenProgressSource.includes("export function resetRoomLumenProgressData(")
+  || !lumenProgressSource.includes("export function roomLumenCheckpointData(")
+  || !lumenProgressSource.includes("export function restoreRoomLumenCheckpointData(")
   || !runtimeSource.includes("const reset = resetRoomLumenProgressData(collected, roomIndex);")
   || !runtimeSource.includes("collected = reset.collected;")) {
-  fail("public runtime must delegate provisional current-room Lumen rollback to the game model");
+  fail("public runtime must delegate provisional Lumen rollback and validated midpoint snapshots to the game model");
 }
 if (!runtimeSource.includes('import("./modules/training/replay.mjs?v=')
   || !trainingReplaySource.includes("export const REPLAY_ACTION_LABELS")

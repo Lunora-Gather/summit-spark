@@ -260,7 +260,7 @@ async function main() {
       .forEach((marker) => expectIncludes("landmark progress", landmarkProgress, marker));
     ["export const CHAPTER_AUDIO_PROFILES =", "export function ambientChapterCueData(", "export function chapterEntryCueData(", "export function summitCueData("]
       .forEach((marker) => expectIncludes("audio cues", audioCues, marker));
-    ["export function resetRoomLumenProgressData("]
+    ["export function resetRoomLumenProgressData(", "export function roomLumenCheckpointData(", "export function restoreRoomLumenCheckpointData("]
       .forEach((marker) => expectIncludes("Lumen progress", lumenProgress, marker));
     ["export function finiteNonNegativeNumber(", "export function normalizeSettingsData(", "export function readStoredJson(", "export function normalizeRoomFocusData(", "export function parseSaveArchiveText(", "export function createSaveArchiveData(", "export function createSaveBackupData(", "export function writeStorageTransaction("]
       .forEach((marker) => expectIncludes("storage module", storageModule, marker));

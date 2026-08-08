@@ -74,6 +74,16 @@ maps.forEach((room, index) => {
   assert.equal(entryAnchors.length, 1, `room ${index + 1} should own exactly one entry anchor`);
   assert.ok(entryAnchors[0].x <= 2, `room ${index + 1} entry should stay within the left three columns`);
   assert.equal(room[entryAnchors[0].y + 1]?.[entryAnchors[0].x], "#", `room ${index + 1} entry should have stable support`);
+  const waypoints = [];
+  room.forEach((row, y) => [...row].forEach((tile, x) => {
+    if (tile === "J") waypoints.push({ x, y });
+  }));
+  assert.equal(waypoints.length, index >= 3 ? 1 : 0, `room ${index + 1} should expose the intended long-room midpoint count`);
+  if (waypoints[0]) {
+    assert.ok(waypoints[0].x >= 30, `room ${index + 1} midpoint should begin in the second screen`);
+    assert.ok("#CT".includes(room[waypoints[0].y + 1]?.[waypoints[0].x]), `room ${index + 1} midpoint should have stable support`);
+    assert.ok(room[waypoints[0].y].slice(waypoints[0].x + 1, waypoints[0].x + 3).includes("R"), `room ${index + 1} midpoint should lead directly into a recovery refill`);
+  }
 });
 assert.equal(CHAPTER_EXPERIENCE.length, 4, "chapter copy should cover four acts");
 assert.deepEqual(ROOM_CHAPTER_INDEXES, [0, 0, 0, 1, 1, 1, 2, 2, 3, 3], "each room should own one canonical chapter index");

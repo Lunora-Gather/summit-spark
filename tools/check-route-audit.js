@@ -80,6 +80,8 @@ maps.forEach((room, index) => {
   if (!purposes[index] || hasBadPlaceholder(purposes[index])) errors.push("room " + (index + 1) + " purpose is not production copy");
   if (landings < 4) errors.push("room " + (index + 1) + " has too few readable landing segments: " + landings);
   if (index >= 6 && roomPressure < 35) warnings.push("late room " + (index + 1) + " pressure is comparatively low: " + roomPressure);
+  const waypointCount = (room.join("").match(/J/g) || []).length;
+  if (waypointCount !== (index >= 3 ? 1 : 0)) errors.push("room " + (index + 1) + " should keep the intended long-room midpoint count");
 });
 
 const room5Relay = maps[4]?.[9]?.[6] === "A";

@@ -1008,6 +1008,20 @@ if (!lumenProgressModule.includes("export function resetRoomLumenProgressData(")
   || (js.match(/resetCurrentRoomLumenAttempt\(\);/g) || []).length !== 2) {
   errors.push("death/retry and room restart must discard only the current room's provisional Lumen reward");
 }
+if (!js.includes("function currentRoomLumenSnapshot()")
+  || !js.includes("function restoreRespawnLumenSnapshot()")
+  || !js.includes("player.respawnLumens = currentRoomLumenSnapshot();")
+  || !js.includes("restoreRoomLumenCheckpointData(collected, saved, roomIndex, maps[roomIndex])")
+  || !lumenProgressModule.includes("export function roomLumenCheckpointData(")
+  || !lumenProgressModule.includes("export function restoreRoomLumenCheckpointData(")
+  || !js.includes("respawnLumens: []")) {
+  errors.push("long-room midpoints should preserve only validated current-room Lumen ids while full room restarts clear the snapshot");
+}
+if (!js.includes("respawnRoomTime: 0")
+  || !js.includes("player.respawnRoomTime = roomTime;")
+  || !js.includes("roomTime = Math.max(0, Number(player.respawnRoomTime) || 0);")) {
+  errors.push("midpoint retries must resume from the captured room split instead of creating a second-screen Pace/PB shortcut");
+}
 if (!js.includes("function playerNeedsRefill()")
   || !js.includes("player.dashes < dashCapacity || player.stamina < MAX_STAMINA - 0.001")
   || !js.includes("refill.ready && playerNeedsRefill() && distRectPoint(")) {

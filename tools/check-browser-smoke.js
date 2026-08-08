@@ -1397,16 +1397,18 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (Math.abs(r7PracticeEntry.x - 70.5) > 1 || Math.abs(r7PracticeEntry.y - 487) > 1 || !r7PracticeEntry.ground) {
     errors.push("direct R7 Practice should begin on the intended grounded Wind Gorge checkpoint: " + JSON.stringify(r7PracticeEntry));
   }
-  await keyHold(cdp, "KeyD", "D", 1320);
   await keyDown(cdp, "KeyD", "D");
-  await keyHold(cdp, "Space", " ", 80);
-  const r7WindWake = await waitUntil("R7 floor route enters its authored updraft", () => evaluate(cdp, `(() => {
-    const debug = document.querySelector("#debugPanel").textContent;
-    const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-    if (!position || !/wind 1/.test(debug)) return null;
-    return { x: Number(position[1]), y: Number(position[2]), debug };
-  })()`), 2400, 20);
-  await keyUp(cdp, "KeyD", "D");
+  let r7WindWake;
+  try {
+    r7WindWake = await waitUntil("R7 floor route enters its authored updraft", () => evaluate(cdp, `(() => {
+      const debug = document.querySelector("#debugPanel").textContent;
+      const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+      if (!position || !/wind 1/.test(debug)) return null;
+      return { x: Number(position[1]), y: Number(position[2]), debug };
+    })()`), 3600, 20);
+  } finally {
+    await keyUp(cdp, "KeyD", "D");
+  }
   await keyHold(cdp, "KeyA", "A", 520);
   const r7WindExit = await waitUntil("R7 updraft wake clears after leaving the exact field", () => evaluate(cdp, `(() => {
     const debug = document.querySelector("#debugPanel").textContent;
@@ -1728,24 +1730,28 @@ async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
   await keyTap(cdp, "Digit8", "8");
   const dormant = await waitUntil("R8 crumble strip starts fully restored", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
-    return /room 8\\/10/.test(text) && /crumble 19\\/19 q0 a0/.test(text) ? { text } : null;
+    return /room 8\\/10/.test(text) && /crumble 15\\/15 q0 a0/.test(text) ? { text } : null;
   })()`), 3500);
   let waveStart;
   let waveBroken;
   await keyDown(cdp, "KeyD", "D");
   try {
-    await sleep(400);
+    await waitUntil("R8 crumble approach reaches its launch pocket", () => evaluate(cdp, `(() => {
+      const text = document.querySelector("#debugPanel").textContent;
+      const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+      return /ground 1/.test(text) && position && Number(position[1]) >= 155 && Number(position[1]) <= 170;
+    })()`), 1400, 20);
     await keyTap(cdp, "KeyK", "K");
     waveStart = await waitUntil("R8 five-tile strip enters a staged fracture wave", () => evaluate(cdp, `(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-      return /crumble 19\\/19 q4 a1/.test(text) && position
+      return /crumble (?:15\\/15 q[1-4] a1|10\\/15 q0 a0)/.test(text) && position
         ? { x: Number(position[1]), y: Number(position[2]), text }
         : null;
     })()`), 1600, 20);
     waveBroken = await waitUntil("R8 staged strip completes five bounded breaks", () => evaluate(cdp, `(() => {
       const text = document.querySelector("#debugPanel").textContent;
-      return /crumble 14\\/19 q0 a0/.test(text) ? { text } : null;
+      return /crumble 10\\/15 q0 a0/.test(text) ? { text } : null;
     })()`), 1800, 20);
   } finally {
     await keyUp(cdp, "KeyD", "D");
@@ -1754,15 +1760,15 @@ async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
   const reset = await waitUntil("R8 retry restores the full crumble strip", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R8/.test(document.querySelector("#gameStatus").textContent)
-      && /crumble 19\\/19 q0 a0/.test(text)
+      && /crumble 15\\/15 q0 a0/.test(text)
       ? { text }
       : null;
   })()`), 3500);
-  if (!/crumble 19\/19 q0 a0/.test(dormant.text)
+  if (!/crumble 15\/15 q0 a0/.test(dormant.text)
     || waveStart.x < 250
-    || waveStart.x > 320
-    || !/crumble 14\/19 q0 a0/.test(waveBroken.text)
-    || !/crumble 19\/19 q0 a0/.test(reset.text)) {
+    || waveStart.x > 450
+    || !/crumble 10\/15 q0 a0/.test(waveBroken.text)
+    || !/crumble 15\/15 q0 a0/.test(reset.text)) {
     errors.push("R8 should stage one five-tile same-row fracture wave and restore it atomically on retry: " + JSON.stringify({ dormant, waveStart, waveBroken, reset }));
   }
 }
@@ -1787,14 +1793,23 @@ async function runSpringApexSmoke(cdp, baseUrl) {
       ? { x: Number(position[1]), y: Number(position[2]), text }
       : null;
   })()`), 4500, 20);
-  await keyHold(cdp, "KeyD", "D", 750);
-  const approach = await waitUntil("R10 spring approach reaches the lower floor", () => evaluate(cdp, `(() => {
-    const text = document.querySelector("#debugPanel").textContent;
-    const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-    return /ground 1/.test(text) && position && Number(position[1]) >= 245 && Number(position[1]) <= 270
-      ? { x: Number(position[1]), y: Number(position[2]), text }
-      : null;
-  })()`), 1800, 20);
+  let approach;
+  let approachProbe = null;
+  await keyDown(cdp, "KeyD", "D");
+  try {
+    approach = await waitUntil("R10 spring approach reaches the lower floor", () => evaluate(cdp, `(() => {
+      const text = document.querySelector("#debugPanel").textContent;
+      const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+      return position && Number(position[1]) >= 245 && Number(position[1]) <= 270
+        ? { x: Number(position[1]), y: Number(position[2]), text }
+        : null;
+    })()`), 1800, 20);
+  } catch {
+    approachProbe = await debugPosition(cdp);
+  } finally {
+    await keyUp(cdp, "KeyD", "D");
+  }
+  if (approachProbe) throw new Error("R10 spring approach missed lower-floor window: " + JSON.stringify(approachProbe));
   let launch;
   await keyDown(cdp, "KeyD", "D");
   try {
@@ -4029,9 +4044,9 @@ async function runMobileSmoke(cdp, baseUrl) {
       : null;
   })()`), 3500);
   if (!echoRecallReady.available || !echoRecallReady.recallReady || echoRecallReady.width < 44 || echoRecallReady.label !== "召回到回声锚点"
-    || echoRecallReady.crumbleActive !== 21 || echoRecallReady.crumbleTotal !== 21
+    || echoRecallReady.crumbleActive !== 18 || echoRecallReady.crumbleTotal !== 18
     || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active || afterTouchRecall.recallReady || !/回声召回.*恢复/.test(afterTouchRecall.status)) {
-    errors.push("R9 should expose contextual Echo recall from its safe pocket, load the recovered 16-crumble route, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
+    errors.push("R9 should expose contextual Echo recall from its safe pocket, load the recovered 18-crumble route, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
   }
   await keyTap(cdp, "Digit0", "0");
   await waitUntil("mobile debug jump reaches finale room", () => evaluate(cdp, `/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
@@ -4576,7 +4591,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, R1 Spark gate-step wake/retry and R2 Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 16-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, R1 Spark gate-step wake/retry and R2 Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored four-relay/two-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

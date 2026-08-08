@@ -12,7 +12,7 @@ const styleTrials = snapshot.roomStyleTrials;
 const minCols = 30;
 const rows = 17;
 const errors = [];
-const allowed = new Set(".#^v<>SLRAPTHUBMCDEK".split(""));
+const allowed = new Set(".#^v<>SLRAPTHUBMCDEKJ".split(""));
 let goalCount = 0;
 let startCount = 0;
 const pressureScores = [];
@@ -71,6 +71,7 @@ else {
     let crumbleCount = 0;
     let entryAnchorCount = 0;
     let entryAnchor = null;
+    const waypoints = [];
     if (roomIndex > 0 && !hasLeftGap(room)) errors.push("room " + (roomIndex + 1) + " has no left entry gap");
     if (roomIndex < maps.length - 1 && !hasRightGap(room)) errors.push("room " + (roomIndex + 1) + " has no right exit gap");
     room.forEach((line, y) => {
@@ -95,6 +96,7 @@ else {
           entryAnchorCount += 1;
           entryAnchor = { x, y, tile };
         }
+        if (tile === "J") waypoints.push({ x, y });
         if (tile === "H") goalCount += 1;
       });
     });
@@ -107,6 +109,14 @@ else {
       if (room[entryAnchor.y + 1]?.[entryAnchor.x] !== "#") {
         errors.push("room " + (roomIndex + 1) + " entry anchor should have stable # support");
       }
+    }
+    if (waypoints.length !== (roomIndex >= 3 ? 1 : 0)) {
+      errors.push("room " + (roomIndex + 1) + " should keep the intended long-room midpoint count");
+    }
+    for (const waypoint of waypoints) {
+      if (waypoint.x < 30) errors.push("room " + (roomIndex + 1) + " midpoint should begin in the second screen");
+      if (!"#CT".includes(room[waypoint.y + 1]?.[waypoint.x] || "")) errors.push("room " + (roomIndex + 1) + " midpoint should have stable support");
+      if (!room[waypoint.y].slice(waypoint.x + 1, waypoint.x + 3).includes("R")) errors.push("room " + (roomIndex + 1) + " midpoint should lead directly into a refill");
     }
     pressureScores[roomIndex] = pressure;
     crumbleRooms[roomIndex] = crumbleCount;

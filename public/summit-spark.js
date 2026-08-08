@@ -71,7 +71,9 @@
       summitCueData
     },
     {
-      resetRoomLumenProgressData
+      resetRoomLumenProgressData,
+      restoreRoomLumenCheckpointData,
+      roomLumenCheckpointData
     },
     {
       clampGamepadDeadzoneData,
@@ -189,19 +191,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260808-p265"),
-    import("./modules/core/math.mjs?v=20260808-p265"),
-    import("./modules/game/room-data.mjs?v=20260808-p265"),
-    import("./modules/game/world-model.mjs?v=20260808-p265"),
-    import("./modules/game/effect-budget.mjs?v=20260808-p265"),
-    import("./modules/game/landmark-progress.mjs?v=20260808-p265"),
-    import("./modules/game/audio-cues.mjs?v=20260808-p265"),
-    import("./modules/game/lumen-progress.mjs?v=20260808-p265"),
-    import("./modules/systems/storage.mjs?v=20260808-p265"),
-    import("./modules/systems/input.mjs?v=20260808-p265"),
-    import("./modules/training/state.mjs?v=20260808-p265"),
-    import("./modules/training/replay.mjs?v=20260808-p265"),
-    import("./modules/ui/presentation.mjs?v=20260808-p265")
+    import("./modules/core/format.mjs?v=20260809-p266"),
+    import("./modules/core/math.mjs?v=20260809-p266"),
+    import("./modules/game/room-data.mjs?v=20260809-p266"),
+    import("./modules/game/world-model.mjs?v=20260809-p266"),
+    import("./modules/game/effect-budget.mjs?v=20260809-p266"),
+    import("./modules/game/landmark-progress.mjs?v=20260809-p266"),
+    import("./modules/game/audio-cues.mjs?v=20260809-p266"),
+    import("./modules/game/lumen-progress.mjs?v=20260809-p266"),
+    import("./modules/systems/storage.mjs?v=20260809-p266"),
+    import("./modules/systems/input.mjs?v=20260809-p266"),
+    import("./modules/training/state.mjs?v=20260809-p266"),
+    import("./modules/training/replay.mjs?v=20260809-p266"),
+    import("./modules/ui/presentation.mjs?v=20260809-p266")
   ]);
 
   const canvas = document.getElementById("game");
@@ -872,6 +874,8 @@
     respawnRoom: 0,
     respawnX: 0,
     respawnY: 0,
+    respawnRoomTime: 0,
+    respawnLumens: [],
     hair: []
   };
 
@@ -1492,6 +1496,7 @@
       driftShards: [],
       crumble: new Map(),
       checkpoints: [],
+      waypoints: [],
       springs: [],
       goal: null,
       start: { x: TILE * 2, y: TILE * 12 }
@@ -1509,6 +1514,10 @@
         }
         if (tile === "P") {
           entities.checkpoints.push({ x: cx, y: cy });
+          tiles[y][x] = ".";
+        }
+        if (tile === "J") {
+          entities.waypoints.push({ x: cx, y: cy, pulse: 0 });
           tiles[y][x] = ".";
         }
         if (tile === "L") {
@@ -1540,7 +1549,16 @@
           tiles[y][x] = ".";
         }
         if (tile === "E") {
-          entities.phaseBlocks.push({ x: x * TILE, y: y * TILE, w: TILE, h: TILE, active: true, pulse: 0 });
+          entities.phaseBlocks.push({
+            x: x * TILE,
+            y: y * TILE,
+            w: TILE,
+            h: TILE,
+            active: true,
+            pulse: 0,
+            warning: false,
+            phaseOffset: (Math.floor(y / 4) % 2) * PHASE_PERIOD * 0.5
+          });
           tiles[y][x] = ".";
         }
         if (tile === "K") {
@@ -1598,6 +1616,7 @@
       cameraX,
       targetX: cameraTargetX,
       playerCenter: player.x + player.w / 2,
+      velocityX: player.vx,
       worldWidth: roomWorldWidth(),
       viewportWidth: W,
       dt
@@ -1647,7 +1666,9 @@
       deadTimer: 0,
       respawnRoom: roomIndex,
       respawnX: spawn.x,
-      respawnY: spawn.y
+      respawnY: spawn.y,
+      respawnRoomTime: 0,
+      respawnLumens: []
     });
     snapCameraToPlayer();
     lastAimX = player.facing;
@@ -2564,12 +2585,35 @@
         player.respawnRoom = roomIndex;
         player.respawnX = nextX;
         player.respawnY = nextY;
+        player.respawnLumens = currentRoomLumenSnapshot();
         if (changed) {
           playSound("checkpoint", 0.72);
           setGameStatus(`检查点已点亮 · R${roomIndex + 1}`);
           glow(checkpoint.x, checkpoint.y, palette.green);
           burst(checkpoint.x, checkpoint.y + 8, palette.green, 4, 90);
         }
+      }
+    }
+
+    for (const waypoint of room.entities.waypoints) {
+      waypoint.pulse = Math.max(0, waypoint.pulse - dt);
+      if (distRectPoint(box, waypoint.x, waypoint.y) >= 27) continue;
+      const nextX = waypoint.x - player.w / 2;
+      const nextY = waypoint.y + TILE / 2 - player.h;
+      const changed = player.respawnRoom !== roomIndex
+        || Math.abs(player.respawnX - nextX) > 1
+        || Math.abs(player.respawnY - nextY) > 1;
+      player.respawnRoom = roomIndex;
+      player.respawnX = nextX;
+      player.respawnY = nextY;
+      player.respawnLumens = currentRoomLumenSnapshot();
+      if (changed) {
+        player.respawnRoomTime = roomTime;
+        waypoint.pulse = 0.5;
+        playSound("checkpoint", 0.58);
+        setGameStatus(`中段营灯已点亮 · R${roomIndex + 1}，失败从这里继续`);
+        glow(waypoint.x, waypoint.y, palette.gold);
+        burst(waypoint.x, waypoint.y + 7, palette.gold, 6, 110);
       }
     }
 
@@ -2640,15 +2684,17 @@
     for (const block of room.entities.phaseBlocks) {
       block.pulse = Math.max(0, block.pulse - dt);
       const state = phaseBlockActiveData({
-        elapsed: room.dynamicTime,
+        elapsed: room.dynamicTime + block.phaseOffset,
         period: PHASE_PERIOD,
         activeTime: PHASE_ACTIVE_TIME,
+        warningTime: PHASE_WARNING_TIME,
         wasActive: block.active,
         overlapping: aabb(box, block)
       });
       const nextActive = state.active;
       if (nextActive !== block.active) block.pulse = 0.22;
       block.active = nextActive;
+      block.warning = state.warning;
       if (distRectPoint(box, block.x + TILE / 2, block.y + TILE / 2) < 58) {
         markRoomTech("phase");
         showMechanicFirstTouchCue("phase");
@@ -3191,6 +3237,8 @@
       player.respawnRoom = roomIndex;
       player.respawnX = 26;
       player.respawnY = Math.min(player.y, H - TILE * 3);
+      player.respawnRoomTime = 0;
+      player.respawnLumens = [];
       echoAnchor = null;
       recallPulseTimer = 0;
       player.springLaunchTimer = 0;
@@ -3215,6 +3263,8 @@
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
       player.respawnY = Math.min(player.y, H - TILE * 3);
+      player.respawnRoomTime = 0;
+      player.respawnLumens = [];
       echoAnchor = null;
       recallPulseTimer = 0;
       player.springLaunchTimer = 0;
@@ -3248,6 +3298,7 @@
   function respawn(options = {}) {
     roomIndex = player.respawnRoom;
     resetCurrentRoomLumenAttempt();
+    restoreRespawnLumenSnapshot();
     room = parseRoom(roomIndex);
     resetRoomTech();
     player.x = player.respawnX;
@@ -3285,7 +3336,7 @@
     clearSplitPopup();
     clearMasteryPopup();
     crumbleSlipTimer = 0;
-    roomTime = 0;
+    roomTime = Math.max(0, Number(player.respawnRoomTime) || 0);
     timingArmed = false;
     timingInputReady = false;
     ghosts.length = 0;
@@ -3307,6 +3358,17 @@
     collected = reset.collected;
     player.lumenReserve = assistActive();
     return reset.removed;
+  }
+
+  function currentRoomLumenSnapshot() {
+    return roomLumenCheckpointData(collected, roomIndex, maps[roomIndex]);
+  }
+
+  function restoreRespawnLumenSnapshot() {
+    const saved = Array.isArray(player.respawnLumens) ? player.respawnLumens : [];
+    const restored = restoreRoomLumenCheckpointData(collected, saved, roomIndex, maps[roomIndex]);
+    collected = restored.collected;
+    player.respawnLumens = restored.snapshot;
   }
 
   function quickRetry() {
@@ -3368,7 +3430,9 @@
       deadTimer: 0,
       respawnRoom: roomIndex,
       respawnX: target.x,
-      respawnY: target.y
+      respawnY: target.y,
+      respawnRoomTime: 0,
+      respawnLumens: []
     });
     snapCameraToPlayer();
     clearSplitPopup();
@@ -7224,9 +7288,14 @@
   }
 
   function breakDashGates(box) {
+    const hitColumns = new Set(
+      room.entities.dashGates
+        .filter((gate) => !gate.broken && aabb(box, gate))
+        .map((gate) => gate.x)
+    );
     let broken = 0;
     for (const gate of room.entities.dashGates) {
-      if (gate.broken || !aabb(box, gate)) continue;
+      if (gate.broken || !hitColumns.has(gate.x)) continue;
       gate.broken = true;
       gate.pulse = 0.28;
       broken += 1;
@@ -9968,11 +10037,9 @@
   }
 
   function drawDynamicObstacles(time) {
-    const phaseClock = room.dynamicTime % PHASE_PERIOD;
-    const phaseWarning = phaseClock >= PHASE_ACTIVE_TIME - PHASE_WARNING_TIME && phaseClock < PHASE_ACTIVE_TIME;
-
     for (const block of room.entities.phaseBlocks) {
-      const alpha = block.active ? (phaseWarning ? 0.5 + Math.sin(time * 26) * 0.18 : 0.76) : 0.16;
+      const warningPulse = block.warning ? Math.sin(time * 26) * 0.16 : 0;
+      const alpha = block.active ? 0.76 + warningPulse : 0.16 + Math.max(0, warningPulse);
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.fillStyle = block.active ? "#547789" : "rgba(99,139,153,0.28)";
@@ -10046,6 +10113,33 @@
     drawDynamicObstacles(time);
     for (const updraft of room.entities.updrafts) {
       drawUpdraft(updraft, time);
+    }
+
+    for (const waypoint of room.entities.waypoints) {
+      const active = player.respawnRoom === roomIndex
+        && Math.abs(player.respawnX - (waypoint.x - player.w / 2)) < 2
+        && Math.abs(player.respawnY - (waypoint.y + TILE / 2 - player.h)) < 2;
+      const glowPulse = 0.58 + Math.sin(time * 3.2) * 0.1 + waypoint.pulse * 0.35;
+      ctx.save();
+      ctx.globalAlpha = active ? glowPulse : 0.38;
+      ctx.strokeStyle = active ? palette.gold : "rgba(239,204,112,0.58)";
+      ctx.fillStyle = active ? "rgba(239,204,112,0.34)" : "rgba(239,204,112,0.12)";
+      ctx.lineWidth = active ? 1.8 : 1.2;
+      ctx.beginPath();
+      ctx.moveTo(waypoint.x, waypoint.y - 9);
+      ctx.lineTo(waypoint.x + 7, waypoint.y - 2);
+      ctx.lineTo(waypoint.x, waypoint.y + 5);
+      ctx.lineTo(waypoint.x - 7, waypoint.y - 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(waypoint.x, waypoint.y + 5);
+      ctx.lineTo(waypoint.x, waypoint.y + 15);
+      ctx.moveTo(waypoint.x - 6, waypoint.y + 15);
+      ctx.lineTo(waypoint.x + 6, waypoint.y + 15);
+      ctx.stroke();
+      ctx.restore();
     }
 
     for (const checkpoint of room.entities.checkpoints) {
@@ -11190,7 +11284,7 @@
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  recall ${echoAnchor && echoAnchor.room === roomIndex && recallCooldown <= 0 && player.deadTimer <= 0 ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,
       `hitstop ${hitStopTimer.toFixed(3)}  ghosts ${ghosts.length}/${currentEffectLimit("ghosts")}`,
       `effects p ${particles.length}/${currentEffectLimit("particles")}  s ${shards.length}/${currentEffectLimit("shards")}  t ${lightTrails.length}/${currentEffectLimit("lightTrails")}`,
-      `relays ${room.entities.relays.length}  gate ${gateLandmarkProgress().toFixed(2)}  relic ${relayLandmarkProgress().toFixed(2)}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total} q${crumble.queued} a${crumble.armed}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
+      `relays ${room.entities.relays.length}  gate ${gateLandmarkProgress().toFixed(2)}  relic ${relayLandmarkProgress().toFixed(2)}  mid ${room.entities.waypoints.length}/${player.respawnLumens.length}  cam ${cameraX.toFixed(1)}/${cameraTargetX.toFixed(1)}  prisms ${room.entities.prisms.length}  up ${room.entities.updrafts.length}  crumble ${crumble.active}/${crumble.total} q${crumble.queued} a${crumble.armed}  lumen ${collected.size}/${totalLumens}  sky ${roomIndex >= 8 && totalLumens > 0 ? (collected.size / totalLumens).toFixed(2) : "0.00"}  surface ${surfaceFeedbackForRoom().kind}`,
       `paths room ${roomPath.length}  best ${Array.isArray(bestRoomPaths[roomIndex]) ? bestRoomPaths[roomIndex].length : 0}  lines ${settings.practiceLines ? 1 : 0}  ghost ${settings.ghostOpacity.toFixed(2)}`,
       `replay actions ${replayActionMarkersFor(bestRoomPaths[roomIndex]).length}  active ${practiceVisualsActive() ? 1 : 0}`,
       `shake ${settings.shake.toFixed(2)}  keys ${settings.controlsPreset}  grab ${settings.grabMode}${grabLatched ? " latched" : ""}  pad dz ${settings.gamepadDeadzone.toFixed(2)}`,

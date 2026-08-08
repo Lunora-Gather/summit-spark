@@ -52,6 +52,12 @@
       mechanicFirstTouchCueData
     },
     {
+      cameraFollowData,
+      driftShardPositionData,
+      phaseBlockActiveData,
+      roomWorldData
+    },
+    {
       effectQueueLimit,
       enforceEffectQueueBudget
     },
@@ -183,18 +189,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260807-p264"),
-    import("./modules/core/math.mjs?v=20260807-p264"),
-    import("./modules/game/room-data.mjs?v=20260807-p264"),
-    import("./modules/game/effect-budget.mjs?v=20260807-p264"),
-    import("./modules/game/landmark-progress.mjs?v=20260807-p264"),
-    import("./modules/game/audio-cues.mjs?v=20260807-p264"),
-    import("./modules/game/lumen-progress.mjs?v=20260807-p264"),
-    import("./modules/systems/storage.mjs?v=20260807-p264"),
-    import("./modules/systems/input.mjs?v=20260807-p264"),
-    import("./modules/training/state.mjs?v=20260807-p264"),
-    import("./modules/training/replay.mjs?v=20260807-p264"),
-    import("./modules/ui/presentation.mjs?v=20260807-p264")
+    import("./modules/core/format.mjs?v=20260808-p265"),
+    import("./modules/core/math.mjs?v=20260808-p265"),
+    import("./modules/game/room-data.mjs?v=20260808-p265"),
+    import("./modules/game/world-model.mjs?v=20260808-p265"),
+    import("./modules/game/effect-budget.mjs?v=20260808-p265"),
+    import("./modules/game/landmark-progress.mjs?v=20260808-p265"),
+    import("./modules/game/audio-cues.mjs?v=20260808-p265"),
+    import("./modules/game/lumen-progress.mjs?v=20260808-p265"),
+    import("./modules/systems/storage.mjs?v=20260808-p265"),
+    import("./modules/systems/input.mjs?v=20260808-p265"),
+    import("./modules/training/state.mjs?v=20260808-p265"),
+    import("./modules/training/replay.mjs?v=20260808-p265"),
+    import("./modules/ui/presentation.mjs?v=20260808-p265")
   ]);
 
   const canvas = document.getElementById("game");
@@ -326,7 +333,7 @@
   const W = LOGICAL_W;
   const H = LOGICAL_H;
   const TILE = 32;
-  const COLS = 30;
+  const VIEW_COLS = 30;
   const ROWS = 17;
   const GRAVITY = 1700;
   const MAX_FALL = 760;
@@ -428,6 +435,11 @@
   const DASH_AIM_PREVIEW_LENGTH = 58;
   const DASH_AIM_PREVIEW_MIN_ALPHA = 0.24;
   const CRUMBLE_DEATH_MEMORY = 1.4;
+  const PHASE_PERIOD = 2.4;
+  const PHASE_ACTIVE_TIME = 1.42;
+  const PHASE_WARNING_TIME = 0.24;
+  const DRIFT_SHARD_AMPLITUDE = 44;
+  const DRIFT_SHARD_SPEED = 1.55;
   const DEATH_REASON_KEYS = ["spike", "fall", "crumble", "retry", "room"];
   const DEATH_REASON_LABELS = {
     spike: "尖刺",
@@ -599,9 +611,13 @@
       if (room.length !== ROWS) {
         throw new Error(`Room ${roomIndex} must have ${ROWS} rows.`);
       }
+      const roomCols = room[0]?.length || 0;
+      if (roomCols < VIEW_COLS) {
+        throw new Error(`Room ${roomIndex} must be at least ${VIEW_COLS} columns wide.`);
+      }
       room.forEach((row, rowIndex) => {
-        if (row.length !== COLS) {
-          throw new Error(`Room ${roomIndex} row ${rowIndex} has ${row.length} columns.`);
+        if (row.length !== roomCols) {
+          throw new Error(`Room ${roomIndex} row ${rowIndex} has ${row.length} columns; expected ${roomCols}.`);
         }
       });
     });
@@ -654,6 +670,8 @@
   const roomPath = [];
   let roomIndex = 0;
   let room = null;
+  let cameraX = 0;
+  let cameraTargetX = 0;
   let started = false;
   let won = false;
   let summitRevealTimer = 0;
@@ -1459,6 +1477,9 @@
 
   function parseRoom(index) {
     const rows = maps[index];
+    const world = roomWorldData(rows, { tile: TILE, minColumns: VIEW_COLS });
+    if (!world) throw new Error(`Room ${index} has invalid world dimensions.`);
+    const cols = world.columns;
     const entities = {
       lumens: [],
       refills: [],
@@ -1466,6 +1487,9 @@
       updrafts: [],
       prisms: [],
       anchors: [],
+      dashGates: [],
+      phaseBlocks: [],
+      driftShards: [],
       crumble: new Map(),
       checkpoints: [],
       springs: [],
@@ -1475,7 +1499,7 @@
     const tiles = rows.map((row) => row.split(""));
 
     for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
+      for (let x = 0; x < cols; x++) {
         const tile = tiles[y][x];
         const cx = x * TILE + TILE / 2;
         const cy = y * TILE + TILE / 2;
@@ -1511,6 +1535,26 @@
           entities.anchors.push({ x: cx, y: cy, pulse: 0 });
           tiles[y][x] = ".";
         }
+        if (tile === "D") {
+          entities.dashGates.push({ x: x * TILE, y: y * TILE, w: TILE, h: TILE, broken: false, pulse: 0 });
+          tiles[y][x] = ".";
+        }
+        if (tile === "E") {
+          entities.phaseBlocks.push({ x: x * TILE, y: y * TILE, w: TILE, h: TILE, active: true, pulse: 0 });
+          tiles[y][x] = ".";
+        }
+        if (tile === "K") {
+          entities.driftShards.push({
+            baseX: cx,
+            baseY: cy,
+            x: cx,
+            y: cy,
+            axis: y % 2 === 0 ? "x" : "y",
+            phase: (x * 0.47 + y * 0.29) % (Math.PI * 2),
+            pulse: 0
+          });
+          tiles[y][x] = ".";
+        }
         if (tile === "C") {
           entities.crumble.set(`${x}:${y}`, {
             x,
@@ -1533,7 +1577,33 @@
       }
     }
 
-    return { tiles, entities };
+    return { tiles, entities, cols, worldWidth: world.width, dynamicTime: 0 };
+  }
+
+  function roomWorldWidth() {
+    return room?.worldWidth || W;
+  }
+
+  function clampCamera(value) {
+    return Math.max(0, Math.min(Math.max(0, roomWorldWidth() - W), value));
+  }
+
+  function snapCameraToPlayer() {
+    cameraTargetX = clampCamera(player.x + player.w / 2 - W * 0.42);
+    cameraX = cameraTargetX;
+  }
+
+  function updateCamera(dt) {
+    const next = cameraFollowData({
+      cameraX,
+      targetX: cameraTargetX,
+      playerCenter: player.x + player.w / 2,
+      worldWidth: roomWorldWidth(),
+      viewportWidth: W,
+      dt
+    });
+    cameraX = next.cameraX;
+    cameraTargetX = next.targetX;
   }
 
   function resetToStart(index) {
@@ -1579,6 +1649,7 @@
       respawnX: spawn.x,
       respawnY: spawn.y
     });
+    snapCameraToPlayer();
     lastAimX = player.facing;
     lastAimY = 0;
     lastAimTimer = 0;
@@ -2017,6 +2088,7 @@
     }
 
     const input = getInput();
+    updateDynamicObstacles(dt);
     const timingIntent = hasTimingIntent(input);
     if (!timingIntent) timingInputReady = true;
     if (!timingArmed && timingIntent && timingInputReady) {
@@ -2104,6 +2176,7 @@
     }
     resolveRoomTransition();
     updateEntities(dt, input);
+    updateCamera(dt);
     updateHair(dt);
     updateParticles(dt);
     updateGhosts(dt);
@@ -2560,6 +2633,49 @@
     }
   }
 
+  function updateDynamicObstacles(dt) {
+    room.dynamicTime += dt;
+    const box = getPlayerBox();
+
+    for (const block of room.entities.phaseBlocks) {
+      block.pulse = Math.max(0, block.pulse - dt);
+      const state = phaseBlockActiveData({
+        elapsed: room.dynamicTime,
+        period: PHASE_PERIOD,
+        activeTime: PHASE_ACTIVE_TIME,
+        wasActive: block.active,
+        overlapping: aabb(box, block)
+      });
+      const nextActive = state.active;
+      if (nextActive !== block.active) block.pulse = 0.22;
+      block.active = nextActive;
+      if (distRectPoint(box, block.x + TILE / 2, block.y + TILE / 2) < 58) {
+        markRoomTech("phase");
+        showMechanicFirstTouchCue("phase");
+      }
+    }
+
+    for (const shard of room.entities.driftShards) {
+      const position = driftShardPositionData({
+        baseX: shard.baseX,
+        baseY: shard.baseY,
+        axis: shard.axis,
+        phase: shard.phase,
+        elapsed: room.dynamicTime,
+        amplitude: DRIFT_SHARD_AMPLITUDE,
+        speed: DRIFT_SHARD_SPEED
+      });
+      shard.x = position.x;
+      shard.y = position.y;
+      shard.pulse = Math.max(0, shard.pulse - dt);
+      if (distRectPoint(box, shard.x, shard.y) < 72) {
+        shard.pulse = Math.max(shard.pulse, 0.08);
+        markRoomTech("drift");
+        showMechanicFirstTouchCue("drift");
+      }
+    }
+  }
+
   function completeRun() {
     const clearedClean = roomAttemptClean;
     const masteryBefore = roomMasteryScore(roomIndex);
@@ -2855,7 +2971,7 @@
       roomCount: maps.length,
       maxPoints: MAX_ROOM_PATH_POINTS,
       tile: TILE,
-      width: W,
+      width: Math.max(...maps.map((rows) => rows[0].length * TILE)),
       height: H
     });
   }
@@ -2900,6 +3016,7 @@
         player.y += move;
       }
 
+      if (player.dashTimer > 0) breakDashGates(getPlayerBox());
       if (collidesSolid(getPlayerBox())) {
         if (axis === "x") {
           if (player.dashTimer > 0 && tryDashCornerCorrection()) {
@@ -3047,7 +3164,7 @@
   }
 
   function resolveRoomTransition() {
-    if (player.x > W + 3 && roomIndex < maps.length - 1) {
+    if (player.x > roomWorldWidth() + 3 && roomIndex < maps.length - 1) {
       const clearedRoom = roomIndex;
       const clearedClean = roomAttemptClean;
       const masteryBefore = roomMasteryScore(clearedRoom);
@@ -3064,6 +3181,8 @@
       resetRoomTech();
       lightTrails.length = 0;
       player.x = -player.w + 4;
+      cameraX = 0;
+      cameraTargetX = 0;
       roomTime = 0;
       timingArmed = true;
       timingInputReady = true;
@@ -3085,7 +3204,9 @@
       room = parseRoom(roomIndex);
       resetRoomTech();
       lightTrails.length = 0;
-      player.x = W - 5;
+      player.x = roomWorldWidth() - 5;
+      cameraX = Math.max(0, roomWorldWidth() - W);
+      cameraTargetX = cameraX;
       roomTime = 0;
       timingArmed = true;
       timingInputReady = true;
@@ -3099,7 +3220,7 @@
       player.springLaunchTimer = 0;
       clearRecentPath();
       clearRoomPath();
-      burst(W - 28, player.y + player.h / 2, palette.cyan, 10, 170);
+      burst(roomWorldWidth() - 28, player.y + player.h / 2, palette.cyan, 10, 170);
     }
   }
 
@@ -3160,6 +3281,7 @@
     player.overdrive = 0;
     player.ghostTimer = 0;
     player.deadTimer = 0;
+    snapCameraToPlayer();
     clearSplitPopup();
     clearMasteryPopup();
     crumbleSlipTimer = 0;
@@ -3248,6 +3370,7 @@
       respawnX: target.x,
       respawnY: target.y
     });
+    snapCameraToPlayer();
     clearSplitPopup();
     clearMasteryPopup();
     crumbleSlipTimer = 0;
@@ -3319,7 +3442,10 @@
       prism: false,
       echo: false,
       recall: false,
-      crumble: false
+      crumble: false,
+      gate: false,
+      phase: false,
+      drift: false
     };
   }
 
@@ -3590,7 +3716,7 @@
     room.entities.anchors.forEach((anchor) => add(anchor.x, anchor.y, "回声", 4));
     room.entities.updrafts.forEach((updraft) => add(updraft.x + updraft.w / 2, updraft.y + updraft.h * 0.2, "风", 3));
     if (room.entities.goal) add(room.entities.goal.x, room.entities.goal.y, "终点", 2);
-    else add(W + 18, cy, "出口", 1);
+    else add(roomWorldWidth() + 18, cy, "出口", 1);
     const ahead = points.filter((point) => point.x > cx + 12);
     const pool = ahead.length ? ahead : points;
     return pool.sort((a, b) => {
@@ -5270,6 +5396,9 @@
         started,
         won,
         room: roomIndex + 1,
+        roomColumns: room?.cols || VIEW_COLS,
+        worldWidth: roomWorldWidth(),
+        cameraX: Math.round(cameraX * 10) / 10,
         chapter: chapterIndexForRoom(roomIndex) + 1,
         chapterTransition: chapterTransitionTimer > 0,
         summitReveal: summitRevealTimer > 0,
@@ -6986,7 +7115,7 @@
     const footY = Math.floor((player.y + player.h + 2) / TILE);
     if (footY < 0 || footY >= ROWS) return [];
     const minX = Math.max(0, Math.floor((player.x + 3) / TILE));
-    const maxX = Math.min(COLS - 1, Math.floor((player.x + player.w - 4) / TILE));
+    const maxX = Math.min(room.cols - 1, Math.floor((player.x + player.w - 4) / TILE));
     const keys = [];
     for (let x = minX; x <= maxX; x += 1) {
       if (room.tiles[footY]?.[x] === "C") keys.push(`${x}:${footY}`);
@@ -6998,7 +7127,7 @@
     if (chapterIndexForRoom(roomIndex) !== 2) return [origin];
     const strip = [origin];
     for (const direction of [-1, 1]) {
-      for (let x = origin.x + direction; x >= 0 && x < COLS; x += direction) {
+      for (let x = origin.x + direction; x >= 0 && x < room.cols; x += direction) {
         const block = room.entities.crumble.get(`${x}:${origin.y}`);
         if (!block || room.tiles[origin.y]?.[x] !== "C") break;
         strip.push(block);
@@ -7077,7 +7206,7 @@
 
   function collidesSolid(box) {
     const minX = Math.max(0, Math.floor(box.x / TILE));
-    const maxX = Math.min(COLS - 1, Math.floor((box.x + box.w - 1) / TILE));
+    const maxX = Math.min(room.cols - 1, Math.floor((box.x + box.w - 1) / TILE));
     const minY = Math.max(0, Math.floor(box.y / TILE));
     const maxY = Math.min(ROWS - 1, Math.floor((box.y + box.h - 1) / TILE));
     for (let y = minY; y <= maxY; y++) {
@@ -7085,19 +7214,48 @@
         if (SOLID.has(room.tiles[y]?.[x])) return true;
       }
     }
+    for (const gate of room.entities.dashGates) {
+      if (!gate.broken && aabb(box, gate)) return true;
+    }
+    for (const block of room.entities.phaseBlocks) {
+      if (block.active && aabb(box, block)) return true;
+    }
     return false;
+  }
+
+  function breakDashGates(box) {
+    let broken = 0;
+    for (const gate of room.entities.dashGates) {
+      if (gate.broken || !aabb(box, gate)) continue;
+      gate.broken = true;
+      gate.pulse = 0.28;
+      broken += 1;
+      burst(gate.x + TILE / 2, gate.y + TILE / 2, palette.gold, settings.calmEffects ? 5 : 9, 230);
+    }
+    if (broken > 0) {
+      markRoomTech("gate");
+      showMechanicFirstTouchCue("gate");
+      addFlow(12 + broken * 3, "gate");
+      playSound("crumble", 0.58);
+      shake(0.045, 1.5);
+    }
+    return broken;
   }
 
   function touchingHazard(box) {
     const inset = { x: box.x + 4, y: box.y + 3, w: box.w - 8, h: box.h - 6 };
     const minX = Math.max(0, Math.floor(inset.x / TILE));
-    const maxX = Math.min(COLS - 1, Math.floor((inset.x + inset.w - 1) / TILE));
+    const maxX = Math.min(room.cols - 1, Math.floor((inset.x + inset.w - 1) / TILE));
     const minY = Math.max(0, Math.floor(inset.y / TILE));
     const maxY = Math.min(ROWS - 1, Math.floor((inset.y + inset.h - 1) / TILE));
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
         if (HAZARDS.has(room.tiles[y]?.[x])) return true;
       }
+    }
+    const shardBox = { w: 18, h: 18 };
+    for (const shard of room.entities.driftShards) {
+      if (aabb(inset, { ...shardBox, x: shard.x - shardBox.w / 2, y: shard.y - shardBox.h / 2 })) return true;
     }
     return false;
   }
@@ -7110,13 +7268,16 @@
       h: box.h + padding * 2
     };
     const minX = Math.max(0, Math.floor(inset.x / TILE));
-    const maxX = Math.min(COLS - 1, Math.floor((inset.x + inset.w - 1) / TILE));
+    const maxX = Math.min(room.cols - 1, Math.floor((inset.x + inset.w - 1) / TILE));
     const minY = Math.max(0, Math.floor(inset.y / TILE));
     const maxY = Math.min(ROWS - 1, Math.floor((inset.y + inset.h - 1) / TILE));
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
         if (HAZARDS.has(room.tiles[y]?.[x])) return true;
       }
+    }
+    for (const shard of room.entities.driftShards) {
+      if (distRectPoint(inset, shard.x, shard.y) < 15) return true;
     }
     return false;
   }
@@ -7370,7 +7531,7 @@
     drawBackground(time);
     const offset = shakeOffset();
     ctx.save();
-    ctx.translate(offset.x, offset.y);
+    ctx.translate(offset.x - cameraX, offset.y);
     drawHazardFields(time);
     drawTiles(time);
     drawBestRoomPath(time);
@@ -8686,7 +8847,7 @@
     ctx.globalAlpha = 0.18;
     const starCount = settings.lowPerformance || prefersReducedMotion ? 16 : 28;
     for (let i = 0; i < starCount; i++) {
-      const x = (i * 137 + roomIndex * 53) % W;
+      const x = ((i * 137 + roomIndex * 53 - cameraX * 0.06) % W + W) % W;
       const y = (i * 79 + 40) % 210;
       ctx.fillStyle = i % 6 === 0 ? atmosphere.rim : i % 5 === 0 ? atmosphere.haze : "#ecf9ff";
       const size = i % 7 === 0 ? 2 : 1;
@@ -8699,8 +8860,11 @@
 
     drawMountainLayer(atmosphere.back, 0.35, 80 + roomIndex * 18, 0.18);
     drawMountainLayer(atmosphere.midPeak, 0.48, 150 + roomIndex * 9, 0.12);
+    ctx.save();
+    ctx.translate(-cameraX * 0.12, 0);
     drawChapterLandmarks(ambientTime, atmosphere);
     drawRoomLandmark(ambientTime, atmosphere);
+    ctx.restore();
     drawChapterWeather(ambientTime, atmosphere);
     drawMountainLayer(atmosphere.front, 0.72, 220, 0.08);
 
@@ -8711,7 +8875,7 @@
     const moonTrack = [0.76, 0.58, 0.34, 0.2];
     const moonHeights = [88, 78, 98, 82];
     const chapterRoomOffset = ((roomIndex % 3) - 1) * 14;
-    const moonX = W * moonTrack[moonChapter] + chapterRoomOffset;
+    const moonX = W * moonTrack[moonChapter] + chapterRoomOffset - cameraX * 0.08;
     const moonY = moonHeights[moonChapter] + Math.sin(ambientTime * 0.3) * 2;
     const moonGlow = ctx.createRadialGradient(moonX, moonY, 18, moonX, moonY, 76);
     moonGlow.addColorStop(0, `${atmosphere.moon}2e`);
@@ -9239,7 +9403,7 @@
   function drawHazardFields(time) {
     ctx.save();
     for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
+      for (let x = 0; x < room.cols; x++) {
         const tile = room.tiles[y][x];
         if (!HAZARDS.has(tile)) continue;
         drawHazardField(x * TILE, y * TILE, tile, time, x + y * 0.7);
@@ -9279,14 +9443,16 @@
     ctx.fillStyle = color;
     ctx.globalAlpha = yBase < 0.4 ? 0.62 : yBase < 0.6 ? 0.8 : 0.97;
     ctx.beginPath();
-    const mountainPeaks = 6;
-    const step = (W + 180) / mountainPeaks;
+    const mountainPeaks = 8;
+    const step = (W + 180) / 6;
+    const parallaxRate = yBase < 0.4 ? 0.08 : yBase < 0.6 ? 0.14 : 0.22;
+    const parallax = (cameraX * parallaxRate) % step;
     const baseY = H * yBase + 110;
     const peaks = [];
-    ctx.moveTo(-90, H);
-    ctx.lineTo(-90, baseY);
+    ctx.moveTo(-90 - step - parallax, H);
+    ctx.lineTo(-90 - step - parallax, baseY);
     for (let i = 0; i < mountainPeaks; i += 1) {
-      const startX = -90 + i * step;
+      const startX = -90 - step - parallax + i * step;
       const nextX = startX + step;
       const peakX = startX + step * (0.38 + ((i * 17 + roomIndex * 7) % 18) / 100);
       const peakY = H * yBase - 32 - ((i * 47 + Math.round(offset)) % 76) * (0.7 + sway);
@@ -9299,7 +9465,7 @@
       ctx.lineTo(nextX, nextValleyY);
       peaks.push({ peakX, peakY, nextX, nextValleyY, step });
     }
-    ctx.lineTo(W, H);
+    ctx.lineTo(W + step, H);
     ctx.closePath();
     ctx.fill();
 
@@ -9324,7 +9490,7 @@
 
   function drawTiles(time) {
     for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
+      for (let x = 0; x < room.cols; x++) {
         const tile = room.tiles[y][x];
         const px = x * TILE;
         const py = y * TILE;
@@ -9584,7 +9750,7 @@
       x: room.entities.start.x + player.w / 2,
       y: room.entities.start.y + player.h / 2
     };
-    const finish = room.entities.goal || room.entities.refills[0] || { x: W - 24, y: H - TILE * 2.4 };
+    const finish = room.entities.goal || room.entities.refills[0] || { x: roomWorldWidth() - 24, y: H - TILE * 2.4 };
     const points = [start, ...relays, finish];
     ctx.save();
     ctx.setLineDash([7, 9]);
@@ -9801,7 +9967,83 @@
     ctx.restore();
   }
 
+  function drawDynamicObstacles(time) {
+    const phaseClock = room.dynamicTime % PHASE_PERIOD;
+    const phaseWarning = phaseClock >= PHASE_ACTIVE_TIME - PHASE_WARNING_TIME && phaseClock < PHASE_ACTIVE_TIME;
+
+    for (const block of room.entities.phaseBlocks) {
+      const alpha = block.active ? (phaseWarning ? 0.5 + Math.sin(time * 26) * 0.18 : 0.76) : 0.16;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = block.active ? "#547789" : "rgba(99,139,153,0.28)";
+      ctx.strokeStyle = block.active ? palette.cyan : "rgba(159,205,215,0.54)";
+      ctx.lineWidth = block.pulse > 0 ? 2.2 : 1.2;
+      roundRect(ctx, block.x + 2, block.y + 4, block.w - 4, block.h - 8, 5);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath();
+      ctx.moveTo(block.x + 7, block.y + TILE / 2);
+      ctx.lineTo(block.x + TILE - 7, block.y + TILE / 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const gate of room.entities.dashGates) {
+      if (gate.broken) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.78;
+      ctx.fillStyle = "rgba(65,84,96,0.84)";
+      ctx.strokeStyle = palette.gold;
+      ctx.lineWidth = 1.4;
+      roundRect(ctx, gate.x + 3, gate.y + 2, TILE - 6, TILE - 4, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(gate.x + 8, gate.y + 8);
+      ctx.lineTo(gate.x + TILE - 8, gate.y + TILE - 8);
+      ctx.moveTo(gate.x + TILE - 8, gate.y + 8);
+      ctx.lineTo(gate.x + 8, gate.y + TILE - 8);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const shard of room.entities.driftShards) {
+      ctx.save();
+      ctx.globalAlpha = 0.2;
+      ctx.strokeStyle = palette.hot;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 6]);
+      ctx.beginPath();
+      if (shard.axis === "x") {
+        ctx.moveTo(shard.baseX - DRIFT_SHARD_AMPLITUDE, shard.baseY);
+        ctx.lineTo(shard.baseX + DRIFT_SHARD_AMPLITUDE, shard.baseY);
+      } else {
+        ctx.moveTo(shard.baseX, shard.baseY - DRIFT_SHARD_AMPLITUDE);
+        ctx.lineTo(shard.baseX, shard.baseY + DRIFT_SHARD_AMPLITUDE);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.translate(shard.x, shard.y);
+      ctx.rotate(time * 1.8 + shard.phase);
+      ctx.globalAlpha = 0.68 + Math.min(0.22, shard.pulse * 2);
+      ctx.fillStyle = palette.hot;
+      ctx.strokeStyle = "#fff0b0";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(0, -9);
+      ctx.lineTo(9, 0);
+      ctx.lineTo(0, 9);
+      ctx.lineTo(-9, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   function drawEntities(time) {
+    drawDynamicObstacles(time);
     for (const updraft of room.entities.updrafts) {
       drawUpdraft(updraft, time);
     }

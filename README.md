@@ -1,10 +1,10 @@
 # 山巅微光
 
-原创精密平台跳跃游戏原型。十个房间围绕跳跃、冲刺、攀墙、光继点、风升流、超载棱镜、回声锚点和脆冰展开，并提供房间 PB、最佳路线影子、Focus 教练、Drill、Route contracts、Feel Lab、手柄与触控支持。
+原创精密平台跳跃游戏原型。十个房间围绕跳跃、冲刺、攀墙、光继点、风升流、超载棱镜、回声锚点、脆冰、破门、相位台和巡游晶核展开；R4–R10 是带水平镜头跟随的长房间，并提供房间 PB、最佳路线影子、Focus 教练、Drill、Route contracts、Feel Lab、手柄与触控支持。
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260807-p264`
+当前公开构建：`20260808-p265`
 
 ## 快速开始
 
@@ -68,7 +68,7 @@ public/                 可直接部署的唯一运行目录
   summit-spark.css      UI、响应式与视觉
   summit-spark.js       当前游戏运行时
   modules/core/         有限化时间/差值、本地时间、安全文本与数学纯函数
-  modules/game/         十房内容、章节声纹、地标进度与长局视觉效果预算
+  modules/game/         十房内容、长房世界/镜头纯模型、章节声纹、地标进度与视觉预算
   modules/systems/      存档规则，以及手柄/键位输入映射
   modules/training/     训练状态、房间推荐、三步计划与 PB 路线动作语义
   modules/ui/           章节、Drill 目标/简报、路线标签、练习/设备摘要、预览与报告模型
@@ -81,7 +81,7 @@ appwrite.config.json    云端资源和最小权限策略
 game-server.js          public 白名单本地服务器
 ```
 
-当前运行时主体仍是单体脚本；有限化时间/差值、本地云时间、安全文本、数学、只读房间内容、章节声纹、当前尝试地标进度、本房微光重试回滚、长局视觉效果预算、存档规则、设备无关的输入规则、训练状态、五类房间推荐与优先跨房的三步计划、PB 路线动作语义，以及章节成绩/收束、Drill 目标/实际练习句/悬停简报、路线标签、房间训练/进度摘要、练习优先级、练习档案/长期挑战/手柄状态摘要、存档导入/备份摘要、反馈备注/模板、四幕汇总和隐私受限本轮报告等 UI 展示模型已迁入独立模块。后续只迁移有直接消费者和回归契约的 UI 纯模型；物理与渲染等十房人工基线完成后再动。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+当前运行时主体仍是单体脚本；有限化时间/差值、本地云时间、安全文本、数学、只读房间内容、可变世界宽度、镜头安全区、相位/巡游轨迹、章节声纹、当前尝试地标进度、本房微光重试回滚、长局视觉效果预算、存档规则、设备无关的输入规则、训练状态、五类房间推荐与优先跨房的三步计划、PB 路线动作语义，以及章节成绩/收束和各类 UI 展示模型已迁入独立模块。物理碰撞、世界渲染与副作用编排仍留在主运行时。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 质量检查
 
@@ -112,6 +112,7 @@ npm run state-check
 npm run css-audit
 node tools/export-room-data.js --check
 node tools/report-room-data.js
+node tools/check-world-model.mjs
 ```
 
 `npm run check` 覆盖语法、目录结构、CSP、Pages 发布边界、Appwrite 策略、GitHub Actions SHA 固定与原生 Node 24 发布链、地图、路线、训练状态、视觉效果压力预算、存档契约和本地 HTTP 安全边界。浏览器回归覆盖真实 UI、账号 mock、云冲突、1MB 存档、原子回滚、移动端、Canvas、手柄死区，以及隐藏设置/练习面板的零 DOM 抖动。

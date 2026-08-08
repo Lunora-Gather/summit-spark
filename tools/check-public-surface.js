@@ -32,6 +32,7 @@ const stylesheetSource = read("public/summit-spark.css");
 const coreFormatSource = read("public/modules/core/format.mjs");
 const coreMathSource = read("public/modules/core/math.mjs");
 const roomDataSource = read("public/modules/game/room-data.mjs");
+const worldModelSource = read("public/modules/game/world-model.mjs");
 const effectBudgetSource = read("public/modules/game/effect-budget.mjs");
 const landmarkProgressSource = read("public/modules/game/landmark-progress.mjs");
 const audioCuesSource = read("public/modules/game/audio-cues.mjs");
@@ -71,6 +72,11 @@ const roomDataVersion = extractOne(
   "room data module version",
   runtimeSource,
   /modules\/game\/room-data\.mjs\?v=([^"]+)"/
+);
+const worldModelVersion = extractOne(
+  "world model module version",
+  runtimeSource,
+  /modules\/game\/world-model\.mjs\?v=([^"]+)"/
 );
 const effectBudgetVersion = extractOne(
   "effect budget module version",
@@ -136,6 +142,9 @@ if (buildVersion && coreMathVersion && buildVersion !== coreMathVersion) {
 
 if (buildVersion && roomDataVersion && buildVersion !== roomDataVersion) {
   fail(`room data version ${roomDataVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && worldModelVersion && buildVersion !== worldModelVersion) {
+  fail(`world model version ${worldModelVersion} does not match build version ${buildVersion}`);
 }
 if (buildVersion && effectBudgetVersion && buildVersion !== effectBudgetVersion) {
   fail(`effect budget version ${effectBudgetVersion} does not match build version ${buildVersion}`);
@@ -227,6 +236,16 @@ if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
   || !runtimeSource.includes("drawRoomLandmark(ambientTime, atmosphere)")
   || !roomDataSource.includes("].forEach(deepFreeze);")) {
   fail("public runtime must consume the versioned immutable room data and landmark module");
+}
+if (!runtimeSource.includes('import("./modules/game/world-model.mjs?v=')
+  || !worldModelSource.includes("export function roomWorldData(")
+  || !worldModelSource.includes("export function cameraFollowData(")
+  || !worldModelSource.includes("export function phaseBlockActiveData(")
+  || !worldModelSource.includes("export function driftShardPositionData(")
+  || !runtimeSource.includes("cameraFollowData({")
+  || !runtimeSource.includes("phaseBlockActiveData({")
+  || !runtimeSource.includes("driftShardPositionData({")) {
+  fail("public runtime must consume the versioned pure world and dynamic-obstacle model");
 }
 if (!runtimeSource.includes('import("./modules/game/effect-budget.mjs?v=')
   || !effectBudgetSource.includes("export function effectQueueLimit(")

@@ -1285,10 +1285,10 @@ async function runDesktopSmoke(cdp, baseUrl) {
     return { brief, launch };
   })()`));
   if (!/R6 旧峰出口/.test(r6AuthoredBrief.brief)
-    || !/四枚光继/.test(r6AuthoredBrief.brief)
-    || !/两级弹簧/.test(r6AuthoredBrief.brief)
+    || !/六枚光继/.test(r6AuthoredBrief.brief)
+    || !/三级弹簧/.test(r6AuthoredBrief.brief)
     || /双光继|双弹簧/.test(r6AuthoredBrief.brief)) {
-    errors.push("R6 Practice brief should describe its actual four-relay, two-stage-spring route without stale double-mechanic copy: " + JSON.stringify(r6AuthoredBrief));
+    errors.push("R6 Practice brief should describe its actual six-relay, three-stage-spring long route without stale double-mechanic copy: " + JSON.stringify(r6AuthoredBrief));
   }
   await evaluate(cdp, `(() => {
     const select = document.querySelector("#roomSelect");
@@ -1499,7 +1499,7 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
     || earlyExpired.jump !== 0
     || earlyExpired.dash !== 0
     || !/surface warm-dust/.test(earlyStart.text)
-    || !/relays 3  gate 0\.00  relic 0\.00/.test(earlyStart.text)
+    || !/relays 5  gate 0\.00  relic 0\.00/.test(earlyStart.text)
     || Math.abs(earlySettled.x - earlyStart.x) > 2
     || Math.abs(earlySettled.y - earlyStart.y) > 2
     || Math.abs(earlySettled.vx) > 2
@@ -1551,13 +1551,13 @@ async function runOldPeakRelicSmoke(cdp, baseUrl) {
   await keyTap(cdp, "Digit5", "5");
   const dormant = await waitUntil("R5 Relay relic starts dormant", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
-    return /room 5\\/10/.test(text) && /relays 3  gate 0\\.00  relic 0\\.00/.test(text) ? { text } : null;
+    return /room 5\\/10/.test(text) && /relays 5  gate 0\\.00  relic 0\\.00/.test(text) ? { text } : null;
   })()`), 3500);
   await keyDown(cdp, "KeyD", "D");
   const awakened = await waitUntil("R5 first Relay awakens its switchback relic", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-    return /relays 3  gate 0\\.00  relic 0\\.33/.test(text) && position
+    return /relays 5  gate 0\\.00  relic 0\\.20/.test(text) && position
       ? { x: Number(position[1]), y: Number(position[2]), text }
       : null;
   })()`), 1800, 20);
@@ -1568,14 +1568,14 @@ async function runOldPeakRelicSmoke(cdp, baseUrl) {
   const reset = await waitUntil("R5 retry clears attempt-local Relay relic", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R5/.test(document.querySelector("#gameStatus").textContent)
-      && /relays 3  gate 0\\.00  relic 0\\.00/.test(text)
+      && /relays 5  gate 0\\.00  relic 0\\.00/.test(text)
       ? { text }
       : null;
   })()`), 3500);
   if (!/relic 0\.00/.test(dormant.text)
     || awakened.x < 180
     || awakened.x > 235
-    || !/relic 0\.33/.test(afterCooldown)
+    || !/relic 0\.20/.test(afterCooldown)
     || !/relic 0\.00/.test(reset.text)) {
     errors.push("R5 Relay relic should awaken once, survive node cooldown and clear through the room retry lifecycle: " + JSON.stringify({ dormant, awakened, afterCooldown, reset }));
   }
@@ -1728,7 +1728,7 @@ async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
   await keyTap(cdp, "Digit8", "8");
   const dormant = await waitUntil("R8 crumble strip starts fully restored", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
-    return /room 8\\/10/.test(text) && /crumble 11\\/11 q0 a0/.test(text) ? { text } : null;
+    return /room 8\\/10/.test(text) && /crumble 19\\/19 q0 a0/.test(text) ? { text } : null;
   })()`), 3500);
   let waveStart;
   let waveBroken;
@@ -1739,13 +1739,13 @@ async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
     waveStart = await waitUntil("R8 five-tile strip enters a staged fracture wave", () => evaluate(cdp, `(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-      return /crumble 11\\/11 q4 a1/.test(text) && position
+      return /crumble 19\\/19 q4 a1/.test(text) && position
         ? { x: Number(position[1]), y: Number(position[2]), text }
         : null;
     })()`), 1600, 20);
     waveBroken = await waitUntil("R8 staged strip completes five bounded breaks", () => evaluate(cdp, `(() => {
       const text = document.querySelector("#debugPanel").textContent;
-      return /crumble 6\\/11 q0 a0/.test(text) ? { text } : null;
+      return /crumble 14\\/19 q0 a0/.test(text) ? { text } : null;
     })()`), 1800, 20);
   } finally {
     await keyUp(cdp, "KeyD", "D");
@@ -1754,15 +1754,15 @@ async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
   const reset = await waitUntil("R8 retry restores the full crumble strip", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R8/.test(document.querySelector("#gameStatus").textContent)
-      && /crumble 11\\/11 q0 a0/.test(text)
+      && /crumble 19\\/19 q0 a0/.test(text)
       ? { text }
       : null;
   })()`), 3500);
-  if (!/crumble 11\/11 q0 a0/.test(dormant.text)
+  if (!/crumble 19\/19 q0 a0/.test(dormant.text)
     || waveStart.x < 250
     || waveStart.x > 320
-    || !/crumble 6\/11 q0 a0/.test(waveBroken.text)
-    || !/crumble 11\/11 q0 a0/.test(reset.text)) {
+    || !/crumble 14\/19 q0 a0/.test(waveBroken.text)
+    || !/crumble 19\/19 q0 a0/.test(reset.text)) {
     errors.push("R8 should stage one five-tile same-row fracture wave and restore it atomically on retry: " + JSON.stringify({ dormant, waveStart, waveBroken, reset }));
   }
 }
@@ -4029,7 +4029,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       : null;
   })()`), 3500);
   if (!echoRecallReady.available || !echoRecallReady.recallReady || echoRecallReady.width < 44 || echoRecallReady.label !== "召回到回声锚点"
-    || echoRecallReady.crumbleActive !== 16 || echoRecallReady.crumbleTotal !== 16
+    || echoRecallReady.crumbleActive !== 21 || echoRecallReady.crumbleTotal !== 21
     || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active || afterTouchRecall.recallReady || !/回声召回.*恢复/.test(afterTouchRecall.status)) {
     errors.push("R9 should expose contextual Echo recall from its safe pocket, load the recovered 16-crumble route, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
   }

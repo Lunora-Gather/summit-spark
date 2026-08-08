@@ -59,8 +59,11 @@ roomCollections.forEach((collection) => {
 maps.forEach((room) => {
   assert.equal(room.length, 17, "every room should have 17 rows");
   assert.ok(Object.isFrozen(room), "nested room rows should be read-only");
-  room.forEach((row) => assert.equal(row.length, 30, "every room row should have 30 columns"));
+  const width = room[0].length;
+  assert.ok(width >= 30, "every room should be at least one screen wide");
+  room.forEach((row) => assert.equal(row.length, width, "rows within a room should share one world width"));
 });
+assert.deepEqual(maps.map((room) => room[0].length), [30, 30, 30, 45, 45, 45, 45, 45, 45, 45], "R4-R10 should extend to one-and-a-half-screen worlds");
 maps.forEach((room, index) => {
   const entryAnchors = [];
   room.forEach((row, y) => {
@@ -103,7 +106,7 @@ assert.ok(Object.isFrozen(CHAPTER_EXPERIENCE[0]), "nested chapter records should
 assert.ok(Object.isFrozen(ROOM_STYLE_TRIALS[0].tech), "nested trial requirements should be read-only");
 assert.ok(Object.isFrozen(SKILL_LABELS), "skill labels should be read-only");
 assert.ok(Object.isFrozen(EXPERT_REQUIREMENT_LABELS), "expert labels should be read-only");
-assert.deepEqual(Object.keys(MECHANIC_FIRST_TOUCH_CUES).sort(), ["crumble", "prism", "relay", "spring", "updraft"], "first-touch cues should cover the five introduced route mechanics");
+assert.deepEqual(Object.keys(MECHANIC_FIRST_TOUCH_CUES).sort(), ["crumble", "drift", "gate", "phase", "prism", "relay", "spring", "updraft"], "first-touch cues should cover every introduced route mechanic");
 for (const [key, cue] of Object.entries(MECHANIC_FIRST_TOUCH_CUES)) {
   assert.ok(Number.isInteger(cue.room) && cue.room >= 0 && cue.room < maps.length, `${key} cue should reference a valid teaching room`);
   assert.equal(typeof cue.title, "string", `${key} cue should have a title`);
@@ -136,8 +139,8 @@ assert.equal(ROOM_NAMES[0], "起势山门");
 assert.equal(ROOM_NAMES.at(-1), "星顶终线");
 assert.deepEqual(
   ROOM_TARGETS,
-  [8.8, 10, 12.4, 13, 14.8, 17.4, 18.4, 21.5, 22, 24.8],
-  "teaching rooms should stay readable while R4-R10 keep the tighter mastery pace"
+  [8.8, 10, 12.4, 20, 22, 25, 27, 31, 33, 38],
+  "teaching rooms should stay readable while long R4-R10 receive honest mastery targets"
 );
 const lumenCoordinates = maps.map((room) => {
   const coordinates = [];
@@ -161,12 +164,12 @@ assert.deepEqual(lumenCoordinates, [
 assert.equal(maps[2][5][2], "P", "Gate capstone Practice should begin from the full left-side route");
 assert.equal(maps[2][6].slice(0, 6), "######", "Gate capstone entry should keep broad stable support");
 assert.equal(maps[2][8][13], ".", "Gate capstone should not retain a mid-room Practice shortcut");
-assert.equal((maps[5].join("").match(/A/g) || []).length, 4, "Old Peak capstone should retain four relay beats");
-assert.equal((maps[5].join("").match(/T/g) || []).length, 2, "Old Peak capstone should retain its two-stage spring exit");
-assert.match(ROOM_GUIDES[5], /四枚光继.*两级弹簧/, "Old Peak guide should name the authored relay and spring counts");
-assert.match(ROOM_PURPOSES[5], /四枚光继.*两级弹簧/, "Old Peak purpose should match the authored mechanic counts");
-assert.match(ROOM_ROUTE_LINES[5][2], /四枚光继.*两级弹簧/, "Old Peak expert line should match the authored mechanic counts");
-assert.match(ROOM_STYLE_TRIALS[5].goal, /四枚光继.*两级弹簧/, "Old Peak style goal should match the authored mechanic counts");
+assert.equal((maps[5].join("").match(/A/g) || []).length, 6, "Old Peak long-room capstone should retain six relay beats");
+assert.equal((maps[5].join("").match(/T/g) || []).length, 3, "Old Peak long-room capstone should retain its three-stage spring exit");
+assert.match(ROOM_GUIDES[5], /六枚光继.*三级弹簧/, "Old Peak guide should name the authored relay and spring counts");
+assert.match(ROOM_PURPOSES[5], /六枚光继.*三级弹簧/, "Old Peak purpose should match the authored mechanic counts");
+assert.match(ROOM_ROUTE_LINES[5][0], /六枚光继.*三级弹簧/, "Old Peak safe line should match the authored mechanic counts");
+assert.match(ROOM_STYLE_TRIALS[5].goal, /六枚光继.*三级弹簧/, "Old Peak style goal should match the authored mechanic counts");
 assert.ok(ROOM_STYLE_TRIALS[2].tech.includes("springApex"), "Gate capstone Style should recognize the taught spring-apex dash");
 assert.ok(ROOM_STYLE_TRIALS[5].tech.includes("springApex"), "Old Peak capstone Style should recover the spring-apex dash");
 assert.ok(ROOM_STYLE_TRIALS[9].tech.includes("springApex"), "Summit finale Style should synthesize the spring-apex dash");

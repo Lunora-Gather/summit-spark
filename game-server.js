@@ -34,6 +34,7 @@ const publicFiles = new Map([
   ["/modules/core/format.mjs", path.join("public", "modules", "core", "format.mjs")],
   ["/modules/core/math.mjs", path.join("public", "modules", "core", "math.mjs")],
   ["/modules/game/room-data.mjs", path.join("public", "modules", "game", "room-data.mjs")],
+  ["/modules/game/world-model.mjs", path.join("public", "modules", "game", "world-model.mjs")],
   ["/modules/game/effect-budget.mjs", path.join("public", "modules", "game", "effect-budget.mjs")],
   ["/modules/game/landmark-progress.mjs", path.join("public", "modules", "game", "landmark-progress.mjs")],
   ["/modules/game/audio-cues.mjs", path.join("public", "modules", "game", "audio-cues.mjs")],

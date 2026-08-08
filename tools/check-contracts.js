@@ -138,7 +138,7 @@ routeLines.forEach((lines, index) => {
   });
 });
 const styleKinds = new Set();
-const allowedStyleTech = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble"]);
+const allowedStyleTech = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "phase", "drift"]);
 styleTrials.forEach((trial, index) => {
   if (!trial || typeof trial !== "object") errors.push("room " + (index + 1) + " style trial must be an object");
   if (isTooShortText(trial?.label, 7, 2)) errors.push("room " + (index + 1) + " style label is too short");
@@ -721,7 +721,7 @@ if (!css.includes("review-roadmap")) errors.push("finish review roadmap styling 
 if (!css.includes("roadmap-row")) errors.push("finish review roadmap rows are missing");
 if (!css.includes("settings-body")) errors.push("settings panel should use the refined cockpit layout");
 if (!css.includes("settings-group")) errors.push("settings grouped disclosure styling is missing");
-if (!css.includes("P116: cool-mist depth with warm ascent accents") || !js.includes("const mountainPeaks = 6") || !js.includes("peakX - step * 0.17") || !js.includes("rgba(230, 240, 239, 0.9)")) errors.push("the visual system must preserve layered, faceted mountain depth instead of reverting to a flat sawtooth backdrop");
+if (!css.includes("P116: cool-mist depth with warm ascent accents") || !js.includes("const mountainPeaks = 8") || !js.includes("peakX - step * 0.17") || !js.includes("rgba(230, 240, 239, 0.9)")) errors.push("the visual system must preserve layered, camera-safe faceted mountain depth instead of reverting to a flat sawtooth backdrop");
 if (!css.includes("P117: quiet right-side tools and a cohesive mist-sheet panel") || !css.includes(".hud-actions {\n  gap: 7px;") || !css.includes("border-color: transparent;\n  background: none;\n  box-shadow: none;")) errors.push("practice/settings should retain unboxed HUD tools and the shared mist-sheet foundation");
 if (!css.includes("P118: remove repeated coaching and make the right sheet task-first")
   || !css.includes(".settings-panel,\n.settings-panel.mode-practice {\n  width: min(440px, calc(100% - 32px));")
@@ -859,12 +859,12 @@ if (!js.includes("const SPRING_APEX_WINDOW = 0.62;")
 }
 if (!skills[7]?.includes("wind") || !maps[7]?.join("").includes("U")) errors.push("R8 must close Wind Gorge by testing wind after prism and crumble pressure");
 if ((maps[2]?.join("").match(/T/g) || []).length !== 2
-  || (maps[5]?.join("").match(/T/g) || []).length !== 2
-  || (maps[5]?.join("").match(/A/g) || []).length !== 4
-  || !/四枚光继.*两级弹簧/.test(String(guides[5] || ""))
-  || !/四枚光继.*两级弹簧/.test(String(purposes[5] || ""))
-  || !/四枚光继.*两级弹簧/.test(String(routeLines[5]?.[2] || ""))
-  || !/四枚光继.*两级弹簧/.test(String(styleTrials[5]?.goal || ""))) errors.push("R3/R6 capstones and R6 copy must preserve their exact authored mechanic counts");
+  || (maps[5]?.join("").match(/T/g) || []).length !== 3
+  || (maps[5]?.join("").match(/A/g) || []).length !== 6
+  || !/六枚光继.*三级弹簧/.test(String(guides[5] || ""))
+  || !/六枚光继.*三级弹簧/.test(String(purposes[5] || ""))
+  || !/六枚光继.*三级弹簧/.test(String(routeLines[5]?.[0] || ""))
+  || !/六枚光继.*三级弹簧/.test(String(styleTrials[5]?.goal || ""))) errors.push("R3/R6 capstones and R6 copy must preserve their exact authored mechanic counts");
 if (!js.includes("PROFILE_SCHEMA_VERSION")) errors.push("profile schema version is missing");
 if (!js.includes("ROOM_FOCUS_SCHEMA_VERSION")) errors.push("room focus schema version is missing");
 if (!js.includes("resumeRecommendedTraining")) errors.push("start overlay direct resume helper is missing");

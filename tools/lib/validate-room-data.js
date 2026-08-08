@@ -131,7 +131,7 @@ function validateRoomDataSnapshot(snapshot) {
     });
   }
 
-  const mechanicCueKeys = ["relay", "spring", "updraft", "crumble", "prism"];
+  const mechanicCueKeys = ["relay", "spring", "updraft", "crumble", "prism", "gate", "phase", "drift"];
   if (!mechanicFirstTouchCues || typeof mechanicFirstTouchCues !== "object") {
     push("MECHANIC_FIRST_TOUCH_CUES must be an object");
   } else {

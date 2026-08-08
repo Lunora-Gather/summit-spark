@@ -9,10 +9,10 @@ const targets = snapshot.roomTargets;
 const names = snapshot.roomNames;
 const expertRequirements = snapshot.expertRequirements;
 const styleTrials = snapshot.roomStyleTrials;
-const cols = 30;
+const minCols = 30;
 const rows = 17;
 const errors = [];
-const allowed = new Set(".#^v<>SLRAPTHUBMC".split(""));
+const allowed = new Set(".#^v<>SLRAPTHUBMCDEK".split(""));
 let goalCount = 0;
 let startCount = 0;
 const pressureScores = [];
@@ -28,14 +28,15 @@ function hasLeftGap(room) {
 }
 
 function hasRightGap(room) {
-  return room.some((line) => isPassable(line[cols - 1]));
+  const right = (room[0]?.length || 1) - 1;
+  return room.some((line) => isPassable(line[right]));
 }
 
 function countLandingRuns(room) {
   let runs = 0;
   for (let y = 1; y < room.length; y += 1) {
     let width = 0;
-    for (let x = 0; x < cols; x += 1) {
+    for (let x = 0; x < room[y].length; x += 1) {
       const tile = room[y][x];
       const above = room[y - 1][x];
       const landing = (tile === "#" || tile === "C") && isPassable(above);
@@ -64,6 +65,8 @@ else {
       return;
     }
     if (room.length !== rows) errors.push("room " + (roomIndex + 1) + " has " + room.length + " rows, expected " + rows);
+    const roomCols = room[0]?.length || 0;
+    if (roomCols < minCols) errors.push("room " + (roomIndex + 1) + " has " + roomCols + " cols, expected at least " + minCols);
     let pressure = 0;
     let crumbleCount = 0;
     let entryAnchorCount = 0;
@@ -75,8 +78,8 @@ else {
         errors.push("room " + (roomIndex + 1) + " row " + (y + 1) + " is not a string");
         return;
       }
-      if (line.length !== cols) {
-        errors.push("room " + (roomIndex + 1) + " row " + (y + 1) + " has " + line.length + " cols, expected " + cols);
+      if (line.length !== roomCols) {
+        errors.push("room " + (roomIndex + 1) + " row " + (y + 1) + " has " + line.length + " cols, expected " + roomCols);
       }
       [...line].forEach((tile, x) => {
         if (!allowed.has(tile)) errors.push("room " + (roomIndex + 1) + " has unknown tile \"" + tile + "\" at " + (x + 1) + "," + (y + 1));
@@ -85,6 +88,8 @@ else {
         if (tile === "U" || tile === "B" || tile === "C") pressure += 3;
         if (tile === "C") crumbleCount += 1;
         if (tile === "M" || tile === "T") pressure += 2;
+        if (tile === "D" || tile === "E") pressure += 2;
+        if (tile === "K") pressure += 3;
         if (tile === "S") startCount += 1;
         if (tile === "S" || tile === "P") {
           entryAnchorCount += 1;
@@ -124,7 +129,7 @@ if (!(latePressure >= midPressure + 20)) {
 }
 for (let i = 6; i < pressureScores.length; i += 1) {
   const step = pressureScores[i] - pressureScores[i - 1];
-  if (step < 8 || step > 24) {
+  if (step < 8 || step > 40) {
     errors.push("late-room pressure step R" + i + "->R" + (i + 1) + " should stay progressive without a cliff, found " + step);
   }
 }
@@ -234,9 +239,12 @@ const requirementTiles = {
   updraft: "U",
   prism: "B",
   echo: "M",
-  crumble: "C"
+  crumble: "C",
+  gate: "D",
+  phase: "E",
+  drift: "K"
 };
-const allowedRequirements = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble"]);
+const allowedRequirements = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "phase", "drift"]);
 expertRequirements.forEach((requirements, roomIndex) => {
   if (!Array.isArray(requirements)) {
     errors.push("expert requirements for room " + (roomIndex + 1) + " must be an array");
@@ -291,4 +299,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Map check passed: " + maps.length + " rooms, " + cols + "x" + rows + ", " + targets.length + " targets, one grounded left entry per room, pressure " + pressureScores.join("/") + ", crumble " + crumbleRooms.join("/") + ", landings " + landingRuns.join("/") + ".");
+console.log("Map check passed: " + maps.length + " rooms, widths " + maps.map((room) => room[0].length).join("/") + " x " + rows + ", " + targets.length + " targets, one grounded left entry per room, pressure " + pressureScores.join("/") + ", crumble " + crumbleRooms.join("/") + ", landings " + landingRuns.join("/") + ".");

@@ -87,6 +87,10 @@ async function verifyServerBoundary(baseUrl) {
   if (roomDataResponse.status !== 200 || roomDataResponse.body !== "" || !/text\/javascript/.test(roomDataResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the room data module as JavaScript without a response body");
   }
+  const worldModelResponse = await request(baseUrl + "/modules/game/world-model.mjs", { method: "HEAD" });
+  if (worldModelResponse.status !== 200 || worldModelResponse.body !== "" || !/text\/javascript/.test(worldModelResponse.headers["content-type"] || "")) {
+    errors.push("server HEAD must expose the world model module as JavaScript without a response body");
+  }
   const effectBudgetResponse = await request(baseUrl + "/modules/game/effect-budget.mjs", { method: "HEAD" });
   if (effectBudgetResponse.status !== 200 || effectBudgetResponse.body !== "" || !/text\/javascript/.test(effectBudgetResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the effect budget module as JavaScript without a response body");
@@ -178,6 +182,7 @@ async function main() {
     const coreFormat = await requestText(baseUrl + "/modules/core/format.mjs?v=" + encodeURIComponent(buildVersion));
     const coreMath = await requestText(baseUrl + "/modules/core/math.mjs?v=" + encodeURIComponent(buildVersion));
     const roomData = await requestText(baseUrl + "/modules/game/room-data.mjs?v=" + encodeURIComponent(buildVersion));
+    const worldModel = await requestText(baseUrl + "/modules/game/world-model.mjs?v=" + encodeURIComponent(buildVersion));
     const effectBudget = await requestText(baseUrl + "/modules/game/effect-budget.mjs?v=" + encodeURIComponent(buildVersion));
     const landmarkProgress = await requestText(baseUrl + "/modules/game/landmark-progress.mjs?v=" + encodeURIComponent(buildVersion));
     const audioCues = await requestText(baseUrl + "/modules/game/audio-cues.mjs?v=" + encodeURIComponent(buildVersion));
@@ -227,6 +232,7 @@ async function main() {
     expectIncludes("js", js, `modules/core/format.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/core/math.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/game/room-data.mjs?v=${buildVersion}`);
+    expectIncludes("js", js, `modules/game/world-model.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/game/effect-budget.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/game/landmark-progress.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/game/audio-cues.mjs?v=${buildVersion}`);
@@ -236,6 +242,8 @@ async function main() {
     expectIncludes("js", js, `modules/training/state.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/training/replay.mjs?v=${buildVersion}`);
     expectIncludes("js", js, `modules/ui/presentation.mjs?v=${buildVersion}`);
+    expectIncludes("world model", worldModel, "export function cameraFollowData(");
+    expectIncludes("world model", worldModel, "export function phaseBlockActiveData(");
     expectIncludes("UI presentation", uiPresentationModule, "export function roomSplitFeedbackData(");
     expectIncludes("UI presentation", uiPresentationModule, "export function chapterTransitionResultData(");
     expectIncludes("UI presentation", uiPresentationModule, "export function chapterTransitionResultTextData(");

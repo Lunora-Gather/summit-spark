@@ -23,7 +23,8 @@ function countTiles(room) {
 function pressure(counts) {
   return (counts["^"] || 0) + (counts.v || 0) + (counts["<"] || 0) + (counts[">"] || 0)
     + (counts.A || 0) * 3 + ((counts.U || 0) + (counts.B || 0) + (counts.C || 0)) * 3
-    + ((counts.M || 0) + (counts.T || 0)) * 2;
+    + ((counts.M || 0) + (counts.T || 0) + (counts.D || 0) + (counts.E || 0)) * 2
+    + (counts.K || 0) * 3;
 }
 
 function landingSegments(room) {
@@ -59,13 +60,14 @@ const allowedModes = new Set(["clean", "pace", "style", "expert"]);
 const allowedFeelTech = new Set(["jump", "wall", "dash", "spark", "wallSpark", "prismSpark", "prism", "crumble"]);
 
 if (maps.length !== 10) errors.push("route should keep the current ten-room campaign");
-const width = maps[0]?.[0]?.length || 0;
 const height = maps[0]?.length || 0;
 const pressureByRoom = [];
 let echoTeachingDistance = 0;
 
 maps.forEach((room, index) => {
   if (!Array.isArray(room) || room.length !== height) errors.push("room " + (index + 1) + " height drifted");
+  const width = room[0]?.length || 0;
+  if (width < 30) errors.push("room " + (index + 1) + " should be at least one screen wide");
   room.forEach((row, rowIndex) => {
     if (row.length !== width) errors.push("room " + (index + 1) + " row " + (rowIndex + 1) + " width drifted");
   });
@@ -101,12 +103,12 @@ if (maps[2]?.[5]?.[2] !== "P"
   errors.push("R3 should start from the left recovery platform and preserve its supported first spring");
 }
 const oldPeakExitTiles = maps[5]?.join("") || "";
-if ((oldPeakExitTiles.match(/A/g) || []).length !== 4
-  || (oldPeakExitTiles.match(/T/g) || []).length !== 2
-  || !/四枚光继.*两级弹簧/.test(String(guides[5] || ""))
-  || !/四枚光继.*两级弹簧/.test(String(purposes[5] || ""))
-  || !/四枚光继.*两级弹簧/.test(String(routeLines[5]?.[2] || ""))) {
-  errors.push("R6 copy should describe its authored four-relay, two-stage-spring capstone exactly");
+if ((oldPeakExitTiles.match(/A/g) || []).length !== 6
+  || (oldPeakExitTiles.match(/T/g) || []).length !== 3
+  || !/六枚光继.*三级弹簧/.test(String(guides[5] || ""))
+  || !/六枚光继.*三级弹簧/.test(String(purposes[5] || ""))
+  || !/六枚光继.*三级弹簧/.test(String(routeLines[5]?.[0] || ""))) {
+  errors.push("R6 copy should describe its authored six-relay, three-stage-spring long-room capstone exactly");
 }
 if (maps[6]?.[15]?.[2] !== "P"
   || maps[6]?.[16]?.slice(0, 5) !== "#####"
@@ -150,7 +152,7 @@ if (finaleEchoDistance !== 1 || finaleCheckpointRow !== finaleAnchorRow || final
 if (finaleRoom[15]?.[9] !== "T" || finaleRoom[14]?.[9] !== "A" || finaleRoom[16]?.[9] !== "#") {
   errors.push("R10 should recall the opening act through a grounded spring-to-relay launch");
 }
-const finaleSynthesis = ["echo", "spring", "springApex", "relay", "updraft", "prism", "crumble"];
+const finaleSynthesis = ["echo", "spring", "springApex", "relay", "updraft", "prism", "crumble", "gate", "phase", "drift"];
 for (const requirement of finaleSynthesis) {
   if (!snapshot.expertRequirements?.[9]?.includes(requirement) || !snapshot.roomStyleTrials?.[9]?.tech?.includes(requirement)) {
     errors.push("R10 Style and Expert routes should synthesize " + requirement);

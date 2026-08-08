@@ -15,6 +15,7 @@ summit-spark/
 │  │  └─ math.mjs           # 无状态的矩形判定、距离与数值逼近
 │  ├─ modules/game/
 │  │  ├─ room-data.mjs      # 递归冻结的地图、章节、路线、氛围、地标与机制教学内容
+│  │  ├─ world-model.mjs    # 可变房宽、镜头安全区、相位时序与巡游轨迹纯模型
 │  │  ├─ effect-budget.mjs  # 长局视觉效果队列预算与保留最新反馈的裁剪规则
 │  │  ├─ landmark-progress.mjs # 山门/旧峰当前尝试地标进度纯规则
 │  │  ├─ audio-cues.mjs     # 四幕环境和弦、两段式换幕与登顶声纹
@@ -58,6 +59,7 @@ public/index.html
        ├─ public/modules/core/format.mjs
        ├─ public/modules/core/math.mjs
        ├─ public/modules/game/room-data.mjs
+       ├─ public/modules/game/world-model.mjs
        ├─ public/modules/game/effect-budget.mjs
        ├─ public/modules/game/landmark-progress.mjs
        ├─ public/modules/game/audio-cues.mjs
@@ -81,7 +83,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 ## 当前单体边界
 
-`public/summit-spark.js` 仍包含输入事件编排、物理、渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出有限化计时/差值、本地云时间、安全文本、数学、只读房间内容、章节声纹、当前尝试地标进度、视觉效果队列预算、存档规则与云冲突前的本地进度保护、输入状态/缓冲/映射，Drill/Route/Feel/Focus/挑战的纯状态与结果组装规则、PB 路线动作语义，以及章节完成度、转场成绩/收束文案、Drill 目标/实际练习句/悬停简报与路线展示标签、过房成绩、练习优先级、练习档案/长期挑战/手柄状态摘要、存档导入/备份摘要、反馈备注/模板、四幕汇总和隐私受限本轮报告模型，并由独立 Node 契约与浏览器启动回归保护；其余高耦合领域仍等待对应证据后逐步拆分。
+`public/summit-spark.js` 仍包含输入事件编排、物理碰撞、世界渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出有限化计时/差值、本地云时间、安全文本、数学、只读房间内容、可变房宽与镜头/动态障碍纯规则、章节声纹、当前尝试地标进度、视觉效果队列预算、存档规则与云冲突保护、输入状态/缓冲/映射、训练纯状态、PB 路线动作语义及 UI 展示模型，并由独立 Node 契约与浏览器回归保护；其余高耦合领域仍等待人工完整通关证据后逐步拆分。
 
 短期修改遵守：
 
@@ -94,7 +96,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`game/lumen-progress.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成；五类房间推荐、优先跨房且目标不重复的三步计划、训练原因/路线推荐、多处共用的进度摘要、存档预览摘要及反馈模板也已统一由纯模型裁决。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/world-model.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`game/lumen-progress.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成。接下来的顺序是：
 
 1. `ui/`：只在有直接消费者与契约时继续迁移无副作用的面板/HUD 展示模型，DOM 事件仍留主运行时。
 2. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。

@@ -11,6 +11,24 @@ const snapshot = loadRoomDataSnapshot();
 const summary = getRoomDataSummary(snapshot);
 const errors = validateRoomDataSnapshot(snapshot);
 
+function pressureWeight(tile) {
+  if ("^v<>".includes(tile)) return 1;
+  if (tile === "A" || tile === "U" || tile === "B" || tile === "C" || tile === "K") return 3;
+  if (tile === "M" || tile === "T" || tile === "D" || tile === "E") return 2;
+  return 0;
+}
+
+function longRoomBeatSummary(room) {
+  const width = room[0]?.length || 1;
+  const beats = [0, 0, 0];
+  const lumens = [];
+  room.forEach((row, y) => [...row].forEach((tile, x) => {
+    beats[Math.min(2, Math.floor((x / width) * 3))] += pressureWeight(tile);
+    if (tile === "L") lumens.push(`${x >= 30 ? "second" : "first"}@${x},${y}`);
+  }));
+  return `beats ${beats.join("/")} | L ${lumens.join("+") || "none"}`;
+}
+
 console.log("Room Data Report");
 console.log("================");
 console.log(`Source: ${snapshot.generatedFrom}`);
@@ -26,7 +44,8 @@ snapshot.roomNames.forEach((name, index) => {
   const target = snapshot.roomTargets[index];
   const tier = snapshot.roomTiers[index];
   const skills = snapshot.roomSkills[index].join(", ");
-  console.log(`R${number} ${name} | target ${target}s | ${tier} | ${skills}`);
+  const pacing = index >= 3 ? ` | ${longRoomBeatSummary(snapshot.maps[index])}` : "";
+  console.log(`R${number} ${name} | target ${target}s | ${tier} | ${skills}${pacing}`);
 });
 
 console.log("");

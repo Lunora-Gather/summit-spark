@@ -16,8 +16,16 @@ const allowed = new Set(".#^v<>SLRAPTHUBMCDEKJ".split(""));
 let goalCount = 0;
 let startCount = 0;
 const pressureScores = [];
+const sectionPressureScores = [];
 const crumbleRooms = [];
 const landingRuns = [];
+
+function tilePressure(tile) {
+  if ("^v<>".includes(tile)) return 1;
+  if (tile === "A" || tile === "U" || tile === "B" || tile === "C" || tile === "K") return 3;
+  if (tile === "M" || tile === "T" || tile === "D" || tile === "E") return 2;
+  return 0;
+}
 
 function isPassable(tile) {
   return tile !== "#" && tile !== "C" && tile !== "^" && tile !== "v" && tile !== "<" && tile !== ">";
@@ -68,6 +76,7 @@ else {
     const roomCols = room[0]?.length || 0;
     if (roomCols < minCols) errors.push("room " + (roomIndex + 1) + " has " + roomCols + " cols, expected at least " + minCols);
     let pressure = 0;
+    const sectionPressure = [0, 0, 0];
     let crumbleCount = 0;
     let entryAnchorCount = 0;
     let entryAnchor = null;
@@ -84,13 +93,10 @@ else {
       }
       [...line].forEach((tile, x) => {
         if (!allowed.has(tile)) errors.push("room " + (roomIndex + 1) + " has unknown tile \"" + tile + "\" at " + (x + 1) + "," + (y + 1));
-        if ("^v<>".includes(tile)) pressure += 1;
-        if (tile === "A") pressure += 3;
-        if (tile === "U" || tile === "B" || tile === "C") pressure += 3;
+        const weight = tilePressure(tile);
+        pressure += weight;
+        sectionPressure[Math.min(2, Math.floor((x / roomCols) * 3))] += weight;
         if (tile === "C") crumbleCount += 1;
-        if (tile === "M" || tile === "T") pressure += 2;
-        if (tile === "D" || tile === "E") pressure += 2;
-        if (tile === "K") pressure += 3;
         if (tile === "S") startCount += 1;
         if (tile === "S" || tile === "P") {
           entryAnchorCount += 1;
@@ -119,6 +125,7 @@ else {
       if (!room[waypoint.y].slice(waypoint.x + 1, waypoint.x + 3).includes("R")) errors.push("room " + (roomIndex + 1) + " midpoint should lead directly into a refill");
     }
     pressureScores[roomIndex] = pressure;
+    sectionPressureScores[roomIndex] = sectionPressure;
     crumbleRooms[roomIndex] = crumbleCount;
     landingRuns[roomIndex] = countLandingRuns(room);
   });
@@ -141,6 +148,15 @@ for (let i = 6; i < pressureScores.length; i += 1) {
   const step = pressureScores[i] - pressureScores[i - 1];
   if (step < 8 || step > 40) {
     errors.push("late-room pressure step R" + i + "->R" + (i + 1) + " should stay progressive without a cliff, found " + step);
+  }
+}
+for (let i = 3; i < sectionPressureScores.length; i += 1) {
+  const sections = sectionPressureScores[i] || [];
+  if (sections.some((value) => value <= 0)) {
+    errors.push("long room " + (i + 1) + " should give all three spatial beats a real decision");
+  }
+  if (i >= 6 && Math.max(...sections) / Math.max(1, pressureScores[i]) > 0.55) {
+    errors.push("late room " + (i + 1) + " concentrates too much pressure in one third: " + sections.join("/"));
   }
 }
 for (let i = 0; i < Math.min(6, maps.length); i += 1) {
@@ -199,7 +215,8 @@ if (echoCheckpoints.length !== 1 || echoAnchors.length !== 1) {
   }
 }
 if (echoTeachingRoom?.[10]?.slice(9, 16) !== "#######"
-  || echoTeachingRoom?.[10]?.slice(22, 26) !== "CCCC") {
+  || echoTeachingRoom?.[10]?.slice(24, 26) !== "CC"
+  || echoTeachingRoom?.[10]?.slice(35, 40) !== "CCCCC") {
   errors.push("room 9 should keep a stable middle recovery shelf before its remaining crumble pressure");
 }
 const finaleRoom = maps[9];
@@ -225,6 +242,15 @@ const finalGoalRow = maps[maps.length - 1]?.findIndex((line) => line.includes("H
 if (finalGoalRow < 0 || finalGoalRow >= Math.floor(rows / 2)) errors.push("final summit goal H should resolve in the upper half of room 10");
 for (let i = 6; i < maps.length; i += 1) {
   if ((crumbleRooms[i] || 0) < 3) errors.push("late room " + (i + 1) + " should use at least 3 crumble tiles");
+}
+if (crumbleRooms[9] < 15 || crumbleRooms[9] > 20) {
+  errors.push("room 10 should sustain finale crumble pressure without returning to a repetitive carpet");
+}
+const longRoomLumensAfterMidpoint = maps.slice(3).reduce((count, room) => {
+  return count + tilePoints(room, "L").filter((point) => point.x >= 30).length;
+}, 0);
+if (longRoomLumensAfterMidpoint < 2) {
+  errors.push("long-room Lumen risk branches should not all resolve in the first screen");
 }
 landingRuns.forEach((runs, index) => {
   const min = index < 3 ? 4 : index < 6 ? 5 : 6;
@@ -309,4 +335,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Map check passed: " + maps.length + " rooms, widths " + maps.map((room) => room[0].length).join("/") + " x " + rows + ", " + targets.length + " targets, one grounded left entry per room, pressure " + pressureScores.join("/") + ", crumble " + crumbleRooms.join("/") + ", landings " + landingRuns.join("/") + ".");
+console.log("Map check passed: " + maps.length + " rooms, widths " + maps.map((room) => room[0].length).join("/") + " x " + rows + ", " + targets.length + " targets, one grounded left entry per room, pressure " + pressureScores.join("/") + ", long-room thirds " + sectionPressureScores.slice(3).map((sections) => sections.join("-")).join("/") + ", crumble " + crumbleRooms.join("/") + ", landings " + landingRuns.join("/") + ".");

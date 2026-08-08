@@ -135,7 +135,8 @@ if (echoTeachingDistance > 3 || echoCheckpointRow !== echoAnchorRow) {
   errors.push("R9 should teach its first Echo anchor in a short low-risk checkpoint pocket before the combined route");
 }
 if (echoTeachingRoom[10]?.slice(9, 16) !== "#######"
-  || echoTeachingRoom[10]?.slice(22, 26) !== "CCCC"
+  || echoTeachingRoom[10]?.slice(24, 26) !== "CC"
+  || echoTeachingRoom[10]?.slice(35, 40) !== "CCCCC"
   || !String(guides[8] || "").includes("落稳中层")
   || !String(routeLines[8]?.[0] || "").includes("落稳中层")) {
   errors.push("R9 should alternate its first wind with a stable middle recovery shelf before renewed crumble pressure");

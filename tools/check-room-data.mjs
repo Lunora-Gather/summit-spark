@@ -164,13 +164,13 @@ assert.deepEqual(lumenCoordinates, [
   [[17, 2], [26, 11]],
   [[20, 2], [25, 10]],
   [[6, 11]],
-  [[21, 14]],
+  [[36, 10]],
   [[21, 11]],
-  [[13, 1]],
+  [[36, 7]],
   [[26, 13]],
   [[6, 12]],
   [[7, 5]]
-], "Lumens should retain seven distinct late-game mechanic detours instead of repeating the upper-right exit");
+], "Lumens should retain distinct mechanic detours and give long-room second screens real optional rewards");
 assert.equal(maps[2][5][2], "P", "Gate capstone Practice should begin from the full left-side route");
 assert.equal(maps[2][6].slice(0, 6), "######", "Gate capstone entry should keep broad stable support");
 assert.equal(maps[2][8][13], ".", "Gate capstone should not retain a mid-room Practice shortcut");
@@ -187,7 +187,10 @@ assert.equal(EXPERT_REQUIREMENT_LABELS.springApex, "弹簧顶点", "spring-apex 
 assert.equal(maps[6][15][2], "P", "Wind Gorge should start from a grounded checkpoint");
 assert.equal(maps[6][16].slice(0, 5), "#####", "Wind Gorge checkpoint should keep broad stable support");
 assert.equal(maps[8][10].slice(9, 16), "#######", "Echo Rockfield should recover on stable ground after its first wind");
-assert.equal(maps[8][10].slice(22, 26), "CCCC", "Echo Rockfield should renew crumble pressure after its recovery shelf");
+assert.equal(maps[8][10].slice(24, 26), "CC", "Echo Rockfield should restart crumble pressure without blocking the recovery shelf");
+assert.equal(maps[8][10].slice(35, 40), "CCCCC", "Echo Rockfield should move its longest crumble commitment into the second screen");
+assert.equal((maps[9].join("").match(/C/g) || []).length, 18, "Summit finale should use separated crumble decisions instead of a 25-tile carpet");
+assert.equal((maps[9].join("").match(/B/g) || []).length, 3, "Summit finale should keep prism synthesis without stacking redundant opening pickups");
 assert.match(ROOM_GUIDES[8], /落稳中层/, "Echo Rockfield guide should explain its recovery beat");
 assert.match(ROOM_ROUTE_LINES[8][0], /落稳中层/, "Echo Rockfield safe route should name its recovery beat");
 assert.ok(maps.at(-1).some((row) => row.includes("H")), "the summit goal should remain in the final room");

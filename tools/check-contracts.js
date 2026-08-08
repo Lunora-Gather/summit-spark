@@ -931,6 +931,17 @@ if (!js.includes('const CANVAS_PANEL_BG = "rgba(211,224,216,0.74)"') || !js.incl
 if (!css.includes("top: clamp(0px, calc((100dvh - 700px) * 0.3), 44px)") || !css.includes(".stage.settings-open + .portrait-brief")) errors.push("portrait brief should stay coupled to the playfield and hide behind settings");
 if (!indexHtml.includes('id="practiceLaunchDock"') || indexHtml.includes('class="practice-launch-copy"') || !css.includes(".settings-panel .settings-body") || !css.includes("scrollbar-gutter: stable") || !css.includes(".settings-panel.mode-practice .practice-launch-dock")) errors.push("practice should keep one selected-room launch action in a non-scrolling panel dock without duplicate summary copy");
 if (!js.includes("const cachedRockTiles = new Map()") || !js.includes("const cachedCrumbleTiles = new Map()") || !js.includes("function createTileSpriteSurface()") || !js.includes("function rockTileSprite(") || !js.includes("ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE)") || js.includes("ctx.createLinearGradient(x, y, x + TILE, y + TILE)")) errors.push("static rock/crumble tiles should use density-aware cached sprites while dynamic warning overlays remain live");
+if (!js.includes("function drawTerrainArchitecture(time)")
+  || !js.includes("function drawTerraceProfile(")
+  || !js.includes("function drawTerraceSupport(")
+  || !js.includes("function drawTerrainAccents(time)")
+  || !js.includes("drawTerrainArchitecture(time);\n    drawHazardFields(time);")
+  || !js.includes("drawTiles(time);\n    drawTerrainAccents(time);")
+  || !js.includes("const resolvedDetail = detailLevel > 0.5 ? 1 : 0.16")
+  || !js.includes("const detailed = (gx * 5 + gy * 3 + roomIndex) % 4 === 0")) {
+  errors.push("terrain should read as chapter-authored ledges with behind-collision supports and sparse run-level material accents");
+}
+if (css.includes("1440px") || !css.includes("--shell-gap: clamp(4px, 0.8vmin, 10px)")) errors.push("the desktop playfield should fill its available viewport instead of sitting inside a capped pale webpage frame");
 if (!js.includes('rockDark: "#30465b"') || !js.includes('rockLight: "#8298a8"') || !js.includes('spriteCtx.fillStyle = "#2b4054"') || js.includes('spriteCtx.fillStyle = "#101827"')) errors.push("ordinary platforms should use lifted blue-gray rock faces instead of near-black rectangular slabs");
 if (!js.includes('const shell = stage.closest(".shell")') || !js.includes('const chapterTone = target < 3 ? "gate"') || !js.includes("shell.dataset.portraitChapter = chapterTone") || !css.includes('.shell[data-portrait-chapter="old-peak"]') || !css.includes('.shell[data-portrait-chapter="wind"]') || !css.includes('.shell[data-portrait-chapter="summit"]') || !css.includes("--portrait-ridge-top") || !css.includes("clip-path: polygon(") || !css.includes("top: clamp(96px, calc(50dvh - 285px), 220px)")) errors.push("portrait play should extend a chapter-aware, static low-contrast atmosphere through the brief, stage and touch zones while using the upper safe field for its room brief");
 if (!css.includes("--portrait-touch-size: clamp(44px, calc((100vw - 82px) / 5), var(--touch-size, 48px))") || !css.includes('"recall grab"') || !css.includes('"jump dash"') || !browserSmoke.includes("largeTouchUi.withinViewport") || !browserSmoke.includes("commonActionsPaired")) errors.push("large portrait touch controls should adapt to narrow phone widths, keep Jump/Dash paired and reserve one contextual Echo action without clipping");

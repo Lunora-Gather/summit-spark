@@ -2795,7 +2795,7 @@ canvas:focus {
 /* P27 responsive stage: fit both viewport axes and compact UI from the stage size. */
 :root {
   --stage-ratio: 1.7647058824;
-  --shell-gap: clamp(6px, 1.4vmin, 16px);
+  --shell-gap: clamp(4px, 0.8vmin, 10px);
 }
 
 body,
@@ -2819,8 +2819,7 @@ body,
 .stage {
   width: min(
     calc(100vw - var(--shell-gap) * 2),
-    calc((100dvh - var(--shell-gap) * 2) * var(--stage-ratio)),
-    1440px
+    calc((100dvh - var(--shell-gap) * 2) * var(--stage-ratio))
   );
   max-width: 100%;
   max-height: calc(100dvh - var(--shell-gap) * 2);
@@ -4674,20 +4673,21 @@ body {
    with the playable route. */
 body {
   background:
-    radial-gradient(circle at 66% 8%, rgba(255, 234, 180, 0.5), transparent 26%),
-    radial-gradient(circle at 24% 72%, rgba(91, 139, 151, 0.22), transparent 38%),
-    linear-gradient(145deg, #c8d9da 0%, #aebfc5 50%, #cdbfb3 100%);
+    radial-gradient(circle at 68% 6%, rgba(224, 194, 126, 0.11), transparent 30%),
+    radial-gradient(circle at 20% 74%, rgba(75, 120, 135, 0.15), transparent 42%),
+    linear-gradient(145deg, #172634 0%, #1c2d39 52%, #2a2b36 100%);
 }
 
 .shell {
-  background: radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.2), transparent 60%);
+  background: radial-gradient(circle at 50% 48%, rgba(169, 201, 202, 0.07), transparent 64%);
 }
 
 .stage {
-  border-color: rgba(233, 242, 238, 0.48);
+  border-color: rgba(213, 228, 225, 0.2);
+  border-radius: 10px;
   box-shadow:
-    0 30px 70px rgba(35, 54, 64, 0.3),
-    0 1px 0 rgba(255, 255, 255, 0.44) inset;
+    0 24px 58px rgba(4, 13, 21, 0.36),
+    0 1px 0 rgba(255, 255, 255, 0.14) inset;
 }
 
 #game {

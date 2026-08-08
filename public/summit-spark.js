@@ -191,19 +191,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260809-p267"),
-    import("./modules/core/math.mjs?v=20260809-p267"),
-    import("./modules/game/room-data.mjs?v=20260809-p267"),
-    import("./modules/game/world-model.mjs?v=20260809-p267"),
-    import("./modules/game/effect-budget.mjs?v=20260809-p267"),
-    import("./modules/game/landmark-progress.mjs?v=20260809-p267"),
-    import("./modules/game/audio-cues.mjs?v=20260809-p267"),
-    import("./modules/game/lumen-progress.mjs?v=20260809-p267"),
-    import("./modules/systems/storage.mjs?v=20260809-p267"),
-    import("./modules/systems/input.mjs?v=20260809-p267"),
-    import("./modules/training/state.mjs?v=20260809-p267"),
-    import("./modules/training/replay.mjs?v=20260809-p267"),
-    import("./modules/ui/presentation.mjs?v=20260809-p267")
+    import("./modules/core/format.mjs?v=20260809-p268"),
+    import("./modules/core/math.mjs?v=20260809-p268"),
+    import("./modules/game/room-data.mjs?v=20260809-p268"),
+    import("./modules/game/world-model.mjs?v=20260809-p268"),
+    import("./modules/game/effect-budget.mjs?v=20260809-p268"),
+    import("./modules/game/landmark-progress.mjs?v=20260809-p268"),
+    import("./modules/game/audio-cues.mjs?v=20260809-p268"),
+    import("./modules/game/lumen-progress.mjs?v=20260809-p268"),
+    import("./modules/systems/storage.mjs?v=20260809-p268"),
+    import("./modules/systems/input.mjs?v=20260809-p268"),
+    import("./modules/training/state.mjs?v=20260809-p268"),
+    import("./modules/training/replay.mjs?v=20260809-p268"),
+    import("./modules/ui/presentation.mjs?v=20260809-p268")
   ]);
 
   const canvas = document.getElementById("game");
@@ -7606,8 +7606,10 @@
     const offset = shakeOffset();
     ctx.save();
     ctx.translate(offset.x - cameraX, offset.y);
+    drawTerrainArchitecture(time);
     drawHazardFields(time);
     drawTiles(time);
+    drawTerrainAccents(time);
     drawBestRoomPath(time);
     drawCurrentRoomPath(time);
     drawBestRoomGhost(time);
@@ -9581,6 +9583,222 @@
     }
   }
 
+  function drawTerrainArchitecture(time) {
+    const atmosphere = roomAtmosphere();
+    const chapter = chapterIndexForRoom(roomIndex);
+    const motion = prefersReducedMotion ? 0 : time;
+    let painted = 0;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    for (let y = 2; y < ROWS - 1 && painted < 7; y += 1) {
+      let x = 0;
+      while (x < room.cols && painted < 7) {
+        const topSurface = SOLID.has(room.tiles[y]?.[x]) && !SOLID.has(room.tiles[y - 1]?.[x]);
+        if (!topSurface) {
+          x += 1;
+          continue;
+        }
+        const start = x;
+        while (x < room.cols && SOLID.has(room.tiles[y]?.[x]) && !SOLID.has(room.tiles[y - 1]?.[x])) x += 1;
+        const length = x - start;
+        if (length < 3 || (start + y + roomIndex) % 3 === 1) continue;
+        const left = start * TILE;
+        const width = length * TILE;
+        if (left + width < cameraX - TILE || left > cameraX + W + TILE) continue;
+
+        const middle = Math.min(room.cols - 1, start + Math.floor(length / 2));
+        let landingRow = ROWS - 1;
+        for (let below = y + 1; below < ROWS; below += 1) {
+          if (SOLID.has(room.tiles[below]?.[middle])) {
+            landingRow = below;
+            break;
+          }
+        }
+        const top = y * TILE;
+        const bottom = landingRow * TILE;
+        const gap = bottom - (top + TILE);
+        drawTerraceProfile(left, top, width, atmosphere, chapter);
+        if (gap >= TILE * 1.5) {
+          drawTerraceSupport(left, top + TILE, width, gap, chapter, atmosphere, motion, painted);
+        }
+        painted += 1;
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawTerrainAccents(time) {
+    const atmosphere = roomAtmosphere();
+    const chapter = chapterIndexForRoom(roomIndex);
+    const motion = prefersReducedMotion ? 0 : time;
+    let painted = 0;
+    ctx.save();
+    ctx.strokeStyle = chapter === 1 || chapter === 3 ? atmosphere.rim : atmosphere.haze;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.globalAlpha = settings.lowPerformance ? 0.1 : settings.calmEffects ? 0.13 : 0.18;
+    ctx.lineWidth = 1;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    for (let y = 2; y < ROWS - 1 && painted < 12; y += 1) {
+      let x = 0;
+      while (x < room.cols && painted < 12) {
+        if (!SOLID.has(room.tiles[y]?.[x]) || SOLID.has(room.tiles[y - 1]?.[x])) {
+          x += 1;
+          continue;
+        }
+        const start = x;
+        while (x < room.cols && SOLID.has(room.tiles[y]?.[x]) && !SOLID.has(room.tiles[y - 1]?.[x])) x += 1;
+        const length = x - start;
+        if (length < 2) continue;
+        const left = start * TILE;
+        const width = length * TILE;
+        if (left + width < cameraX || left > cameraX + W) continue;
+        const faceY = y * TILE + 17;
+        const center = left + width / 2;
+
+        if (chapter === 0) {
+          ctx.beginPath();
+          ctx.moveTo(left + 10, faceY);
+          ctx.lineTo(center - 8, faceY);
+          ctx.lineTo(center, faceY + 4);
+          ctx.lineTo(center + 9, faceY);
+          ctx.lineTo(left + width - 10, faceY);
+          ctx.stroke();
+        } else if (chapter === 1) {
+          const offset = ((start * 11 + y * 7) % Math.max(18, width - 28)) + 10;
+          ctx.beginPath();
+          ctx.moveTo(left + offset - 8, faceY - 5);
+          ctx.lineTo(left + offset, faceY + 2);
+          ctx.lineTo(left + offset + 9, faceY - 3);
+          ctx.lineTo(left + offset + 18, faceY + 4);
+          ctx.stroke();
+        } else if (chapter === 2) {
+          const sway = Math.sin(motion * 0.7 + start + y) * 1.5;
+          [-12, 10].forEach((offset) => {
+            ctx.beginPath();
+            ctx.moveTo(center + offset - 9, faceY + 5);
+            ctx.lineTo(center + offset + 9 + sway, faceY - 5);
+            ctx.stroke();
+          });
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(left + 10, faceY);
+          ctx.lineTo(center - 13, faceY);
+          ctx.moveTo(center + 13, faceY);
+          ctx.lineTo(left + width - 10, faceY);
+          ctx.stroke();
+          ctx.save();
+          ctx.translate(center, faceY);
+          ctx.rotate(Math.PI / 4);
+          ctx.strokeRect(-6, -6, 12, 12);
+          ctx.restore();
+        }
+        painted += 1;
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawTerraceProfile(left, top, width, atmosphere, chapter) {
+    const depth = chapter === 1 ? 12 : chapter === 2 ? 7 : 10;
+    ctx.save();
+    ctx.globalAlpha = chapter === 2 ? 0.12 : 0.16;
+    ctx.fillStyle = atmosphere.front;
+    ctx.beginPath();
+    ctx.moveTo(left + 3, top + TILE - 4);
+    ctx.lineTo(left + width - 3, top + TILE - 4);
+    ctx.lineTo(left + width - 9, top + TILE + depth);
+    ctx.lineTo(left + 10, top + TILE + depth);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha *= 0.72;
+    ctx.strokeStyle = atmosphere.haze;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left + 12, top + TILE + 2);
+    ctx.lineTo(left + width - 12, top + TILE + 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTerraceSupport(left, top, width, gap, chapter, atmosphere, time, seed) {
+    const bottom = top + Math.min(gap, TILE * 5.2);
+    const center = left + width / 2;
+    ctx.save();
+    ctx.strokeStyle = atmosphere.haze;
+    ctx.fillStyle = atmosphere.front;
+    ctx.globalAlpha = settings.lowPerformance ? 0.09 : settings.calmEffects ? 0.12 : 0.16;
+    ctx.lineWidth = chapter === 0 ? 5 : 3;
+
+    if (chapter === 0) {
+      const inset = Math.min(20, width * 0.22);
+      const leftPier = left + inset;
+      const rightPier = left + width - inset;
+      ctx.fillRect(leftPier - 3, top, 7, bottom - top);
+      ctx.fillRect(rightPier - 3, top, 7, bottom - top);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(leftPier, top + 10);
+      ctx.lineTo(rightPier, Math.min(bottom, top + 58));
+      ctx.moveTo(rightPier, top + 10);
+      ctx.lineTo(leftPier, Math.min(bottom, top + 58));
+      ctx.stroke();
+    } else if (chapter === 1) {
+      const inset = Math.min(18, width * 0.2);
+      const archBottom = Math.min(bottom, top + 82);
+      ctx.fillRect(left + inset - 3, top, 7, archBottom - top);
+      ctx.fillRect(left + width - inset - 4, top, 7, archBottom - top);
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(left + inset, top + 28);
+      ctx.quadraticCurveTo(center, top + 66, left + width - inset, top + 28);
+      ctx.stroke();
+      ctx.globalAlpha *= 0.58;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(center - 6, top + 50);
+      ctx.lineTo(center + 9, top + 66);
+      ctx.stroke();
+    } else if (chapter === 2) {
+      const sway = Math.sin(time * 1.4 + seed) * 4;
+      const cordLength = Math.min(gap * 0.72, 78);
+      [left + 14, left + width - 14].forEach((anchor, index) => {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(anchor, top);
+        ctx.quadraticCurveTo(anchor + sway * (index ? -1 : 1), top + cordLength * 0.5, anchor + sway, top + cordLength);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(anchor + sway, top + cordLength * 0.34);
+        ctx.lineTo(anchor + sway + (index ? -16 : 16), top + cordLength * 0.47);
+        ctx.lineTo(anchor + sway, top + cordLength * 0.62);
+        ctx.closePath();
+        ctx.fill();
+      });
+    } else {
+      const latticeBottom = Math.min(bottom, top + 96);
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(left + 10, top);
+      ctx.lineTo(center, latticeBottom);
+      ctx.lineTo(left + width - 10, top);
+      ctx.moveTo(left + width * 0.28, top);
+      ctx.lineTo(left + width * 0.72, latticeBottom * 0.52 + top * 0.48);
+      ctx.moveTo(left + width * 0.72, top);
+      ctx.lineTo(left + width * 0.28, latticeBottom * 0.52 + top * 0.48);
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(center, Math.min(latticeBottom - 14, top + 54));
+      ctx.rotate(Math.PI / 4);
+      ctx.strokeRect(-7, -7, 14, 14);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   function createTileSpriteSurface() {
     const scale = canvasBufferScale();
     const sprite = document.createElement("canvas");
@@ -9591,10 +9809,11 @@
     return { sprite, spriteCtx, scale };
   }
 
-  function rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, alternateCrack, surfaceKind) {
+  function rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, alternateCrack, surfaceKind, detailLevel = 1) {
     const scale = canvasBufferScale();
     const material = CHAPTER_SURFACE_KINDS.includes(surfaceKind) ? surfaceKind : CHAPTER_SURFACE_KINDS[0];
-    const key = `${scale}:${material}:${Number(leftSolid)}${Number(rightSolid)}${Number(belowSolid)}${Number(topOpen)}${Number(alternateCrack)}`;
+    const resolvedDetail = detailLevel > 0.5 ? 1 : 0.16;
+    const key = `${scale}:${material}:${Number(leftSolid)}${Number(rightSolid)}${Number(belowSolid)}${Number(topOpen)}${Number(alternateCrack)}:${resolvedDetail}`;
     if (cachedRockTiles.has(key)) return cachedRockTiles.get(key);
     const { sprite, spriteCtx } = createTileSpriteSurface();
     spriteCtx.fillStyle = "#2b4054";
@@ -9625,6 +9844,7 @@
           ? "rgba(237,202,218,0.14)"
           : "rgba(220,235,239,0.12)";
     spriteCtx.lineWidth = 1;
+    spriteCtx.globalAlpha = resolvedDetail;
     spriteCtx.beginPath();
     if (material === "old-peak") {
       if (!alternateCrack) {
@@ -9667,10 +9887,11 @@
       spriteCtx.lineTo(29, 14);
     }
     spriteCtx.stroke();
-    if (material === "old-peak") {
+    spriteCtx.globalAlpha = 1;
+    if (resolvedDetail > 0.5 && material === "old-peak") {
       spriteCtx.fillStyle = "rgba(238,207,157,0.12)";
       spriteCtx.fillRect(alternateCrack ? 25 : 6, alternateCrack ? 7 : 22, 2, 2);
-    } else if (material === "star-etched") {
+    } else if (resolvedDetail > 0.5 && material === "star-etched") {
       spriteCtx.fillStyle = "rgba(247,198,93,0.16)";
       spriteCtx.fillRect(alternateCrack ? 5 : 26, alternateCrack ? 6 : 24, 2, 2);
     }
@@ -9704,13 +9925,14 @@
     const belowSolid = SOLID.has(room.tiles[gy + 1]?.[gx]);
     const topOpen = gy > 0 && !SOLID.has(room.tiles[gy - 1]?.[gx]);
     const surfaceKind = CHAPTER_SURFACE_KINDS[chapterIndexForRoom(roomIndex)] || CHAPTER_SURFACE_KINDS[0];
-    const sprite = rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, (gx + gy) % 2 !== 0, surfaceKind);
+    const detailLevel = (gx * 7 + gy * 5 + roomIndex * 3) % 5 === 0 ? 1 : 0.16;
+    const sprite = rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, (gx + gy) % 2 !== 0, surfaceKind, detailLevel);
     ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE);
   }
 
-  function crumbleTileSprite() {
+  function crumbleTileSprite(detailed = true) {
     const scale = canvasBufferScale();
-    const key = String(scale);
+    const key = `${scale}:${Number(detailed)}`;
     if (cachedCrumbleTiles.has(key)) return cachedCrumbleTiles.get(key);
     const { sprite, spriteCtx } = createTileSpriteSurface();
     const grad = spriteCtx.createLinearGradient(0, 0, TILE, TILE);
@@ -9721,15 +9943,21 @@
     spriteCtx.fillRect(1, 1, TILE - 2, TILE - 2);
     spriteCtx.fillStyle = "rgba(239,248,246,0.2)";
     spriteCtx.fillRect(3, 3, TILE - 6, 4);
-    spriteCtx.strokeStyle = "rgba(247,245,240,0.28)";
-    spriteCtx.lineWidth = 2;
+    spriteCtx.strokeStyle = detailed ? "rgba(247,245,240,0.3)" : "rgba(247,245,240,0.09)";
+    spriteCtx.lineWidth = detailed ? 2 : 1;
     spriteCtx.beginPath();
-    spriteCtx.moveTo(7, 7);
-    spriteCtx.lineTo(14, 17);
-    spriteCtx.lineTo(10, 28);
-    spriteCtx.moveTo(22, 6);
-    spriteCtx.lineTo(16, 18);
-    spriteCtx.lineTo(25, 28);
+    if (detailed) {
+      spriteCtx.moveTo(7, 7);
+      spriteCtx.lineTo(14, 17);
+      spriteCtx.lineTo(10, 28);
+      spriteCtx.moveTo(22, 6);
+      spriteCtx.lineTo(16, 18);
+      spriteCtx.lineTo(25, 28);
+    } else {
+      spriteCtx.moveTo(5, 19);
+      spriteCtx.lineTo(14, 13);
+      spriteCtx.lineTo(26, 16);
+    }
     spriteCtx.stroke();
     cachedCrumbleTiles.set(key, sprite);
     return sprite;
@@ -9745,7 +9973,8 @@
     const jitter = armed > 0 ? Math.sin(time * 50 + gx) * (1 - armed) * 1.3 : 0;
     ctx.save();
     ctx.translate(jitter, 0);
-    const sprite = crumbleTileSprite();
+    const detailed = (gx * 5 + gy * 3 + roomIndex) % 4 === 0;
+    const sprite = crumbleTileSprite(detailed);
     ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE);
     if (queued > 0) {
       ctx.fillStyle = `rgba(118, 215, 255, ${settings.calmEffects ? 0.08 : 0.13})`;

@@ -22,6 +22,7 @@ import {
   runChapterReviewData,
   runChapterSplitsData,
   runReportTextData,
+  runRoomReviewData,
   saveArchiveSummaryData,
   saveBackupSummaryData,
   roomSplitFeedbackData,
@@ -603,16 +604,34 @@ const runReport = runReportTextData({
     { label: "第一幕", time: "0:18.00", mistakes: 1, visited: 2, rooms: 2 }
   ],
   rooms: [
-    { index: 0, label: "起势山门", time: "0:08.00", mistakes: 0, visited: true },
-    { index: 1, label: "光继横桥", time: "0:10.00", mistakes: 1, visited: true }
+    { index: 0, label: "起势山门", seconds: 8, time: "0:08.00", mistakes: 0, visited: true },
+    { index: 1, label: "光继横桥", seconds: 10, time: "0:10.00", mistakes: 1, visited: true }
   ]
 });
 assert.match(runReport, /结果：完整登顶/);
 assert.match(runReport, /总时间：0:18\.00 \/ 失误 1 \/ 微光 2\/3 \/ Flow 42/);
 assert.match(runReport, /第一幕：0:18\.00 \/ 失误 1 \/ 房间 2\/2/);
 assert.match(runReport, /R2 光继横桥：0:10\.00 \/ 失误 1/);
-assert.match(runReport, /仅包含本轮时间、失误、微光、Flow、辅助状态与构建号/);
+assert.match(runReport, /重点：最慢 R2 光继横桥 0:10\.00 \/ 失误最多 R2 光继横桥 1/);
+assert.match(runReport, /仅包含本轮分幕\/分房时间、失误、微光、Flow、辅助状态与构建号/);
 assert.match(runReport, /不含身份、设备名称、输入历史或路线坐标/);
+assert.deepEqual(runRoomReviewData({ rooms: [
+  { index: 0, label: "先", seconds: 12, time: "0:12.00", mistakes: 0, visited: true },
+  { index: 1, label: "后", seconds: 12, time: "0:12.00", mistakes: 2, visited: true },
+  { index: 2, label: "未完成", seconds: 99, time: "1:39.00", mistakes: 9, visited: false }
+]}), {
+  rooms: [
+    { index: 0, label: "先", seconds: 12, time: "0:12.00", mistakes: 0 },
+    { index: 1, label: "后", seconds: 12, time: "0:12.00", mistakes: 2 }
+  ],
+  slowest: { index: 0, label: "先", seconds: 12, time: "0:12.00", mistakes: 0 },
+  mostMistakes: { index: 1, label: "后", seconds: 12, time: "0:12.00", mistakes: 2 }
+}, "room review should keep chronological ties and ignore unfinished rooms");
+assert.match(runReportTextData({
+  totalRooms: 2,
+  rooms: [{ index: 0, label: "无伤", seconds: 5, time: "0:05.00", mistakes: 0, visited: true }]
+}), /重点：最慢 R1 无伤 0:05\.00 \/ 已访问房间无失误/);
+assert.match(runReportTextData({ totalRooms: 2, rooms: [] }), /重点：暂无已完成房间证据/);
 const sanitizedReport = runReportTextData({
   build: "bad\ninjected",
   complete: true,

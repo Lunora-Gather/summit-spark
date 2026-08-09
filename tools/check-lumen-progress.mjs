@@ -4,6 +4,7 @@ import {
   restoreRoomLumenCheckpointData,
   roomLumenCheckpointData
 } from "../public/modules/game/lumen-progress.mjs";
+import { maps } from "../public/modules/game/room-data.mjs";
 
 const attempt = resetRoomLumenProgressData(new Set([
   "2:20:2",
@@ -33,4 +34,26 @@ assert.deepEqual([...restored.collected], ["2:1:1", "3:1:1"]);
 assert.deepEqual(restored.snapshot, ["3:1:1"]);
 assert.equal(restored.restored, 1, "midpoint restore should remain bounded and duplicate-safe");
 
-console.log("lumen progress checks passed: room resets and validated midpoint snapshots");
+for (const [roomIndex, lumenId] of [[4, "4:36:10"], [6, "6:36:7"]]) {
+  const beforeLatePickup = roomLumenCheckpointData(new Set(), roomIndex, maps[roomIndex]);
+  const afterLatePickup = new Set([lumenId]);
+  const respawned = resetRoomLumenProgressData(afterLatePickup, roomIndex);
+  const restoredBeforePickup = restoreRoomLumenCheckpointData(
+    respawned.collected,
+    beforeLatePickup,
+    roomIndex,
+    maps[roomIndex]
+  );
+  assert.equal(restoredBeforePickup.collected.has(lumenId), false, `R${roomIndex + 1} late Lumen must not survive a pre-pickup camp snapshot`);
+
+  const afterPickupSnapshot = roomLumenCheckpointData(afterLatePickup, roomIndex, maps[roomIndex]);
+  const restoredAfterPickup = restoreRoomLumenCheckpointData(
+    respawned.collected,
+    afterPickupSnapshot,
+    roomIndex,
+    maps[roomIndex]
+  );
+  assert.equal(restoredAfterPickup.collected.has(lumenId), true, `R${roomIndex + 1} late Lumen should survive only after a validated camp snapshot`);
+}
+
+console.log("lumen progress checks passed: room resets, validated midpoint snapshots and late-screen reward rollback");

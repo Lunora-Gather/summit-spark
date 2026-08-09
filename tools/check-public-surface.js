@@ -693,6 +693,7 @@ if (!runtimeSource.includes('import("./modules/ui/presentation.mjs?v=')
   || !uiPresentationSource.includes("export function rankPracticeLedgerRowsData(")
   || !uiPresentationSource.includes("export function runChapterSplitsData(")
   || !uiPresentationSource.includes("export function runChapterReviewData(")
+  || !uiPresentationSource.includes("export function runRoomReviewData(")
   || !uiPresentationSource.includes("export function runReportTextData(")
   || !uiPresentationSource.includes("export function saveArchiveSummaryData(")
   || !uiPresentationSource.includes("export function saveBackupSummaryData(")) {

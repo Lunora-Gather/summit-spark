@@ -757,6 +757,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       || !/R10 星顶终线：0:/.test(runReport.text)
       || !/R1 起势山门：—/.test(runReport.text)
       || !/微光 0\/12/.test(runReport.text)
+      || !/重点：最慢 R10 星顶终线 0:/.test(runReport.text)
       || !/不含身份、设备名称、输入历史或路线坐标/.test(runReport.text)
       || /userAgent|@/.test(runReport.text)
       || runReport.text.length > 4000) {
@@ -1842,27 +1843,33 @@ async function runSpringApexSmoke(cdp, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     const timer = text.match(/spring apex ([\\d.]+) hit/);
     const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
-    return timer && Number(timer[1]) > 0 && velocity && Math.abs(Number(velocity[2])) <= 150
+    return timer && Number(timer[1]) > 0 && velocity && Math.abs(Number(velocity[2])) <= 80
       ? { timer: Number(timer[1]), vx: Number(velocity[1]), vy: Number(velocity[2]), text }
       : null;
   })()`), 1200, 10);
   await keyTap(cdp, "KeyK", "K");
-  const recognized = await waitUntil("R10 apex dash closes the spring timing loop", () => evaluate(cdp, `(() => {
-    const text = document.querySelector("#debugPanel").textContent;
-    const hit = text.match(/spring apex ([\\d.]+) hit ([\\d.]+)/);
-    const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
-    const flow = text.match(/flow (\\d+)/);
-    if (!hit || !velocity || !flow || Number(hit[2]) <= 0 || Number(flow[1]) < 15 || !/feel SPRING APEX/.test(text)) return null;
-    return {
-      timer: Number(hit[1]),
-      hit: Number(hit[2]),
-      vx: Number(velocity[1]),
-      vy: Number(velocity[2]),
-      flow: Number(flow[1]),
-      speed: Math.hypot(Number(velocity[1]), Number(velocity[2])),
-      text
-    };
-  })()`), 900, 10);
+  let recognized;
+  try {
+    recognized = await waitUntil("R10 apex dash closes the spring timing loop", () => evaluate(cdp, `(() => {
+      const text = document.querySelector("#debugPanel").textContent;
+      const hit = text.match(/spring apex ([\\d.]+) hit ([\\d.]+)/);
+      const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
+      const flow = text.match(/flow (\\d+)/);
+      if (!hit || !velocity || !flow || Number(hit[2]) <= 0 || Number(flow[1]) < 15 || !/feel SPRING APEX/.test(text)) return null;
+      return {
+        timer: Number(hit[1]),
+        hit: Number(hit[2]),
+        vx: Number(velocity[1]),
+        vy: Number(velocity[2]),
+        flow: Number(flow[1]),
+        speed: Math.hypot(Number(velocity[1]), Number(velocity[2])),
+        text
+      };
+    })()`), 900, 10);
+  } catch (error) {
+    const probe = await debugPosition(cdp);
+    throw new Error(`${error.message}: ${JSON.stringify({ apex, probe })}`);
+  }
   await keyTap(cdp, "KeyR", "R");
   const reset = await waitUntil("R10 retry clears spring apex attempt state", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;

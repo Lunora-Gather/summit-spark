@@ -636,6 +636,34 @@ export function lumenRunSummaryData(input = {}) {
   };
 }
 
+export function runRoomReviewData(input = {}) {
+  const source = Array.isArray(input.rooms) ? input.rooms : [];
+  const rooms = source
+    .filter((room) => room && typeof room === "object" && room.visited === true)
+    .map((room) => ({
+      index: Math.floor(nonNegativeNumber(room.index)),
+      label: reportLineText(room.label, "未命名房间"),
+      seconds: nonNegativeNumber(room.seconds),
+      time: reportLineText(room.time, "—"),
+      mistakes: Math.floor(nonNegativeNumber(room.mistakes))
+    }))
+    .filter((room) => room.seconds > 0);
+  if (!rooms.length) {
+    return { rooms: [], slowest: null, mostMistakes: null };
+  }
+  const slowest = rooms.reduce((candidate, room) => (
+    room.seconds > candidate.seconds ? room : candidate
+  ), rooms[0]);
+  const mostMistakes = rooms.reduce((candidate, room) => (
+    room.mistakes > candidate.mistakes ? room : candidate
+  ), rooms[0]);
+  return {
+    rooms: rooms.map((room) => ({ ...room })),
+    slowest: { ...slowest },
+    mostMistakes: { ...mostMistakes }
+  };
+}
+
 export function runReportTextData(input = {}) {
   const totalRooms = Math.floor(nonNegativeNumber(input.totalRooms));
   const visitedRooms = Math.min(totalRooms, Math.floor(nonNegativeNumber(input.visitedRooms)));
@@ -646,6 +674,7 @@ export function runReportTextData(input = {}) {
   });
   const chapters = Array.isArray(input.chapters) ? input.chapters.filter((chapter) => chapter && typeof chapter === "object") : [];
   const rooms = Array.isArray(input.rooms) ? input.rooms.filter((room) => room && typeof room === "object") : [];
+  const roomReview = runRoomReviewData({ rooms });
   const chapterLines = chapters.map((chapter) => (
     `${reportLineText(chapter.label, "未命名幕")}：${chapter.visited ? reportLineText(chapter.time, "—") : "—"}`
     + ` / 失误 ${Math.floor(nonNegativeNumber(chapter.mistakes))}`
@@ -655,6 +684,12 @@ export function runReportTextData(input = {}) {
     `R${Math.floor(nonNegativeNumber(room.index)) + 1} ${reportLineText(room.label)}：${room.visited ? reportLineText(room.time, "—") : "—"}`
     + ` / 失误 ${Math.floor(nonNegativeNumber(room.mistakes))}`
   ));
+  const focusLine = roomReview.slowest
+    ? `重点：最慢 R${roomReview.slowest.index + 1} ${roomReview.slowest.label} ${roomReview.slowest.time}`
+      + (roomReview.mostMistakes.mistakes > 0
+        ? ` / 失误最多 R${roomReview.mostMistakes.index + 1} ${roomReview.mostMistakes.label} ${roomReview.mostMistakes.mistakes}`
+        : " / 已访问房间无失误")
+    : "重点：暂无已完成房间证据";
   return [
     "山巅微光 · 本轮报告",
     `构建：${reportLineText(input.build, "dev")}`,
@@ -668,6 +703,8 @@ export function runReportTextData(input = {}) {
     "分房：",
     ...roomLines,
     "",
-    "隐私：仅包含本轮时间、失误、微光、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
+    focusLine,
+    "",
+    "隐私：仅包含本轮分幕/分房时间、失误、微光、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
   ].join("\n");
 }

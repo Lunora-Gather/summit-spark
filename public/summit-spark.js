@@ -191,19 +191,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260809-p271"),
-    import("./modules/core/math.mjs?v=20260809-p271"),
-    import("./modules/game/room-data.mjs?v=20260809-p271"),
-    import("./modules/game/world-model.mjs?v=20260809-p271"),
-    import("./modules/game/effect-budget.mjs?v=20260809-p271"),
-    import("./modules/game/landmark-progress.mjs?v=20260809-p271"),
-    import("./modules/game/audio-cues.mjs?v=20260809-p271"),
-    import("./modules/game/lumen-progress.mjs?v=20260809-p271"),
-    import("./modules/systems/storage.mjs?v=20260809-p271"),
-    import("./modules/systems/input.mjs?v=20260809-p271"),
-    import("./modules/training/state.mjs?v=20260809-p271"),
-    import("./modules/training/replay.mjs?v=20260809-p271"),
-    import("./modules/ui/presentation.mjs?v=20260809-p271")
+    import("./modules/core/format.mjs?v=20260809-p272"),
+    import("./modules/core/math.mjs?v=20260809-p272"),
+    import("./modules/game/room-data.mjs?v=20260809-p272"),
+    import("./modules/game/world-model.mjs?v=20260809-p272"),
+    import("./modules/game/effect-budget.mjs?v=20260809-p272"),
+    import("./modules/game/landmark-progress.mjs?v=20260809-p272"),
+    import("./modules/game/audio-cues.mjs?v=20260809-p272"),
+    import("./modules/game/lumen-progress.mjs?v=20260809-p272"),
+    import("./modules/systems/storage.mjs?v=20260809-p272"),
+    import("./modules/systems/input.mjs?v=20260809-p272"),
+    import("./modules/training/state.mjs?v=20260809-p272"),
+    import("./modules/training/replay.mjs?v=20260809-p272"),
+    import("./modules/ui/presentation.mjs?v=20260809-p272")
   ]);
 
   const canvas = document.getElementById("game");
@@ -8478,6 +8478,7 @@
       rooms: maps.map((_, index) => ({
         index,
         label: ROOM_NAMES[index] || "",
+        seconds: runRoomTimes[index],
         time: runRoomTimes[index] > 0 ? formatTime(runRoomTimes[index]) : "—",
         mistakes: roomMistakes[index] || 0,
         visited: runRoomTimes[index] > 0

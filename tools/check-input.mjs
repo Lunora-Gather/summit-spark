@@ -22,6 +22,7 @@ import {
   resolveGamepadState,
   resolveMovementInput,
   shouldBlockKeyData,
+  shouldResumeGameplayInputData,
   setInputBuffer,
   syncInputHeld,
   tickInputBuffers,
@@ -147,6 +148,30 @@ assert.equal(keyboardPressed.size, 0);
 assert.equal(touchEdges.size, 0);
 assert.equal(gamepadEdges.size, 0);
 assert.deepEqual(touchInput, { jump: false, dash: false }, "focus release must neutralize digital device state");
+
+assert.equal(shouldResumeGameplayInputData({
+  started: true,
+  focusPaused: true
+}), true, "visible gameplay input should recover a stale focus pause");
+assert.equal(shouldResumeGameplayInputData({
+  started: true,
+  focusPaused: true,
+  documentHidden: true
+}), false, "hidden documents must stay paused");
+assert.equal(shouldResumeGameplayInputData({
+  started: true,
+  focusPaused: true,
+  settingsVisible: true
+}), false, "settings must retain the intentional pause boundary");
+assert.equal(shouldResumeGameplayInputData({
+  started: true,
+  won: true,
+  focusPaused: true
+}), false, "finish review input must not restart simulation");
+assert.equal(shouldResumeGameplayInputData({
+  started: false,
+  focusPaused: true
+}), false, "entry input must not create a gameplay resume");
 
 const buffers = { jumpBuffer: 0, dashBuffer: 0 };
 assert.equal(setInputBuffer(buffers, "jump", 0.13), true);

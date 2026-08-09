@@ -113,6 +113,7 @@
       resolveGamepadState,
       resolveMovementInput,
       shouldBlockKeyData,
+      shouldResumeGameplayInputData,
       setInputBuffer,
       syncInputHeld,
       tickInputBuffers,
@@ -191,19 +192,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260809-p273"),
-    import("./modules/core/math.mjs?v=20260809-p273"),
-    import("./modules/game/room-data.mjs?v=20260809-p273"),
-    import("./modules/game/world-model.mjs?v=20260809-p273"),
-    import("./modules/game/effect-budget.mjs?v=20260809-p273"),
-    import("./modules/game/landmark-progress.mjs?v=20260809-p273"),
-    import("./modules/game/audio-cues.mjs?v=20260809-p273"),
-    import("./modules/game/lumen-progress.mjs?v=20260809-p273"),
-    import("./modules/systems/storage.mjs?v=20260809-p273"),
-    import("./modules/systems/input.mjs?v=20260809-p273"),
-    import("./modules/training/state.mjs?v=20260809-p273"),
-    import("./modules/training/replay.mjs?v=20260809-p273"),
-    import("./modules/ui/presentation.mjs?v=20260809-p273")
+    import("./modules/core/format.mjs?v=20260809-p274"),
+    import("./modules/core/math.mjs?v=20260809-p274"),
+    import("./modules/game/room-data.mjs?v=20260809-p274"),
+    import("./modules/game/world-model.mjs?v=20260809-p274"),
+    import("./modules/game/effect-budget.mjs?v=20260809-p274"),
+    import("./modules/game/landmark-progress.mjs?v=20260809-p274"),
+    import("./modules/game/audio-cues.mjs?v=20260809-p274"),
+    import("./modules/game/lumen-progress.mjs?v=20260809-p274"),
+    import("./modules/systems/storage.mjs?v=20260809-p274"),
+    import("./modules/systems/input.mjs?v=20260809-p274"),
+    import("./modules/training/state.mjs?v=20260809-p274"),
+    import("./modules/training/replay.mjs?v=20260809-p274"),
+    import("./modules/ui/presentation.mjs?v=20260809-p274")
   ]);
 
   const canvas = document.getElementById("game");
@@ -913,6 +914,7 @@
       return;
     }
     if (uiControl && event.code !== "KeyO" && event.code !== "KeyP" && event.code !== "F3") return;
+    resumeGameplayFromInput();
     if (shouldBlockKey(event.code)) {
       event.preventDefault();
     }
@@ -1105,6 +1107,21 @@
     resetActionPulses();
   }
 
+  function resumeGameplayFromInput() {
+    const shouldResume = shouldResumeGameplayInputData({
+      started,
+      won,
+      documentHidden: document.hidden,
+      settingsVisible,
+      focusPaused
+    });
+    if (!shouldResume) return false;
+    focusPaused = false;
+    lastTime = performance.now();
+    return true;
+  }
+
+  window.addEventListener("pointerdown", resumeGameplayFromInput, true);
   canvas.addEventListener("pointerdown", focusGame);
   const syncReducedMotionPreference = (event = reducedMotionQuery) => {
     prefersReducedMotion = Boolean(event?.matches);
@@ -2056,7 +2073,11 @@
     const dt = Math.min(0.033, (now - lastTime) / 1000);
     lastTime = now;
     fps = fps * 0.9 + (dt > 0 ? (1 / dt) * 0.1 : 0);
-    const paused = isGamePaused();
+    let paused = isGamePaused();
+    if (paused) {
+      updateGamepad();
+      paused = isGamePaused();
+    }
     updateGlobalEffects(paused ? 0 : dt);
     updateAmbientMusic(paused);
     if (!started || won) {
@@ -5058,6 +5079,7 @@
     Object.assign(gamepadInput, resolved.input);
     lastGamepadStatus = resolved.status;
     updateGamepadStatusOutput();
+    if (resolved.status.activeActions.length > 0) resumeGameplayFromInput();
 
     syncInputHeld(gamepadHeld, gamepadPressed, resolved.heldActions).forEach((action) => {
       if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
@@ -5859,7 +5881,8 @@
     if (!signedIn) return;
     const email = accountUser.email || "已登录账号";
     if (accountEmailLabel) accountEmailLabel.textContent = email;
-    if (accountAvatar) accountAvatar.textContent = email.slice(0, 1).toUpperCase();
+    const firstCharacter = Array.from(email.trim())[0] || "S";
+    if (accountAvatar) accountAvatar.textContent = /\p{L}/u.test(firstCharacter) ? firstCharacter.toUpperCase() : "S";
   }
 
   function setAccountStatus(message, state = "") {
@@ -6636,6 +6659,7 @@
     releaseAllInputs();
     clearFocusResetConfirm();
     syncSettingsVisibility();
+    resumeGameplayFromInput();
     setGameStatus(closingPractice ? "练习面板已关闭" : "设置已关闭");
     if (!restoreFocus) return;
     if (returnTarget instanceof HTMLElement && returnTarget.isConnected && !returnTarget.hasAttribute("disabled")) {
@@ -11743,6 +11767,7 @@
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}  wc ${player.wallCoyote.toFixed(3)}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${chapterTransitionTimer.toFixed(3)}`,
+      `pause focus ${focusPaused ? 1 : 0}  settings ${settingsVisible ? 1 : 0}  hidden ${document.hidden ? 1 : 0}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  spring apex ${player.springLaunchTimer.toFixed(3)} hit ${visualRatio("springApex", 0.34).toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}  recharge ${visualRatio("recharge", 0.26).toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,

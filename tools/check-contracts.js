@@ -1024,6 +1024,18 @@ if (!js.includes('window.addEventListener("blur"') || !js.includes('document.add
   errors.push("focus loss should release held inputs and pause the simulation");
 }
 if (!js.includes("(settingsVisible || focusPaused) && started && !won")) errors.push("focus pause must share the normal pause boundary");
+if (!inputModule.includes("export function shouldResumeGameplayInputData(")
+  || !js.includes('window.addEventListener("pointerdown", resumeGameplayFromInput, true)')
+  || !js.includes("if (resolved.status.activeActions.length > 0) resumeGameplayFromInput();")
+  || !js.includes("syncSettingsVisibility();\n    resumeGameplayFromInput();")
+  || !browserSmoke.includes("keyboard action should recover an unmatched visible-window focus pause after respawn")) {
+  errors.push("visible keyboard, pointer and gamepad input must recover an unmatched focus pause without waking hidden or modal gameplay");
+}
+if (!js.includes('/\\p{L}/u.test(firstCharacter) ? firstCharacter.toUpperCase() : "S"')
+  || !css.includes("/* P274: restore one aligned rhythm inside the existing account disclosure. */")
+  || !browserSmoke.includes("authenticated account disclosure should keep identity, sync actions and security fields on one contained grid")) {
+  errors.push("authenticated account UI must avoid numeric pseudo-badges and keep identity, cloud actions and password controls aligned");
+}
 if (js.includes('armRouteCue("入场", null, ROUTE_CUE_TIME)')) errors.push("free play should not auto-arm an entry route cue");
 if (!js.includes("lumenReserve: false") || !js.includes("player.dashes = Math.min(2, player.dashes + 1)")) {
   errors.push("lumens should create a bounded optional dash reserve");

@@ -658,6 +658,23 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || bufferedRespawnJump.y >= manualRetryBuffers.y - 4) {
     errors.push("automatic respawn should preserve a Jump pressed inside the final input-buffer window: " + JSON.stringify({ lateDeathWindow, bufferedRespawnJump }));
   }
+  await evaluate(cdp, `window.dispatchEvent(new Event("blur"))`);
+  await waitUntil("visible gameplay records unmatched focus pause", () => evaluate(cdp, `/pause focus 1  settings 0  hidden 0/.test(document.querySelector("#debugPanel").textContent)`));
+  const focusRecoveryStart = await debugPosition(cdp);
+  await keyHold(cdp, "KeyD", "D", 280);
+  const keyboardFocusRecovery = await debugPosition(cdp);
+  if (!/pause focus 0  settings 0  hidden 0/.test(keyboardFocusRecovery.text)
+    || keyboardFocusRecovery.x - focusRecoveryStart.x < 6) {
+    errors.push("a real keyboard action should recover an unmatched visible-window focus pause after respawn: " + JSON.stringify({ focusRecoveryStart, keyboardFocusRecovery }));
+  }
+  await evaluate(cdp, `window.dispatchEvent(new Event("blur"))`);
+  await waitUntil("second unmatched focus pause", () => evaluate(cdp, `/pause focus 1  settings 0  hidden 0/.test(document.querySelector("#debugPanel").textContent)`));
+  await clickSelector(cdp, "#game");
+  const pointerFocusRecovery = await waitUntil("canvas pointer recovers unmatched focus pause", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /pause focus 0  settings 0  hidden 0/.test(text) ? text : "";
+  })()`));
+  if (!/pause focus 0/.test(pointerFocusRecovery)) errors.push("canvas pointer should recover a stale visible focus pause");
   const gameplayCanvas = await canvasInkSummary(cdp);
   if (gameplayCanvas.varied < 20 || gameplayCanvas.bright < 20) errors.push("canvas appears blank during gameplay: " + JSON.stringify(gameplayCanvas));
   await keyTap(cdp, "Digit0", "0");
@@ -2441,7 +2458,7 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
         setProject() { return this; }
       }
       class Account {
-        async get() { return { $id: "cloud-guard-user", email: "cloud-guard@example.com" }; }
+        async get() { return { $id: "cloud-guard-user", email: "2026-runner@example.com" }; }
         async deleteSession() { window.__summitCloudMock.deletes += 1; return {}; }
         updatePassword() {
           return new Promise((resolve) => {
@@ -2475,6 +2492,38 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       const summary = document.querySelector("#accountSummary")?.textContent || "";
       return mock?.upserts >= 1 && summary === "已同步" ? { upserts: mock.upserts, summary } : null;
     })()`), 7000);
+    await clickSelector(cdp, "#startSettingsButton");
+    await openSettingsGroup(cdp, ".settings-group-account");
+    const accountLayout = await evaluate(cdp, `(() => {
+      const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
+      const body = document.querySelector(".settings-group-account .account-body").getBoundingClientRect();
+      const head = document.querySelector(".account-user-head").getBoundingClientRect();
+      const avatar = document.querySelector("#accountAvatar").getBoundingClientRect();
+      const actions = [...document.querySelectorAll(".cloud-actions button")].map((button) => button.getBoundingClientRect());
+      const password = document.querySelector(".password-reset").getBoundingClientRect();
+      const firstPasswordRow = document.querySelector(".password-reset > div").getBoundingClientRect();
+      const oldPassword = document.querySelector("#accountOldPassword").getBoundingClientRect();
+      const savePassword = document.querySelector("#accountSetPassword").getBoundingClientRect();
+      return {
+        avatar: document.querySelector("#accountAvatar").textContent.trim(),
+        panelFits: panel.left >= 0 && panel.right <= innerWidth && panel.bottom <= innerHeight,
+        identityAligned: Math.abs((avatar.top + avatar.height / 2) - (head.top + head.height / 2)) <= 2,
+        actionsAligned: actions.length === 2 && Math.abs(actions[0].top - actions[1].top) <= 1 && Math.abs(actions[0].height - actions[1].height) <= 1,
+        passwordContained: password.left >= body.left && password.right <= body.right && firstPasswordRow.left >= password.left && firstPasswordRow.right <= password.right,
+        passwordRowsSeparated: oldPassword.top >= firstPasswordRow.bottom + 6,
+        saveButtonAligned: Math.abs(savePassword.top - firstPasswordRow.top) <= 1 && Math.abs(savePassword.bottom - firstPasswordRow.bottom) <= 1
+      };
+    })()`);
+    if (accountLayout.avatar !== "S"
+      || !accountLayout.panelFits
+      || !accountLayout.identityAligned
+      || !accountLayout.actionsAligned
+      || !accountLayout.passwordContained
+      || !accountLayout.passwordRowsSeparated
+      || !accountLayout.saveButtonAligned) {
+      errors.push("authenticated account disclosure should keep identity, sync actions and security fields on one contained grid: " + JSON.stringify(accountLayout));
+    }
+    await clickSelector(cdp, "#settingsClose");
     await evaluate(cdp, `(() => {
       const toggle = document.querySelector("#audioToggle");
       toggle.checked = !toggle.checked;

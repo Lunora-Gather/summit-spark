@@ -117,6 +117,20 @@ export function releaseInputState({
   });
 }
 
+export function shouldResumeGameplayInputData({
+  started = false,
+  won = false,
+  documentHidden = false,
+  settingsVisible = false,
+  focusPaused = false
+} = {}) {
+  return Boolean(started
+    && !won
+    && !documentHidden
+    && !settingsVisible
+    && focusPaused);
+}
+
 export function setInputBuffer(state, action, duration) {
   const field = Object.hasOwn(INPUT_BUFFER_FIELDS, action) ? INPUT_BUFFER_FIELDS[action] : "";
   if (!field) return false;

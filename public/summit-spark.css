@@ -2792,6 +2792,116 @@ canvas:focus {
   }
 }
 
+/* P274: restore one aligned rhythm inside the existing account disclosure. */
+.stage .settings-group-account[open] {
+  border-color: var(--ui-paper-line-strong);
+  box-shadow:
+    0 10px 24px rgba(28, 51, 59, 0.08),
+    inset 3px 0 0 rgba(79, 137, 147, 0.72);
+}
+
+.stage .settings-group-account .account-body {
+  gap: 11px;
+  padding: 12px 14px 14px;
+}
+
+.stage .account-user {
+  gap: 10px;
+}
+
+.stage .account-user-head {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  min-height: 56px;
+  gap: 10px;
+  padding: 8px 2px;
+  border-bottom: 1px solid rgba(48, 78, 86, 0.11);
+}
+
+.stage .account-avatar {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #67959c, #477b84);
+  box-shadow: 0 5px 12px rgba(39, 76, 84, 0.15);
+  font-size: 14px;
+}
+
+.stage .account-user-head > div {
+  align-content: center;
+  gap: 3px;
+}
+
+.stage .account-user-head strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.stage .account-user-head span:not(.account-avatar) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage .cloud-actions {
+  gap: 7px;
+}
+
+.stage .cloud-actions .focus-button {
+  min-height: 40px;
+  border-radius: 9px;
+}
+
+.stage .password-reset {
+  gap: 7px;
+  padding: 11px;
+  border: 1px solid rgba(48, 78, 86, 0.11);
+  border-radius: 10px;
+  background: rgba(247, 250, 247, 0.34);
+}
+
+.stage .password-reset > span {
+  line-height: 1.3;
+}
+
+.stage .password-reset > div {
+  grid-template-columns: minmax(0, 1fr) 88px;
+  gap: 7px;
+}
+
+.stage .password-reset .focus-button {
+  min-height: 40px;
+  padding-inline: 9px;
+  border-radius: 8px;
+}
+
+.stage #accountLogout {
+  justify-self: end;
+  min-height: 32px;
+  padding: 5px 2px;
+}
+
+.stage .settings-group-account .account-status {
+  margin-top: 0;
+  padding-top: 9px !important;
+  line-height: 1.45;
+}
+
+@media (max-width: 430px) {
+  .stage .settings-group-account .account-body {
+    padding: 11px 12px 13px;
+  }
+
+  .stage .password-reset {
+    padding: 10px;
+  }
+
+  .stage .password-reset > div {
+    grid-template-columns: minmax(0, 1fr) 92px;
+  }
+}
+
 /* P27 responsive stage: fit both viewport axes and compact UI from the stage size. */
 :root {
   --stage-ratio: 1.7647058824;

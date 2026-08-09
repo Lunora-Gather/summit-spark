@@ -1847,7 +1847,7 @@ async function runSpringApexSmoke(cdp, baseUrl) {
       ? { timer: Number(timer[1]), vx: Number(velocity[1]), vy: Number(velocity[2]), text }
       : null;
   })()`), 1200, 10);
-  await keyTap(cdp, "KeyK", "K");
+  await keyDown(cdp, "KeyK", "K");
   let recognized;
   try {
     recognized = await waitUntil("R10 apex dash closes the spring timing loop", () => evaluate(cdp, `(() => {
@@ -1869,6 +1869,8 @@ async function runSpringApexSmoke(cdp, baseUrl) {
   } catch (error) {
     const probe = await debugPosition(cdp);
     throw new Error(`${error.message}: ${JSON.stringify({ apex, probe })}`);
+  } finally {
+    await keyUp(cdp, "KeyK", "K");
   }
   await keyTap(cdp, "KeyR", "R");
   const reset = await waitUntil("R10 retry clears spring apex attempt state", () => evaluate(cdp, `(() => {

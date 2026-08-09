@@ -7215,3 +7215,625 @@ textarea,
     background: linear-gradient(180deg, rgba(11, 24, 35, 0.16), rgba(11, 24, 35, 0.28));
   }
 }
+
+/* P273: one quiet interface language across entry, play, practice and review. */
+.stage {
+  --ui-paper: rgba(238, 244, 239, 0.985);
+  --ui-paper-soft: rgba(218, 229, 225, 0.985);
+  --ui-paper-line: rgba(51, 79, 88, 0.16);
+  --ui-paper-line-strong: rgba(48, 81, 89, 0.25);
+  --ui-paper-ink: #29414b;
+  --ui-paper-muted: #536970;
+  --ui-gold: #d7ad56;
+  --ui-green: #729b82;
+  --ui-shadow: 0 24px 60px rgba(20, 39, 48, 0.26);
+}
+
+.stage .hud {
+  inset: 16px 16px auto;
+  gap: 12px;
+}
+
+.stage .brand,
+.stage .meters,
+.stage .hud-actions {
+  min-height: 38px;
+  border-color: rgba(225, 238, 234, 0.18);
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(48, 73, 87, 0.78), rgba(30, 50, 64, 0.68));
+  box-shadow:
+    0 8px 24px rgba(18, 35, 47, 0.16),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(9px) saturate(1.04);
+}
+
+.stage .brand {
+  gap: 8px;
+  padding: 5px 10px;
+  color: rgba(244, 249, 246, 0.9);
+  font-size: 12.5px;
+  font-weight: 680;
+}
+
+.stage .mark {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #e9d878, #7ea88e);
+  box-shadow: 0 0 0 3px rgba(229, 206, 115, 0.08), 0 0 12px rgba(229, 206, 115, 0.24);
+}
+
+.stage .meters {
+  gap: 5px;
+  padding: 5px 7px;
+}
+
+.stage .dash-meter,
+.stage .stamina-meter {
+  width: 68px;
+  height: 9px;
+  border-color: rgba(226, 239, 235, 0.22);
+  background: rgba(8, 24, 37, 0.38);
+}
+
+.stage .counter {
+  min-width: 52px;
+  padding: 5px 7px;
+  border-color: rgba(225, 238, 234, 0.13);
+  border-radius: 7px;
+  background: rgba(227, 239, 234, 0.12);
+  color: rgba(241, 247, 244, 0.82);
+  font-size: 12px;
+  font-weight: 640;
+}
+
+.stage #lumenCount {
+  border-color: rgba(235, 204, 114, 0.24);
+  background: rgba(227, 239, 234, 0.12);
+  color: #f6df91;
+  font-weight: 720;
+}
+
+.stage #roomCount {
+  color: rgba(220, 232, 230, 0.72);
+}
+
+.stage #runTime {
+  min-width: 72px;
+  color: rgba(248, 250, 244, 0.94);
+  font-weight: 720;
+}
+
+.stage #deathCount {
+  color: rgba(235, 224, 214, 0.78);
+}
+
+.stage .hud-actions {
+  gap: 4px;
+  padding: 3px;
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.stage .hud-actions .icon-button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(55, 80, 92, 0.66), rgba(37, 61, 75, 0.66));
+  color: rgba(238, 246, 242, 0.78);
+  box-shadow: none;
+  transition: color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.stage .hud-actions .icon-button:hover {
+  background: rgba(233, 210, 137, 0.13);
+  color: #fff1c7;
+  transform: translateY(-1px);
+}
+
+.stage .entry-gate {
+  width: min(404px, calc(100% - 32px));
+  gap: 10px;
+  padding: 28px;
+  border-color: rgba(231, 240, 235, 0.82);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 92% 4%, rgba(105, 157, 150, 0.18), transparent 36%),
+    linear-gradient(150deg, var(--ui-paper), var(--ui-paper-soft));
+  box-shadow: var(--ui-shadow), 0 1px 0 rgba(255, 255, 255, 0.86) inset;
+  background-color: #dae5e1;
+}
+
+.stage .entry-eyebrow,
+.stage .start-eyebrow {
+  color: #274e52;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.18em;
+}
+
+.stage #entryGate h1 {
+  margin-bottom: 8px;
+  color: var(--ui-paper-ink);
+  font-size: clamp(23px, 4vw, 28px);
+  font-weight: 760;
+  letter-spacing: -0.04em;
+}
+
+.stage .entry-options {
+  gap: 10px;
+}
+
+.stage .entry-option {
+  min-height: 66px;
+  padding: 11px 13px;
+  border-color: rgba(51, 79, 88, 0.13);
+  border-radius: 13px;
+  background: rgba(249, 251, 248, 0.58);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.62) inset;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.stage .entry-option.guest {
+  border-color: rgba(65, 111, 112, 0.34);
+  background: rgba(248, 251, 247, 0.82);
+  box-shadow: 4px 0 0 rgba(104, 149, 140, 0.58) inset, 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+.stage .entry-option.account {
+  border-color: rgba(61, 91, 99, 0.14);
+  background: rgba(201, 220, 215, 0.42);
+}
+
+.stage .entry-option:hover {
+  border-color: rgba(52, 107, 108, 0.38);
+  background: rgba(252, 253, 250, 0.92);
+  box-shadow: 0 8px 18px rgba(39, 66, 73, 0.08), 0 1px 0 rgba(255, 255, 255, 0.74) inset;
+}
+
+.stage .entry-option-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+}
+
+.stage .entry-option.guest .entry-option-icon {
+  border-color: rgba(179, 142, 62, 0.2);
+  background: rgba(240, 219, 156, 0.26);
+  color: #84682d;
+}
+
+.stage .entry-option strong {
+  font-size: 13.5px;
+  font-weight: 730;
+}
+
+.stage .entry-option small {
+  color: #334f56;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.stage .start-panel {
+  width: min(450px, calc(100% - 30px));
+  padding: 24px;
+}
+
+.stage .start-panel h1 {
+  margin: 2px 0 16px;
+  color: #fff0bd;
+  font-size: clamp(48px, 7.2vw, 66px);
+  font-weight: 760;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  text-shadow: 0 3px 0 rgba(33, 50, 65, 0.72), 0 16px 36px rgba(18, 34, 46, 0.4);
+}
+
+.stage .start-actions {
+  gap: 9px;
+}
+
+.stage .start-actions > #startButton {
+  min-height: 52px;
+  border-color: rgba(255, 239, 191, 0.58);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #efd17b, #d9a653);
+  color: #24333c;
+  box-shadow: 0 4px 0 #9c6652, 0 10px 22px rgba(29, 46, 57, 0.18);
+  font-size: 16px;
+  font-weight: 760;
+}
+
+.stage .start-actions > .secondary-start,
+.stage .start-actions > .account-entry {
+  min-height: 44px;
+  border-color: rgba(222, 236, 231, 0.24);
+  border-radius: 12px;
+  background: rgba(225, 235, 231, 0.72);
+  color: rgba(43, 64, 72, 0.88);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.42) inset;
+  font-size: 12.5px;
+  font-weight: 650;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.stage .start-actions > .secondary-start:hover,
+.stage .start-actions > .account-entry:hover {
+  border-color: rgba(236, 214, 142, 0.44);
+  background: rgba(239, 241, 224, 0.88);
+  transform: translateY(-1px);
+}
+
+.stage .start-actions > .resume-start:not(.hidden) {
+  border-color: rgba(151, 190, 161, 0.42);
+  background: rgba(192, 215, 197, 0.84);
+  color: #365545;
+}
+
+.stage .settings-panel,
+.stage .settings-panel.mode-practice {
+  border-color: var(--ui-paper-line-strong);
+  background:
+    radial-gradient(circle at 96% 0%, rgba(112, 159, 154, 0.11), transparent 34%),
+    linear-gradient(150deg, rgba(235, 241, 238, 0.99), rgba(218, 229, 225, 0.99));
+  box-shadow: var(--ui-shadow), 0 1px 0 rgba(255, 255, 255, 0.78) inset;
+  background-color: #dce7e4;
+}
+
+.stage .settings-panel.mode-settings {
+  width: min(468px, calc(100% - 32px));
+}
+
+.stage .settings-panel.mode-practice {
+  width: min(620px, calc(100% - 32px));
+}
+
+.stage .settings-head {
+  min-height: 58px;
+  padding: 17px 64px 15px 20px;
+  border-bottom: 1px solid rgba(56, 84, 92, 0.12);
+  background: rgba(250, 252, 248, 0.5);
+}
+
+.stage .settings-head strong {
+  color: var(--ui-paper-ink);
+  font-size: 17px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+
+.stage .settings-panel .settings-head .mini-button {
+  top: 10px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: #50666d;
+  font-size: 19px;
+}
+
+.stage .settings-body {
+  padding: 11px 12px 14px;
+}
+
+.stage .settings-group {
+  margin-bottom: 9px;
+  border-color: rgba(59, 89, 97, 0.11);
+  border-radius: 13px;
+  background: rgba(248, 250, 246, 0.4);
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.stage .settings-group:last-child {
+  margin-bottom: 0;
+}
+
+.stage .settings-group summary {
+  min-height: 48px;
+  padding: 12px 14px;
+}
+
+.stage .settings-group summary > span:first-child {
+  color: #243f48;
+  font-size: 13.5px;
+  font-weight: 720;
+}
+
+.stage .settings-group[open] {
+  border-color: rgba(63, 101, 108, 0.22);
+  background: rgba(250, 252, 248, 0.78);
+  box-shadow: 0 8px 20px rgba(39, 63, 71, 0.065);
+}
+
+.stage .settings-group-body {
+  padding: 0 13px 12px;
+}
+
+.stage .settings-panel .control-row {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 9px;
+}
+
+.stage .settings-panel .control-row > span {
+  color: #334f57;
+  font-size: 12px;
+  font-weight: 690;
+}
+
+.stage .settings-panel .control-row select,
+.stage .settings-panel textarea {
+  min-height: 36px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.stage .settings-group summary > small,
+.stage .settings-panel .binding-tools output,
+.stage .account-note,
+.stage .account-status {
+  color: #25434b;
+}
+
+.stage .binding-section-title,
+.stage .settings-group summary > .settings-group-chevron {
+  color: #294850;
+}
+
+.stage .settings-panel input::placeholder,
+.stage .settings-panel textarea::placeholder {
+  color: #425c62;
+  opacity: 1;
+}
+
+.stage .settings-panel .text-button {
+  color: #15343c;
+  background: rgba(248, 251, 248, 0.64);
+}
+
+.stage .settings-panel .account-status {
+  color: #25434b !important;
+}
+
+.stage .settings-panel .room-brief {
+  gap: 11px;
+  padding: 14px;
+  border-color: rgba(57, 88, 96, 0.16);
+  border-radius: 12px;
+  background: rgba(252, 253, 249, 0.7);
+}
+
+.stage .room-brief-head strong {
+  font-size: 14.5px;
+  font-weight: 750;
+}
+
+.stage .room-brief-head em,
+.stage .room-brief-stats,
+.stage .room-brief-focus small {
+  font-size: 11px;
+}
+
+.stage .room-brief-focus b {
+  color: #7d602b;
+  font-size: 10.5px;
+}
+
+.stage .room-brief-focus em {
+  color: #304a54;
+  font-size: 12.5px;
+  font-weight: 680;
+  line-height: 1.4;
+}
+
+.stage .room-route-grid {
+  gap: 8px;
+}
+
+.stage .room-route {
+  min-height: 60px;
+  padding: 9px 10px;
+  border-color: rgba(57, 87, 95, 0.14);
+  border-radius: 9px;
+  background: rgba(225, 235, 229, 0.54);
+}
+
+.stage .room-route b {
+  font-size: 10.5px;
+}
+
+.stage .room-route em {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.stage .drill-variants {
+  gap: 8px;
+}
+
+.stage .settings-panel .variant-button {
+  min-height: 40px;
+  border-radius: 9px;
+  color: #405b63;
+  font-size: 11.5px;
+  font-weight: 660;
+}
+
+.stage .settings-panel .variant-button:hover,
+.stage .settings-panel .variant-button.active,
+.stage .settings-panel .variant-button[aria-pressed="true"] {
+  border-color: rgba(80, 126, 120, 0.34);
+  background: rgba(197, 220, 205, 0.72);
+  color: #315647;
+}
+
+.stage .practice-launch-dock {
+  padding: 11px 13px 13px;
+  border-top-color: rgba(54, 83, 92, 0.14);
+  background: rgba(224, 233, 229, 0.92);
+  box-shadow: 0 -10px 24px rgba(40, 66, 73, 0.06);
+}
+
+.stage .practice-launch-dock .focus-button {
+  min-height: 48px;
+  border-color: rgba(67, 112, 112, 0.36);
+  border-radius: 11px;
+  background: linear-gradient(180deg, #739b9e, #5f858e);
+  color: #f6faf7;
+  box-shadow: 0 3px 0 rgba(48, 79, 86, 0.38);
+  font-size: 13px;
+  font-weight: 730;
+}
+
+.stage .finish-sheet {
+  border-color: rgba(228, 239, 232, 0.24);
+  border-radius: 19px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(231, 198, 106, 0.08), transparent 34%),
+    linear-gradient(150deg, rgba(31, 48, 61, 0.96), rgba(24, 37, 51, 0.97));
+  box-shadow: 0 26px 68px rgba(10, 22, 33, 0.34), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.stage .finish-hero .finish-title {
+  color: #fff0b5;
+  letter-spacing: -0.04em;
+}
+
+.stage .finish-stats > span,
+.stage .finish-progress > span,
+.stage .finish-sheet .review-card,
+.stage .review-more {
+  border-color: rgba(225, 237, 232, 0.12);
+  background: rgba(229, 238, 232, 0.055);
+}
+
+.stage .review-more summary {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+@media (max-width: 760px) {
+  .stage .hud {
+    inset: 9px 9px auto;
+    gap: 6px;
+  }
+
+  .stage .brand,
+  .stage .meters,
+  .stage .hud-actions {
+    min-height: 34px;
+    border-radius: 9px;
+  }
+
+  .stage .brand {
+    padding: 4px 7px;
+    font-size: 11px;
+  }
+
+  .stage .meters {
+    gap: 3px;
+    padding: 4px;
+  }
+
+  .stage .counter,
+  .stage .counter.stat {
+    min-width: 40px;
+    padding: 4px 5px;
+    font-size: 10.5px;
+  }
+
+  .stage #runTime {
+    min-width: 58px;
+  }
+
+  .stage .settings-panel.mode-settings,
+  .stage .settings-panel.mode-practice {
+    width: auto;
+  }
+
+  .stage .settings-head {
+    min-height: 54px;
+    padding: 15px 60px 13px 17px;
+  }
+
+  .stage .settings-head strong {
+    font-size: 16px;
+  }
+
+  .stage .settings-panel .settings-head .mini-button {
+    top: 5px;
+    right: 9px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .stage .settings-body {
+    padding: 9px 10px 12px;
+  }
+
+  .stage .settings-group summary {
+    min-height: 46px;
+    padding: 11px 12px;
+  }
+
+  .stage #roomSelect {
+    min-height: 44px;
+  }
+
+  .stage .start-panel {
+    width: min(420px, calc(100% - 20px));
+    padding: 18px;
+  }
+
+  .stage .start-panel h1 {
+    margin-bottom: 13px;
+    font-size: clamp(40px, 12vw, 56px);
+  }
+}
+
+@media (max-width: 430px) {
+  .stage .entry-gate {
+    width: 100%;
+    padding: 20px;
+    border-radius: 17px;
+  }
+
+  .stage .entry-option {
+    min-height: 62px;
+  }
+
+  .stage .start-actions {
+    gap: 7px;
+  }
+
+  .stage .start-actions > .secondary-start,
+  .stage .start-actions > .account-entry {
+    min-height: 44px;
+    font-size: 11.5px;
+  }
+
+  .stage .room-route-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stage .room-route {
+    min-height: 0;
+  }
+
+  .stage .drill-variants {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage .entry-option,
+  .stage .start-actions > .secondary-start,
+  .stage .start-actions > .account-entry,
+  .stage .hud-actions .icon-button,
+  .stage .settings-group {
+    transition: none;
+  }
+}

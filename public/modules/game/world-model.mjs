@@ -15,6 +15,54 @@ export function roomWorldData(rows, options = {}) {
   return { columns, width: columns * tile };
 }
 
+export function roomEntrySpawnData(rows, options = {}) {
+  const tile = Math.max(1, finite(options.tile, 32));
+  const playerWidth = Math.max(1, finite(options.playerWidth, 19));
+  const playerHeight = Math.max(1, finite(options.playerHeight, 25));
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const anchors = [];
+  rows.forEach((row, y) => {
+    if (typeof row !== "string") return;
+    Array.from(row).forEach((marker, x) => {
+      if (marker === "S" || marker === "P") anchors.push({ x, y, marker });
+    });
+  });
+  if (anchors.length !== 1) return null;
+  const anchor = anchors[0];
+  return {
+    x: anchor.x * tile + (tile - playerWidth) / 2,
+    y: anchor.y * tile + tile - playerHeight,
+    tileX: anchor.x,
+    tileY: anchor.y,
+    marker: anchor.marker
+  };
+}
+
+export function nearestSafePositionData(options = {}) {
+  const originX = finite(options.x, 0);
+  const originY = finite(options.y, 0);
+  const maxRadius = Math.max(0, Math.floor(finite(options.maxRadius, 64)));
+  const isBlocked = typeof options.isBlocked === "function" ? options.isBlocked : () => false;
+  if (!isBlocked(originX, originY)) {
+    return { x: originX, y: originY, recovered: false, distance: 0 };
+  }
+  const directions = [
+    [0, -1],
+    [-1, 0], [1, 0],
+    [-1, -1], [1, -1],
+    [0, 1],
+    [-1, 1], [1, 1]
+  ];
+  for (const [directionX, directionY] of directions) {
+    for (let radius = 1; radius <= maxRadius; radius += 1) {
+      const x = originX + directionX * radius;
+      const y = originY + directionY * radius;
+      if (!isBlocked(x, y)) return { x, y, recovered: true, distance: radius };
+    }
+  }
+  return null;
+}
+
 export function cameraFollowData(options = {}) {
   const viewportWidth = Math.max(1, finite(options.viewportWidth, 960));
   const worldWidth = Math.max(viewportWidth, finite(options.worldWidth, viewportWidth));

@@ -54,7 +54,9 @@
     {
       cameraFollowData,
       driftShardPositionData,
+      nearestSafePositionData,
       phaseBlockActiveData,
+      roomEntrySpawnData,
       roomWorldData
     },
     {
@@ -192,19 +194,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260809-p274"),
-    import("./modules/core/math.mjs?v=20260809-p274"),
-    import("./modules/game/room-data.mjs?v=20260809-p274"),
-    import("./modules/game/world-model.mjs?v=20260809-p274"),
-    import("./modules/game/effect-budget.mjs?v=20260809-p274"),
-    import("./modules/game/landmark-progress.mjs?v=20260809-p274"),
-    import("./modules/game/audio-cues.mjs?v=20260809-p274"),
-    import("./modules/game/lumen-progress.mjs?v=20260809-p274"),
-    import("./modules/systems/storage.mjs?v=20260809-p274"),
-    import("./modules/systems/input.mjs?v=20260809-p274"),
-    import("./modules/training/state.mjs?v=20260809-p274"),
-    import("./modules/training/replay.mjs?v=20260809-p274"),
-    import("./modules/ui/presentation.mjs?v=20260809-p274")
+    import("./modules/core/format.mjs?v=20260809-p275"),
+    import("./modules/core/math.mjs?v=20260809-p275"),
+    import("./modules/game/room-data.mjs?v=20260809-p275"),
+    import("./modules/game/world-model.mjs?v=20260809-p275"),
+    import("./modules/game/effect-budget.mjs?v=20260809-p275"),
+    import("./modules/game/landmark-progress.mjs?v=20260809-p275"),
+    import("./modules/game/audio-cues.mjs?v=20260809-p275"),
+    import("./modules/game/lumen-progress.mjs?v=20260809-p275"),
+    import("./modules/systems/storage.mjs?v=20260809-p275"),
+    import("./modules/systems/input.mjs?v=20260809-p275"),
+    import("./modules/training/state.mjs?v=20260809-p275"),
+    import("./modules/training/replay.mjs?v=20260809-p275"),
+    import("./modules/ui/presentation.mjs?v=20260809-p275")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1624,6 +1626,16 @@
     return room?.worldWidth || W;
   }
 
+  function roomEntrySpawn(index = roomIndex) {
+    const spawn = roomEntrySpawnData(maps[index], {
+      tile: TILE,
+      playerWidth: player.w,
+      playerHeight: player.h
+    });
+    if (spawn) return { x: spawn.x, y: spawn.y };
+    return room?.entities?.start || { x: TILE * 2, y: TILE * 12 };
+  }
+
   function clampCamera(value) {
     return Math.max(0, Math.min(Math.max(0, roomWorldWidth() - W), value));
   }
@@ -1651,10 +1663,7 @@
     roomIndex = index;
     room = parseRoom(roomIndex);
     resetRoomTech();
-    const checkpoint = room.entities.checkpoints[0];
-    const spawn = checkpoint
-      ? { x: checkpoint.x - player.w / 2, y: checkpoint.y + TILE / 2 - player.h }
-      : room.entities.start;
+    const spawn = roomEntrySpawn(index);
     Object.assign(player, {
       x: spawn.x,
       y: spawn.y,
@@ -3121,35 +3130,21 @@
     }
   }
 
-  function unstuckFromSolids() {
-    if (!collidesSolid(getPlayerBox())) return;
-
-    const originalX = player.x;
-    const originalY = player.y;
-    for (let radius = 1; radius <= 8; radius++) {
-      const offsets = [
-        [0, -radius],
-        [-radius, 0],
-        [radius, 0],
-        [0, radius],
-        [-radius, -radius],
-        [radius, -radius],
-        [-radius, radius],
-        [radius, radius]
-      ];
-      for (const [ox, oy] of offsets) {
-        player.x = originalX + ox;
-        player.y = originalY + oy;
-        if (!collidesSolid(getPlayerBox())) {
-          player.vx = 0;
-          player.vy = 0;
-          return;
-        }
-      }
+  function unstuckFromSolids(maxRadius = TILE * 2) {
+    const recovery = nearestSafePositionData({
+      x: player.x,
+      y: player.y,
+      maxRadius,
+      isBlocked: (x, y) => collidesSolid({ x, y, w: player.w, h: player.h })
+    });
+    if (!recovery) return null;
+    player.x = recovery.x;
+    player.y = recovery.y;
+    if (recovery.recovered) {
+      player.vx = 0;
+      player.vy = 0;
     }
-
-    player.x = originalX;
-    player.y = originalY;
+    return recovery;
   }
 
   function tryVerticalCornerCorrection() {
@@ -3257,7 +3252,9 @@
       room = parseRoom(roomIndex);
       resetRoomTech();
       lightTrails.length = 0;
+      const entrySpawn = roomEntrySpawn(roomIndex);
       player.x = -player.w + 4;
+      player.y = entrySpawn.y;
       cameraX = 0;
       cameraTargetX = 0;
       roomTime = 0;
@@ -3266,8 +3263,8 @@
       roomIntroTimer = ROOM_INTRO_TIME;
       armRouteCue("下一房", null, ROUTE_CUE_TIME);
       player.respawnRoom = roomIndex;
-      player.respawnX = 26;
-      player.respawnY = Math.min(player.y, H - TILE * 3);
+      player.respawnX = entrySpawn.x;
+      player.respawnY = entrySpawn.y;
       player.respawnRoomTime = 0;
       player.respawnLumens = [];
       echoAnchor = null;
@@ -3284,6 +3281,14 @@
       resetRoomTech();
       lightTrails.length = 0;
       player.x = roomWorldWidth() - 5;
+      player.y = Math.min(player.y, H - TILE * 3);
+      let returnRecovery = unstuckFromSolids();
+      if (!returnRecovery) {
+        const entrySpawn = roomEntrySpawn(roomIndex);
+        player.x = entrySpawn.x;
+        player.y = entrySpawn.y;
+        returnRecovery = unstuckFromSolids();
+      }
       cameraX = Math.max(0, roomWorldWidth() - W);
       cameraTargetX = cameraX;
       roomTime = 0;
@@ -3293,7 +3298,7 @@
       armRouteCue("回看", null, ROUTE_CUE_TIME);
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
-      player.respawnY = Math.min(player.y, H - TILE * 3);
+      player.respawnY = player.y;
       player.respawnRoomTime = 0;
       player.respawnLumens = [];
       echoAnchor = null;
@@ -3334,6 +3339,15 @@
     resetRoomTech();
     player.x = player.respawnX;
     player.y = player.respawnY;
+    let spawnRecovery = unstuckFromSolids();
+    if (!spawnRecovery) {
+      const entrySpawn = roomEntrySpawn(roomIndex);
+      player.x = entrySpawn.x;
+      player.y = entrySpawn.y;
+      spawnRecovery = unstuckFromSolids();
+    }
+    player.respawnX = player.x;
+    player.respawnY = player.y;
     player.vx = 0;
     player.vy = 0;
     player.onGround = false;
@@ -3425,10 +3439,7 @@
     resetCurrentRoomLumenAttempt();
     room = parseRoom(roomIndex);
     resetRoomTech();
-    const checkpoint = room.entities.checkpoints[0];
-    const target = checkpoint
-      ? { x: checkpoint.x - player.w / 2, y: checkpoint.y + TILE / 2 - player.h }
-      : room.entities.start;
+    const target = roomEntrySpawn(roomIndex);
     Object.assign(player, {
       x: target.x,
       y: target.y,
@@ -11768,6 +11779,7 @@
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${chapterTransitionTimer.toFixed(3)}`,
       `pause focus ${focusPaused ? 1 : 0}  settings ${settingsVisible ? 1 : 0}  hidden ${document.hidden ? 1 : 0}`,
+      `respawn ${player.respawnX.toFixed(1)}, ${player.respawnY.toFixed(1)}  overlap ${collidesSolid(getPlayerBox()) ? 1 : 0}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  spring apex ${player.springLaunchTimer.toFixed(3)} hit ${visualRatio("springApex", 0.34).toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}  recharge ${visualRatio("recharge", 0.26).toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,

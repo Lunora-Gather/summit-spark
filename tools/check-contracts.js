@@ -9,6 +9,7 @@ const js = fs.readFileSync(path.join(root, "public", "summit-spark.js"), "utf8")
 const coreFormat = fs.readFileSync(path.join(root, "public", "modules", "core", "format.mjs"), "utf8");
 const coreMath = fs.readFileSync(path.join(root, "public", "modules", "core", "math.mjs"), "utf8");
 const roomData = fs.readFileSync(path.join(root, "public", "modules", "game", "room-data.mjs"), "utf8");
+const worldModelModule = fs.readFileSync(path.join(root, "public", "modules", "game", "world-model.mjs"), "utf8");
 const landmarkProgressModule = fs.readFileSync(path.join(root, "public", "modules", "game", "landmark-progress.mjs"), "utf8");
 const audioCuesModule = fs.readFileSync(path.join(root, "public", "modules", "game", "audio-cues.mjs"), "utf8");
 const lumenProgressModule = fs.readFileSync(path.join(root, "public", "modules", "game", "lumen-progress.mjs"), "utf8");
@@ -1035,6 +1036,14 @@ if (!js.includes('/\\p{L}/u.test(firstCharacter) ? firstCharacter.toUpperCase() 
   || !css.includes("/* P274: restore one aligned rhythm inside the existing account disclosure. */")
   || !browserSmoke.includes("authenticated account disclosure should keep identity, sync actions and security fields on one contained grid")) {
   errors.push("authenticated account UI must avoid numeric pseudo-badges and keep identity, cloud actions and password controls aligned");
+}
+if (!worldModelModule.includes("export function roomEntrySpawnData(")
+  || !worldModelModule.includes("export function nearestSafePositionData(")
+  || !js.includes("const entrySpawn = roomEntrySpawn(roomIndex);")
+  || !js.includes("player.respawnX = entrySpawn.x;")
+  || !js.includes("player.respawnY = entrySpawn.y;")
+  || !js.includes("function unstuckFromSolids(maxRadius = TILE * 2)")) {
+  errors.push("room transitions and legacy respawns must use canonical entries plus a full-tile bounded solid recovery");
 }
 if (js.includes('armRouteCue("入场", null, ROUTE_CUE_TIME)')) errors.push("free play should not auto-arm an entry route cue");
 if (!js.includes("lumenReserve: false") || !js.includes("player.dashes = Math.min(2, player.dashes + 1)")) {

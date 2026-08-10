@@ -194,19 +194,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260810-p277"),
-    import("./modules/core/math.mjs?v=20260810-p277"),
-    import("./modules/game/room-data.mjs?v=20260810-p277"),
-    import("./modules/game/world-model.mjs?v=20260810-p277"),
-    import("./modules/game/effect-budget.mjs?v=20260810-p277"),
-    import("./modules/game/landmark-progress.mjs?v=20260810-p277"),
-    import("./modules/game/audio-cues.mjs?v=20260810-p277"),
-    import("./modules/game/lumen-progress.mjs?v=20260810-p277"),
-    import("./modules/systems/storage.mjs?v=20260810-p277"),
-    import("./modules/systems/input.mjs?v=20260810-p277"),
-    import("./modules/training/state.mjs?v=20260810-p277"),
-    import("./modules/training/replay.mjs?v=20260810-p277"),
-    import("./modules/ui/presentation.mjs?v=20260810-p277")
+    import("./modules/core/format.mjs?v=20260810-p278"),
+    import("./modules/core/math.mjs?v=20260810-p278"),
+    import("./modules/game/room-data.mjs?v=20260810-p278"),
+    import("./modules/game/world-model.mjs?v=20260810-p278"),
+    import("./modules/game/effect-budget.mjs?v=20260810-p278"),
+    import("./modules/game/landmark-progress.mjs?v=20260810-p278"),
+    import("./modules/game/audio-cues.mjs?v=20260810-p278"),
+    import("./modules/game/lumen-progress.mjs?v=20260810-p278"),
+    import("./modules/systems/storage.mjs?v=20260810-p278"),
+    import("./modules/systems/input.mjs?v=20260810-p278"),
+    import("./modules/training/state.mjs?v=20260810-p278"),
+    import("./modules/training/replay.mjs?v=20260810-p278"),
+    import("./modules/ui/presentation.mjs?v=20260810-p278")
   ]);
 
   const canvas = document.getElementById("game");
@@ -9630,6 +9630,7 @@
   function drawTerrainArchitecture(time) {
     const atmosphere = roomAtmosphere();
     const chapter = chapterIndexForRoom(roomIndex);
+    const architecture = ROOM_LANDMARKS[roomIndex]?.kind || "gate-steps";
     const motion = prefersReducedMotion ? 0 : time;
     let painted = 0;
     ctx.save();
@@ -9663,9 +9664,9 @@
         const top = y * TILE;
         const bottom = landingRow * TILE;
         const gap = bottom - (top + TILE);
-        drawTerraceProfile(left, top, width, atmosphere, chapter);
+        drawTerraceProfile(left, top, width, atmosphere, chapter, architecture, painted);
         if (gap >= TILE * 1.5) {
-          drawTerraceSupport(left, top + TILE, width, gap, chapter, atmosphere, motion, painted);
+          drawTerraceSupport(left, top + TILE, width, gap, chapter, atmosphere, motion, painted, architecture);
         }
         painted += 1;
       }
@@ -9676,6 +9677,7 @@
   function drawTerrainAccents(time) {
     const atmosphere = roomAtmosphere();
     const chapter = chapterIndexForRoom(roomIndex);
+    const architecture = ROOM_LANDMARKS[roomIndex]?.kind || "gate-steps";
     const motion = prefersReducedMotion ? 0 : time;
     let painted = 0;
     ctx.save();
@@ -9703,7 +9705,78 @@
         const faceY = y * TILE + 17;
         const center = left + width / 2;
 
-        if (chapter === 0) {
+        if (architecture === "relay-bridge") {
+          ctx.beginPath();
+          ctx.moveTo(left + 8, faceY - 4);
+          ctx.quadraticCurveTo(center, faceY + 8, left + width - 8, faceY - 4);
+          ctx.stroke();
+        } else if (architecture === "mist-springs") {
+          ctx.beginPath();
+          ctx.moveTo(left + 8, faceY + 3);
+          for (let step = 1; step < 6; step += 1) {
+            ctx.lineTo(left + 8 + (width - 16) * (step / 6), faceY + (step % 2 ? -4 : 3));
+          }
+          ctx.lineTo(left + width - 8, faceY + 3);
+          ctx.stroke();
+        } else if (architecture === "triple-link") {
+          [-11, 0, 11].forEach((offset, index) => {
+            ctx.save();
+            ctx.translate(center + offset * 1.35, faceY + (index === 1 ? -1 : 1));
+            ctx.rotate(Math.PI / 4);
+            ctx.strokeRect(-4, -4, 8, 8);
+            ctx.restore();
+          });
+        } else if (architecture === "switchback") {
+          ctx.beginPath();
+          ctx.moveTo(left + 8, faceY + 4);
+          ctx.lineTo(center - 8, faceY + 4);
+          ctx.lineTo(center - 8, faceY - 4);
+          ctx.lineTo(left + width - 8, faceY - 4);
+          ctx.stroke();
+        } else if (architecture === "broken-gate") {
+          const split = center + (((start + y) % 3) - 1) * 7;
+          ctx.beginPath();
+          ctx.moveTo(left + 8, faceY - 3);
+          ctx.lineTo(split - 8, faceY + 2);
+          ctx.lineTo(split, faceY - 6);
+          ctx.moveTo(split + 5, faceY + 5);
+          ctx.lineTo(left + width - 8, faceY - 2);
+          ctx.stroke();
+        } else if (architecture === "wind-notch") {
+          const sway = Math.sin(motion * 0.7 + start + y) * 1.5;
+          [-12, 10].forEach((offset) => {
+            ctx.beginPath();
+            ctx.moveTo(center + offset - 9, faceY + 5);
+            ctx.lineTo(center + offset + 9 + sway, faceY - 5);
+            ctx.stroke();
+          });
+        } else if (architecture === "prism-hall") {
+          ctx.beginPath();
+          ctx.moveTo(left + 8, faceY + 2);
+          ctx.lineTo(center - 8, faceY + 2);
+          ctx.lineTo(center, faceY - 6);
+          ctx.lineTo(center + 8, faceY + 2);
+          ctx.lineTo(left + width - 8, faceY + 2);
+          ctx.stroke();
+        } else if (architecture === "echo-rings") {
+          ctx.beginPath();
+          ctx.arc(center, faceY - 9, Math.min(18, width * 0.18), Math.PI * 0.16, Math.PI * 0.84);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(center, faceY - 12, Math.min(27, width * 0.27), Math.PI * 0.2, Math.PI * 0.8);
+          ctx.stroke();
+        } else if (architecture === "summit-mark") {
+          ctx.beginPath();
+          ctx.moveTo(left + 8, faceY + 3);
+          ctx.lineTo(center, faceY - 6);
+          ctx.lineTo(left + width - 8, faceY + 3);
+          ctx.stroke();
+          ctx.save();
+          ctx.translate(center, faceY - 1);
+          ctx.rotate(Math.PI / 4);
+          ctx.strokeRect(-4, -4, 8, 8);
+          ctx.restore();
+        } else if (chapter === 0) {
           ctx.beginPath();
           ctx.moveTo(left + 10, faceY);
           ctx.lineTo(center - 8, faceY);
@@ -9719,14 +9792,6 @@
           ctx.lineTo(left + offset + 9, faceY - 3);
           ctx.lineTo(left + offset + 18, faceY + 4);
           ctx.stroke();
-        } else if (chapter === 2) {
-          const sway = Math.sin(motion * 0.7 + start + y) * 1.5;
-          [-12, 10].forEach((offset) => {
-            ctx.beginPath();
-            ctx.moveTo(center + offset - 9, faceY + 5);
-            ctx.lineTo(center + offset + 9 + sway, faceY - 5);
-            ctx.stroke();
-          });
         } else {
           ctx.beginPath();
           ctx.moveTo(left + 10, faceY);
@@ -9746,16 +9811,74 @@
     ctx.restore();
   }
 
-  function drawTerraceProfile(left, top, width, atmosphere, chapter) {
-    const depth = chapter === 1 ? 12 : chapter === 2 ? 7 : 10;
+  function drawTerraceProfile(left, top, width, atmosphere, chapter, architecture, seed) {
+    const depths = {
+      "gate-steps": 10,
+      "relay-bridge": 8,
+      "mist-springs": 14,
+      "triple-link": 11,
+      "switchback": seed % 2 ? 16 : 9,
+      "broken-gate": 13,
+      "wind-notch": 7,
+      "prism-hall": 18,
+      "echo-rings": 12,
+      "summit-mark": 20
+    };
+    const depth = depths[architecture] || (chapter === 1 ? 12 : chapter === 2 ? 7 : 10);
+    const base = top + TILE - 4;
     ctx.save();
-    ctx.globalAlpha = chapter === 2 ? 0.12 : 0.16;
+    ctx.globalAlpha = chapter === 2 ? 0.16 : 0.2;
     ctx.fillStyle = atmosphere.front;
     ctx.beginPath();
-    ctx.moveTo(left + 3, top + TILE - 4);
-    ctx.lineTo(left + width - 3, top + TILE - 4);
-    ctx.lineTo(left + width - 9, top + TILE + depth);
-    ctx.lineTo(left + 10, top + TILE + depth);
+    ctx.moveTo(left + 3, base);
+    ctx.lineTo(left + width - 3, base);
+    if (architecture === "relay-bridge") {
+      ctx.lineTo(left + width - 9, base + depth);
+      ctx.quadraticCurveTo(left + width / 2, base + depth + 9, left + 9, base + depth);
+    } else if (architecture === "mist-springs") {
+      ctx.lineTo(left + width - 10, base + depth - 5);
+      ctx.quadraticCurveTo(left + width * 0.75, base + depth + 5, left + width / 2, base + depth - 4);
+      ctx.quadraticCurveTo(left + width * 0.25, base + depth + 5, left + 10, base + depth - 5);
+    } else if (architecture === "triple-link") {
+      ctx.lineTo(left + width - 10, base + depth);
+      ctx.lineTo(left + width * 0.64, base + depth);
+      ctx.lineTo(left + width / 2, base + depth + 8);
+      ctx.lineTo(left + width * 0.36, base + depth);
+      ctx.lineTo(left + 10, base + depth);
+    } else if (architecture === "switchback") {
+      const inset = seed % 2 ? width * 0.28 : width * 0.58;
+      ctx.lineTo(left + width - 9, base + depth);
+      ctx.lineTo(left + inset, base + depth);
+      ctx.lineTo(left + inset, base + depth - 6);
+      ctx.lineTo(left + 10, base + depth - 6);
+    } else if (architecture === "broken-gate") {
+      ctx.lineTo(left + width - 9, base + depth - 5);
+      ctx.lineTo(left + width * 0.64, base + depth + 1);
+      ctx.lineTo(left + width * 0.54, base + depth - 7);
+      ctx.lineTo(left + width * 0.42, base + depth + 3);
+      ctx.lineTo(left + 10, base + depth - 2);
+    } else if (architecture === "wind-notch") {
+      ctx.lineTo(left + width * 0.72, base + depth);
+      ctx.lineTo(left + width * 0.54, base + depth + 7);
+      ctx.lineTo(left + width * 0.32, base + depth);
+      ctx.lineTo(left + 10, base + depth - 2);
+    } else if (architecture === "prism-hall") {
+      ctx.lineTo(left + width - 10, base + depth - 7);
+      ctx.lineTo(left + width * 0.68, base + depth - 2);
+      ctx.lineTo(left + width / 2, base + depth + 10);
+      ctx.lineTo(left + width * 0.32, base + depth - 2);
+      ctx.lineTo(left + 10, base + depth - 7);
+    } else if (architecture === "echo-rings") {
+      ctx.lineTo(left + width - 10, base + depth - 2);
+      ctx.quadraticCurveTo(left + width / 2, base + depth + 10, left + 10, base + depth - 2);
+    } else if (architecture === "summit-mark") {
+      ctx.lineTo(left + width - 10, base + depth - 8);
+      ctx.lineTo(left + width / 2, base + depth + 12);
+      ctx.lineTo(left + 10, base + depth - 8);
+    } else {
+      ctx.lineTo(left + width - 9, base + depth);
+      ctx.lineTo(left + 10, base + depth);
+    }
     ctx.closePath();
     ctx.fill();
     ctx.globalAlpha *= 0.72;
@@ -9768,16 +9891,16 @@
     ctx.restore();
   }
 
-  function drawTerraceSupport(left, top, width, gap, chapter, atmosphere, time, seed) {
+  function drawTerraceSupport(left, top, width, gap, chapter, atmosphere, time, seed, architecture) {
     const bottom = top + Math.min(gap, TILE * 5.2);
     const center = left + width / 2;
     ctx.save();
     ctx.strokeStyle = atmosphere.haze;
     ctx.fillStyle = atmosphere.front;
-    ctx.globalAlpha = settings.lowPerformance ? 0.09 : settings.calmEffects ? 0.12 : 0.16;
+    ctx.globalAlpha = settings.lowPerformance ? 0.12 : settings.calmEffects ? 0.16 : 0.22;
     ctx.lineWidth = chapter === 0 ? 5 : 3;
 
-    if (chapter === 0) {
+    if (architecture === "gate-steps") {
       const inset = Math.min(20, width * 0.22);
       const leftPier = left + inset;
       const rightPier = left + width - inset;
@@ -9790,7 +9913,70 @@
       ctx.moveTo(rightPier, top + 10);
       ctx.lineTo(leftPier, Math.min(bottom, top + 58));
       ctx.stroke();
-    } else if (chapter === 1) {
+    } else if (architecture === "relay-bridge") {
+      const cableBottom = Math.min(bottom, top + 66);
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(left + 6, top + 4);
+      ctx.quadraticCurveTo(center, cableBottom, left + width - 6, top + 4);
+      ctx.stroke();
+      [0.24, 0.5, 0.76].forEach((ratio) => {
+        const x = left + width * ratio;
+        const sag = 4 + Math.sin(Math.PI * ratio) * Math.min(48, gap * 0.55);
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, top + sag);
+        ctx.stroke();
+      });
+    } else if (architecture === "mist-springs") {
+      const coilBottom = Math.min(bottom, top + 92);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(center - Math.min(24, width * 0.22), top + 2);
+      for (let step = 1; step <= 7; step += 1) {
+        const ratio = step / 7;
+        const x = center + (step % 2 ? 1 : -1) * Math.min(24, width * 0.22);
+        ctx.lineTo(x, top + (coilBottom - top) * ratio);
+      }
+      ctx.stroke();
+      ctx.globalAlpha *= 0.68;
+      [0.38, 0.68].forEach((ratio) => {
+        ctx.beginPath();
+        ctx.ellipse(center, top + (coilBottom - top) * ratio, Math.min(32, width * 0.3), 8, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+    } else if (architecture === "triple-link") {
+      const linkSize = Math.min(18, width * 0.16);
+      [-1, 0, 1].forEach((offset, index) => {
+        const y = top + 16 + index * Math.min(24, gap * 0.22);
+        ctx.save();
+        ctx.translate(center + offset * linkSize * 1.65, y);
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeRect(-linkSize / 2, -linkSize / 2, linkSize, linkSize);
+        ctx.restore();
+      });
+      ctx.beginPath();
+      ctx.moveTo(left + 10, top);
+      ctx.lineTo(center - linkSize * 1.1, top + 16);
+      ctx.moveTo(left + width - 10, top);
+      ctx.lineTo(center + linkSize * 1.1, top + 16);
+      ctx.stroke();
+    } else if (architecture === "switchback") {
+      const spineX = left + width * (seed % 2 ? 0.3 : 0.7);
+      const braceBottom = Math.min(bottom, top + 92);
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(spineX, top);
+      ctx.lineTo(spineX, braceBottom);
+      ctx.stroke();
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(left + 9, top + 4);
+      ctx.lineTo(spineX, top + 34);
+      ctx.lineTo(left + width - 9, top + 56);
+      ctx.lineTo(spineX, braceBottom);
+      ctx.stroke();
+    } else if (architecture === "broken-gate") {
       const inset = Math.min(18, width * 0.2);
       const archBottom = Math.min(bottom, top + 82);
       ctx.fillRect(left + inset - 3, top, 7, archBottom - top);
@@ -9806,7 +9992,15 @@
       ctx.moveTo(center - 6, top + 50);
       ctx.lineTo(center + 9, top + 66);
       ctx.stroke();
-    } else if (chapter === 2) {
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(left + inset, top + 28);
+      ctx.lineTo(left + inset + 9, top + 39);
+      ctx.lineTo(left + inset + 3, top + 52);
+      ctx.moveTo(left + width - inset, top + 25);
+      ctx.lineTo(left + width - inset - 10, top + 36);
+      ctx.stroke();
+    } else if (architecture === "wind-notch") {
       const sway = Math.sin(time * 1.4 + seed) * 4;
       const cordLength = Math.min(gap * 0.72, 78);
       [left + 14, left + width - 14].forEach((anchor, index) => {
@@ -9822,7 +10016,7 @@
         ctx.closePath();
         ctx.fill();
       });
-    } else {
+    } else if (architecture === "prism-hall") {
       const latticeBottom = Math.min(bottom, top + 96);
       ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -9839,6 +10033,40 @@
       ctx.rotate(Math.PI / 4);
       ctx.strokeRect(-7, -7, 14, 14);
       ctx.restore();
+    } else if (architecture === "echo-rings") {
+      const radius = Math.min(width * 0.42, gap * 0.55, 52);
+      ctx.lineWidth = 2.5;
+      [1, 0.68, 0.38].forEach((ratio) => {
+        ctx.beginPath();
+        ctx.arc(center, top + 2, radius * ratio, 0.12 * Math.PI, 0.88 * Math.PI);
+        ctx.stroke();
+      });
+      ctx.save();
+      ctx.translate(center, top + Math.min(radius * 0.72, 42));
+      ctx.rotate(Math.PI / 4);
+      ctx.strokeRect(-6, -6, 12, 12);
+      ctx.restore();
+    } else if (architecture === "summit-mark") {
+      const peakBottom = Math.min(bottom, top + 104);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(left + 8, top);
+      ctx.lineTo(center, peakBottom);
+      ctx.lineTo(left + width - 8, top);
+      ctx.moveTo(left + width * 0.28, top);
+      ctx.lineTo(center, top + (peakBottom - top) * 0.58);
+      ctx.lineTo(left + width * 0.72, top);
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(center, Math.min(peakBottom - 12, top + 58));
+      ctx.rotate(Math.PI / 4);
+      ctx.strokeRect(-8, -8, 16, 16);
+      ctx.restore();
+    } else if (chapter === 1) {
+      ctx.beginPath();
+      ctx.moveTo(left + 10, top);
+      ctx.quadraticCurveTo(center, Math.min(bottom, top + 60), left + width - 10, top);
+      ctx.stroke();
     }
     ctx.restore();
   }

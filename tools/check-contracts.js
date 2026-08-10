@@ -938,11 +938,24 @@ if (!js.includes("function drawTerrainArchitecture(time)")
   || !js.includes("function drawTerraceProfile(")
   || !js.includes("function drawTerraceSupport(")
   || !js.includes("function drawTerrainAccents(time)")
+  || !js.includes('const architecture = ROOM_LANDMARKS[roomIndex]?.kind || "gate-steps"')
+  || ![
+    "gate-steps",
+    "relay-bridge",
+    "mist-springs",
+    "triple-link",
+    "switchback",
+    "broken-gate",
+    "wind-notch",
+    "prism-hall",
+    "echo-rings",
+    "summit-mark"
+  ].every((kind) => js.includes(`architecture === "${kind}"`))
   || !js.includes("drawTerrainArchitecture(time);\n    drawHazardFields(time);")
   || !js.includes("drawTiles(time);\n    drawTerrainAccents(time);")
   || !js.includes("const resolvedDetail = detailLevel > 0.5 ? 1 : 0.16")
   || !js.includes("const detailed = (gx * 5 + gy * 3 + roomIndex) % 4 === 0")) {
-  errors.push("terrain should read as chapter-authored ledges with behind-collision supports and sparse run-level material accents");
+  errors.push("terrain should keep chapter materials while every room owns a distinct profile, support silhouette and run-level accent grammar");
 }
 if (!js.includes("function drawObstacleArchitecture(time)")
   || !js.includes("function drawDashGateFrames(time)")

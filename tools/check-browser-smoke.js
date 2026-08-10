@@ -3750,6 +3750,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     const accountRect = accountButton?.getBoundingClientRect();
     const accountBackground = getComputedStyle(accountButton).backgroundColor.match(/[\d.]+/g)?.map(Number) || [];
     const accountBackgroundAlpha = accountBackground.length >= 4 ? accountBackground[3] : 1;
+    const portraitBrief = document.querySelector("#portraitBrief");
     return {
       resumeVisible,
       resumeText,
@@ -3762,6 +3763,8 @@ async function runMobileSmoke(cdp, baseUrl) {
         && accountRect.height >= 44
         && accountBackgroundAlpha >= 0.5
         && accountButton.scrollWidth <= accountButton.clientWidth + 2,
+      briefHiddenDuringMenu: getComputedStyle(portraitBrief).visibility === "hidden"
+        && getComputedStyle(portraitBrief).opacity === "0",
       aligned: resumeVisible
         ? chapter.includes("上次训练") && resumeRoom === titleRoom && !!resumeMode && goal.includes(resumeMode)
         : chapter.includes("攀登起点") && titleRoom === "1"
@@ -3770,6 +3773,7 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!mobileStartContext.aligned) errors.push("mobile start portrait brief should match the resume target or clearly identify the R1 climb start: " + JSON.stringify(mobileStartContext));
   if (!mobileStartContext.startTouchSafe) errors.push("mobile start actions should retain 44px hit targets: " + JSON.stringify(mobileStartContext));
   if (!mobileStartContext.accountEntryReadable) errors.push("mobile cloud-login entry should remain full-width, readable and touch-safe: " + JSON.stringify(mobileStartContext));
+  if (!mobileStartContext.briefHiddenDuringMenu) errors.push("mobile menus should not repeat the background room brief: " + JSON.stringify(mobileStartContext));
   await clickSelector(cdp, "#startAccountButton");
   await waitUntil("mobile account panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("account-focused")`));
   const mobileAccountTouchSafe = await evaluate(cdp, `(() => {
@@ -4048,7 +4052,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       stageTop: Math.round(stage.top)
     };
   })()`);
-  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap > 150 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap > 160 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 360) {
+  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 520) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
   const largeTouchUi = await evaluate(cdp, `(() => {

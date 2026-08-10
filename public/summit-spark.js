@@ -194,19 +194,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260809-p275"),
-    import("./modules/core/math.mjs?v=20260809-p275"),
-    import("./modules/game/room-data.mjs?v=20260809-p275"),
-    import("./modules/game/world-model.mjs?v=20260809-p275"),
-    import("./modules/game/effect-budget.mjs?v=20260809-p275"),
-    import("./modules/game/landmark-progress.mjs?v=20260809-p275"),
-    import("./modules/game/audio-cues.mjs?v=20260809-p275"),
-    import("./modules/game/lumen-progress.mjs?v=20260809-p275"),
-    import("./modules/systems/storage.mjs?v=20260809-p275"),
-    import("./modules/systems/input.mjs?v=20260809-p275"),
-    import("./modules/training/state.mjs?v=20260809-p275"),
-    import("./modules/training/replay.mjs?v=20260809-p275"),
-    import("./modules/ui/presentation.mjs?v=20260809-p275")
+    import("./modules/core/format.mjs?v=20260810-p276"),
+    import("./modules/core/math.mjs?v=20260810-p276"),
+    import("./modules/game/room-data.mjs?v=20260810-p276"),
+    import("./modules/game/world-model.mjs?v=20260810-p276"),
+    import("./modules/game/effect-budget.mjs?v=20260810-p276"),
+    import("./modules/game/landmark-progress.mjs?v=20260810-p276"),
+    import("./modules/game/audio-cues.mjs?v=20260810-p276"),
+    import("./modules/game/lumen-progress.mjs?v=20260810-p276"),
+    import("./modules/systems/storage.mjs?v=20260810-p276"),
+    import("./modules/systems/input.mjs?v=20260810-p276"),
+    import("./modules/training/state.mjs?v=20260810-p276"),
+    import("./modules/training/replay.mjs?v=20260810-p276"),
+    import("./modules/ui/presentation.mjs?v=20260810-p276")
   ]);
 
   const canvas = document.getElementById("game");
@@ -6787,7 +6787,9 @@
   function syncComfortSettings() {
     stage?.classList.toggle("low-performance", settings.lowPerformance);
     stage?.classList.toggle("assist-active", assistActive());
-    stage?.style.setProperty("--touch-size", `${settings.touchSize}px`);
+    const touchSize = `${settings.touchSize}px`;
+    stage?.style.setProperty("--touch-size", touchSize);
+    shell?.style.setProperty("--touch-size", touchSize);
   }
 
   function assistActive() {

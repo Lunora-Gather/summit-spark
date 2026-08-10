@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-10
+
+- Tightened portrait play composition in `20260810-p276` without adding interface density. The room brief, fixed-ratio playfield and two-row touch controls now form one continuous vertical route with bounded 8–20px and 12–28px gaps at 390×844, while the calculation follows the saved 44–64px touch-size preference and safe-area inset. Start, account and summit overlays suppress the duplicate background brief because those surfaces already provide their own context, and portrait start menus remove the decorative map preview from behind their translucent actions. Real-browser gates cover the normal phone, 320×480 short portrait, large touch controls and notched safe-area layout. Desktop width cap, pale page atmosphere, landscape controls, maps, difficulty, rewards, saves, cloud behavior, classic climber and fixed hair are unchanged.
+
 ## 2026-08-09
 
 - Closed the remaining post-respawn movement lock in `20260809-p275`. The earlier focus recovery was valid but incomplete: a forward room transition also kept the previous room's exit height while pinning the next respawn near the left edge, so R2 could restore the climber at roughly `(26, 297)` inside its `y=288–320` entry platform. Every room now derives transition, retry and restart positions from its single authored `S`/`P` marker; legacy or damaged states receive a bounded, platform-aware solid escape before control resumes. The all-ten-room model gate proves every canonical entry has exact support without overlap, the reported R2 state must recover upward to `(26, 263)`, and the real-browser R2 retry requires the canonical `(70.5, 263)` respawn, zero collision overlap and successful rightward movement. Maps, difficulty, rewards, saves, cloud behavior, UI, classic climber and fixed hair are unchanged.

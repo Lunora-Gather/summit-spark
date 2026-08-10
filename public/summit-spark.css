@@ -7947,3 +7947,50 @@ textarea,
     transition: none;
   }
 }
+
+/* P276: keep portrait play as one continuous thumb-to-route composition.
+   The room brief, playfield and controls now share deliberate small gaps
+   instead of floating in three unrelated vertical bands. Menus already carry
+   their own context, so the duplicate room brief stays out of every overlay. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .shell {
+    --portrait-touch-size: clamp(44px, calc((100vw - 82px) / 5), var(--touch-size, 48px));
+    --portrait-stage-bottom: calc(
+      46px + env(safe-area-inset-bottom, 0px)
+      + var(--portrait-touch-size) + var(--portrait-touch-size)
+    );
+  }
+
+  .stage.run-started {
+    position: fixed;
+    top: auto;
+    bottom: var(--portrait-stage-bottom);
+  }
+
+  .portrait-brief {
+    top: auto;
+    bottom: calc(var(--portrait-stage-bottom) + 56.6666667vw + 14px);
+  }
+
+  .stage:has(.overlay:not(.hidden)) + .portrait-brief {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .stage:has(#overlay:not(.hidden) .start-panel) {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .stage:has(#overlay:not(.hidden) .start-panel) #game {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 520px) and (orientation: portrait) {
+  .portrait-brief {
+    top: auto;
+    bottom: calc(var(--portrait-stage-bottom) + 56.6666667vw + 8px);
+  }
+}

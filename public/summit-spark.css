@@ -7994,3 +7994,21 @@ textarea,
     bottom: calc(var(--portrait-stage-bottom) + 56.6666667vw + 8px);
   }
 }
+
+/* P277: a collapsed portrait Practice sheet should fit its two choices and
+   launch action. Opening either disclosure restores the full-height workspace. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .settings-panel.mode-practice:not(:has(.settings-group[open])) {
+    bottom: auto;
+    max-height: calc(
+      100dvh
+      - max(58px, calc(env(safe-area-inset-top, 0px) + 8px))
+      - max(12px, env(safe-area-inset-bottom, 0px))
+    );
+  }
+
+  .settings-panel.mode-practice:not(:has(.settings-group[open])) .settings-body {
+    flex: 0 1 auto;
+    scrollbar-gutter: auto;
+  }
+}

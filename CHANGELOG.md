@@ -2,6 +2,8 @@
 
 ## 2026-08-10
 
+- Removed the false-empty mobile Practice workspace in `20260810-p277`. At 487×694 the two collapsed choices occupied roughly 100px while the safe-area sheet still stretched to 624px, leaving about 400px of blank paper before the launch action. Collapsed portrait Practice now shrink-wraps its two disclosures and persistent launch button like the already-compact desktop sheet; opening either room selection or training history restores the bounded full-height scroll workspace. A real-browser regression limits the collapsed sheet to 56% of the viewport, caps its empty tail at 28px, and still verifies the expanded room, Drill, Route and Feel controls. Start, Settings, gameplay HUD, finish review, desktop and landscape layouts, maps, physics, rewards, saves, classic climber and fixed hair are unchanged.
+
 - Tightened portrait play composition in `20260810-p276` without adding interface density. The room brief, fixed-ratio playfield and two-row touch controls now form one continuous vertical route with bounded 8–20px and 12–28px gaps at 390×844, while the calculation follows the saved 44–64px touch-size preference and safe-area inset. Start, account and summit overlays suppress the duplicate background brief because those surfaces already provide their own context, and portrait start menus remove the decorative map preview from behind their translucent actions. Real-browser gates cover the normal phone, 320×480 short portrait, large touch controls and notched safe-area layout. Desktop width cap, pale page atmosphere, landscape controls, maps, difficulty, rewards, saves, cloud behavior, classic climber and fixed hair are unchanged.
 
 ## 2026-08-09

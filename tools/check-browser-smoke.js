@@ -3915,6 +3915,23 @@ async function runMobileSmoke(cdp, baseUrl) {
   await waitUntil("mobile exposed backdrop tap dismisses without click-through", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#startSettingsButton") && !document.querySelector("#overlay").classList.contains("hidden")`));
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("mobile practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  const collapsedPracticeFit = await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
+    const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
+    const groups = [...document.querySelectorAll(".settings-group.practice-only")].filter((group) => group.getBoundingClientRect().height > 0);
+    const last = groups[groups.length - 1]?.getBoundingClientRect();
+    return {
+      panelHeight: Math.round(panel.height),
+      viewportHeight: innerHeight,
+      emptyTail: last ? Math.round(dock.top - last.bottom) : 999,
+      allCollapsed: groups.length === 2 && groups.every((group) => !group.open),
+      dockVisible: dock.height >= 44 && dock.bottom <= panel.bottom + 1,
+      bounded: panel.top >= 0 && panel.bottom <= innerHeight
+    };
+  })()`);
+  if (!collapsedPracticeFit.allCollapsed || !collapsedPracticeFit.dockVisible || !collapsedPracticeFit.bounded || collapsedPracticeFit.emptyTail > 28 || collapsedPracticeFit.panelHeight > collapsedPracticeFit.viewportHeight * 0.56) {
+    errors.push("collapsed mobile Practice should fit its two choices and launch action instead of leaving an empty full-height workspace: " + JSON.stringify(collapsedPracticeFit));
+  }
   const roomGroupOpen = await evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`);
   if (!roomGroupOpen) {
     await tapSelector(cdp, ".settings-group-room summary");

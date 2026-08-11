@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20260810-p278">
+  <meta name="build-version" content="20260811-p280">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260810-p278">
+  <link rel="stylesheet" href="summit-spark.css?v=20260811-p280">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -394,22 +394,26 @@
       </div>
 
       <div class="sr-status" id="gameStatus" aria-live="polite" aria-atomic="true"></div>
-
-      <div class="touch" id="touchControls" aria-label="触控" aria-hidden="true" inert hidden>
-        <div class="touch-cluster touch-directions" aria-label="移动">
-          <button type="button" data-touch="up" aria-label="上">↑</button>
-          <button type="button" data-touch="left" aria-label="左">‹</button>
-          <button type="button" data-touch="down" aria-label="下">↓</button>
-          <button type="button" data-touch="right" aria-label="右">›</button>
-        </div>
-        <div class="touch-cluster touch-actions" aria-label="动作">
-          <button type="button" data-touch="recall" aria-label="先激活回声锚点" hidden disabled>召</button>
-          <button type="button" data-touch="grab" aria-label="抓墙">抓</button>
-          <button type="button" data-touch="jump" aria-label="跳跃">跳</button>
-          <button type="button" data-touch="dash" aria-label="冲刺">冲</button>
-        </div>
-      </div>
     </section>
+
+    <div class="touch" id="touchControls" aria-label="触控" aria-hidden="true" inert hidden>
+      <div class="touch-cluster touch-directions" aria-label="移动">
+        <button type="button" data-touch="up" aria-label="上">↑</button>
+        <button type="button" data-touch="left" aria-label="左">‹</button>
+        <button type="button" data-touch="down" aria-label="下">↓</button>
+        <button type="button" data-touch="right" aria-label="右">›</button>
+      </div>
+      <div class="touch-cluster touch-actions" aria-label="动作">
+        <button type="button" data-touch="recall" aria-label="先激活回声锚点" hidden disabled>召</button>
+        <button type="button" data-touch="grab" aria-label="抓墙">抓</button>
+        <button type="button" data-touch="jump" aria-label="跳跃">跳</button>
+        <button type="button" data-touch="dash" aria-label="冲刺">冲</button>
+      </div>
+      <div class="touch-cluster touch-system" aria-label="重开">
+        <button type="button" data-touch-command="retry" aria-label="快速重开">↻</button>
+        <button type="button" data-touch-command="roomRestart" aria-label="从房间起点重开">房</button>
+      </div>
+    </div>
     <aside class="portrait-brief" id="portraitBrief" aria-hidden="true">
       <span id="portraitChapter">I · 山门</span>
       <strong id="portraitRoomTitle">R1 · 起势山门</strong>
@@ -417,6 +421,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260810-p278"></script>
+  <script src="summit-spark.js?v=20260811-p280"></script>
 </body>
 </html>

@@ -2716,7 +2716,7 @@ canvas:focus {
 
 }
 
-.stage.low-performance .touch button {
+.stage.low-performance + .touch button {
   background: rgba(8, 13, 22, 0.62);
 }
 
@@ -3117,7 +3117,7 @@ body {
   pointer-events: none;
 }
 
-.stage:has(.overlay:not(.hidden)) .touch {
+.stage:has(.overlay:not(.hidden)) + .touch {
   display: none;
 }
 
@@ -3962,7 +3962,7 @@ body {
 }
 
 /* P22 mobile playability: portrait touch controls live below the playfield. */
-.stage.settings-open .touch {
+.stage.settings-open + .touch {
   opacity: 0;
   pointer-events: none;
 }
@@ -4449,13 +4449,13 @@ body {
     white-space: nowrap;
   }
 
-  .stage.settings-open + .portrait-brief {
+  .stage.settings-open ~ .portrait-brief {
     opacity: 0;
   }
 
   /* The first-run account choice is the only decision that matters here.
      Keep room coaching out of its visual layer until the choice resolves. */
-  .stage:has(.start-panel.entry-pending) + .portrait-brief {
+  .stage:has(.start-panel.entry-pending) ~ .portrait-brief {
     visibility: hidden;
     opacity: 0;
   }
@@ -4651,7 +4651,7 @@ body {
 }
 
 .touch button,
-.stage.low-performance .touch button {
+.stage.low-performance + .touch button {
   border-color: rgba(224, 237, 231, 0.22);
   background: linear-gradient(180deg, rgba(68, 89, 98, 0.58), rgba(46, 65, 76, 0.54));
   color: rgba(250, 250, 244, 0.92);
@@ -7123,7 +7123,7 @@ textarea,
 .stage.low-performance .icon-button,
 .stage.low-performance .mini-button,
 .stage.low-performance .game-tip,
-.stage.low-performance .touch button,
+.stage.low-performance + .touch button,
 .stage.low-performance .start-panel,
 .stage.low-performance .entry-gate,
 .stage.low-performance .start-actions > .account-entry {
@@ -7959,20 +7959,39 @@ textarea,
       46px + env(safe-area-inset-bottom, 0px)
       + var(--portrait-touch-size) + var(--portrait-touch-size)
     );
+    --portrait-stage-height: min(
+      85vw,
+      calc(100dvh - var(--portrait-stage-bottom) - 72px)
+    );
   }
 
   .stage.run-started {
     position: fixed;
     top: auto;
+    left: 50%;
     bottom: var(--portrait-stage-bottom);
+    width: min(100vw, calc(var(--portrait-stage-height) * 1.1764705882));
+    height: var(--portrait-stage-height);
+    aspect-ratio: 640 / 544;
+    transform: translateX(-50%);
+  }
+
+  .stage.run-started #game {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: auto;
+    max-width: none;
+    height: 100%;
+    transform: translateX(-50%);
   }
 
   .portrait-brief {
     top: auto;
-    bottom: calc(var(--portrait-stage-bottom) + 56.6666667vw + 14px);
+    bottom: calc(var(--portrait-stage-bottom) + var(--portrait-stage-height) + 14px);
   }
 
-  .stage:has(.overlay:not(.hidden)) + .portrait-brief {
+  .stage:has(.overlay:not(.hidden)) ~ .portrait-brief {
     visibility: hidden;
     opacity: 0;
   }
@@ -7991,7 +8010,7 @@ textarea,
 @media (max-width: 760px) and (max-height: 520px) and (orientation: portrait) {
   .portrait-brief {
     top: auto;
-    bottom: calc(var(--portrait-stage-bottom) + 56.6666667vw + 8px);
+    bottom: calc(var(--portrait-stage-bottom) + var(--portrait-stage-height) + 8px);
   }
 }
 
@@ -8010,5 +8029,53 @@ textarea,
   .settings-panel.mode-practice:not(:has(.settings-group[open])) .settings-body {
     flex: 0 1 auto;
     scrollbar-gutter: auto;
+  }
+}
+
+/* P279: complete touch parity without turning the playfield into another HUD.
+   Retry commands stay small and centered between the two primary thumb zones. */
+.touch-directions { order: 1; }
+.touch-system {
+  order: 2;
+  align-self: end;
+  display: grid;
+  gap: 6px;
+  pointer-events: auto;
+}
+.touch-actions { order: 3; }
+
+.touch .touch-system button {
+  width: 44px;
+  height: 44px;
+  border-color: rgba(224, 237, 231, 0.14);
+  background: rgba(39, 57, 67, 0.42);
+  color: rgba(248, 247, 239, 0.76);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.profile-reward-note {
+  display: block;
+  padding: 0 2px;
+  color: rgba(49, 73, 80, 0.7);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .touch {
+    gap: 8px;
+  }
+
+  .touch-system {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+  }
+
+  .touch .touch-system button {
+    width: 44px;
+    height: 44px;
   }
 }

@@ -215,7 +215,7 @@ if (!js.includes("respawn({ preserveInputBuffers: true });")
   || !js.includes("dead ${player.deadTimer.toFixed(3)}")) {
   errors.push("automatic death recovery must retain only late buffered actions while manual retries clear stale input");
 }
-if (!js.includes("if (chapterTransitionTimer > 0) {\n        updateBuffers(dt);")
+if (!/if \(chapterTransitionTimer > 0\) \{[\s\S]{0,320}updateBuffers\(fixedFrame\.frameDt\);/.test(js)
   || !js.includes("act ${chapterTransitionTimer.toFixed(3)}")) {
   errors.push("chapter transitions must keep shared input polling and normal buffer expiry active so stale actions expire while final-window actions connect");
 }
@@ -626,7 +626,7 @@ if (!js.includes('const ACCOUNT_HINT_STORAGE_KEY = "summit-spark-account-hint"')
   || !js.includes('if (saved === "account" || readAccountHint())')
   || !js.includes("if (Number(error?.code) === 401) writeAccountHint(false);")
   || !js.includes("guestEntryButton?.focus({ preventScroll: true });")
-  || !css.includes(".stage:has(.start-panel.entry-pending) + .portrait-brief")
+  || !css.includes(".stage:has(.start-panel.entry-pending) ~ .portrait-brief")
   || !browserSmoke.includes("fresh visitors should see the focused guest/email chooser immediately")
   || !browserSmoke.includes("an expired account hint should be cleared")
   || !browserSmoke.includes("320px first-run entry should stay focused, touch-safe and free of background room coaching")) errors.push("first-run entry must appear immediately, while account hints restore silently and expired hints recover cleanly");
@@ -634,7 +634,7 @@ if (!js.includes("let accountSdkLoadPromise = null;")
   || !js.includes("document.getElementById(\"appwriteSdk\")?.remove();")
   || !js.includes("async function ensureAccountSdk()")
   || !browserSmoke.includes("runCloudSdkRetrySmoke")
-  || !browserSmoke.includes("a transient cloud SDK load failure should retry from Account without a page refresh")) errors.push("a transient Appwrite SDK failure must remove the failed loader and retry through the account surface without a full refresh");
+  || !browserSmoke.includes("guest cloud loading should stay lazy and a transient SDK failure should retry from Account without a page refresh")) errors.push("a transient Appwrite SDK failure must remove the failed loader and retry through the account surface without a full refresh");
 if (!css.includes(".entry-option:focus-visible") || !css.includes("outline: 2px solid #477b80;") || !css.includes("color: #3a636c;") || !browserSmoke.includes("recoveryContrast") || !browserSmoke.includes("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target")) errors.push("first-run focus and password recovery must use refined non-default focus styling and composited 4.5:1 text contrast");
 if (!js.includes("const SAVE_ARCHIVE_MAX_CHARS = 1000000;")
   || !indexHtml.includes('id="saveImportText" maxlength="1000000"')
@@ -766,8 +766,8 @@ if (!js.includes("ROOM_WHISPERS") || !js.includes('const hairColor = "#294657"')
 if (!roomData.includes("export const ROOM_CHAPTER_INDEXES = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3];")
   || !roomData.includes("export const CHAPTER_START_ROOMS = [0, 3, 6, 8];")
   || !js.includes("const chapter = ROOM_CHAPTER_INDEXES[index];")
-  || !js.includes("started = true;\n    roomIntroTimer = ROOM_INTRO_TIME;\n    clearTransientTrainingResults();")
-  || !js.includes("triggerActionVisual(\"spawn\", 0.32);\n    roomIntroTimer = ROOM_INTRO_TIME;\n    routeCueTimer = 0;")
+  || !js.includes("started = true;\n    roomIntroTimer = openingIntroDuration(0);\n    clearTransientTrainingResults();")
+  || !js.includes("triggerActionVisual(\"spawn\", 0.32);\n    roomIntroTimer = openingIntroDuration(index);\n    routeCueTimer = 0;")
   || !js.includes('function openingActStatus(prefix = "游戏开始")')
   || !js.includes('setGameStatus(openingActStatus("游戏重开"));')
   || !js.includes("CHAPTER_START_ROOMS[0] === roomIndex")
@@ -929,9 +929,9 @@ if (!css.includes('top: clamp(96px, calc(50dvh - 285px), 220px)')) errors.push("
 if (!css.includes('@media (max-width: 760px) and (max-height: 520px) and (orientation: portrait)') || !css.includes('top: max(clamp(28px, calc(50dvh - 192px), 68px), calc(env(safe-area-inset-top, 0px) + 10px))')) errors.push("short portrait screens should compact and center the room brief in the upper safe field before the stage HUD rises into it");
 if (!css.includes('@media (max-width: 760px) and (max-height: 520px) and (orientation: landscape) and (pointer: coarse)') || !css.includes('.practice-launch-dock .focus-button {\n    min-height: 44px;')) errors.push("short touch landscape should preserve 44px practice launch and reset targets without expanding the mouse layout");
 if (!css.includes('background: linear-gradient(180deg, rgba(48, 73, 87, 0.74), rgba(28, 48, 63, 0.66))') || !css.includes('background: rgba(232, 241, 235, 0.1)') || !css.includes('background: rgba(61, 82, 91, 0.52)')) errors.push("the bright stage should use one mist-blue HUD language instead of near-black telemetry and action slabs");
-if (!css.includes('background: linear-gradient(180deg, rgba(68, 89, 98, 0.58), rgba(46, 65, 76, 0.54))') || !css.includes('.stage.low-performance .touch button')) errors.push("touch input surfaces should preserve one quiet mist-blue language across normal and low-performance modes");
+if (!css.includes('background: linear-gradient(180deg, rgba(68, 89, 98, 0.58), rgba(46, 65, 76, 0.54))') || !css.includes('.stage.low-performance + .touch button')) errors.push("touch input surfaces should preserve one quiet mist-blue language across normal and low-performance modes");
 if (!js.includes('const CANVAS_PANEL_BG = "rgba(211,224,216,0.74)"') || !js.includes('const CANVAS_PANEL_INK = "rgba(36,58,68,0.9)"') || !js.includes('const y = compact ? H - height - 18 : 68') || (js.match(/ctx\.fillStyle = "rgba\(7,12,20,0\.72\)"/g) || []).length > 1) errors.push("training canvas cards should use the shared light mist surface with dark text, and advanced input feedback must stay fixed away from the character rather than becoming head text");
-if (!css.includes("top: clamp(0px, calc((100dvh - 700px) * 0.3), 44px)") || !css.includes(".stage.settings-open + .portrait-brief")) errors.push("portrait brief should stay coupled to the playfield and hide behind settings");
+if (!css.includes("top: clamp(0px, calc((100dvh - 700px) * 0.3), 44px)") || !css.includes(".stage.settings-open ~ .portrait-brief")) errors.push("portrait brief should stay coupled to the playfield and hide behind settings");
 if (!indexHtml.includes('id="practiceLaunchDock"') || indexHtml.includes('class="practice-launch-copy"') || !css.includes(".settings-panel .settings-body") || !css.includes("scrollbar-gutter: stable") || !css.includes(".settings-panel.mode-practice .practice-launch-dock")) errors.push("practice should keep one selected-room launch action in a non-scrolling panel dock without duplicate summary copy");
 if (!js.includes("const cachedRockTiles = new Map()") || !js.includes("const cachedCrumbleTiles = new Map()") || !js.includes("function createTileSpriteSurface()") || !js.includes("function rockTileSprite(") || !js.includes("ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE)") || js.includes("ctx.createLinearGradient(x, y, x + TILE, y + TILE)")) errors.push("static rock/crumble tiles should use density-aware cached sprites while dynamic warning overlays remain live");
 if (!js.includes("function drawTerrainArchitecture(time)")
@@ -996,7 +996,7 @@ if (!css.includes("--touch-size")) errors.push("touch controls should expose a s
 if (!css.includes("touch-directions") || !css.includes("touch-actions")) errors.push("touch controls should use separated direction/action clusters");
 if (!css.includes("review-more") || !css.includes("review-grid-primary")) errors.push("finish review should keep extra detail collapsed behind a cleaner primary grid");
 if (!css.includes("P21 system polish") || !css.includes(".stage.free-play #splitTime") || !css.includes(".stage.training-active")) errors.push("p21 quiet HUD and system settings styles are missing");
-if (!css.includes("P22 mobile playability") || !css.includes("position: fixed") || !css.includes(".stage.settings-open .touch") || !/display:\s*flex;\s*z-index:\s*8/.test(css)) errors.push("p22 portrait touch detachment styles are missing");
+if (!css.includes("P22 mobile playability") || !css.includes("position: fixed") || !css.includes(".stage.settings-open + .touch") || !/display:\s*flex;\s*z-index:\s*8/.test(css)) errors.push("p22 portrait touch detachment styles are missing");
 if (!css.includes(".settings-panel .settings-group-body > *") || !css.includes("#roomSelect") || !css.includes("overflow-wrap: anywhere")) errors.push("mobile settings width clamps are missing");
 if (!css.includes(".settings-panel .control-row select") || !css.includes("#263744")) errors.push("light settings controls need explicit readable foreground styles");
 if (!css.includes("P23 panel split") || !css.includes(".settings-panel.mode-settings .practice-only") || !css.includes(".settings-panel.mode-practice .settings-only")) errors.push("p23 settings/practice panel split styles are missing");

@@ -25,7 +25,8 @@
     {
       aabb,
       approach,
-      distRectPoint
+      distRectPoint,
+      fixedStepFrameData
     },
     {
       CHAPTER_EXPERIENCE,
@@ -194,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260810-p278"),
-    import("./modules/core/math.mjs?v=20260810-p278"),
-    import("./modules/game/room-data.mjs?v=20260810-p278"),
-    import("./modules/game/world-model.mjs?v=20260810-p278"),
-    import("./modules/game/effect-budget.mjs?v=20260810-p278"),
-    import("./modules/game/landmark-progress.mjs?v=20260810-p278"),
-    import("./modules/game/audio-cues.mjs?v=20260810-p278"),
-    import("./modules/game/lumen-progress.mjs?v=20260810-p278"),
-    import("./modules/systems/storage.mjs?v=20260810-p278"),
-    import("./modules/systems/input.mjs?v=20260810-p278"),
-    import("./modules/training/state.mjs?v=20260810-p278"),
-    import("./modules/training/replay.mjs?v=20260810-p278"),
-    import("./modules/ui/presentation.mjs?v=20260810-p278")
+    import("./modules/core/format.mjs?v=20260811-p280"),
+    import("./modules/core/math.mjs?v=20260811-p280"),
+    import("./modules/game/room-data.mjs?v=20260811-p280"),
+    import("./modules/game/world-model.mjs?v=20260811-p280"),
+    import("./modules/game/effect-budget.mjs?v=20260811-p280"),
+    import("./modules/game/landmark-progress.mjs?v=20260811-p280"),
+    import("./modules/game/audio-cues.mjs?v=20260811-p280"),
+    import("./modules/game/lumen-progress.mjs?v=20260811-p280"),
+    import("./modules/systems/storage.mjs?v=20260811-p280"),
+    import("./modules/systems/input.mjs?v=20260811-p280"),
+    import("./modules/training/state.mjs?v=20260811-p280"),
+    import("./modules/training/replay.mjs?v=20260811-p280"),
+    import("./modules/ui/presentation.mjs?v=20260811-p280")
   ]);
 
   const canvas = document.getElementById("game");
@@ -381,6 +382,9 @@
   const DEATH_RETRY_TIME = 0.22;
   const DASH_HITSTOP = 0.018;
   const DEATH_HITSTOP = 0.035;
+  const FIXED_PHYSICS_STEP = 1 / 120;
+  const MAX_PHYSICS_FRAME = 0.1;
+  const MAX_PHYSICS_STEPS = 12;
   const SHAKE_INTENSITY = 0;
   const LIGHT_TRAIL_LIFE = 0.26;
   const LIGHT_TRAIL_WIDTH = 24;
@@ -643,7 +647,10 @@
     jump: false,
     dash: false,
     grab: false,
-    recall: false
+    recall: false,
+    retry: false,
+    roomRestart: false,
+    pause: false
   };
   let lastGamepadStatusText = "";
   let lastGamepadStatus = {
@@ -683,6 +690,8 @@
   let pendingSummitResult = null;
   let summitChapterResult = null;
   let lastTime = performance.now();
+  let physicsAccumulator = 0;
+  let pendingClockDt = 0;
   let deathCount = 0;
   let deathReasons = createDeathReasons();
   let roomMistakes = createRoomCounters();
@@ -967,6 +976,19 @@
     if (isActionCode(event.code, "jump")) cutJump();
   });
 
+  if (["127.0.0.1", "localhost"].includes(window.location.hostname)) {
+    window.addEventListener("summit-spark:test-action", (event) => {
+      const action = event instanceof CustomEvent ? event.detail : "";
+      if (action === "jump") setInputBuffer(player, "jump", JUMP_BUFFER_TIME);
+      if (action === "dash") {
+        setInputBuffer(player, "dash", DASH_BUFFER_TIME);
+        if (started && !won && player.deadTimer <= 0 && player.dashes > 0 && player.dashCooldown <= 0) {
+          startDash(getInput());
+        }
+      }
+    });
+  }
+
   window.addEventListener("blur", () => {
     if (started && !won) focusPaused = true;
     releaseAllInputs();
@@ -974,14 +996,14 @@
 
   window.addEventListener("focus", () => {
     focusPaused = false;
-    lastTime = performance.now();
+    resetFrameClock();
   });
 
   document.addEventListener("visibilitychange", () => {
     focusPaused = document.hidden && started && !won;
     releaseAllInputs();
     if (document.hidden) flushPendingCloudSave();
-    if (!document.hidden) lastTime = performance.now();
+    if (!document.hidden) resetFrameClock();
   });
 
   window.addEventListener("pagehide", flushPendingCloudSave);
@@ -1119,7 +1141,7 @@
     });
     if (!shouldResume) return false;
     focusPaused = false;
-    lastTime = performance.now();
+    resetFrameClock();
     return true;
   }
 
@@ -1495,6 +1517,23 @@
     button.addEventListener("pointerleave", () => set(false));
   });
 
+  document.querySelectorAll("[data-touch-command]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (!started) {
+        begin();
+        return;
+      }
+      const command = button.getAttribute("data-touch-command");
+      if (command === "retry") {
+        if (won) hardReset();
+        else quickRetry();
+      } else if (command === "roomRestart" && !won) {
+        restartCurrentRoom();
+      }
+    });
+  });
+
   markAppReady();
   requestAnimationFrame(frame);
 
@@ -1626,6 +1665,16 @@
     return room?.worldWidth || W;
   }
 
+  function cameraSideCrop() {
+    return window.matchMedia?.("(max-width: 760px) and (orientation: portrait)")?.matches
+      ? (W - 640) / 2
+      : 0;
+  }
+
+  function cameraViewportWidth() {
+    return W - cameraSideCrop() * 2;
+  }
+
   function roomEntrySpawn(index = roomIndex) {
     const spawn = roomEntrySpawnData(maps[index], {
       tile: TILE,
@@ -1637,26 +1686,31 @@
   }
 
   function clampCamera(value) {
-    return Math.max(0, Math.min(Math.max(0, roomWorldWidth() - W), value));
+    const crop = cameraSideCrop();
+    const minCamera = -crop;
+    const maxCamera = Math.max(minCamera, roomWorldWidth() - W + crop);
+    return Math.max(minCamera, Math.min(maxCamera, value));
   }
 
   function snapCameraToPlayer() {
-    cameraTargetX = clampCamera(player.x + player.w / 2 - W * 0.42);
+    const crop = cameraSideCrop();
+    cameraTargetX = clampCamera(player.x + player.w / 2 - crop - cameraViewportWidth() * 0.42);
     cameraX = cameraTargetX;
   }
 
   function updateCamera(dt) {
+    const crop = cameraSideCrop();
     const next = cameraFollowData({
-      cameraX,
-      targetX: cameraTargetX,
+      cameraX: cameraX + crop,
+      targetX: cameraTargetX + crop,
       playerCenter: player.x + player.w / 2,
       velocityX: player.vx,
       worldWidth: roomWorldWidth(),
-      viewportWidth: W,
+      viewportWidth: cameraViewportWidth(),
       dt
     });
-    cameraX = next.cameraX;
-    cameraTargetX = next.targetX;
+    cameraX = next.cameraX - crop;
+    cameraTargetX = next.targetX - crop;
   }
 
   function resetToStart(index) {
@@ -1709,7 +1763,7 @@
     clearGrabToggle();
     resetActionVisuals();
     triggerActionVisual("spawn", 0.32);
-    roomIntroTimer = ROOM_INTRO_TIME;
+    roomIntroTimer = openingIntroDuration(index);
     routeCueTimer = 0;
     routeCueReason = "";
   }
@@ -1730,9 +1784,25 @@
     return `${prefix} · ${opening?.title || "第一幕"}：${opening?.vow || "继续向上。"}`;
   }
 
+  function needsOpeningControlsHint() {
+    const hasRoomResult = bestRoomTimes.some((seconds) => Number(seconds) > 0)
+      || roomFocus.some((entry) => entry && (entry.clears > 0 || entry.drills > 0));
+    return !hasRoomResult && (profile.summitClears || 0) === 0;
+  }
+
+  function openingIntroDuration(index = roomIndex) {
+    return index === 0 && needsOpeningControlsHint() ? 3.6 : ROOM_INTRO_TIME;
+  }
+
+  function openingControlHint() {
+    if (lastGamepadStatus.connected) return "左摇杆移动 · A 跳 · B 冲 · LB/RB 抓";
+    if (window.matchMedia?.("(pointer: coarse)")?.matches) return "左侧移动 · 右侧跳/冲/抓 · 中间重开";
+    return "WASD 移动 · Space 跳 · K 冲 · J 抓";
+  }
+
   function begin() {
     started = true;
-    roomIntroTimer = ROOM_INTRO_TIME;
+    roomIntroTimer = openingIntroDuration(0);
     clearTransientTrainingResults();
     unlockAudio();
     overlay.classList.add("hidden");
@@ -2078,19 +2148,36 @@
     lastFeelLabHtml = "";
   }
 
+  function resetFrameClock() {
+    lastTime = performance.now();
+    physicsAccumulator = 0;
+    pendingClockDt = 0;
+  }
+
   function frame(now) {
-    const dt = Math.min(0.033, (now - lastTime) / 1000);
+    const elapsed = Math.max(0, (now - lastTime) / 1000);
     lastTime = now;
-    fps = fps * 0.9 + (dt > 0 ? (1 / dt) * 0.1 : 0);
+    const fixedFrame = fixedStepFrameData({
+      elapsed,
+      accumulator: physicsAccumulator,
+      step: FIXED_PHYSICS_STEP,
+      maxFrame: MAX_PHYSICS_FRAME,
+      maxSteps: MAX_PHYSICS_STEPS
+    });
+    physicsAccumulator = fixedFrame.remainder;
+    if (elapsed > 0 && elapsed < 1) fps = fps * 0.9 + (1 / elapsed) * 0.1;
     let paused = isGamePaused();
+    let inputEdgesConsumed = false;
     if (paused) {
       updateGamepad();
+      inputEdgesConsumed = true;
       paused = isGamePaused();
     }
-    updateGlobalEffects(paused ? 0 : dt);
+    updateGlobalEffects(paused ? 0 : fixedFrame.frameDt);
     updateAmbientMusic(paused);
     if (!started || won) {
       updateGamepad();
+      inputEdgesConsumed = true;
       if (!started && (gamepadPressed.has("jump") || gamepadPressed.has("dash"))) {
         begin();
       }
@@ -2098,22 +2185,36 @@
 
     if (started && !won && !paused) {
       if (chapterTransitionTimer > 0) {
-        updateBuffers(dt);
-        updateParticles(dt * 0.22);
-        updateHair(dt);
+        pendingClockDt = 0;
+        physicsAccumulator = 0;
+        updateBuffers(fixedFrame.frameDt);
+        inputEdgesConsumed = true;
+        updateParticles(fixedFrame.frameDt * 0.22);
+        updateHair(fixedFrame.frameDt);
         updateHud();
       } else {
-        update(assistActive() ? dt * ASSIST_SPEED : dt, dt);
+        pendingClockDt += fixedFrame.elapsed;
+        for (let stepIndex = 0; stepIndex < fixedFrame.steps; stepIndex += 1) {
+          const clockDt = stepIndex === 0 ? pendingClockDt : 0;
+          update(assistActive() ? fixedFrame.step * ASSIST_SPEED : fixedFrame.step, clockDt);
+          if (stepIndex === 0) {
+            pendingClockDt = 0;
+            clearInputEdges(pressed, touchPressed, gamepadPressed);
+            inputEdgesConsumed = true;
+          }
+        }
       }
     } else {
-      updateParticles(paused ? dt * 0.25 : dt);
-      updateGhosts(paused ? 0 : dt);
-      updateRelayChain(paused ? 0 : dt);
+      pendingClockDt = 0;
+      physicsAccumulator = 0;
+      updateParticles(paused ? fixedFrame.frameDt * 0.25 : fixedFrame.frameDt);
+      updateGhosts(paused ? 0 : fixedFrame.frameDt);
+      updateRelayChain(paused ? 0 : fixedFrame.frameDt);
       if (paused) updateHud();
     }
 
     render(now / 1000);
-    clearInputEdges(pressed, touchPressed, gamepadPressed);
+    if (inputEdgesConsumed) clearInputEdges(pressed, touchPressed, gamepadPressed);
     requestAnimationFrame(frame);
   }
 
@@ -3255,8 +3356,8 @@
       const entrySpawn = roomEntrySpawn(roomIndex);
       player.x = -player.w + 4;
       player.y = entrySpawn.y;
-      cameraX = 0;
-      cameraTargetX = 0;
+      cameraX = clampCamera(-cameraSideCrop());
+      cameraTargetX = cameraX;
       roomTime = 0;
       timingArmed = true;
       timingInputReady = true;
@@ -3289,7 +3390,7 @@
         player.y = entrySpawn.y;
         returnRecovery = unstuckFromSolids();
       }
-      cameraX = Math.max(0, roomWorldWidth() - W);
+      cameraX = clampCamera(roomWorldWidth() - W + cameraSideCrop());
       cameraTargetX = cameraX;
       roomTime = 0;
       timingArmed = true;
@@ -4898,6 +4999,7 @@
       + `<span><b>${challengeSummary.wins}/${challengeSummary.total}</b><em>挑战</em></span>`
       + `<span><b>${profile.bestRelayChain}</b><em>Relay</em></span>`
       + `</div>`
+      + `<small class="profile-reward-note">完成长期挑战会永久点亮星顶星图，不增加第二套货币。</small>`
       + `${storageHealthMessage ? `<small class="storage-note">${escapeHtml(storageHealthMessage)}</small>` : ""}`;
     if (html === lastProfileSummaryHtml) return;
     lastProfileSummaryHtml = html;
@@ -5092,9 +5194,26 @@
     updateGamepadStatusOutput();
     if (resolved.status.activeActions.length > 0) resumeGameplayFromInput();
 
-    syncInputHeld(gamepadHeld, gamepadPressed, resolved.heldActions).forEach((action) => {
+    const newlyPressed = syncInputHeld(gamepadHeld, gamepadPressed, resolved.heldActions);
+    newlyPressed.forEach((action) => {
       if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
     });
+    handleGamepadCommands(newlyPressed);
+  }
+
+  function handleGamepadCommands(actions) {
+    const edges = new Set(actions || []);
+    if (edges.has("pause")) {
+      toggleSettings();
+      return;
+    }
+    if (settingsVisible) return;
+    if (edges.has("retry") && started) {
+      if (won) hardReset();
+      else quickRetry();
+      return;
+    }
+    if (edges.has("roomRestart") && started && !won) restartCurrentRoom();
   }
 
   function updateGamepadStatusOutput() {
@@ -5741,10 +5860,17 @@
       const query = params.toString();
       window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
     }
+    const shouldAutoConnect = Boolean(recoveryUserId && recoverySecret)
+      || readAccountHint()
+      || readSessionValue(ENTRY_MODE_SESSION_KEY) === "account";
     if (!window.Appwrite?.Client || !window.Appwrite?.Account || !window.Appwrite?.TablesDB) {
-      setAccountStatus("本地进度已就绪，正在连接云存档");
-      if (document.readyState === "complete") loadAppwriteSdk();
-      else window.addEventListener("load", () => loadAppwriteSdk(), { once: true });
+      if (shouldAutoConnect) {
+        setAccountStatus("本地进度已就绪，正在连接云存档");
+        if (document.readyState === "complete") loadAppwriteSdk();
+        else window.addEventListener("load", () => loadAppwriteSdk(), { once: true });
+      } else {
+        setAccountStatus("本地进度已就绪；打开账号页时再连接云存档", "valid");
+      }
       return;
     }
     const client = new window.Appwrite.Client()
@@ -8390,7 +8516,9 @@
     const openingChapter = CHAPTER_START_ROOMS[0] === roomIndex
       ? CHAPTER_EXPERIENCE[chapterIndexForRoom(roomIndex)]
       : null;
-    const subline = trainingActive
+    const subline = roomIndex === 0 && needsOpeningControlsHint()
+      ? openingControlHint()
+      : trainingActive
       ? `${ROOM_CHAPTER_LABELS[roomIndex] || "山巅"} · 目标 ${formatTime(introTarget)}`
       : openingChapter
         ? `${openingChapter.title} · ${openingChapter.vow}`
@@ -9171,7 +9299,10 @@
 
   function drawSummitConstellation(time, atmosphere) {
     const stars = [[118, 154], [184, 122], [250, 166], [326, 110], [392, 148]];
-    const progress = totalLumens > 0 ? Math.max(0, Math.min(1, collected.size / totalLumens)) : 0;
+    const runProgress = totalLumens > 0 ? Math.max(0, Math.min(1, collected.size / totalLumens)) : 0;
+    const challengeWins = LONG_TERM_CHALLENGES.filter((challenge) => profile.challengeWins?.[challenge.id]).length;
+    const masteryProgress = LONG_TERM_CHALLENGES.length > 0 ? challengeWins / LONG_TERM_CHALLENGES.length : 0;
+    const progress = Math.max(runProgress, masteryProgress);
     const segmentProgress = progress * (stars.length - 1);
     const breathe = prefersReducedMotion ? 0 : Math.sin(time * 2.2) * 0.025;
     ctx.save();

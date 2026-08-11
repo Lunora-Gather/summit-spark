@@ -220,5 +220,5 @@ if (errors.length > 0) {
 }
 
 const summary = pressureByRoom.map((value, index) => "R" + (index + 1) + ":" + value).join(" ");
-console.log("Route audit passed: ten-room readable route, R2 safe relay pocket, full-route R3 Practice entry and supported spring, R5 central-ridge switchback, exact four-relay/two-spring R6 capstone contract, grounded R7 chapter entry, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + ") with middle recovery shelf, R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
+console.log("Route audit passed: ten-room readable route, R2 safe relay pocket, full-route R3 Practice entry and supported spring, R5 central-ridge switchback, exact six-relay/three-spring R6 capstone contract, grounded R7 chapter entry, R7/R8 safe mechanic pockets, R9 Echo teaching pocket (distance " + echoTeachingDistance + ") with middle recovery shelf, R10 Echo reuse pocket (distance " + finaleEchoDistance + "), contracts, Feel Lab fixtures, transition guards. Pressure " + summary + ".");
 for (const warning of warnings) console.log("warn: " + warning);

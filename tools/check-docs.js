@@ -89,6 +89,9 @@ const architecture = read("docs/ARCHITECTURE.md");
 const contributing = read("CONTRIBUTING.md");
 const packageJson = read("package.json");
 const releaseChecklist = read("RELEASE_CHECKLIST.md");
+const playtestChecklist = read("PLAYTEST_CHECKLIST.md");
+const pagesWorkflow = read(".github/workflows/pages.yml");
+const qualityWorkflow = read(".github/workflows/docs-quality.yml");
 
 for (const modulePath of ["modules/core/", "modules/game/", "modules/systems/", "modules/training/", "modules/ui/"]) {
   if (!readme.includes(modulePath)) errors.push(`README.md repository tree missing ${modulePath}`);
@@ -110,6 +113,13 @@ if (!packageJson.includes('"live-check": "node tools/check-live-deployment.js"')
 }
 if (!readme.includes("npm run live-check") || !releaseChecklist.includes("npm run live-check")) {
   errors.push("README and release checklist must document the post-deployment live check");
+}
+if (!playtestChecklist.includes("six Relay beats, three spring launches")
+  || playtestChecklist.includes("four Relay beats, two spring exits")) {
+  errors.push("PLAYTEST_CHECKLIST.md must match the authored six-relay/three-spring R6 route");
+}
+if (!pagesWorkflow.includes("npm run browser-smoke") || !qualityWorkflow.includes("npm run browser-smoke")) {
+  errors.push("Pages and pull-request workflows must enforce the documented real-browser release gate");
 }
 
 if (errors.length > 0) {

@@ -14,7 +14,7 @@ This checklist begins only after `npm run check` and `npm run browser-smoke` pas
 
 - Start from a clean profile without opening Settings or Practice first.
 - Confirm the start choice and primary action are obvious at normal viewing distance.
-- Verify the first room starts without routine coaching cards or a redundant Move → Jump → Dash strip; labelled touch controls remain the only persistent input labels during touch play.
+- Verify the first room uses one short input line for a clean profile, then does not show a redundant Move → Jump → Dash strip or routine coaching cards; labelled touch controls remain the only persistent input labels during touch play.
 - Confirm free play remains visually quiet: no training report, split analysis or extra cards compete with the route.
 - Note the first death, the first point of uncertainty and any place where the player pauses for more than 20 seconds.
 - Open and close Settings and Practice once. Judge discoverability and visual weight; deterministic focus and click-through behavior is already covered by browser smoke.
@@ -32,7 +32,7 @@ Complete one uninterrupted R1–R10 route. For each room record `pass`, `frictio
 | R3 | refill, two-spring capstone, late dash | Are both spring landings readable before commitment? |
 | R4 | Relay chain under hazard pressure | Are safe and fast lines both understandable? |
 | R5 | foldback route memory | Does Wall Spark look optional rather than mandatory? |
-| R6 | four Relay beats, two spring exits | Does the sequence feel deliberate rather than cluttered? |
+| R6 | six Relay beats, three spring launches | Does the sequence feel deliberate rather than cluttered? |
 | R7 | grounded Wind Gorge entry, wind and crumble | Can wind lift and crumble warning be read together? |
 | R8 | prism/crumble route into final updraft | Does Overdrive preserve hazard readability? |
 | R9 | safe Echo anchor, wind, recovery shelf, prism | Does recovery arrive before renewed pressure? |

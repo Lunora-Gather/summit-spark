@@ -73,6 +73,10 @@ const buttons = resolveGamepadState([
       7: { value: 0.36 },
       6: { value: 0.36 },
       8: { pressed: true },
+      9: { pressed: true },
+      10: { pressed: true },
+      11: { pressed: true },
+      3: { pressed: true },
       15: { pressed: true }
     }
   })
@@ -82,7 +86,10 @@ assert.equal(buttons.input.jump, true);
 assert.equal(buttons.input.dash, true);
 assert.equal(buttons.input.grab, true);
 assert.equal(buttons.input.recall, true);
-assert.deepEqual(buttons.heldActions, ["jump", "dash", "grab", "recall"]);
+assert.equal(buttons.input.retry, true);
+assert.equal(buttons.input.pause, true);
+assert.equal(buttons.input.roomRestart, true);
+assert.deepEqual(buttons.heldActions, ["jump", "dash", "grab", "recall", "retry", "roomRestart", "pause"]);
 assert.equal(buttons.status.driftRisk, false, "D-pad use should not create an axis drift warning");
 
 const threshold = resolveGamepadState([

@@ -33,3 +33,7 @@ jobs:
 
       - name: Run default quality gate
         run: npm run check
+
+      - name: Run real-browser gate
+        run: npm run browser-smoke
+        timeout-minutes: 5

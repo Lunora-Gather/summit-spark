@@ -1,5 +1,5 @@
-const GAMEPAD_ACTIONS = ["left", "right", "up", "down", "jump", "dash", "grab", "recall"];
-const GAMEPAD_EDGE_ACTIONS = ["jump", "dash", "grab", "recall"];
+const GAMEPAD_ACTIONS = ["left", "right", "up", "down", "jump", "dash", "grab", "recall", "retry", "roomRestart", "pause"];
+const GAMEPAD_EDGE_ACTIONS = ["jump", "dash", "grab", "recall", "retry", "roomRestart", "pause"];
 const INPUT_BUFFER_FIELDS = Object.freeze({
   jump: "jumpBuffer",
   dash: "dashBuffer"
@@ -30,7 +30,10 @@ export function resolveGamepadState(pads, { supported, deadzone }) {
     input.grab = gamepadButtonPressed(pad, 4)
       || gamepadButtonPressed(pad, 5)
       || gamepadButtonPressed(pad, 6, 0.35);
-    input.recall = gamepadButtonPressed(pad, 3) || gamepadButtonPressed(pad, 8);
+    input.recall = gamepadButtonPressed(pad, 3);
+    input.retry = gamepadButtonPressed(pad, 8);
+    input.pause = gamepadButtonPressed(pad, 9);
+    input.roomRestart = gamepadButtonPressed(pad, 10) && gamepadButtonPressed(pad, 11);
   }
 
   const rawX = pad?.axes?.[0] || 0;

@@ -1898,7 +1898,7 @@ async function runSpringApexSmoke(cdp, baseUrl) {
         vx: Number(velocity[1]),
         vy: Number(velocity[2]),
         flow: Number(flow[1]),
-        speed: Math.hypot(Number(velocity[1]), Number(velocity[2])),
+        speed: Number(window.__summitSmokeSpringApexSpeed) || Math.hypot(Number(velocity[1]), Number(velocity[2])),
         text
       };
     })()`), 900, 10);

@@ -3785,6 +3785,29 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
     }
     last = moved;
   }
+  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "corruptMotion" }))`);
+  const selfHealed = await waitUntil("non-finite runtime state self-heals", () => evaluate(cdp, `(() => {
+    const status = document.querySelector("#gameStatus")?.textContent || "";
+    const text = document.querySelector("#debugPanel")?.textContent || "";
+    const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    const overlap = text.match(/overlap (\\d+)/);
+    const recoveries = text.match(/recover (\\d+)/);
+    return /运行状态已恢复/.test(status)
+      && position
+      && Number.isFinite(Number(position[1]))
+      && Number.isFinite(Number(position[2]))
+      && overlap
+      && Number(overlap[1]) === 0
+      && recoveries
+      && Number(recoveries[1]) === 1
+      ? { x: Number(position[1]), y: Number(position[2]), status, text }
+      : null;
+  })()`), 3000, 30);
+  await keyHold(cdp, "KeyD", "D", 90);
+  const afterSelfHealMove = await debugPosition(cdp);
+  if (afterSelfHealMove.x - selfHealed.x < 1) {
+    errors.push("a self-healed runtime should accept movement immediately: " + JSON.stringify({ selfHealed, afterSelfHealMove }));
+  }
   const runtimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
   if (runtimeErrors.length) errors.push("restart soak should not emit runtime errors: " + JSON.stringify(runtimeErrors));
   if (!Number.isFinite(last.x) || !Number.isFinite(last.y)) errors.push("restart soak should finish with a finite debug position: " + JSON.stringify(last));

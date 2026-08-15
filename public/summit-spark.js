@@ -195,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p282"),
-    import("./modules/core/math.mjs?v=20260816-p282"),
-    import("./modules/game/room-data.mjs?v=20260816-p282"),
-    import("./modules/game/world-model.mjs?v=20260816-p282"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p282"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p282"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p282"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p282"),
-    import("./modules/systems/storage.mjs?v=20260816-p282"),
-    import("./modules/systems/input.mjs?v=20260816-p282"),
-    import("./modules/training/state.mjs?v=20260816-p282"),
-    import("./modules/training/replay.mjs?v=20260816-p282"),
-    import("./modules/ui/presentation.mjs?v=20260816-p282")
+    import("./modules/core/format.mjs?v=20260816-p283"),
+    import("./modules/core/math.mjs?v=20260816-p283"),
+    import("./modules/game/room-data.mjs?v=20260816-p283"),
+    import("./modules/game/world-model.mjs?v=20260816-p283"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p283"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p283"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p283"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p283"),
+    import("./modules/systems/storage.mjs?v=20260816-p283"),
+    import("./modules/systems/input.mjs?v=20260816-p283"),
+    import("./modules/training/state.mjs?v=20260816-p283"),
+    import("./modules/training/replay.mjs?v=20260816-p283"),
+    import("./modules/ui/presentation.mjs?v=20260816-p283")
   ]);
 
   const canvas = document.getElementById("game");
@@ -723,6 +723,7 @@
   let settingsVisible = false;
   let focusPaused = false;
   let respawnRecoveryTimer = 0;
+  let runtimeRecoveryCount = 0;
   let panelMode = "settings";
   let panelReturnFocus = null;
   let grabLatched = false;
@@ -855,6 +856,13 @@
     spawn: 0,
     death: 0
   };
+  const PLAYER_RUNTIME_NUMBER_FIELDS = Object.freeze([
+    "x", "y", "vx", "vy", "facing", "wallDir", "wallCoyote", "wallCoyoteDir",
+    "overdrive", "stamina", "dashes", "dashTimer", "dashCooldown", "dashDirX", "dashDirY",
+    "ghostTimer", "coyote", "jumpBuffer", "dashBuffer", "sparkHopTimer", "sparkHopDirX",
+    "sparkHopDirY", "springLaunchTimer", "wallJumpLock", "deadTimer", "respawnRoom",
+    "respawnX", "respawnY", "respawnRoomTime"
+  ]);
   const totalLumens = maps.reduce((total, rows) => {
     return total + rows.join("").split("").filter((tile) => tile === "L").length;
   }, 0);
@@ -993,6 +1001,11 @@
         if (started && !won && player.deadTimer <= 0 && player.dashes > 0 && player.dashCooldown <= 0) {
           startDash(getInput());
         }
+      }
+      if (action === "corruptMotion") {
+        player.x = Number.NaN;
+        player.vx = Number.POSITIVE_INFINITY;
+        cameraX = Number.NaN;
       }
     });
   }
@@ -2176,6 +2189,59 @@
     pendingClockDt = 0;
   }
 
+  function runtimeCriticalStateFinite() {
+    const playerNumbersFinite = PLAYER_RUNTIME_NUMBER_FIELDS.every((field) => Number.isFinite(player[field]));
+    const worldNumbersFinite = [cameraX, cameraTargetX, runTime, roomTime, flowScore, flowPeak, hitStopTimer, room?.dynamicTime]
+      .every(Number.isFinite);
+    return playerNumbersFinite
+      && worldNumbersFinite
+      && Number.isInteger(roomIndex)
+      && roomIndex >= 0
+      && roomIndex < maps.length
+      && Number.isInteger(player.respawnRoom)
+      && player.respawnRoom >= 0
+      && player.respawnRoom < maps.length
+      && (player.facing === -1 || player.facing === 1)
+      && Array.isArray(runRoomTimes)
+      && runRoomTimes.every(Number.isFinite)
+      && Boolean(room);
+  }
+
+  function recoverInvalidRuntimeState() {
+    if (runtimeCriticalStateFinite()) return false;
+    const roomCandidate = Number.isInteger(player.respawnRoom)
+      && player.respawnRoom >= 0
+      && player.respawnRoom < maps.length
+      ? player.respawnRoom
+      : Number.isInteger(roomIndex) && roomIndex >= 0 && roomIndex < maps.length
+        ? roomIndex
+        : 0;
+    roomIndex = roomCandidate;
+    player.respawnRoom = roomCandidate;
+    const entrySpawn = roomEntrySpawn(roomCandidate);
+    if (!Number.isFinite(player.respawnX) || !Number.isFinite(player.respawnY)) {
+      player.respawnX = entrySpawn.x;
+      player.respawnY = entrySpawn.y;
+      player.respawnLumens = [];
+    }
+    player.respawnRoomTime = Number.isFinite(player.respawnRoomTime)
+      ? Math.max(0, player.respawnRoomTime)
+      : 0;
+    player.facing = player.facing === -1 ? -1 : 1;
+    runRoomTimes = maps.map((_, index) => Number.isFinite(runRoomTimes?.[index])
+      ? Math.max(0, runRoomTimes[index])
+      : 0);
+    runTime = runRoomTimes.reduce((total, seconds) => total + seconds, 0);
+    roomTime = player.respawnRoomTime;
+    flowScore = Number.isFinite(flowScore) ? Math.max(0, flowScore) : 0;
+    flowPeak = Number.isFinite(flowPeak) ? Math.max(flowScore, flowPeak) : flowScore;
+    hitStopTimer = 0;
+    runtimeRecoveryCount += 1;
+    respawn();
+    setGameStatus(`运行状态已恢复 · R${roomIndex + 1} · 可继续前进`);
+    return true;
+  }
+
   function frame(now) {
     const elapsed = Math.max(0, (now - lastTime) / 1000);
     lastTime = now;
@@ -2244,6 +2310,11 @@
     if (assistActive()) runUsedAssist = true;
     updateRelayChain(dt);
     updateActionVisuals(dt);
+
+    if (recoverInvalidRuntimeState()) {
+      updateHud();
+      return;
+    }
 
     if (hitStopTimer > 0) {
       hitStopTimer = Math.max(0, hitStopTimer - dt);
@@ -5675,6 +5746,7 @@
         chapterTransition: chapterTransitionTimer > 0,
         summitReveal: summitRevealTimer > 0,
         deaths: deathCount,
+        runtimeRecoveries: runtimeRecoveryCount,
         runTime: Math.round(runTime * 100) / 100,
         roomTime: Math.round(roomTime * 100) / 100,
         roomTimes: runRoomTimes.map((seconds) => Math.round(seconds * 100) / 100),
@@ -12228,7 +12300,7 @@
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${chapterTransitionTimer.toFixed(3)}`,
       `pause focus ${focusPaused ? 1 : 0}  settings ${settingsVisible ? 1 : 0}  hidden ${document.hidden ? 1 : 0}`,
-      `respawn ${player.respawnX.toFixed(1)}, ${player.respawnY.toFixed(1)}  overlap ${collidesSolid(getPlayerBox()) ? 1 : 0}`,
+      `respawn ${player.respawnX.toFixed(1)}, ${player.respawnY.toFixed(1)}  overlap ${collidesSolid(getPlayerBox()) ? 1 : 0}  recover ${runtimeRecoveryCount}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  spring apex ${player.springLaunchTimer.toFixed(3)} hit ${visualRatio("springApex", 0.34).toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}  recharge ${visualRatio("recharge", 0.26).toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,

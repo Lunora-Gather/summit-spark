@@ -96,7 +96,7 @@ public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
 
 只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
 
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/world-model.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`game/lumen-progress.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成；固定步长帧预算也已由 `core/math.mjs` 提供纯函数契约，主运行时只负责消费步数。p281–p285 的运行时收口继续把“重生可玩性”和“响应式布局”当成跨层契约：输入恢复、落点自愈、有限状态/集合恢复只由主运行时编排，纯模块不读取 DOM；移动端位置、触控最小尺寸、长重启稳定性与非有限状态恢复由同一套浏览器门禁验证。接下来的顺序是：
+`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/world-model.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`game/lumen-progress.mjs`、`systems/storage.mjs`、`systems/input.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成；固定步长帧预算也已由 `core/math.mjs` 提供纯函数契约，主运行时只负责消费步数。p281–p286 的运行时收口继续把“重生可玩性”“响应式布局”和“声音资源边界”当成跨层契约：输入恢复、落点自愈、有限状态/集合恢复、静音/暂停时的环境音回收只由主运行时编排，纯模块不读取 DOM；移动端位置、触控最小尺寸、长重启稳定性、非有限状态恢复与音频资源边界由同一套浏览器门禁验证。接下来的顺序是：
 
 1. `ui/`：只在有直接消费者与契约时继续迁移无副作用的面板/HUD 展示模型，DOM 事件仍留主运行时。
 2. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。

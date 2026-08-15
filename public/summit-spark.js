@@ -195,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p285"),
-    import("./modules/core/math.mjs?v=20260816-p285"),
-    import("./modules/game/room-data.mjs?v=20260816-p285"),
-    import("./modules/game/world-model.mjs?v=20260816-p285"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p285"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p285"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p285"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p285"),
-    import("./modules/systems/storage.mjs?v=20260816-p285"),
-    import("./modules/systems/input.mjs?v=20260816-p285"),
-    import("./modules/training/state.mjs?v=20260816-p285"),
-    import("./modules/training/replay.mjs?v=20260816-p285"),
-    import("./modules/ui/presentation.mjs?v=20260816-p285")
+    import("./modules/core/format.mjs?v=20260816-p286"),
+    import("./modules/core/math.mjs?v=20260816-p286"),
+    import("./modules/game/room-data.mjs?v=20260816-p286"),
+    import("./modules/game/world-model.mjs?v=20260816-p286"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p286"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p286"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p286"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p286"),
+    import("./modules/systems/storage.mjs?v=20260816-p286"),
+    import("./modules/systems/input.mjs?v=20260816-p286"),
+    import("./modules/training/state.mjs?v=20260816-p286"),
+    import("./modules/training/replay.mjs?v=20260816-p286"),
+    import("./modules/ui/presentation.mjs?v=20260816-p286")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1271,13 +1271,24 @@
     if (settings.audioEnabled) {
       unlockAudio();
       playSound("ui");
+      updateAmbientMusic(isGamePaused());
+    } else {
+      // Stop already-scheduled chapter voices immediately when muting. The
+      // bus fade alone would hide them visually but keep the oscillators alive
+      // until their natural end, which is wasteful on long sessions.
+      clearAmbientVoices();
     }
     setGameStatus(settings.audioEnabled ? "声音已开启" : "声音已关闭");
   });
   audioVolumeSlider?.addEventListener("input", () => {
     settings.audioVolume = Number(audioVolumeSlider.value);
     writeSettings();
-    playSound("ui");
+    if (settings.audioVolume <= 0) {
+      clearAmbientVoices();
+    } else {
+      playSound("ui");
+      updateAmbientMusic(isGamePaused());
+    }
   });
   audioTestButton?.addEventListener("click", () => {
     settings.audioEnabled = true;
@@ -7304,6 +7315,7 @@
     const audible = settings.audioEnabled && settings.audioVolume > 0 && started && !won && !paused;
     ambientBus.gain.setTargetAtTime(audible ? 1 : 0.0001, now, 0.35);
     if (!audible || audioContext.state !== "running") {
+      clearAmbientVoices();
       ambientNextTime = now;
       return;
     }

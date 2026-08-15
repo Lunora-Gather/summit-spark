@@ -195,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p288"),
-    import("./modules/core/math.mjs?v=20260816-p288"),
-    import("./modules/game/room-data.mjs?v=20260816-p288"),
-    import("./modules/game/world-model.mjs?v=20260816-p288"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p288"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p288"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p288"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p288"),
-    import("./modules/systems/storage.mjs?v=20260816-p288"),
-    import("./modules/systems/input.mjs?v=20260816-p288"),
-    import("./modules/training/state.mjs?v=20260816-p288"),
-    import("./modules/training/replay.mjs?v=20260816-p288"),
-    import("./modules/ui/presentation.mjs?v=20260816-p288")
+    import("./modules/core/format.mjs?v=20260816-p289"),
+    import("./modules/core/math.mjs?v=20260816-p289"),
+    import("./modules/game/room-data.mjs?v=20260816-p289"),
+    import("./modules/game/world-model.mjs?v=20260816-p289"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p289"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p289"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p289"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p289"),
+    import("./modules/systems/storage.mjs?v=20260816-p289"),
+    import("./modules/systems/input.mjs?v=20260816-p289"),
+    import("./modules/training/state.mjs?v=20260816-p289"),
+    import("./modules/training/replay.mjs?v=20260816-p289"),
+    import("./modules/ui/presentation.mjs?v=20260816-p289")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3266,7 +3266,7 @@
       localStorage.setItem(BEST_TIME_KEY, String(value));
       scheduleCloudSave();
     } catch {
-      // Best time is a bonus; gameplay should keep working without storage.
+      markStorageIssue("本地存档不可写");
     }
   }
 
@@ -3283,12 +3283,13 @@
       localStorage.setItem(BEST_FLOW_KEY, String(Math.floor(value)));
       scheduleCloudSave();
     } catch {
-      // Flow bests are optional practice data.
+      markStorageIssue("本地存档不可写");
     }
   }
 
   function markStorageIssue(message) {
     storageHealthMessage = message;
+    if (document.documentElement.classList.contains("app-ready")) maybeShowStorageRepairToast();
   }
 
   function readStoredJson(key, fallback, normalize) {
@@ -3311,7 +3312,7 @@
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
       scheduleCloudSave();
     } catch {
-      // Long-term profile data is optional and should not block play.
+      markStorageIssue("本地存档不可写");
     }
   }
 
@@ -3328,7 +3329,7 @@
       localStorage.setItem(ROOM_BESTS_KEY, JSON.stringify(bestRoomTimes));
       scheduleCloudSave();
     } catch {
-      // Split times are optional practice data.
+      markStorageIssue("本地存档不可写");
     }
   }
 
@@ -3394,7 +3395,7 @@
       localStorage.setItem(ROOM_PATHS_KEY, JSON.stringify(bestRoomPaths));
       scheduleCloudSave();
     } catch {
-      // Best paths are optional practice data.
+      markStorageIssue("本地存档不可写");
     }
   }
 
@@ -3948,7 +3949,7 @@
       }));
       scheduleCloudSave();
     } catch {
-      // Focus stats are optional practice data.
+      markStorageIssue("本地存档不可写");
     }
   }
 
@@ -6997,6 +6998,7 @@
       ]);
       window.__summitLastSaveBackup = backup;
     } catch {
+      markStorageIssue("本地存档不可写");
       throw new Error("浏览器存档不可写");
     }
   }
@@ -7321,7 +7323,7 @@
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       scheduleCloudSave();
     } catch {
-      // Settings are convenience only; gameplay should continue without storage.
+      markStorageIssue("本地存档不可写");
     }
   }
 

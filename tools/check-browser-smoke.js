@@ -571,6 +571,30 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!settingsAccordion.audioOpen || !settingsAccordion.controlsClosed || !settingsAccordion.displayClosed || !settingsAccordion.feedbackClosed || !settingsAccordion.noForcedScroll) {
     errors.push("settings-only groups should keep a compact single-open accordion: " + JSON.stringify(settingsAccordion));
   }
+  const storageWriteFault = await evaluate(cdp, `(() => {
+    const proto = Storage.prototype;
+    const original = proto.setItem;
+    let result;
+    try {
+      proto.setItem = function(key, value) {
+        if (key === "summit-spark-settings") throw new Error("smoke quota");
+        return original.call(this, key, value);
+      };
+      const toggle = document.querySelector("#audioToggle");
+      toggle.checked = !toggle.checked;
+      toggle.dispatchEvent(new Event("change", { bubbles: true }));
+      result = {
+        tip: document.querySelector("#gameTipTitle")?.textContent || "",
+        status: document.querySelector("#gameStatus")?.textContent || ""
+      };
+    } finally {
+      proto.setItem = original;
+    }
+    return result;
+  })()`);
+  if (!/本地存档不可写/.test(storageWriteFault.tip)) {
+    errors.push("a mid-session storage write failure should expose the existing persistence warning: " + JSON.stringify(storageWriteFault));
+  }
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("settings close after start", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === 0`));
   const hiddenPanelMutations = await evaluate(cdp, `(async () => {

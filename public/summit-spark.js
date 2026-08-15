@@ -195,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p286"),
-    import("./modules/core/math.mjs?v=20260816-p286"),
-    import("./modules/game/room-data.mjs?v=20260816-p286"),
-    import("./modules/game/world-model.mjs?v=20260816-p286"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p286"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p286"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p286"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p286"),
-    import("./modules/systems/storage.mjs?v=20260816-p286"),
-    import("./modules/systems/input.mjs?v=20260816-p286"),
-    import("./modules/training/state.mjs?v=20260816-p286"),
-    import("./modules/training/replay.mjs?v=20260816-p286"),
-    import("./modules/ui/presentation.mjs?v=20260816-p286")
+    import("./modules/core/format.mjs?v=20260816-p287"),
+    import("./modules/core/math.mjs?v=20260816-p287"),
+    import("./modules/game/room-data.mjs?v=20260816-p287"),
+    import("./modules/game/world-model.mjs?v=20260816-p287"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p287"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p287"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p287"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p287"),
+    import("./modules/systems/storage.mjs?v=20260816-p287"),
+    import("./modules/systems/input.mjs?v=20260816-p287"),
+    import("./modules/training/state.mjs?v=20260816-p287"),
+    import("./modules/training/replay.mjs?v=20260816-p287"),
+    import("./modules/ui/presentation.mjs?v=20260816-p287")
   ]);
 
   const canvas = document.getElementById("game");
@@ -724,6 +724,8 @@
   let focusPaused = false;
   let respawnRecoveryTimer = 0;
   let runtimeRecoveryCount = 0;
+  let frameFaultCount = 0;
+  let frameFaultWindowStart = 0;
   let panelMode = "settings";
   let panelReturnFocus = null;
   let grabLatched = false;
@@ -1025,6 +1027,11 @@
         player.respawnLumens = null;
         room.entities = null;
         collected = null;
+      }
+      if (action === "throwFrame") {
+        // Local-only loop-boundary probe: prove a thrown render/update frame
+        // cannot permanently orphan the requestAnimationFrame chain.
+        window.__summitSmokeThrowFrame = true;
       }
     });
   }
@@ -1593,7 +1600,7 @@
   });
 
   markAppReady();
-  requestAnimationFrame(frame);
+  requestAnimationFrame(runFrame);
 
   function parseRoom(index) {
     const rows = maps[index];
@@ -2297,6 +2304,11 @@
   }
 
   function frame(now) {
+    if (["127.0.0.1", "localhost"].includes(window.location.hostname)
+      && window.__summitSmokeThrowFrame) {
+      window.__summitSmokeThrowFrame = false;
+      throw new Error("summit smoke frame fault");
+    }
     const elapsed = Math.max(0, (now - lastTime) / 1000);
     lastTime = now;
     const fixedFrame = fixedStepFrameData({
@@ -2314,7 +2326,7 @@
     if (recoverInvalidRuntimeState()) {
       updateHud();
       render(now / 1000);
-      requestAnimationFrame(frame);
+      requestAnimationFrame(runFrame);
       return;
     }
     let paused = isGamePaused();
@@ -2366,7 +2378,47 @@
 
     render(now / 1000);
     if (inputEdgesConsumed) clearInputEdges(pressed, touchPressed, gamepadPressed);
-    requestAnimationFrame(frame);
+    requestAnimationFrame(runFrame);
+  }
+
+  // Keep a transient rendering or UI exception from permanently killing the
+  // requestAnimationFrame chain. A single bad frame should become a visible,
+  // recoverable pause rather than the "everything responds but the climber is
+  // frozen" state that browsers otherwise leave behind.
+  function runFrame(now) {
+    try {
+      frame(now);
+      if (frameFaultCount > 0 && performance.now() - frameFaultWindowStart > 2000) {
+        frameFaultCount = 0;
+        frameFaultWindowStart = 0;
+      }
+    } catch (error) {
+      const timestamp = performance.now();
+      if (!frameFaultWindowStart || timestamp - frameFaultWindowStart > 2000) {
+        frameFaultWindowStart = timestamp;
+        frameFaultCount = 0;
+      }
+      frameFaultCount += 1;
+      console.error("[summit-spark] frame recovered", error);
+      releaseAllInputs();
+      physicsAccumulator = 0;
+      pendingClockDt = 0;
+      lastTime = timestamp;
+      let stateRecovered = false;
+      try {
+        stateRecovered = recoverInvalidRuntimeState();
+      } catch (recoveryError) {
+        console.error("[summit-spark] state recovery failed", recoveryError);
+      }
+      if (!stateRecovered && started && !won) {
+        focusPaused = true;
+        setGameStatus("运行状态异常 · 已暂停，请按 R 重开");
+      } else if (stateRecovered) {
+        setGameStatus("运行状态已恢复 · 可继续前进");
+      }
+      const retryDelay = Math.min(250, 40 * frameFaultCount);
+      window.setTimeout(() => requestAnimationFrame(runFrame), retryDelay);
+    }
   }
 
   function update(dt, clockDt = dt) {
@@ -5810,6 +5862,7 @@
         summitReveal: summitRevealTimer > 0,
         deaths: deathCount,
         runtimeRecoveries: runtimeRecoveryCount,
+        frameFaults: frameFaultCount,
         runTime: Math.round(runTime * 100) / 100,
         roomTime: Math.round(roomTime * 100) / 100,
         roomTimes: runRoomTimes.map((seconds) => Math.round(seconds * 100) / 100),
@@ -12364,7 +12417,7 @@
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
       `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${chapterTransitionTimer.toFixed(3)}`,
       `pause focus ${focusPaused ? 1 : 0}  settings ${settingsVisible ? 1 : 0}  hidden ${document.hidden ? 1 : 0}`,
-      `respawn ${player.respawnX.toFixed(1)}, ${player.respawnY.toFixed(1)}  overlap ${collidesSolid(getPlayerBox()) ? 1 : 0}  recover ${runtimeRecoveryCount}`,
+      `respawn ${player.respawnX.toFixed(1)}, ${player.respawnY.toFixed(1)}  overlap ${collidesSolid(getPlayerBox()) ? 1 : 0}  recover ${runtimeRecoveryCount}  faults ${frameFaultCount}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  spring apex ${player.springLaunchTimer.toFixed(3)} hit ${visualRatio("springApex", 0.34).toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}  recharge ${visualRatio("recharge", 0.26).toFixed(3)}`,
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,

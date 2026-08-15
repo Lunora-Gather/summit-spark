@@ -3843,6 +3843,27 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
     const runtimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
     errors.push(`damaged runtime collections probe failed: ${error.message}: ${JSON.stringify({ probe, runtimeErrors })}`);
   }
+  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "throwFrame" }))`);
+  const frameBoundary = await waitUntil("thrown frame boundary remains recoverable", () => evaluate(cdp, `(() => {
+    const status = document.querySelector("#gameStatus")?.textContent || "";
+    const text = document.querySelector("#debugPanel")?.textContent || "";
+    return /运行状态异常/.test(status) && /faults 1/.test(text) ? { status, text } : null;
+  })()`), 3000, 30);
+  await keyTap(cdp, "KeyR", "R");
+  const afterFrameBoundary = await waitUntil("retry after thrown frame boundary", () => evaluate(cdp, `(() => {
+    const status = document.querySelector("#gameStatus")?.textContent || "";
+    const text = document.querySelector("#debugPanel")?.textContent || "";
+    const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
+    const dead = text.match(/dead ([\\d.]+)/);
+    return /快速重开/.test(status) && position && dead && Number(dead[1]) === 0
+      ? { status, x: Number(position[1]), y: Number(position[2]), text }
+      : null;
+  })()`), 3000, 30);
+  await keyHold(cdp, "KeyD", "D", 90);
+  const afterFrameBoundaryMove = await debugPosition(cdp);
+  if (afterFrameBoundaryMove.x - afterFrameBoundary.x < 1) {
+    errors.push("retry after a thrown frame should restore movement: " + JSON.stringify({ frameBoundary, afterFrameBoundary, afterFrameBoundaryMove }));
+  }
   const runtimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
   if (runtimeErrors.length) errors.push("restart soak should not emit runtime errors: " + JSON.stringify(runtimeErrors));
   if (!Number.isFinite(last.x) || !Number.isFinite(last.y)) errors.push("restart soak should finish with a finite debug position: " + JSON.stringify(last));

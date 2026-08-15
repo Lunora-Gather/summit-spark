@@ -295,7 +295,7 @@ async function main() {
       "updateSaveImportPreview",
       "gamepadDiagnostics",
       "isSettingsTextEntryTarget",
-      "requestAnimationFrame(frame)"
+      "requestAnimationFrame(runFrame)"
     ].forEach((marker) => expectIncludes("js", js, marker));
 
     [

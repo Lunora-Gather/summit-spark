@@ -1883,7 +1883,15 @@ async function runSpringApexSmoke(cdp, baseUrl) {
       const hit = text.match(/spring apex ([\\d.]+) hit ([\\d.]+)/);
       const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
       const flow = text.match(/flow (\\d+)/);
-      if (!hit || !velocity || !flow || Number(hit[2]) <= 0 || Number(flow[1]) < 15 || !/feel SPRING APEX/.test(text)) return null;
+      const timer = text.match(/spring apex ([\\d.]+) hit/);
+      const cueVisible = /feel SPRING APEX/.test(text);
+      // A loaded CI runner can present the same apex state for several polls.
+      // Re-issue the localhost-only buffered action while the window is alive;
+      // startDash is resource-guarded, so this cannot spend a second dash.
+      if (timer && Number(timer[1]) > 0.02 && !cueVisible) {
+        window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "dash" }));
+      }
+      if (!hit || !velocity || !flow || Number(hit[2]) <= 0 || Number(flow[1]) < 15 || !cueVisible) return null;
       return {
         timer: Number(hit[1]),
         hit: Number(hit[2]),

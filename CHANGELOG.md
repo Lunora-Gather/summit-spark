@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-16
+
+- 完成 `20260816-p281` 的成熟度收口。自动重生现在会清掉失焦或旧帧残留的输入边沿，恢复可玩焦点与计时边界，并给重生落点一个极短的安全窗口，避免“角色已出现但按键无效/立即再次死亡”的假死感；恢复状态同时明确提示 `R` 快速重开与 `T` 房间重开。键盘首玩提示和触控重开按钮补上可发现的快捷键语义，触控按钮保留原有克制尺寸。R7/R8 的房间入场简报延长到 2.1 秒并写明风场、碎冰、棱镜的第一阅读重点，难度不降但过渡更平滑。舒适高度的竖屏把简报与画面整体上移 34px 以内，消除顶部大段空场；320×480 等短屏继续沿用紧凑布局。浏览器回归新增移动端位置门禁、重生稳定性检查与 p281 版本一致性检查。
+
 ## 2026-08-11
 
 - Closed the deep-audit stability and input gaps in `20260811-p280`. Gameplay now advances through bounded 120 Hz fixed physics steps while PB and split clocks retain real monotonic elapsed time, so low frame rates no longer slow both movement and records or hide sub-30 FPS stalls. High-refresh partial frames retain input edges until a simulation step consumes them, focus recovery clears scheduler backlog, and deterministic math tests cover 60/240 Hz plus long stalls. Portrait play now crops the wide canvas to a camera-aware 640-unit route view instead of shrinking the entire 16:9 room, enlarging the climber, hazards and landings without changing desktop or landscape maps. The touch layer is structurally separated from the transformed playfield, preventing respawn-era control overlap; it also gains quiet quick-retry and room-restart controls. Standard gamepads gain View retry, Start settings, L3+R3 room restart and a dedicated Y recall. Clean profiles receive one short device-aware opening input line, while established profiles remain coaching-free. Guest entry no longer downloads the 469 KB Appwrite SDK until account recovery, an account hint or the account page requires it; failure/retry behavior remains covered. Long-term challenge wins now permanently light the summit constellation without adding a currency. The real-browser gate is enforced in both pull-request and Pages workflows, its R10 apex action is dispatched in the observed gameplay frame instead of racing a protocol round trip, and the R6 checklist/log contradiction now matches the authored six Relays and three springs.

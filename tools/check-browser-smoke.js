@@ -3744,6 +3744,52 @@ async function runCanvasDensitySmoke(cdp, baseUrl) {
   if (restored.enabled) errors.push("normal high-DPI canvas should be restored after disabling low-performance mode");
 }
 
+async function runRestartSoakSmoke(cdp, baseUrl) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 720,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
+  await navigateApp(cdp, baseUrl, "restart soak");
+  const entryPending = await evaluate(cdp, `!document.querySelector("#entryGate")?.classList.contains("hidden")`);
+  if (entryPending) {
+    await clickSelector(cdp, "#guestEntryButton");
+    await waitUntil("restart soak guest entry", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden")`));
+  }
+  await clickSelector(cdp, "#startButton");
+  await waitUntil("restart soak game start", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
+  await enableDebugPanel(cdp);
+  let last = await debugPosition(cdp);
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    await keyTap(cdp, "KeyR", "R");
+    const state = await waitUntil(`restart soak ${attempt + 1}`, () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#gameStatus")?.textContent || "";
+      const text = document.querySelector("#debugPanel")?.textContent || "";
+      const dead = text.match(/dead ([\\d.]+)/);
+      const overlap = text.match(/overlap (\\d+)/);
+      return /快速重开/.test(status) && dead && Number(dead[1]) === 0 && overlap && Number(overlap[1]) === 0
+        ? { status, text }
+        : null;
+    })()`), 3000, 40);
+    const current = await debugPosition(cdp);
+    if (!Number.isFinite(current.x) || !Number.isFinite(current.y)) {
+      errors.push("repeated quick retries should retain finite player coordinates: " + JSON.stringify({ attempt, state, current }));
+      break;
+    }
+    await keyHold(cdp, "KeyD", "D", 90);
+    const moved = await debugPosition(cdp);
+    if (moved.x - current.x < 1) {
+      errors.push("player should accept movement immediately after repeated retry: " + JSON.stringify({ attempt, current, moved }));
+      break;
+    }
+    last = moved;
+  }
+  const runtimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
+  if (runtimeErrors.length) errors.push("restart soak should not emit runtime errors: " + JSON.stringify(runtimeErrors));
+  if (!Number.isFinite(last.x) || !Number.isFinite(last.y)) errors.push("restart soak should finish with a finite debug position: " + JSON.stringify(last));
+}
+
 async function runMobileSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 390,
@@ -4086,10 +4132,12 @@ async function runMobileSmoke(cdp, baseUrl) {
       portraitAtmosphere: shell.dataset.portraitChapter === "gate" && ridgeStyle.content !== "none" && ridgeStyle.clipPath !== "none",
       portraitBriefText: portraitBrief.textContent.trim(),
       controlHintRemoved: !document.querySelector("#controlHint"),
+      retryLabels: [document.querySelector('[data-touch-command="retry"]'), document.querySelector('[data-touch-command="roomRestart"]')]
+        .map((button) => (button?.getAttribute("aria-label") || "") + " " + (button?.getAttribute("title") || "")),
       stageTop: Math.round(stage.top)
     };
   })()`);
-  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 520) {
+  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 380 || !touchUi.retryLabels.every((label) => /重开/.test(label) && /(R|T)/.test(label))) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
   await tapSelector(cdp, '[data-touch-command="retry"]');
@@ -4684,6 +4732,7 @@ async function main() {
     await runSaveArchiveSmoke(cdp, baseUrl);
     await runCanvasDensitySmoke(cdp, baseUrl);
     await runVisualRegressionSmoke(cdp, baseUrl);
+    await runRestartSoakSmoke(cdp, baseUrl);
     await runMobileSmoke(cdp, baseUrl);
     await runMobileSafeAreaSmoke(cdp, baseUrl);
     await runMobileLandscapeSmoke(cdp, baseUrl);
@@ -4712,7 +4761,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
-  console.log("Browser smoke passed: desktop interactions, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
+  console.log("Browser smoke passed: desktop interactions, respawn focus recovery and 16-cycle restart soak, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
 main().catch((error) => {

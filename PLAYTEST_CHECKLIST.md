@@ -14,7 +14,7 @@ This checklist begins only after `npm run check` and `npm run browser-smoke` pas
 
 - Start from a clean profile without opening Settings or Practice first.
 - Confirm the start choice and primary action are obvious at normal viewing distance.
-- Verify the first room uses one short input line for a clean profile, then does not show a redundant Move → Jump → Dash strip or routine coaching cards; labelled touch controls remain the only persistent input labels during touch play.
+- Verify the first room uses one short input line for a clean profile, including `R` quick retry and `T` room restart, then does not show a redundant Move → Jump → Dash strip or routine coaching cards; labelled touch controls remain the only persistent input labels during touch play.
 - Confirm free play remains visually quiet: no training report, split analysis or extra cards compete with the route.
 - Note the first death, the first point of uncertainty and any place where the player pauses for more than 20 seconds.
 - Open and close Settings and Practice once. Judge discoverability and visual weight; deterministic focus and click-through behavior is already covered by browser smoke.
@@ -76,7 +76,8 @@ Physical hardware is required for these judgments.
 - At normal viewing distance, entry copy, collapsed group labels, account status, key labels and training details must remain crisp.
 - With a screen reader or accessibility inspector, sample the changed surface only. Names should describe the control without decorative arrows or symbols, and hidden panels should stay silent.
 - Keyboard-only Settings access must remain understandable. Browser smoke owns exact focus trapping; the human check judges whether the order makes sense.
-- At approximately 390x700 and 700x390, confirm no important control feels clipped or visually crowded even when automated overflow checks pass.
+- At approximately 390x700 and 700x390, confirm no important control feels clipped or visually crowded even when automated overflow checks pass. On a comfortable-height portrait phone, the brief and playfield should sit in the upper half with a deliberate gap to the fixed thumb zone; on 320x480, the compact fallback should remain intact.
+- After an automatic death, wait through the respawn and immediately press right, jump and dash once. Confirm the character responds, the status reads `已恢复`, and `R`/`T` remain discoverable without opening Settings.
 
 ## Evidence Record
 

@@ -195,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260811-p280"),
-    import("./modules/core/math.mjs?v=20260811-p280"),
-    import("./modules/game/room-data.mjs?v=20260811-p280"),
-    import("./modules/game/world-model.mjs?v=20260811-p280"),
-    import("./modules/game/effect-budget.mjs?v=20260811-p280"),
-    import("./modules/game/landmark-progress.mjs?v=20260811-p280"),
-    import("./modules/game/audio-cues.mjs?v=20260811-p280"),
-    import("./modules/game/lumen-progress.mjs?v=20260811-p280"),
-    import("./modules/systems/storage.mjs?v=20260811-p280"),
-    import("./modules/systems/input.mjs?v=20260811-p280"),
-    import("./modules/training/state.mjs?v=20260811-p280"),
-    import("./modules/training/replay.mjs?v=20260811-p280"),
-    import("./modules/ui/presentation.mjs?v=20260811-p280")
+    import("./modules/core/format.mjs?v=20260816-p281"),
+    import("./modules/core/math.mjs?v=20260816-p281"),
+    import("./modules/game/room-data.mjs?v=20260816-p281"),
+    import("./modules/game/world-model.mjs?v=20260816-p281"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p281"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p281"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p281"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p281"),
+    import("./modules/systems/storage.mjs?v=20260816-p281"),
+    import("./modules/systems/input.mjs?v=20260816-p281"),
+    import("./modules/training/state.mjs?v=20260816-p281"),
+    import("./modules/training/replay.mjs?v=20260816-p281"),
+    import("./modules/ui/presentation.mjs?v=20260816-p281")
   ]);
 
   const canvas = document.getElementById("game");
@@ -433,6 +433,8 @@
   const NEAR_MISS_COOLDOWN = 0.48;
   const ECHO_RECALL_COOLDOWN = 0.32;
   const ROOM_INTRO_TIME = 1.2;
+  const CHAPTER_RAMP_INTRO_TIME = 2.1;
+  const CHAPTER_RAMP_ROOMS = new Set([6, 7]);
   const ECHO_LESSON_TIME = 3.2;
   const CHAPTER_TRANSITION_TIME = 1.8;
   const SUMMIT_REVEAL_TIME = 2.25;
@@ -718,6 +720,7 @@
   let fps = 60;
   let settingsVisible = false;
   let focusPaused = false;
+  let respawnRecoveryTimer = 0;
   let panelMode = "settings";
   let panelReturnFocus = null;
   let grabLatched = false;
@@ -1132,6 +1135,13 @@
     document.querySelectorAll("[data-touch]").forEach((button) => button.classList.remove("active"));
     clearInputBuffers(player);
     resetActionPulses();
+  }
+
+  function restorePlayableFocus() {
+    focusPaused = false;
+    timingInputReady = true;
+    clearInputEdges(pressed, touchPressed, gamepadPressed);
+    resetFrameClock();
   }
 
   function resumeGameplayFromInput() {
@@ -1763,6 +1773,7 @@
     lastAimY = 0;
     lastAimTimer = 0;
     timingInputReady = false;
+    respawnRecoveryTimer = 0;
     clearGrabToggle();
     resetActionVisuals();
     triggerActionVisual("spawn", 0.32);
@@ -1794,13 +1805,18 @@
   }
 
   function openingIntroDuration(index = roomIndex) {
-    return index === 0 && needsOpeningControlsHint() ? 3.6 : ROOM_INTRO_TIME;
+    if (index === 0 && needsOpeningControlsHint()) return 3.6;
+    return roomIntroDuration(index);
+  }
+
+  function roomIntroDuration(index = roomIndex) {
+    return CHAPTER_RAMP_ROOMS.has(index) ? CHAPTER_RAMP_INTRO_TIME : ROOM_INTRO_TIME;
   }
 
   function openingControlHint() {
-    if (lastGamepadStatus.connected) return "左摇杆移动 · A 跳 · B 冲 · LB/RB 抓";
-    if (window.matchMedia?.("(pointer: coarse)")?.matches) return "左侧移动 · 右侧跳/冲/抓 · 中间重开";
-    return "WASD 移动 · Space 跳 · K 冲 · J 抓";
+    if (lastGamepadStatus.connected) return "摇杆移 · A 跳 · B 冲 · 肩抓 · View 重开";
+    if (window.matchMedia?.("(pointer: coarse)")?.matches) return "左移 · 右跳/冲/抓 · 中间↻/房重开";
+    return "WASD 移 · Space 跳 · K 冲 · J 抓 · R/T 重开";
   }
 
   function begin() {
@@ -2812,7 +2828,7 @@
       burst(player.x + player.w / 2, player.y + player.h / 2, palette.hot, 5, 150);
     }
 
-    if (hazard || player.y > H + 80) {
+    if ((hazard && respawnRecoveryTimer <= 0) || player.y > H + 80) {
       die(hazard ? "spike" : crumbleSlipTimer > 0 ? "crumble" : "fall");
     }
   }
@@ -3365,7 +3381,7 @@
       roomTime = 0;
       timingArmed = true;
       timingInputReady = true;
-      roomIntroTimer = ROOM_INTRO_TIME;
+      roomIntroTimer = roomIntroDuration(roomIndex);
       armRouteCue("下一房", null, ROUTE_CUE_TIME);
       player.respawnRoom = roomIndex;
       player.respawnX = entrySpawn.x;
@@ -3399,7 +3415,7 @@
       roomTime = 0;
       timingArmed = true;
       timingInputReady = true;
-      roomIntroTimer = ROOM_INTRO_TIME;
+      roomIntroTimer = roomIntroDuration(roomIndex);
       armRouteCue("回看", null, ROUTE_CUE_TIME);
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
@@ -3500,6 +3516,11 @@
     triggerActionVisual("spawn", 0.28);
     routeCueTimer = 0;
     routeCueReason = "";
+    respawnRecoveryTimer = 0.16;
+    restorePlayableFocus();
+    if (options.preserveInputBuffers) {
+      setGameStatus(`已恢复 · R${roomIndex + 1} · R 快速重开 / T 房间重开`);
+    }
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 7, 190);
   }
 
@@ -3588,6 +3609,7 @@
     roomTime = 0;
     timingArmed = false;
     timingInputReady = false;
+    respawnRecoveryTimer = 0;
     hitStopTimer = 0;
     ghosts.length = 0;
     lightTrails.length = 0;
@@ -3600,6 +3622,8 @@
     triggerActionVisual("spawn", 0.24);
     routeCueTimer = 0;
     routeCueReason = "";
+    respawnRecoveryTimer = 0;
+    restorePlayableFocus();
     const restartBurstCount = settings.calmEffects ? 7 : 12;
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", restartBurstCount, 210);
     updateHud();
@@ -7350,6 +7374,7 @@
     splitPopupTimer = Math.max(0, splitPopupTimer - (chapterBreathing ? 0 : dt));
     feelCueTimer = Math.max(0, feelCueTimer - dt);
     routeCueTimer = Math.max(0, routeCueTimer - (chapterBreathing ? 0 : dt));
+    respawnRecoveryTimer = Math.max(0, respawnRecoveryTimer - dt);
     masteryPopupTimer = Math.max(0, masteryPopupTimer - (chapterBreathing ? 0 : dt));
     focusPopupTimer = Math.max(0, focusPopupTimer - (chapterBreathing ? 0 : dt));
     crumbleSlipTimer = Math.max(0, crumbleSlipTimer - dt);
@@ -8524,7 +8549,7 @@
     if (chapterTransitionTimer > 0) return;
     if (!started || (overlay && !overlay.classList.contains("hidden"))) return;
     if (gameTipVisible("death")) return;
-    const t = roomIntroTimer / ROOM_INTRO_TIME;
+    const t = roomIntroTimer / roomIntroDuration(roomIndex);
     const introAlpha = Math.min(1, t * 2.4);
     const introTarget = ROOM_TARGETS[roomIndex] || 0;
     const trainingActive = Boolean(activeDrill || activeChallenge || activeRouteContract || activeFeelFixture);
@@ -8554,10 +8579,17 @@
     const openingChapter = CHAPTER_START_ROOMS[0] === roomIndex
       ? CHAPTER_EXPERIENCE[chapterIndexForRoom(roomIndex)]
       : null;
+    const chapterRampLine = roomIndex === 6
+      ? "风场先熟悉升势，再接碎冰"
+      : roomIndex === 7
+        ? "棱镜强化冲刺，也会放大失误"
+        : "";
     const subline = roomIndex === 0 && needsOpeningControlsHint()
       ? openingControlHint()
       : trainingActive
       ? `${ROOM_CHAPTER_LABELS[roomIndex] || "山巅"} · 目标 ${formatTime(introTarget)}`
+      : chapterRampLine
+        ? chapterRampLine
       : openingChapter
         ? `${openingChapter.title} · ${openingChapter.vow}`
         : ROOM_WHISPERS[roomIndex] || "继续向上。";

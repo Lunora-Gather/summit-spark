@@ -195,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p287"),
-    import("./modules/core/math.mjs?v=20260816-p287"),
-    import("./modules/game/room-data.mjs?v=20260816-p287"),
-    import("./modules/game/world-model.mjs?v=20260816-p287"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p287"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p287"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p287"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p287"),
-    import("./modules/systems/storage.mjs?v=20260816-p287"),
-    import("./modules/systems/input.mjs?v=20260816-p287"),
-    import("./modules/training/state.mjs?v=20260816-p287"),
-    import("./modules/training/replay.mjs?v=20260816-p287"),
-    import("./modules/ui/presentation.mjs?v=20260816-p287")
+    import("./modules/core/format.mjs?v=20260816-p288"),
+    import("./modules/core/math.mjs?v=20260816-p288"),
+    import("./modules/game/room-data.mjs?v=20260816-p288"),
+    import("./modules/game/world-model.mjs?v=20260816-p288"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p288"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p288"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p288"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p288"),
+    import("./modules/systems/storage.mjs?v=20260816-p288"),
+    import("./modules/systems/input.mjs?v=20260816-p288"),
+    import("./modules/training/state.mjs?v=20260816-p288"),
+    import("./modules/training/replay.mjs?v=20260816-p288"),
+    import("./modules/ui/presentation.mjs?v=20260816-p288")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1574,11 +1574,17 @@
     };
     button.addEventListener("pointerdown", (event) => {
       event.preventDefault();
-      button.setPointerCapture(event.pointerId);
       set(true);
+      try {
+        button.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Movement still works without capture; pointerleave/blur remain the
+        // fallback release paths on older or interrupted touch engines.
+      }
     });
     button.addEventListener("pointerup", () => set(false));
     button.addEventListener("pointercancel", () => set(false));
+    button.addEventListener("lostpointercapture", () => set(false));
     button.addEventListener("pointerleave", () => set(false));
   });
 

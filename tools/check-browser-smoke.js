@@ -1639,22 +1639,51 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     return /room 1\\/10/.test(text) && /gate 0\\.00  relic 0\\.00/.test(text) ? { text } : null;
   })()`), 2500, 20);
-  await keyDown(cdp, "KeyD", "D");
-  try {
-    await keyTap(cdp, "Space", " ");
-    await sleep(80);
-    await keyTap(cdp, "KeyK", "K");
-    await sleep(155);
-    await keyTap(cdp, "Space", " ");
-  } finally {
-    await keyUp(cdp, "KeyD", "D");
+  let r1Awake = null;
+  const r1AttemptSnapshots = [];
+  const r1Timings = [
+    { dash: 75, spark: 185 },
+    { dash: 65, spark: 175 }
+  ];
+  for (let attempt = 0; attempt < r1Timings.length && !r1Awake; attempt += 1) {
+    if (attempt > 0) {
+      await keyTap(cdp, "KeyR", "R");
+      await waitUntil("R1 bounded Spark retry restores its start", () => evaluate(cdp, `(() => {
+        const text = document.querySelector("#debugPanel").textContent;
+        return /快速重开 · R1/.test(document.querySelector("#gameStatus")?.textContent || "")
+          && /gate 0\\.00  relic 0\\.00/.test(text);
+      })()`), 2500, 20);
+    }
+    const timing = r1Timings[attempt];
+    await evaluate(cdp, `new Promise((resolve) => {
+      const send = (type, code, key) => window.dispatchEvent(new KeyboardEvent(type, { code, key, bubbles: true }));
+      const tap = (code, key) => {
+        send("keydown", code, key);
+        send("keyup", code, key);
+      };
+      send("keydown", "KeyD", "d");
+      tap("Space", " ");
+      setTimeout(() => tap("KeyK", "k"), ${timing.dash});
+      setTimeout(() => tap("Space", " "), ${timing.spark});
+      setTimeout(() => {
+        send("keyup", "KeyD", "d");
+        resolve(true);
+      }, 330);
+    })`);
+    try {
+      r1Awake = await waitUntil("R1 Spark wakes the gate steps", () => evaluate(cdp, `(() => {
+        const text = document.querySelector("#debugPanel").textContent;
+        return /room 1\\/10/.test(text) && /gate 1\\.00  relic 0\\.00/.test(text)
+          ? { text }
+          : null;
+      })()`), 1100, 20);
+    } catch {
+      r1AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel")?.textContent || ""`));
+    }
   }
-  const r1Awake = await waitUntil("R1 Spark wakes the gate steps", () => evaluate(cdp, `(() => {
-    const text = document.querySelector("#debugPanel").textContent;
-    return /room 1\\/10/.test(text) && /gate 1\\.00  relic 0\\.00/.test(text)
-      ? { text }
-      : null;
-  })()`), 1200, 20);
+  if (!r1Awake) {
+    throw new Error("R1 Spark wakes the gate steps timed out: " + JSON.stringify(r1AttemptSnapshots));
+  }
   await keyTap(cdp, "KeyR", "R");
   const r1Reset = await waitUntil("R1 retry restores the dormant gate steps", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
@@ -4259,6 +4288,26 @@ async function runMobileSmoke(cdp, baseUrl) {
   }
 
   await enableDebugPanel(cdp);
+  const touchReleaseStart = await debugPosition(cdp);
+  const touchRightTarget = await targetPoint(cdp, '[data-touch="right"]');
+  const heldTouchPoint = {
+    x: touchRightTarget.inputX,
+    y: touchRightTarget.inputY,
+    id: 7,
+    radiusX: 2,
+    radiusY: 2,
+    force: 1
+  };
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [heldTouchPoint] });
+  await sleep(180);
+  const touchReleaseHeld = await debugPosition(cdp);
+  await evaluate(cdp, `document.querySelector('[data-touch="right"]').dispatchEvent(new Event("lostpointercapture"))`);
+  await sleep(260);
+  const touchReleaseLost = await debugPosition(cdp);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  if (touchReleaseHeld.x - touchReleaseStart.x < 1 || touchReleaseLost.x - touchReleaseHeld.x > 8) {
+    errors.push("lost touch pointer capture should release movement without waiting for pointerup: " + JSON.stringify({ touchReleaseStart, touchReleaseHeld, touchReleaseLost }));
+  }
   await keyTap(cdp, "Digit9", "9");
   await waitUntil("mobile debug jump reaches Echo room", () => evaluate(cdp, `/R9\\/10/.test(document.querySelector("#roomCount").textContent)`));
   const echoRecallReady = await waitUntil("touch Echo recall becomes available in the safe entry pocket", () => evaluate(cdp, `(() => {

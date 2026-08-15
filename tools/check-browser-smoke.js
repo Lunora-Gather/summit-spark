@@ -4599,7 +4599,7 @@ async function runGamepadSmoke(cdp, baseUrl) {
 async function waitForDebuggingPort(port, child) {
   const start = Date.now();
   let last = "";
-  while (Date.now() - start < 8000) {
+  while (Date.now() - start < 20000) {
     if (child.exitCode !== null) break;
     try {
       return await requestJson(`http://127.0.0.1:${port}/json/version`);

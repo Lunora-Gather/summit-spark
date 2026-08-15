@@ -195,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p281"),
-    import("./modules/core/math.mjs?v=20260816-p281"),
-    import("./modules/game/room-data.mjs?v=20260816-p281"),
-    import("./modules/game/world-model.mjs?v=20260816-p281"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p281"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p281"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p281"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p281"),
-    import("./modules/systems/storage.mjs?v=20260816-p281"),
-    import("./modules/systems/input.mjs?v=20260816-p281"),
-    import("./modules/training/state.mjs?v=20260816-p281"),
-    import("./modules/training/replay.mjs?v=20260816-p281"),
-    import("./modules/ui/presentation.mjs?v=20260816-p281")
+    import("./modules/core/format.mjs?v=20260816-p282"),
+    import("./modules/core/math.mjs?v=20260816-p282"),
+    import("./modules/game/room-data.mjs?v=20260816-p282"),
+    import("./modules/game/world-model.mjs?v=20260816-p282"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p282"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p282"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p282"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p282"),
+    import("./modules/systems/storage.mjs?v=20260816-p282"),
+    import("./modules/systems/input.mjs?v=20260816-p282"),
+    import("./modules/training/state.mjs?v=20260816-p282"),
+    import("./modules/training/replay.mjs?v=20260816-p282"),
+    import("./modules/ui/presentation.mjs?v=20260816-p282")
   ]);
 
   const canvas = document.getElementById("game");
@@ -435,6 +435,8 @@
   const ROOM_INTRO_TIME = 1.2;
   const CHAPTER_RAMP_INTRO_TIME = 2.1;
   const CHAPTER_RAMP_ROOMS = new Set([6, 7]);
+  const RESPAWN_RECOVERY_TIME = 0.34;
+  const RESPAWN_SAFE_RADIUS = 96;
   const ECHO_LESSON_TIME = 3.2;
   const CHAPTER_TRANSITION_TIME = 1.8;
   const SUMMIT_REVEAL_TIME = 2.25;
@@ -2340,7 +2342,19 @@
     const fallSpeed = player.vy;
     moveAxis("x", player.vx * dt);
     moveAxis("y", player.vy * dt);
-    unstuckFromSolids();
+    const solidRecovery = unstuckFromSolids();
+    if (solidRecovery?.recovered) {
+      // A stale checkpoint or a dynamic phase toggle can leave a valid-looking
+      // spawn one pixel inside a solid. Recover without consuming the attempt.
+      player.onGround = false;
+      player.wasGrounded = false;
+      player.wallDir = 0;
+      player.wallCoyote = 0;
+      player.wallCoyoteDir = 0;
+      player.coyote = 0;
+      respawnRecoveryTimer = Math.max(respawnRecoveryTimer, 0.12);
+      setGameStatus("落点已校正 · 继续前进");
+    }
     if (!player.wasGrounded && player.onGround && fallSpeed > 420) {
       triggerActionVisual("land", 0.18);
       playSound("land", 1);
@@ -3251,12 +3265,16 @@
     }
   }
 
-  function unstuckFromSolids(maxRadius = TILE * 2) {
+  function unstuckFromSolids(maxRadius = TILE * 2, options = {}) {
+    const avoidHazards = options.avoidHazards === true;
     const recovery = nearestSafePositionData({
       x: player.x,
       y: player.y,
       maxRadius,
-      isBlocked: (x, y) => collidesSolid({ x, y, w: player.w, h: player.h })
+      isBlocked: (x, y) => {
+        const box = { x, y, w: player.w, h: player.h };
+        return collidesSolid(box) || (avoidHazards && touchingHazard(box));
+      }
     });
     if (!recovery) return null;
     player.x = recovery.x;
@@ -3460,12 +3478,12 @@
     resetRoomTech();
     player.x = player.respawnX;
     player.y = player.respawnY;
-    let spawnRecovery = unstuckFromSolids();
+    let spawnRecovery = unstuckFromSolids(RESPAWN_SAFE_RADIUS, { avoidHazards: true });
     if (!spawnRecovery) {
       const entrySpawn = roomEntrySpawn(roomIndex);
       player.x = entrySpawn.x;
       player.y = entrySpawn.y;
-      spawnRecovery = unstuckFromSolids();
+      spawnRecovery = unstuckFromSolids(RESPAWN_SAFE_RADIUS, { avoidHazards: true });
     }
     player.respawnX = player.x;
     player.respawnY = player.y;
@@ -3516,7 +3534,7 @@
     triggerActionVisual("spawn", 0.28);
     routeCueTimer = 0;
     routeCueReason = "";
-    respawnRecoveryTimer = 0.16;
+    respawnRecoveryTimer = RESPAWN_RECOVERY_TIME;
     restorePlayableFocus();
     if (options.preserveInputBuffers) {
       setGameStatus(`已恢复 · R${roomIndex + 1} · R 快速重开 / T 房间重开`);

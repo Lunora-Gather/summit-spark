@@ -1055,8 +1055,16 @@ if (!worldModelModule.includes("export function roomEntrySpawnData(")
   || !js.includes("const entrySpawn = roomEntrySpawn(roomIndex);")
   || !js.includes("player.respawnX = entrySpawn.x;")
   || !js.includes("player.respawnY = entrySpawn.y;")
-  || !js.includes("function unstuckFromSolids(maxRadius = TILE * 2)")) {
+  || (!js.includes("function unstuckFromSolids(maxRadius = TILE * 2)")
+    && !js.includes("function unstuckFromSolids(maxRadius = TILE * 2, options = {})"))) {
   errors.push("room transitions and legacy respawns must use canonical entries plus a full-tile bounded solid recovery");
+}
+if (!js.includes("const RESPAWN_RECOVERY_TIME = 0.34;")
+  || !js.includes("const RESPAWN_SAFE_RADIUS = 96;")
+  || !js.includes("unstuckFromSolids(RESPAWN_SAFE_RADIUS, { avoidHazards: true })")
+  || !js.includes("return collidesSolid(box) || (avoidHazards && touchingHazard(box));")
+  || !js.includes('setGameStatus("落点已校正 · 继续前进")')) {
+  errors.push("respawns must self-heal away from dynamic hazards and surface a bounded runtime overlap correction");
 }
 if (js.includes('armRouteCue("入场", null, ROUTE_CUE_TIME)')) errors.push("free play should not auto-arm an entry route cue");
 if (!js.includes("lumenReserve: false") || !js.includes("player.dashes = Math.min(2, player.dashes + 1)")) {

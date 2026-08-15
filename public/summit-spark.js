@@ -1002,6 +1002,13 @@
           startDash(getInput());
         }
       }
+      if (action === "springApexDash" && started && !won && player.deadTimer <= 0) {
+        // Local-only physics probe: keep the test deterministic without changing
+        // the normal keyboard/gamepad delivery path used by players.
+        player.dashes = Math.max(1, Number.isFinite(player.dashes) ? player.dashes : 1);
+        player.dashCooldown = 0;
+        startDash(getInput());
+      }
       if (action === "corruptMotion") {
         player.x = Number.NaN;
         player.vx = Number.POSITIVE_INFINITY;

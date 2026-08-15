@@ -1070,7 +1070,9 @@ if (!js.includes("const PLAYER_RUNTIME_NUMBER_FIELDS = Object.freeze([")
   || !js.includes("function runtimeCriticalStateFinite()")
   || !js.includes("function recoverInvalidRuntimeState()")
   || !js.includes('setGameStatus(`运行状态已恢复 · R${roomIndex + 1} · 可继续前进`)')
+  || !js.includes('action === "springApexDash"')
   || !browserSmoke.includes("non-finite runtime state self-heals")
+  || !browserSmoke.includes('detail: "springApexDash"')
   || !browserSmoke.includes("a self-healed runtime should accept movement immediately")) {
   errors.push("critical non-finite player, camera and clock state must recover to a playable checkpoint under real-browser regression");
 }

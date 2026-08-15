@@ -1873,7 +1873,7 @@ async function runSpringApexSmoke(cdp, baseUrl) {
     const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
     const vy = velocity ? Number(velocity[2]) : Number.NaN;
     if (!timer || Number(timer[1]) <= 0 || !Number.isFinite(vy) || vy < -130 || vy >= 0) return null;
-    window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "dash" }));
+    window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "springApexDash" }));
     return { timer: Number(timer[1]), vx: Number(velocity[1]), vy, text };
   })()`), 1200, 10);
   let recognized;
@@ -1889,7 +1889,7 @@ async function runSpringApexSmoke(cdp, baseUrl) {
       // Re-issue the localhost-only buffered action while the window is alive;
       // startDash is resource-guarded, so this cannot spend a second dash.
       if (timer && Number(timer[1]) > 0.02 && !cueVisible) {
-        window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "dash" }));
+        window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "springApexDash" }));
       }
       if (!hit || !velocity || !flow || Number(hit[2]) <= 0 || Number(flow[1]) < 15 || !cueVisible) return null;
       return {

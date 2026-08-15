@@ -3929,6 +3929,34 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
   if (afterFrameBoundaryMove.x - afterFrameBoundary.x < 1) {
     errors.push("retry after a thrown frame should restore movement: " + JSON.stringify({ frameBoundary, afterFrameBoundary, afterFrameBoundaryMove }));
   }
+  const contextLoss = await evaluate(cdp, `(() => {
+    const canvas = document.querySelector("#game");
+    const event = new Event("contextlost", { cancelable: true });
+    canvas.dispatchEvent(event);
+    return {
+      defaultPrevented: event.defaultPrevented,
+      status: document.querySelector("#gameStatus")?.textContent || ""
+    };
+  })()`);
+  if (!contextLoss.defaultPrevented || !/失去绘制上下文/.test(contextLoss.status)) {
+    errors.push("canvas context loss should pause visibly and opt into browser restoration: " + JSON.stringify(contextLoss));
+  }
+  await sleep(100);
+  const contextRestored = await evaluate(cdp, `(() => {
+    const canvas = document.querySelector("#game");
+    canvas.dispatchEvent(new Event("contextrestored"));
+    return document.querySelector("#gameStatus")?.textContent || "";
+  })()`);
+  const afterContextRestore = await waitUntil("canvas context restoration", () => evaluate(cdp, `(() => {
+    const status = document.querySelector("#gameStatus")?.textContent || "";
+    const debug = document.querySelector("#debugPanel")?.textContent || "";
+    return /画面已恢复/.test(status) && /canvas 1/.test(debug) ? { status, debug } : null;
+  })()`), 3000, 30);
+  await keyHold(cdp, "KeyD", "D", 90);
+  const afterContextRestoreMove = await debugPosition(cdp);
+  if (afterContextRestoreMove.x <= afterFrameBoundaryMove.x) {
+    errors.push("movement should resume after canvas context restoration: " + JSON.stringify({ contextRestored, afterContextRestore, afterContextRestoreMove }));
+  }
   const runtimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
   if (runtimeErrors.length) errors.push("restart soak should not emit runtime errors: " + JSON.stringify(runtimeErrors));
   if (!Number.isFinite(last.x) || !Number.isFinite(last.y)) errors.push("restart soak should finish with a finite debug position: " + JSON.stringify(last));

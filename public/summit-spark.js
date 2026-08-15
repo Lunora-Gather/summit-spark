@@ -777,6 +777,9 @@
   let accountTokenEmail = "";
   let accountSdk = null;
   let accountSdkLoadPromise = null;
+  let deferredAccountUi = false;
+  let deferredAccountStatus = null;
+  let deferredCloudStatus = null;
   let cloudRow = null;
   let cloudSyncReady = false;
   let cloudSyncBusy = false;
@@ -1906,6 +1909,7 @@
   function openAccountPanel() {
     accountFocused = true;
     openPanel("settings");
+    flushDeferredAccountUi();
     if (!accountSdk) loadAppwriteSdk();
     if (accountGroup) {
       document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
@@ -6002,6 +6006,12 @@
 
   function syncAccountUi() {
     const signedIn = Boolean(accountUser);
+    if (startAccountButton) startAccountButton.textContent = signedIn ? "云存档 · 已登录" : "登录 · 云存档";
+    if (started && !settingsVisible) {
+      deferredAccountUi = true;
+      return;
+    }
+    deferredAccountUi = false;
     accountGuest?.classList.toggle("hidden", signedIn);
     accountUserPanel?.classList.toggle("hidden", !signedIn);
     if (accountSummary) {
@@ -6013,7 +6023,6 @@
             : "待确认"
         : "未登录";
     }
-    if (startAccountButton) startAccountButton.textContent = signedIn ? "云存档 · 已登录" : "登录 · 云存档";
     syncCloudActionAvailability();
     if (!signedIn) return;
     const email = accountUser.email || "已登录账号";
@@ -6024,6 +6033,11 @@
 
   function setAccountStatus(message, state = "") {
     if (!accountStatus) return;
+    if (started && !settingsVisible) {
+      deferredAccountStatus = { message, state };
+      return;
+    }
+    deferredAccountStatus = null;
     accountStatus.textContent = message;
     accountStatus.classList.toggle("valid", state === "valid");
     accountStatus.classList.toggle("error", state === "error");
@@ -6303,11 +6317,20 @@
   }
 
   function setCloudStatus(message, summary = "") {
+    if (started && !settingsVisible) {
+      deferredCloudStatus = { message, summary };
+      return;
+    }
+    deferredCloudStatus = null;
     if (cloudSyncStatus) cloudSyncStatus.textContent = message;
     if (accountSummary) accountSummary.textContent = accountUser ? (summary || (cloudSyncReady ? "已同步" : "待确认")) : "未登录";
   }
 
   function syncCloudActionAvailability() {
+    if (started && !settingsVisible) {
+      deferredAccountUi = true;
+      return;
+    }
     const signedIn = Boolean(accountUser);
     if (cloudUploadButton) cloudUploadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudUploadPermitted;
     if (cloudDownloadButton) cloudDownloadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudRemoteUsable;
@@ -6315,6 +6338,11 @@
 
   function setAccountBusy(busy) {
     cloudSyncBusy = busy;
+    if (started && !settingsVisible) {
+      deferredAccountUi = true;
+      if (!busy) queueMicrotask(resumeQueuedCloudSave);
+      return;
+    }
     accountGroup?.setAttribute("aria-busy", String(busy));
     [
       ...document.querySelectorAll("[data-auth-mode]"),
@@ -6333,6 +6361,16 @@
     });
     syncCloudActionAvailability();
     if (!busy) queueMicrotask(resumeQueuedCloudSave);
+  }
+
+  function flushDeferredAccountUi() {
+    if (!settingsVisible || !accountFocused) return;
+    const pendingStatus = deferredAccountStatus;
+    const pendingCloud = deferredCloudStatus;
+    if (deferredAccountUi) syncAccountUi();
+    setAccountBusy(cloudSyncBusy);
+    if (pendingCloud) setCloudStatus(pendingCloud.message, pendingCloud.summary);
+    if (pendingStatus) setAccountStatus(pendingStatus.message, pendingStatus.state);
   }
 
   async function uploadCloudSave({ force = false } = {}) {

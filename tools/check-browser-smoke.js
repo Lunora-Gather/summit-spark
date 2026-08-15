@@ -575,14 +575,22 @@ async function runDesktopSmoke(cdp, baseUrl) {
   await waitUntil("settings close after start", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === 0`));
   const hiddenPanelMutations = await evaluate(cdp, `(async () => {
     const panel = document.querySelector("#settingsPanel");
-    let count = 0;
-    const observer = new MutationObserver((records) => { count += records.length; });
+    const changes = [];
+    const observer = new MutationObserver((records) => {
+      for (const record of records) {
+        changes.push({
+          type: record.type,
+          target: record.target.id || record.target.className || record.target.nodeName,
+          attribute: record.attributeName || ""
+        });
+      }
+    });
     observer.observe(panel, { attributes: true, childList: true, characterData: true, subtree: true });
     await new Promise((resolve) => setTimeout(resolve, 420));
     observer.disconnect();
-    return count;
+    return changes;
   })()`);
-  if (hiddenPanelMutations !== 0) errors.push(`hidden practice/settings DOM should remain mutation-free during gameplay, observed ${hiddenPanelMutations}`);
+  if (hiddenPanelMutations.length !== 0) errors.push(`hidden practice/settings DOM should remain mutation-free during gameplay: ${JSON.stringify(hiddenPanelMutations)}`);
   await enableDebugPanel(cdp);
   const beforeMove = await debugPosition(cdp);
   if (!/relay chain 0  path 0/.test(beforeMove.text)) {

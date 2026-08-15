@@ -1069,12 +1069,19 @@ if (!js.includes("const RESPAWN_RECOVERY_TIME = 0.34;")
 if (!js.includes("const PLAYER_RUNTIME_NUMBER_FIELDS = Object.freeze([")
   || !js.includes("function runtimeCriticalStateFinite()")
   || !js.includes("function recoverInvalidRuntimeState()")
+  || !js.includes("const roomEntityLists = [")
+  || !js.includes("room.entities.crumble instanceof Map")
+  || !js.includes("action === \"corruptStructure\"")
+  || !js.includes("if (!(collected instanceof Set)) collected = new Set();")
+  || !js.includes("if (recoverInvalidRuntimeState()) {")
   || !js.includes('setGameStatus(`运行状态已恢复 · R${roomIndex + 1} · 可继续前进`)')
   || !js.includes('action === "springApexDash"')
   || !browserSmoke.includes("non-finite runtime state self-heals")
+  || !browserSmoke.includes("damaged runtime collections self-heal")
   || !browserSmoke.includes('detail: "springApexDash"')
-  || !browserSmoke.includes("a self-healed runtime should accept movement immediately")) {
-  errors.push("critical non-finite player, camera and clock state must recover to a playable checkpoint under real-browser regression");
+  || !browserSmoke.includes("a self-healed runtime should accept movement immediately")
+  || !browserSmoke.includes("a structurally self-healed runtime should accept movement immediately")) {
+  errors.push("critical player, room-collection, camera and clock state must recover to a playable checkpoint under real-browser regression");
 }
 if (js.includes('armRouteCue("入场", null, ROUTE_CUE_TIME)')) errors.push("free play should not auto-arm an entry route cue");
 if (!js.includes("lumenReserve: false") || !js.includes("player.dashes = Math.min(2, player.dashes + 1)")) {

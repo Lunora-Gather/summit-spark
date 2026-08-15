@@ -195,19 +195,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p283"),
-    import("./modules/core/math.mjs?v=20260816-p283"),
-    import("./modules/game/room-data.mjs?v=20260816-p283"),
-    import("./modules/game/world-model.mjs?v=20260816-p283"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p283"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p283"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p283"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p283"),
-    import("./modules/systems/storage.mjs?v=20260816-p283"),
-    import("./modules/systems/input.mjs?v=20260816-p283"),
-    import("./modules/training/state.mjs?v=20260816-p283"),
-    import("./modules/training/replay.mjs?v=20260816-p283"),
-    import("./modules/ui/presentation.mjs?v=20260816-p283")
+    import("./modules/core/format.mjs?v=20260816-p284"),
+    import("./modules/core/math.mjs?v=20260816-p284"),
+    import("./modules/game/room-data.mjs?v=20260816-p284"),
+    import("./modules/game/world-model.mjs?v=20260816-p284"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p284"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p284"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p284"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p284"),
+    import("./modules/systems/storage.mjs?v=20260816-p284"),
+    import("./modules/systems/input.mjs?v=20260816-p284"),
+    import("./modules/training/state.mjs?v=20260816-p284"),
+    import("./modules/training/replay.mjs?v=20260816-p284"),
+    import("./modules/ui/presentation.mjs?v=20260816-p284")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1007,12 +1007,23 @@
         // the normal keyboard/gamepad delivery path used by players.
         player.dashes = Math.max(1, Number.isFinite(player.dashes) ? player.dashes : 1);
         player.dashCooldown = 0;
-        startDash(getInput());
+        // Aim into the open upper lane so a slow CI frame cannot turn the
+        // instrumentation probe into an authored hazard collision before the
+        // apex cue is observable.
+        startDash({ x: 0, y: -1, grab: false });
       }
       if (action === "corruptMotion") {
         player.x = Number.NaN;
         player.vx = Number.POSITIVE_INFINITY;
         cameraX = Number.NaN;
+      }
+      if (action === "corruptStructure") {
+        // Local-only resilience probe: simulate a damaged transient object
+        // before the next update touches room/entity collections.
+        player.hair = null;
+        player.respawnLumens = null;
+        room.entities = null;
+        collected = null;
       }
     });
   }
@@ -2200,8 +2211,30 @@
     const playerNumbersFinite = PLAYER_RUNTIME_NUMBER_FIELDS.every((field) => Number.isFinite(player[field]));
     const worldNumbersFinite = [cameraX, cameraTargetX, runTime, roomTime, flowScore, flowPeak, hitStopTimer, room?.dynamicTime]
       .every(Number.isFinite);
+    const roomEntityLists = [
+      "lumens", "refills", "relays", "updrafts", "prisms", "anchors", "dashGates",
+      "phaseBlocks", "driftShards", "checkpoints", "waypoints", "springs"
+    ];
+    const roomStructureValid = Boolean(room)
+      && Number.isInteger(room.cols)
+      && room.cols >= VIEW_COLS
+      && Number.isFinite(room.worldWidth)
+      && Array.isArray(room.tiles)
+      && room.tiles.length === ROWS
+      && room.tiles.every((row) => Array.isArray(row) && row.length === room.cols)
+      && room.entities
+      && roomEntityLists.every((key) => Array.isArray(room.entities[key]))
+      && room.entities.crumble instanceof Map
+      && (room.entities.goal === null || (Number.isFinite(room.entities.goal?.x) && Number.isFinite(room.entities.goal?.y)))
+      && Array.isArray(player.hair)
+      && player.hair.length <= 16
+      && player.hair.every((strand) => Number.isFinite(strand?.x) && Number.isFinite(strand?.y))
+      && Array.isArray(player.respawnLumens)
+      && player.respawnLumens.every((id) => typeof id === "string")
+      && collected instanceof Set;
     return playerNumbersFinite
       && worldNumbersFinite
+      && roomStructureValid
       && Number.isInteger(roomIndex)
       && roomIndex >= 0
       && roomIndex < maps.length
@@ -2225,6 +2258,8 @@
         : 0;
     roomIndex = roomCandidate;
     player.respawnRoom = roomCandidate;
+    if (!(collected instanceof Set)) collected = new Set();
+    if (!Array.isArray(player.respawnLumens)) player.respawnLumens = [];
     const entrySpawn = roomEntrySpawn(roomCandidate);
     if (!Number.isFinite(player.respawnX) || !Number.isFinite(player.respawnY)) {
       player.respawnX = entrySpawn.x;
@@ -2261,6 +2296,15 @@
     });
     physicsAccumulator = fixedFrame.remainder;
     if (elapsed > 0 && elapsed < 1) fps = fps * 0.9 + (1 / elapsed) * 0.1;
+    // Guard the frame boundary as well as the physics step. This keeps a
+    // damaged transient collection from reaching pause/HUD/render branches
+    // that intentionally run outside update().
+    if (recoverInvalidRuntimeState()) {
+      updateHud();
+      render(now / 1000);
+      requestAnimationFrame(frame);
+      return;
+    }
     let paused = isGamePaused();
     let inputEdgesConsumed = false;
     if (paused) {
@@ -2315,13 +2359,13 @@
 
   function update(dt, clockDt = dt) {
     if (assistActive()) runUsedAssist = true;
-    updateRelayChain(dt);
-    updateActionVisuals(dt);
-
     if (recoverInvalidRuntimeState()) {
       updateHud();
       return;
     }
+
+    updateRelayChain(dt);
+    updateActionVisuals(dt);
 
     if (hitStopTimer > 0) {
       hitStopTimer = Math.max(0, hitStopTimer - dt);
@@ -12249,7 +12293,7 @@
 
   function updateHud() {
     syncPlayModeClass();
-    const found = collected.size;
+    const found = collected instanceof Set ? collected.size : 0;
     const roomBest = bestRoomTimes[roomIndex] || 0;
     const grade = splitGrade(roomBest, ROOM_TARGETS[roomIndex]);
     setElementText(lumenCount, `✦ ${found}/${totalLumens}`);

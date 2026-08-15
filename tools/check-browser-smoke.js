@@ -595,7 +595,19 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!/本地存档不可写/.test(storageWriteFault.tip)) {
     errors.push("a mid-session storage write failure should expose the existing persistence warning: " + JSON.stringify(storageWriteFault));
   }
-  await clickSelector(cdp, "#settingsClose");
+  const duplicateClose = await evaluate(cdp, `(() => {
+    const button = document.querySelector("#settingsClose");
+    button.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerType: "touch" }));
+    button.dispatchEvent(new Event("touchend", { bubbles: true, cancelable: true }));
+    button.click();
+    return {
+      hidden: document.querySelector("#settingsPanel").classList.contains("hidden"),
+      active: document.activeElement?.id || ""
+    };
+  })()`);
+  if (!duplicateClose.hidden || duplicateClose.active !== "settingsButton") {
+    errors.push("duplicate touch/click close events should be idempotent and preserve the opener focus: " + JSON.stringify(duplicateClose));
+  }
   await waitUntil("settings close after start", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === 0`));
   const hiddenPanelMutations = await evaluate(cdp, `(async () => {
     const panel = document.querySelector("#settingsPanel");

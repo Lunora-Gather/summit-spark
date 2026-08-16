@@ -1277,9 +1277,24 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
 
   await openSettingsGroup(cdp, ".settings-group-audio");
+  const audioFailure = await evaluate(cdp, `(() => {
+    window.__summitSmokeAudioUnavailable = true;
+    document.querySelector("#audioTestButton")?.click();
+    return document.querySelector("#gameStatus")?.textContent || "";
+  })()`);
+  const unavailableAudioStatus = await waitUntil("audio unavailable status", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#gameStatus")?.textContent || "";
+    return /声音暂不可用/.test(text) ? text : null;
+  })()`), 1200, 40);
+  await evaluate(cdp, `window.__summitSmokeAudioUnavailable = false`);
   await clickSelector(cdp, "#audioTestButton");
-  const audioStatus = await evaluate(cdp, `document.querySelector("#gameStatus").textContent`);
-  if (!/声音试听/.test(audioStatus)) errors.push("audio test button did not update live status");
+  const audioStatus = await waitUntil("audio test status", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#gameStatus")?.textContent || "";
+    return /声音试听/.test(text) ? text : null;
+  })()`), 1200, 40);
+  if (!/声音暂不可用/.test(unavailableAudioStatus) || !/声音试听/.test(audioStatus)) {
+    errors.push("audio test should distinguish unavailable audio from a successful pattern: " + JSON.stringify({ audioFailure, unavailableAudioStatus, audioStatus }));
+  }
   await evaluate(cdp, `(() => {
     const type = document.querySelector("#feedbackType");
     const note = document.querySelector("#feedbackNote");

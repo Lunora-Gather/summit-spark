@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p294"),
-    import("./modules/core/math.mjs?v=20260816-p294"),
-    import("./modules/game/room-data.mjs?v=20260816-p294"),
-    import("./modules/game/world-model.mjs?v=20260816-p294"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p294"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p294"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p294"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p294"),
-    import("./modules/systems/storage.mjs?v=20260816-p294"),
-    import("./modules/systems/input.mjs?v=20260816-p294"),
-    import("./modules/training/state.mjs?v=20260816-p294"),
-    import("./modules/training/replay.mjs?v=20260816-p294"),
-    import("./modules/ui/presentation.mjs?v=20260816-p294")
+    import("./modules/core/format.mjs?v=20260816-p295"),
+    import("./modules/core/math.mjs?v=20260816-p295"),
+    import("./modules/game/room-data.mjs?v=20260816-p295"),
+    import("./modules/game/world-model.mjs?v=20260816-p295"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p295"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p295"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p295"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p295"),
+    import("./modules/systems/storage.mjs?v=20260816-p295"),
+    import("./modules/systems/input.mjs?v=20260816-p295"),
+    import("./modules/training/state.mjs?v=20260816-p295"),
+    import("./modules/training/replay.mjs?v=20260816-p295"),
+    import("./modules/ui/presentation.mjs?v=20260816-p295")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1330,12 +1330,12 @@
       updateAmbientMusic(isGamePaused());
     }
   });
-  audioTestButton?.addEventListener("click", () => {
+  audioTestButton?.addEventListener("click", async () => {
     settings.audioEnabled = true;
     if (audioToggle) audioToggle.checked = true;
     writeSettings();
-    playAudioTestPattern();
-    setGameStatus("声音试听：输入、Spark、清房");
+    const played = await playAudioTestPattern();
+    setGameStatus(played ? "声音试听：输入、Spark、清房" : "声音暂不可用 · 请检查浏览器声音权限");
     focusGame();
   });
   document.querySelectorAll(".settings-group").forEach((group) => {
@@ -7420,9 +7420,17 @@
     clear: [{ type: "sine", from: 520, to: 880, gain: 0.038, time: 0.15 }, { type: "triangle", from: 780, to: 1120, gain: 0.026, time: 0.18 }]
   };
   function unlockAudio() {
-    if (!settings.audioEnabled || audioContext) return;
+    if (!settings.audioEnabled) return false;
+    if (["127.0.0.1", "localhost"].includes(window.location.hostname)
+      && window.__summitSmokeAudioUnavailable) return false;
+    if (audioContext?.state === "closed") {
+      audioContext = null;
+      audioMaster = null;
+      ambientBus = null;
+    }
+    if (audioContext) return true;
     const AudioCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtor) return;
+    if (!AudioCtor) return false;
     try {
       audioContext = new AudioCtor();
       audioMaster = audioContext.createGain();
@@ -7437,6 +7445,7 @@
       audioMaster = null;
       ambientBus = null;
     }
+    return Boolean(audioContext && audioMaster && ambientBus);
   }
 
   function updateAmbientMusic(paused = false) {
@@ -7533,11 +7542,20 @@
     playScheduledCue(summitCueData(), 1);
   }
 
-  function playAudioTestPattern() {
-    unlockAudio();
+  async function playAudioTestPattern() {
+    if (!unlockAudio() || !audioContext || !audioMaster) return false;
+    if (audioContext.state === "suspended") {
+      try {
+        await audioContext.resume();
+      } catch {
+        return false;
+      }
+    }
+    if (audioContext.state !== "running") return false;
     ["ui", "jump", "dash", "spark", "clear"].forEach((name, index) => {
       window.setTimeout(() => playSound(name, index === 4 ? 0.82 : 0.72), index * 120);
     });
+    return true;
   }
 
   function playTone(voice, start, intensity) {

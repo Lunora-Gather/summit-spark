@@ -4945,6 +4945,12 @@ async function runGamepadSmoke(cdp, baseUrl) {
     window.__summitMockPadState.buttons[0].value = 0;
     window.__summitMockPadState.axes[0] = 0;
   })()`);
+  const gamepadErrorsBeforeThrow = await evaluate(cdp, `window.__earlyRuntimeErrors?.length || window.__summitEarlyRuntimeErrors?.length || 0`);
+  await evaluate(cdp, `window.__summitMockPadState.throw = true`);
+  await sleep(220);
+  await evaluate(cdp, `window.__summitMockPadState.throw = false`);
+  const gamepadErrorsAfterThrow = await evaluate(cdp, `window.__earlyRuntimeErrors?.length || window.__summitEarlyRuntimeErrors?.length || 0`);
+  if (gamepadErrorsAfterThrow !== gamepadErrorsBeforeThrow) errors.push("a transient getGamepads exception should be treated as disconnected instead of an unhandled runtime error");
   await enableDebugPanel(cdp);
   const beforeAxis = await debugPosition(cdp);
   await evaluate(cdp, `window.__summitMockPadState.axes[0] = 0.34`);
@@ -5034,6 +5040,7 @@ async function main() {
         Object.defineProperty(Navigator.prototype, "getGamepads", {
           configurable: true,
           value() {
+            if (window.__summitMockPadState.throw) throw new Error("summit smoke gamepad poll fault");
             return [window.__summitMockPadState];
           }
         });

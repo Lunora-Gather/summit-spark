@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p297"),
-    import("./modules/core/math.mjs?v=20260816-p297"),
-    import("./modules/game/room-data.mjs?v=20260816-p297"),
-    import("./modules/game/world-model.mjs?v=20260816-p297"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p297"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p297"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p297"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p297"),
-    import("./modules/systems/storage.mjs?v=20260816-p297"),
-    import("./modules/systems/input.mjs?v=20260816-p297"),
-    import("./modules/training/state.mjs?v=20260816-p297"),
-    import("./modules/training/replay.mjs?v=20260816-p297"),
-    import("./modules/ui/presentation.mjs?v=20260816-p297")
+    import("./modules/core/format.mjs?v=20260816-p298"),
+    import("./modules/core/math.mjs?v=20260816-p298"),
+    import("./modules/game/room-data.mjs?v=20260816-p298"),
+    import("./modules/game/world-model.mjs?v=20260816-p298"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p298"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p298"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p298"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p298"),
+    import("./modules/systems/storage.mjs?v=20260816-p298"),
+    import("./modules/systems/input.mjs?v=20260816-p298"),
+    import("./modules/training/state.mjs?v=20260816-p298"),
+    import("./modules/training/replay.mjs?v=20260816-p298"),
+    import("./modules/ui/presentation.mjs?v=20260816-p298")
   ]);
 
   const canvas = document.getElementById("game");
@@ -5493,7 +5493,17 @@
 
   function updateGamepad() {
     const supported = typeof navigator !== "undefined" && typeof navigator.getGamepads === "function";
-    const pads = supported ? navigator.getGamepads() : [];
+    let pads = [];
+    if (supported) {
+      try {
+        pads = navigator.getGamepads() || [];
+      } catch {
+        // Some browsers reject polling while the document is backgrounded or
+        // the controller permission state is changing. Treat that frame as
+        // disconnected instead of letting a device API exception stop play.
+        pads = [];
+      }
+    }
     const resolved = resolveGamepadState(pads, {
       supported,
       deadzone: settings.gamepadDeadzone

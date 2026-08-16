@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p295"),
-    import("./modules/core/math.mjs?v=20260816-p295"),
-    import("./modules/game/room-data.mjs?v=20260816-p295"),
-    import("./modules/game/world-model.mjs?v=20260816-p295"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p295"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p295"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p295"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p295"),
-    import("./modules/systems/storage.mjs?v=20260816-p295"),
-    import("./modules/systems/input.mjs?v=20260816-p295"),
-    import("./modules/training/state.mjs?v=20260816-p295"),
-    import("./modules/training/replay.mjs?v=20260816-p295"),
-    import("./modules/ui/presentation.mjs?v=20260816-p295")
+    import("./modules/core/format.mjs?v=20260816-p296"),
+    import("./modules/core/math.mjs?v=20260816-p296"),
+    import("./modules/game/room-data.mjs?v=20260816-p296"),
+    import("./modules/game/world-model.mjs?v=20260816-p296"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p296"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p296"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p296"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p296"),
+    import("./modules/systems/storage.mjs?v=20260816-p296"),
+    import("./modules/systems/input.mjs?v=20260816-p296"),
+    import("./modules/training/state.mjs?v=20260816-p296"),
+    import("./modules/training/replay.mjs?v=20260816-p296"),
+    import("./modules/ui/presentation.mjs?v=20260816-p296")
   ]);
 
   const canvas = document.getElementById("game");
@@ -7419,14 +7419,43 @@
     death: [{ type: "sawtooth", from: 240, to: 80, gain: 0.048, time: 0.18 }],
     clear: [{ type: "sine", from: 520, to: 880, gain: 0.038, time: 0.15 }, { type: "triangle", from: 780, to: 1120, gain: 0.026, time: 0.18 }]
   };
+
+  function resetAudioRuntimeCues() {
+    ambientVoices.clear();
+    ambientNextTime = 0;
+    ambientStep = 0;
+    Object.keys(soundCooldowns).forEach((name) => delete soundCooldowns[name]);
+  }
+
+  function discardAudioContext() {
+    try {
+      clearAmbientVoices();
+    } catch {
+      // A browser may throw while tearing down an already-closed context.
+    }
+    try {
+      const closing = audioContext?.close?.();
+      closing?.catch?.(() => {});
+    } catch {
+      // Closing is best effort; the old graph is no longer used after this point.
+    }
+    audioContext = null;
+    audioMaster = null;
+    ambientBus = null;
+    resetAudioRuntimeCues();
+  }
+
   function unlockAudio() {
     if (!settings.audioEnabled) return false;
     if (["127.0.0.1", "localhost"].includes(window.location.hostname)
       && window.__summitSmokeAudioUnavailable) return false;
+    if (["127.0.0.1", "localhost"].includes(window.location.hostname)
+      && window.__summitSmokeAudioContextClosed) {
+      window.__summitSmokeAudioContextClosed = false;
+      discardAudioContext();
+    }
     if (audioContext?.state === "closed") {
-      audioContext = null;
-      audioMaster = null;
-      ambientBus = null;
+      discardAudioContext();
     }
     if (audioContext) return true;
     const AudioCtor = window.AudioContext || window.webkitAudioContext;
@@ -7441,33 +7470,39 @@
       ambientBus.connect(audioMaster);
       ambientNextTime = audioContext.currentTime;
     } catch {
-      audioContext = null;
-      audioMaster = null;
-      ambientBus = null;
+      discardAudioContext();
     }
     return Boolean(audioContext && audioMaster && ambientBus);
   }
 
   function updateAmbientMusic(paused = false) {
     if (!audioContext || !ambientBus) return;
-    const now = audioContext.currentTime;
-    const audible = settings.audioEnabled && settings.audioVolume > 0 && started && !won && !paused;
-    ambientBus.gain.setTargetAtTime(audible ? 1 : 0.0001, now, 0.35);
-    if (!audible || audioContext.state !== "running") {
-      clearAmbientVoices();
-      ambientNextTime = now;
-      return;
+    try {
+      if (audioContext.state === "closed") {
+        discardAudioContext();
+        return;
+      }
+      const now = audioContext.currentTime;
+      const audible = settings.audioEnabled && settings.audioVolume > 0 && started && !won && !paused;
+      ambientBus.gain.setTargetAtTime(audible ? 1 : 0.0001, now, 0.35);
+      if (!audible || audioContext.state !== "running") {
+        clearAmbientVoices();
+        ambientNextTime = now;
+        return;
+      }
+      if (ambientNextTime > now + 0.6) return;
+      const chapter = chapterIndexForRoom(roomIndex);
+      const cue = ambientChapterCueData(chapter, ambientStep, flowScore);
+      if (!cue) return;
+      const start = Math.max(now + 0.05, ambientNextTime);
+      cue.voices.forEach((voice) => {
+        playAmbientTone(voice, start + voice.offset, cue.duration);
+      });
+      ambientStep += 1;
+      ambientNextTime = start + cue.nextAfter;
+    } catch {
+      discardAudioContext();
     }
-    if (ambientNextTime > now + 0.6) return;
-    const chapter = chapterIndexForRoom(roomIndex);
-    const cue = ambientChapterCueData(chapter, ambientStep, flowScore);
-    if (!cue) return;
-    const start = Math.max(now + 0.05, ambientNextTime);
-    cue.voices.forEach((voice) => {
-      playAmbientTone(voice, start + voice.offset, cue.duration);
-    });
-    ambientStep += 1;
-    ambientNextTime = start + cue.nextAfter;
   }
 
   function playAmbientTone(voice, start, duration) {
@@ -7504,34 +7539,48 @@
 
   function playSound(name, intensity = 1) {
     if (!settings.audioEnabled || settings.audioVolume <= 0) return;
-    unlockAudio();
-    if (!audioContext || !audioMaster) return;
-    if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
-    const preset = SOUND_PRESETS[name] || SOUND_PRESETS.ui;
-    const now = audioContext.currentTime;
-    const cooldown = name === "wind"
-      ? 0.28
-      : name === "land" || name === "crumble"
-        ? 0.08
-        : name === "crack"
-          ? 0.06
-          : name === "ui"
-            ? 0.04
-            : 0.035;
-    if (Number.isFinite(soundCooldowns[name]) && now - soundCooldowns[name] < cooldown) return;
-    soundCooldowns[name] = now;
-    audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
-    preset.forEach((voice, index) => playTone(voice, now + index * 0.012, intensity));
+    if (!unlockAudio() || !audioContext || !audioMaster) return;
+    try {
+      if (audioContext.state === "closed") {
+        discardAudioContext();
+        return;
+      }
+      if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
+      const preset = SOUND_PRESETS[name] || SOUND_PRESETS.ui;
+      const now = audioContext.currentTime;
+      const cooldown = name === "wind"
+        ? 0.28
+        : name === "land" || name === "crumble"
+          ? 0.08
+          : name === "crack"
+            ? 0.06
+            : name === "ui"
+              ? 0.04
+              : 0.035;
+      if (Number.isFinite(soundCooldowns[name]) && now - soundCooldowns[name] < cooldown) return;
+      soundCooldowns[name] = now;
+      audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
+      preset.forEach((voice, index) => playTone(voice, now + index * 0.012, intensity));
+    } catch {
+      discardAudioContext();
+    }
   }
 
   function playScheduledCue(cue, intensity = 1) {
     if (!cue || !Array.isArray(cue.voices) || !settings.audioEnabled || settings.audioVolume <= 0) return;
-    unlockAudio();
-    if (!audioContext || !audioMaster) return;
-    if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
-    const now = audioContext.currentTime;
-    audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
-    cue.voices.forEach((voice) => playTone(voice, now + voice.offset, intensity));
+    if (!unlockAudio() || !audioContext || !audioMaster) return;
+    try {
+      if (audioContext.state === "closed") {
+        discardAudioContext();
+        return;
+      }
+      if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
+      const now = audioContext.currentTime;
+      audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
+      cue.voices.forEach((voice) => playTone(voice, now + voice.offset, intensity));
+    } catch {
+      discardAudioContext();
+    }
   }
 
   function playChapterEntrySound(chapter, fromChapter) {

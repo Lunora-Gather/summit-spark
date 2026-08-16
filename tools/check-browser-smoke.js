@@ -1292,8 +1292,14 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const text = document.querySelector("#gameStatus")?.textContent || "";
     return /声音试听/.test(text) ? text : null;
   })()`), 1200, 40);
-  if (!/声音暂不可用/.test(unavailableAudioStatus) || !/声音试听/.test(audioStatus)) {
-    errors.push("audio test should distinguish unavailable audio from a successful pattern: " + JSON.stringify({ audioFailure, unavailableAudioStatus, audioStatus }));
+  await evaluate(cdp, `window.__summitSmokeAudioContextClosed = true`);
+  await clickSelector(cdp, "#audioTestButton");
+  const audioRecoveryStatus = await waitUntil("audio context recovery status", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#gameStatus")?.textContent || "";
+    return /声音试听/.test(text) ? text : null;
+  })()`), 1200, 40);
+  if (!/声音暂不可用/.test(unavailableAudioStatus) || !/声音试听/.test(audioStatus) || !/声音试听/.test(audioRecoveryStatus)) {
+    errors.push("audio test should distinguish unavailable audio and recover a replaced context: " + JSON.stringify({ audioFailure, unavailableAudioStatus, audioStatus, audioRecoveryStatus }));
   }
   await evaluate(cdp, `(() => {
     const type = document.querySelector("#feedbackType");

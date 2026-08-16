@@ -77,11 +77,59 @@ function findBrowser() {
 }
 
 function killProcess(child) {
-  if (!child || child.exitCode !== null) return Promise.resolve();
+  if (!child) return Promise.resolve();
+  const closeHandles = () => {
+    child.stdin?.destroy();
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+    child.unref?.();
+  };
+  if (child.exitCode !== null) {
+    closeHandles();
+    return Promise.resolve();
+  }
+  if (process.platform === "win32" && Number.isInteger(child.pid)) {
+    return new Promise((resolve) => {
+      let settled = false;
+      let timeoutId = null;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        try {
+          if (child.exitCode === null) child.kill();
+        } catch {
+          // The exact test process may already have exited.
+        }
+        closeHandles();
+        resolve();
+      };
+      const killer = childProcess.spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore"
+      });
+      killer.once("exit", finish);
+      killer.once("error", finish);
+      timeoutId = setTimeout(() => {
+        try {
+          killer.kill();
+        } catch {
+          // Tree cleanup is best-effort after the exact timeout.
+        }
+        finish();
+      }, 2500);
+    });
+  }
   return new Promise((resolve) => {
-    child.once("exit", () => resolve());
+    child.once("exit", () => {
+      closeHandles();
+      resolve();
+    });
     child.kill();
-    setTimeout(resolve, 1200);
+    setTimeout(() => {
+      closeHandles();
+      resolve();
+    }, 1200);
   });
 }
 
@@ -194,6 +242,46 @@ async function navigateApp(cdp, baseUrl, label = "app") {
   await cdp.send("Page.navigate", { url });
   await waitUntil(label + " navigation", () => evaluate(cdp, `location.href === ${JSON.stringify(url)}`), 7000);
   await waitForAppReady(cdp);
+}
+
+async function runBootFailureSmoke(cdp, baseUrl) {
+  navigationId += 1;
+  const url = `${baseUrl}/?smoke=${navigationId}&boot-fault=1`;
+  await cdp.send("Page.navigate", { url });
+  await waitUntil("boot failure navigation", () => evaluate(cdp, `location.href === ${JSON.stringify(url)}`), 7000);
+  const state = await waitUntil("boot failure recovery surface", () => evaluate(cdp, `(() => {
+    const root = document.documentElement;
+    const actions = document.querySelector("#startPanel .start-actions");
+    const retry = document.querySelector("#bootRetryButton");
+    const fallback = document.querySelector("#bootFallback");
+    if (!root.classList.contains("app-boot-failed")) return null;
+    return {
+      ready: root.classList.contains("app-ready"),
+      readiness: document.querySelector("#startReadiness")?.textContent || "",
+      loadStatus: document.querySelector("#loadStatus")?.textContent || "",
+      loadVisible: document.querySelector("#startPanel .load-strip")?.getAttribute("aria-hidden") === "false",
+      actionsHidden: getComputedStyle(actions).display === "none",
+      actionsInert: actions?.hasAttribute("inert") && actions?.getAttribute("aria-hidden") === "true",
+      fallbackVisible: getComputedStyle(fallback).opacity === "1" && fallback?.getAttribute("role") === "alert",
+      fallbackText: fallback?.textContent || "",
+      retryVisible: retry && !retry.hidden && getComputedStyle(retry).display !== "none",
+      retryText: retry?.textContent || "",
+      retryEnabled: retry ? !retry.disabled : false
+    };
+  })()`), 7000, 40);
+  if (state.ready
+    || !/启动未完成/.test(state.readiness)
+    || !/启动资源加载失败/.test(state.loadStatus)
+    || !state.loadVisible
+    || !state.actionsHidden
+    || !state.actionsInert
+    || !state.fallbackVisible
+    || !/不会清除本地存档/.test(state.fallbackText)
+    || !state.retryVisible
+    || !state.retryEnabled
+    || !/重新加载/.test(state.retryText)) {
+    errors.push("boot failure should replace dead menu actions with a clear local-safe retry surface: " + JSON.stringify(state));
+  }
 }
 
 async function targetPoint(cdp, selector) {
@@ -4868,10 +4956,14 @@ async function main() {
   });
   const browser = childProcess.spawn(browserPath, [
     "--headless=new",
+    ...(process.platform === "win32" ? ["--no-sandbox"] : []),
+    "--disable-breakpad",
+    "--disable-crash-reporter",
     "--disable-gpu",
     "--disable-background-networking",
     "--disable-extensions",
     "--mute-audio",
+    "--noerrdialogs",
     "--no-first-run",
     "--no-default-browser-check",
     "--remote-debugging-port=" + debugPort,
@@ -4908,6 +5000,7 @@ async function main() {
       })();`
     });
 
+    await runBootFailureSmoke(cdp, baseUrl);
     await runDesktopSmoke(cdp, baseUrl);
     await runChapterTransitionInputSmoke(cdp, baseUrl);
     await runMountainGateLandmarkSmoke(cdp, baseUrl);

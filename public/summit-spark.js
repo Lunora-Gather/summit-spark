@@ -14,6 +14,11 @@
     return;
   }
 
+  if (["127.0.0.1", "localhost"].includes(window.location.hostname)
+    && new URLSearchParams(window.location.search).has("boot-fault")) {
+    throw new Error("summit smoke boot fault");
+  }
+
   const [
     {
       escapeHtml,
@@ -195,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p291"),
-    import("./modules/core/math.mjs?v=20260816-p291"),
-    import("./modules/game/room-data.mjs?v=20260816-p291"),
-    import("./modules/game/world-model.mjs?v=20260816-p291"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p291"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p291"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p291"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p291"),
-    import("./modules/systems/storage.mjs?v=20260816-p291"),
-    import("./modules/systems/input.mjs?v=20260816-p291"),
-    import("./modules/training/state.mjs?v=20260816-p291"),
-    import("./modules/training/replay.mjs?v=20260816-p291"),
-    import("./modules/ui/presentation.mjs?v=20260816-p291")
+    import("./modules/core/format.mjs?v=20260816-p292"),
+    import("./modules/core/math.mjs?v=20260816-p292"),
+    import("./modules/game/room-data.mjs?v=20260816-p292"),
+    import("./modules/game/world-model.mjs?v=20260816-p292"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p292"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p292"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p292"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p292"),
+    import("./modules/systems/storage.mjs?v=20260816-p292"),
+    import("./modules/systems/input.mjs?v=20260816-p292"),
+    import("./modules/training/state.mjs?v=20260816-p292"),
+    import("./modules/training/replay.mjs?v=20260816-p292"),
+    import("./modules/ui/presentation.mjs?v=20260816-p292")
   ]);
 
   const canvas = document.getElementById("game");
@@ -12523,4 +12528,27 @@
     context.quadraticCurveTo(x, y, x + r, y);
     context.closePath();
   }
-})();
+})().catch((error) => {
+  console.error("[summit-spark] boot failed", error);
+  document.documentElement.classList.add("app-boot-failed");
+  const startReadiness = document.getElementById("startReadiness");
+  const startActions = document.querySelector("#startPanel .start-actions");
+  const loadStrip = document.querySelector("#startPanel .load-strip");
+  const loadStatus = document.getElementById("loadStatus");
+  const bootFallback = document.getElementById("bootFallback");
+  const retryButton = document.getElementById("bootRetryButton");
+  if (startReadiness) startReadiness.textContent = "启动未完成";
+  startActions?.setAttribute("inert", "");
+  startActions?.setAttribute("aria-hidden", "true");
+  loadStrip?.setAttribute("aria-hidden", "false");
+  if (loadStatus) loadStatus.textContent = "启动资源加载失败";
+  if (bootFallback) {
+    bootFallback.textContent = "网络或浏览器缓存中断了资源加载。重新加载不会清除本地存档。";
+    bootFallback.setAttribute("role", "alert");
+    bootFallback.removeAttribute("aria-hidden");
+  }
+  if (retryButton) {
+    retryButton.hidden = false;
+    retryButton.addEventListener("click", () => window.location.reload(), { once: true });
+  }
+});

@@ -1901,6 +1901,34 @@ canvas:focus {
   animation: none;
 }
 
+.boot-retry {
+  width: min(260px, 100%);
+  place-self: center;
+}
+
+.boot-retry[hidden] {
+  display: none;
+}
+
+.app-boot-failed .start-actions {
+  display: none;
+}
+
+.app-boot-failed .load-strip {
+  height: auto;
+  min-height: 34px;
+  padding: 7px 12px;
+  background: rgba(122, 56, 66, 0.34);
+  color: rgba(255, 238, 231, 0.96);
+}
+
+.app-boot-failed .boot-fallback {
+  max-height: 72px;
+  margin: 0;
+  opacity: 1;
+  animation: none;
+}
+
 @keyframes bootFallbackIn {
   to {
     max-height: 44px;

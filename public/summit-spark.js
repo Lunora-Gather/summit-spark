@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p293"),
-    import("./modules/core/math.mjs?v=20260816-p293"),
-    import("./modules/game/room-data.mjs?v=20260816-p293"),
-    import("./modules/game/world-model.mjs?v=20260816-p293"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p293"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p293"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p293"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p293"),
-    import("./modules/systems/storage.mjs?v=20260816-p293"),
-    import("./modules/systems/input.mjs?v=20260816-p293"),
-    import("./modules/training/state.mjs?v=20260816-p293"),
-    import("./modules/training/replay.mjs?v=20260816-p293"),
-    import("./modules/ui/presentation.mjs?v=20260816-p293")
+    import("./modules/core/format.mjs?v=20260816-p294"),
+    import("./modules/core/math.mjs?v=20260816-p294"),
+    import("./modules/game/room-data.mjs?v=20260816-p294"),
+    import("./modules/game/world-model.mjs?v=20260816-p294"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p294"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p294"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p294"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p294"),
+    import("./modules/systems/storage.mjs?v=20260816-p294"),
+    import("./modules/systems/input.mjs?v=20260816-p294"),
+    import("./modules/training/state.mjs?v=20260816-p294"),
+    import("./modules/training/replay.mjs?v=20260816-p294"),
+    import("./modules/ui/presentation.mjs?v=20260816-p294")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1224,7 +1224,7 @@
       configureCanvasBuffer({ allowContextLost: true });
       canvasContextLost = false;
       resetFrameClock();
-      if (started && !won && !settingsVisible) focusPaused = false;
+      if (!settingsVisible) focusPaused = false;
       setGameStatus(started && !won ? "画面已恢复 · 可继续前进" : "画面已恢复");
       scheduleFrame();
     } catch (error) {
@@ -1911,7 +1911,12 @@
   }
 
   function begin() {
+    if (canvasContextLost) {
+      setGameStatus("画面正在恢复 · 请稍候");
+      return;
+    }
     started = true;
+    focusPaused = false;
     roomIntroTimer = openingIntroDuration(0);
     clearTransientTrainingResults();
     unlockAudio();
@@ -1923,6 +1928,10 @@
   }
 
   function startSummitChallenge(challengeId = "clear") {
+    if (canvasContextLost) {
+      setGameStatus("画面正在恢复 · 请稍候");
+      return;
+    }
     const challenge = challengeById(challengeId);
     activeDrill = null;
     activeChallenge = createActiveChallenge(challenge.id);
@@ -2179,6 +2188,10 @@
   }
 
   function jumpToRoom(index, options = {}) {
+    if (canvasContextLost) {
+      setGameStatus("画面正在恢复 · 请稍候");
+      return;
+    }
     collected = new Set();
     deathCount = 0;
     deathReasons = createDeathReasons();
@@ -4447,6 +4460,10 @@
   }
 
   function startRoomDrill(index, mode = "auto", options = {}) {
+    if (canvasContextLost) {
+      setGameStatus("画面正在恢复 · 请稍候");
+      return;
+    }
     const resolvedMode = resolveDrillMode(index, mode);
     const objective = drillPresentation(index, resolvedMode).objective;
     if (!options.keepRoute) cancelActiveRouteContract("改练中断");

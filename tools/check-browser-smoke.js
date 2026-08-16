@@ -2174,6 +2174,24 @@ async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
     if (!entry.gateVisible || entry.checking || !entry.pending || entry.focused !== "guestEntryButton") {
       errors.push("fresh visitors should see the focused guest/email chooser immediately without waiting for account restore: " + JSON.stringify(entry));
     }
+    const preStartContext = await evaluate(cdp, `(() => {
+      const canvas = document.querySelector("#game");
+      canvas.dispatchEvent(new Event("contextlost", { cancelable: true }));
+      window.dispatchEvent(new Event("resize"));
+      canvas.dispatchEvent(new Event("contextrestored"));
+      return document.querySelector("#gameStatus")?.textContent || "";
+    })()`);
+    await clickSelector(cdp, "#guestEntryButton");
+    await waitUntil("guest entry after pre-start context restore", () => evaluate(cdp, `document.querySelector("#entryGate")?.classList.contains("hidden")`));
+    await clickSelector(cdp, "#startButton");
+    await waitUntil("start after pre-start context restore", () => evaluate(cdp, `document.querySelector("#overlay")?.classList.contains("hidden")`));
+    await enableDebugPanel(cdp);
+    const preStartBeforeMove = await debugPosition(cdp);
+    await keyHold(cdp, "KeyD", "D", 90);
+    const preStartAfterMove = await debugPosition(cdp);
+    if (!/画面已恢复/.test(preStartContext) || preStartAfterMove.x <= preStartBeforeMove.x) {
+      errors.push("a context loss before gameplay should restore cleanly before the first start: " + JSON.stringify({ preStartContext, preStartBeforeMove, preStartAfterMove }));
+    }
   } finally {
     if (injected.identifier) {
       await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });

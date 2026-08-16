@@ -115,6 +115,13 @@ const challengeBoardBody = functionBody("updateChallengeBoard");
 if (challengeBoardBody.includes("writeProfile(")) errors.push("challenge rendering must not write profile state");
 const challengeSyncBody = functionBody("syncChallengeWins");
 if (!challengeSyncBody.includes("reconcileChallengeWinsData(") || !challengeSyncBody.includes("writeProfile(")) errors.push("challenge wins must reconcile through one explicit persistence path");
+const summitProfileBody = functionBody("recordSummitProfile");
+const flowCommitIndex = summitProfileBody.indexOf("profile.bestFlowPeak =");
+const lumenCommitIndex = summitProfileBody.indexOf("profile.bestLumenCount =");
+const challengeReconcileIndex = summitProfileBody.indexOf("syncChallengeWins(");
+if (flowCommitIndex < 0 || lumenCommitIndex < 0 || challengeReconcileIndex < Math.max(flowCommitIndex, lumenCommitIndex)) {
+  errors.push("recordSummitProfile must reconcile Flow/Lumen challenge wins after committing current-run best evidence");
+}
 for (const name of ["recordSummitProfile", "addFlow", "markRoomClear", "trackDrillClear"]) {
   if (!functionBody(name).includes("syncChallengeWins(")) errors.push(name + " must explicitly reconcile newly earned challenge wins");
 }

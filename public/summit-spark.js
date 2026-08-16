@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p296"),
-    import("./modules/core/math.mjs?v=20260816-p296"),
-    import("./modules/game/room-data.mjs?v=20260816-p296"),
-    import("./modules/game/world-model.mjs?v=20260816-p296"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p296"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p296"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p296"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p296"),
-    import("./modules/systems/storage.mjs?v=20260816-p296"),
-    import("./modules/systems/input.mjs?v=20260816-p296"),
-    import("./modules/training/state.mjs?v=20260816-p296"),
-    import("./modules/training/replay.mjs?v=20260816-p296"),
-    import("./modules/ui/presentation.mjs?v=20260816-p296")
+    import("./modules/core/format.mjs?v=20260816-p297"),
+    import("./modules/core/math.mjs?v=20260816-p297"),
+    import("./modules/game/room-data.mjs?v=20260816-p297"),
+    import("./modules/game/world-model.mjs?v=20260816-p297"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p297"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p297"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p297"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p297"),
+    import("./modules/systems/storage.mjs?v=20260816-p297"),
+    import("./modules/systems/input.mjs?v=20260816-p297"),
+    import("./modules/training/state.mjs?v=20260816-p297"),
+    import("./modules/training/replay.mjs?v=20260816-p297"),
+    import("./modules/ui/presentation.mjs?v=20260816-p297")
   ]);
 
   const canvas = document.getElementById("game");
@@ -3256,6 +3256,9 @@
     profile.bestRelayChain = Math.max(profile.bestRelayChain, bestRelayChain);
     profile.bestFlowPeak = Math.max(profile.bestFlowPeak, Math.floor(flowPeak));
     profile.bestLumenCount = Math.max(profile.bestLumenCount, collected.size);
+    // Reconcile after the current run best Flow/Lumen values are in place.
+    // Previously doing this before the assignments made a newly completed long-term
+    // challenge appear one refresh late (especially Flow and full-Lumen runs).
     syncChallengeWins({ persist: false });
     writeProfile();
   }

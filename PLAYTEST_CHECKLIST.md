@@ -55,6 +55,7 @@ During the route, judge these chapter-level questions:
 ## Training And Recovery
 
 - Start a recommended Drill and decide whether its goal is clear before moving.
+- During a Drill, briefly walk left out of the room. Confirm the training HUD and old objective disappear, the status explains that the Drill was paused, and returning to the room does not silently resume the stale attempt.
 - Run one Route interruption/resume path and judge whether returning to it feels obvious.
 - Run one Feel interruption path and judge whether the interrupted state is understandable.
 - Fail and finish at least one Drill; confirm the result helps the player change the next attempt rather than merely scoring it.

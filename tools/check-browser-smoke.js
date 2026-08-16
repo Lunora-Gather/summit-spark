@@ -488,12 +488,13 @@ async function runBackwardTransitionSmoke(cdp, baseUrl) {
   await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
   const sameAct = await waitUntil("backward R2 transition restores clean and carried Lumen", () => evaluate(cdp, `(() => {
     const text = document.querySelector("#debugPanel").textContent;
-    return /room 1\\/10/.test(text) && /attempt clean 1/.test(text) && /carry 1/.test(text) && /lumen 1\\//.test(text)
+    return /room 1\\/10/.test(text) && /attempt clean 1/.test(text) && /carry 1/.test(text) && /lumen 1\\//.test(text) && /drill 0/.test(text)
       ? { text }
       : null;
   })()`), 3000, 20);
-  if (!/attempt clean 1/.test(sameAct.text) || !/carry 1/.test(sameAct.text)) {
-    errors.push("backward same-act transition should re-arm Clean and preserve banked Lumen: " + sameAct.text);
+  const sameActStatus = await evaluate(cdp, `document.querySelector("#gameStatus")?.textContent || ""`);
+  if (!/attempt clean 1/.test(sameAct.text) || !/carry 1/.test(sameAct.text) || !/drill 0/.test(sameAct.text) || !/已回退 · 本房 Drill 已暂停/.test(sameActStatus)) {
+    errors.push("backward same-act transition should re-arm Clean, preserve banked Lumen and leave room training cleanly: " + JSON.stringify({ text: sameAct.text, status: sameActStatus }));
   }
 
   // R4 -> R3 additionally proves a backward act boundary restores the

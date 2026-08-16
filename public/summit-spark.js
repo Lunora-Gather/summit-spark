@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p300"),
-    import("./modules/core/math.mjs?v=20260816-p300"),
-    import("./modules/game/room-data.mjs?v=20260816-p300"),
-    import("./modules/game/world-model.mjs?v=20260816-p300"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p300"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p300"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p300"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p300"),
-    import("./modules/systems/storage.mjs?v=20260816-p300"),
-    import("./modules/systems/input.mjs?v=20260816-p300"),
-    import("./modules/training/state.mjs?v=20260816-p300"),
-    import("./modules/training/replay.mjs?v=20260816-p300"),
-    import("./modules/ui/presentation.mjs?v=20260816-p300")
+    import("./modules/core/format.mjs?v=20260816-p301"),
+    import("./modules/core/math.mjs?v=20260816-p301"),
+    import("./modules/game/room-data.mjs?v=20260816-p301"),
+    import("./modules/game/world-model.mjs?v=20260816-p301"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p301"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p301"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p301"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p301"),
+    import("./modules/systems/storage.mjs?v=20260816-p301"),
+    import("./modules/systems/input.mjs?v=20260816-p301"),
+    import("./modules/training/state.mjs?v=20260816-p301"),
+    import("./modules/training/replay.mjs?v=20260816-p301"),
+    import("./modules/ui/presentation.mjs?v=20260816-p301")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1042,6 +1042,7 @@
         // input or save path can invoke this action.
         roomAttemptClean = false;
         roomMistakes[roomIndex] = Math.max(1, roomMistakes[roomIndex] || 0);
+        activeDrill = createDrillData(roomIndex, "clean", "回退探针", ROOM_TARGETS[roomIndex] || 0);
         const previousRoom = roomIndex - 1;
         const previousRows = maps[previousRoom] || [];
         const lumenRow = previousRows.findIndex((row) => typeof row === "string" && row.includes("L"));
@@ -3691,6 +3692,21 @@
     }
     if (player.x < -player.w - 3 && roomIndex > 0) {
       const returnedFromRoom = roomIndex;
+      const backtrackedDrill = activeDrill && activeDrill.room === returnedFromRoom
+        ? { ...activeDrill }
+        : null;
+      if (backtrackedDrill) {
+        if (routeContractMatchesDrill(backtrackedDrill)) {
+          cancelActiveRouteContract("回退离开房间");
+        }
+        if (feelFixtureMatchesDrill(backtrackedDrill)) {
+          cancelActiveFeelFixture("回退离开房间");
+        }
+        activeDrill = null;
+        clearFocusPopup();
+        updatePracticeCoach();
+        setGameStatus("已回退 · 本房 Drill 已暂停");
+      }
       roomIndex -= 1;
       beginChapterTransition(returnedFromRoom, roomIndex);
       room = parseRoom(roomIndex);
@@ -12604,6 +12620,7 @@
       `feel ${feelCueText || "none"}  apex ${actionPulse.apex.toFixed(3)}  aim ${lastAimTimer.toFixed(3)}`,
       `route ${routeSlotShort(routeFocusData(roomIndex).slot)} ${routeCueReason || "none"} ${routeCueTimer.toFixed(2)}  mastery ${masteryPopupText || roomMasteryLevel(roomMasteryScore(roomIndex))}`,
       `tip ${gameTipKind || "none"} ${gameTipTimer.toFixed(2)}`,
+      `drill ${activeDrill ? activeDrill.room + 1 : 0}  challenge ${activeChallenge ? activeChallenge.id : "none"}`,
       `relay chain ${relayChain}  path ${relayChainPath.length}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,

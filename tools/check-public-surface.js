@@ -321,11 +321,14 @@ if (!runtimeSource.includes('import("./modules/game/lumen-progress.mjs?v=')
 if (!runtimeSource.includes("const returnedFromRoom = roomIndex;")
   || !runtimeSource.includes("beginChapterTransition(returnedFromRoom, roomIndex);")
   || !runtimeSource.includes("roomAttemptClean = true;\n      player.respawnRoom = roomIndex;")
-  || !runtimeSource.includes("player.respawnLumens = currentRoomLumenSnapshot();")) {
+  || !runtimeSource.includes("player.respawnLumens = currentRoomLumenSnapshot();")
+  || !runtimeSource.includes('setGameStatus("已回退 · 本房 Drill 已暂停")')
+  || !runtimeSource.includes("activeDrill = null;\n        clearFocusPopup();")) {
   fail("backward room transitions must restore chapter cues, re-arm Clean state and preserve banked Lumens");
 }
 if (!runtimeSource.includes('action === "prepareBackwardTransition"')
-  || !runtimeSource.includes("attempt clean ${roomAttemptClean ? 1 : 0}")) {
+  || !runtimeSource.includes("attempt clean ${roomAttemptClean ? 1 : 0}")
+  || !runtimeSource.includes("drill ${activeDrill ? activeDrill.room + 1 : 0}")) {
   fail("local transition probes should expose the backward Clean/reward boundary without adding a production control");
 }
 if (!runtimeSource.includes('import("./modules/training/replay.mjs?v=')

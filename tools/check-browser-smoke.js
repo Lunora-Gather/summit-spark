@@ -460,6 +460,58 @@ async function debugPosition(cdp) {
   return pos;
 }
 
+async function runBackwardTransitionSmoke(cdp, baseUrl) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 720,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
+  await navigateApp(cdp, baseUrl, "backward transition");
+  const entryGateVisible = await evaluate(cdp, `(() => {
+    const gate = document.querySelector("#entryGate");
+    return Boolean(gate && !gate.classList.contains("hidden"));
+  })()`);
+  if (entryGateVisible) {
+    await clickSelector(cdp, "#guestEntryButton");
+    await waitUntil("backward transition guest entry", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden")`));
+  }
+  await clickSelector(cdp, "#startButton");
+  await waitUntil("backward transition starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
+  await enableDebugPanel(cdp);
+
+  // R2 -> R1 exercises the same-act path. The local-only probe seeds a
+  // previous-room Lumen and an already-faulted current attempt, then crosses
+  // the actual left boundary on the next update.
+  await keyTap(cdp, "Digit2", "2");
+  await waitUntil("backward probe reaches R2", () => evaluate(cdp, `/room 2\\/10/.test(document.querySelector("#debugPanel").textContent)`));
+  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
+  const sameAct = await waitUntil("backward R2 transition restores clean and carried Lumen", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /room 1\\/10/.test(text) && /attempt clean 1/.test(text) && /carry 1/.test(text) && /lumen 1\\//.test(text)
+      ? { text }
+      : null;
+  })()`), 3000, 20);
+  if (!/attempt clean 1/.test(sameAct.text) || !/carry 1/.test(sameAct.text)) {
+    errors.push("backward same-act transition should re-arm Clean and preserve banked Lumen: " + sameAct.text);
+  }
+
+  // R4 -> R3 additionally proves a backward act boundary restores the
+  // existing chapter transition cue instead of silently changing ambience.
+  await keyTap(cdp, "Digit4", "4");
+  await waitUntil("backward probe reaches R4", () => evaluate(cdp, `/room 4\\/10/.test(document.querySelector("#debugPanel").textContent)`));
+  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
+  const actBoundary = await waitUntil("backward act transition restores chapter cue", () => evaluate(cdp, `(() => {
+    const text = document.querySelector("#debugPanel").textContent;
+    return /room 3\\/10/.test(text) && /act 0\\.\\d+/.test(text) && /attempt clean 1/.test(text)
+      ? { text }
+      : null;
+  })()`), 3500, 20);
+  if (!/room 3\/10/.test(actBoundary.text) || !/attempt clean 1/.test(actBoundary.text)) {
+    errors.push("backward chapter crossing should retain the normal transition cue and fresh Clean attempt: " + actBoundary.text);
+  }
+}
+
 async function runDesktopSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
@@ -5051,6 +5103,7 @@ async function main() {
 
     await runBootFailureSmoke(cdp, baseUrl);
     await runDesktopSmoke(cdp, baseUrl);
+    await runBackwardTransitionSmoke(cdp, baseUrl);
     await runChapterTransitionInputSmoke(cdp, baseUrl);
     await runMountainGateLandmarkSmoke(cdp, baseUrl);
     await runOldPeakRelicSmoke(cdp, baseUrl);
@@ -5095,6 +5148,7 @@ async function main() {
     for (const error of errors) console.error("- " + error);
     process.exit(1);
   }
+  console.log("Backward room/act transition, Clean re-arm and banked-Lumen preservation regression passed.");
   console.log("Browser smoke passed: desktop interactions, respawn focus recovery, finite/structural runtime self-healing and 16-cycle restart soak, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 

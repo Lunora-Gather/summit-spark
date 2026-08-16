@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p299"),
-    import("./modules/core/math.mjs?v=20260816-p299"),
-    import("./modules/game/room-data.mjs?v=20260816-p299"),
-    import("./modules/game/world-model.mjs?v=20260816-p299"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p299"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p299"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p299"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p299"),
-    import("./modules/systems/storage.mjs?v=20260816-p299"),
-    import("./modules/systems/input.mjs?v=20260816-p299"),
-    import("./modules/training/state.mjs?v=20260816-p299"),
-    import("./modules/training/replay.mjs?v=20260816-p299"),
-    import("./modules/ui/presentation.mjs?v=20260816-p299")
+    import("./modules/core/format.mjs?v=20260816-p300"),
+    import("./modules/core/math.mjs?v=20260816-p300"),
+    import("./modules/game/room-data.mjs?v=20260816-p300"),
+    import("./modules/game/world-model.mjs?v=20260816-p300"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p300"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p300"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p300"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p300"),
+    import("./modules/systems/storage.mjs?v=20260816-p300"),
+    import("./modules/systems/input.mjs?v=20260816-p300"),
+    import("./modules/training/state.mjs?v=20260816-p300"),
+    import("./modules/training/replay.mjs?v=20260816-p300"),
+    import("./modules/ui/presentation.mjs?v=20260816-p300")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1034,6 +1034,22 @@
         player.respawnLumens = null;
         room.entities = null;
         collected = null;
+      }
+      if (action === "prepareBackwardTransition" && started && !won && roomIndex > 0) {
+        // Local-only transition probe: model a room that was entered with a
+        // previous fault and a Lumen already banked in the room to the left.
+        // The next update crosses the real boundary code path; no production
+        // input or save path can invoke this action.
+        roomAttemptClean = false;
+        roomMistakes[roomIndex] = Math.max(1, roomMistakes[roomIndex] || 0);
+        const previousRoom = roomIndex - 1;
+        const previousRows = maps[previousRoom] || [];
+        const lumenRow = previousRows.findIndex((row) => typeof row === "string" && row.includes("L"));
+        if (lumenRow >= 0) {
+          const lumenColumn = previousRows[lumenRow].indexOf("L");
+          if (lumenColumn >= 0) collected.add(`${previousRoom}:${lumenColumn}:${lumenRow}`);
+        }
+        player.x = -player.w - 6;
       }
       if (action === "throwFrame") {
         // Local-only loop-boundary probe: prove a thrown render/update frame
@@ -3674,7 +3690,9 @@
       burst(28, player.y + player.h / 2, palette.cyan, 10, 170);
     }
     if (player.x < -player.w - 3 && roomIndex > 0) {
+      const returnedFromRoom = roomIndex;
       roomIndex -= 1;
+      beginChapterTransition(returnedFromRoom, roomIndex);
       room = parseRoom(roomIndex);
       resetRoomTech();
       lightTrails.length = 0;
@@ -3694,11 +3712,18 @@
       timingInputReady = true;
       roomIntroTimer = roomIntroDuration(roomIndex);
       armRouteCue("回看", null, ROUTE_CUE_TIME);
+      // A backward crossing starts a fresh attempt in the room we just
+      // re-entered. Keep the route-wide mistake ledger, but do not let a
+      // fault from the room we left poison this attempt's Clean result.
+      roomAttemptClean = true;
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
       player.respawnY = player.y;
       player.respawnRoomTime = 0;
-      player.respawnLumens = [];
+      // The room's Lumens were already carried across the forward boundary.
+      // Re-entering from the right must keep that validated snapshot so a
+      // later death cannot erase rewards that were already banked.
+      player.respawnLumens = currentRoomLumenSnapshot();
       echoAnchor = null;
       recallPulseTimer = 0;
       player.springLaunchTimer = 0;
@@ -12582,6 +12607,7 @@
       `relay chain ${relayChain}  path ${relayChainPath.length}  best ${bestRelayChain}`,
       `flow ${Math.floor(flowScore)} peak ${Math.floor(flowPeak)} best ${Math.floor(bestFlow)}  deaths ${deathCount}`,
       `last death ${lastDeathReason === "none" ? "none" : deathReasonLabel(lastDeathReason)}  reasons ${deathReasonSummary()}`,
+      `attempt clean ${roomAttemptClean ? 1 : 0}  carry ${player.respawnLumens.length}`,
       `room focus ${roomFocusDetails(roomIndex)}`,
       `coach ${practiceCoachText()}`,
       `stamina ${(player.stamina * 100).toFixed(0)}  anchor ${echoAnchor && echoAnchor.room === roomIndex ? 1 : 0}  recall ${echoAnchor && echoAnchor.room === roomIndex && recallCooldown <= 0 && player.deadTimer <= 0 ? 1 : 0}  wind ${player.inUpdraft ? 1 : 0}`,

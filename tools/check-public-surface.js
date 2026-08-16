@@ -318,6 +318,16 @@ if (!runtimeSource.includes('import("./modules/game/lumen-progress.mjs?v=')
   || !runtimeSource.includes("collected = reset.collected;")) {
   fail("public runtime must delegate provisional Lumen rollback and validated midpoint snapshots to the game model");
 }
+if (!runtimeSource.includes("const returnedFromRoom = roomIndex;")
+  || !runtimeSource.includes("beginChapterTransition(returnedFromRoom, roomIndex);")
+  || !runtimeSource.includes("roomAttemptClean = true;\n      player.respawnRoom = roomIndex;")
+  || !runtimeSource.includes("player.respawnLumens = currentRoomLumenSnapshot();")) {
+  fail("backward room transitions must restore chapter cues, re-arm Clean state and preserve banked Lumens");
+}
+if (!runtimeSource.includes('action === "prepareBackwardTransition"')
+  || !runtimeSource.includes("attempt clean ${roomAttemptClean ? 1 : 0}")) {
+  fail("local transition probes should expose the backward Clean/reward boundary without adding a production control");
+}
 if (!runtimeSource.includes('import("./modules/training/replay.mjs?v=')
   || !trainingReplaySource.includes("export const REPLAY_ACTION_LABELS")
   || !trainingReplaySource.includes("export function replayActionMarkersData(")

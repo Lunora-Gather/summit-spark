@@ -1526,7 +1526,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (fullResourceRefill.flow !== 0
     || fullResourceRefill.dash !== 1
     || fullResourceRefill.x < 105
-    || fullResourceRefill.x > 185
+    // R3's first support ends at x=192; allow a few compositor/frame-timing
+    // pixels while the grounded check still rejects leaving the platform.
+    || fullResourceRefill.x > 194
     || !fullResourceRefill.ground) {
     errors.push("walking through a refill with full dash and stamina should neither consume it nor award passive Flow: " + JSON.stringify(fullResourceRefill));
   }

@@ -4021,6 +4021,7 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
     const canvas = document.querySelector("#game");
     const event = new Event("contextlost", { cancelable: true });
     canvas.dispatchEvent(event);
+    window.dispatchEvent(new Event("resize"));
     return {
       defaultPrevented: event.defaultPrevented,
       status: document.querySelector("#gameStatus")?.textContent || ""

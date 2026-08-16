@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p292"),
-    import("./modules/core/math.mjs?v=20260816-p292"),
-    import("./modules/game/room-data.mjs?v=20260816-p292"),
-    import("./modules/game/world-model.mjs?v=20260816-p292"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p292"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p292"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p292"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p292"),
-    import("./modules/systems/storage.mjs?v=20260816-p292"),
-    import("./modules/systems/input.mjs?v=20260816-p292"),
-    import("./modules/training/state.mjs?v=20260816-p292"),
-    import("./modules/training/replay.mjs?v=20260816-p292"),
-    import("./modules/ui/presentation.mjs?v=20260816-p292")
+    import("./modules/core/format.mjs?v=20260816-p293"),
+    import("./modules/core/math.mjs?v=20260816-p293"),
+    import("./modules/game/room-data.mjs?v=20260816-p293"),
+    import("./modules/game/world-model.mjs?v=20260816-p293"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p293"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p293"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p293"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p293"),
+    import("./modules/systems/storage.mjs?v=20260816-p293"),
+    import("./modules/systems/input.mjs?v=20260816-p293"),
+    import("./modules/training/state.mjs?v=20260816-p293"),
+    import("./modules/training/replay.mjs?v=20260816-p293"),
+    import("./modules/ui/presentation.mjs?v=20260816-p293")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1146,7 +1146,8 @@
     return Math.max(1, Math.min(CANVAS_BUFFER_SCALE_MAX, roundedUp));
   }
 
-  function configureCanvasBuffer() {
+  function configureCanvasBuffer({ allowContextLost = false } = {}) {
+    if (canvasContextLost && !allowContextLost) return;
     const scale = canvasBufferScale();
     const width = Math.round(W * scale);
     const height = Math.round(H * scale);
@@ -1220,7 +1221,7 @@
   });
   canvas.addEventListener("contextrestored", () => {
     try {
-      configureCanvasBuffer();
+      configureCanvasBuffer({ allowContextLost: true });
       canvasContextLost = false;
       resetFrameClock();
       if (started && !won && !settingsVisible) focusPaused = false;

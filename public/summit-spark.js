@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260816-p301"),
-    import("./modules/core/math.mjs?v=20260816-p301"),
-    import("./modules/game/room-data.mjs?v=20260816-p301"),
-    import("./modules/game/world-model.mjs?v=20260816-p301"),
-    import("./modules/game/effect-budget.mjs?v=20260816-p301"),
-    import("./modules/game/landmark-progress.mjs?v=20260816-p301"),
-    import("./modules/game/audio-cues.mjs?v=20260816-p301"),
-    import("./modules/game/lumen-progress.mjs?v=20260816-p301"),
-    import("./modules/systems/storage.mjs?v=20260816-p301"),
-    import("./modules/systems/input.mjs?v=20260816-p301"),
-    import("./modules/training/state.mjs?v=20260816-p301"),
-    import("./modules/training/replay.mjs?v=20260816-p301"),
-    import("./modules/ui/presentation.mjs?v=20260816-p301")
+    import("./modules/core/format.mjs?v=20260816-p302"),
+    import("./modules/core/math.mjs?v=20260816-p302"),
+    import("./modules/game/room-data.mjs?v=20260816-p302"),
+    import("./modules/game/world-model.mjs?v=20260816-p302"),
+    import("./modules/game/effect-budget.mjs?v=20260816-p302"),
+    import("./modules/game/landmark-progress.mjs?v=20260816-p302"),
+    import("./modules/game/audio-cues.mjs?v=20260816-p302"),
+    import("./modules/game/lumen-progress.mjs?v=20260816-p302"),
+    import("./modules/systems/storage.mjs?v=20260816-p302"),
+    import("./modules/systems/input.mjs?v=20260816-p302"),
+    import("./modules/training/state.mjs?v=20260816-p302"),
+    import("./modules/training/replay.mjs?v=20260816-p302"),
+    import("./modules/ui/presentation.mjs?v=20260816-p302")
   ]);
 
   const canvas = document.getElementById("game");
@@ -646,6 +646,7 @@
   const keys = new Set();
   const pressed = new Set();
   const touchPressed = new Set();
+  const touchPointerIds = new Map();
   const gamepadPressed = new Set();
   const gamepadHeld = new Set();
   const gamepadInput = {
@@ -1198,6 +1199,7 @@
       digitalStates: [touch, gamepadInput]
     });
     clearGrabToggle();
+    touchPointerIds.clear();
     document.querySelectorAll("[data-touch]").forEach((button) => button.classList.remove("active"));
     clearInputBuffers(player);
     resetActionPulses();
@@ -1624,6 +1626,8 @@
     };
     button.addEventListener("pointerdown", (event) => {
       event.preventDefault();
+      if (touchPointerIds.has(button)) return;
+      touchPointerIds.set(button, event.pointerId);
       set(true);
       try {
         button.setPointerCapture?.(event.pointerId);
@@ -1632,10 +1636,15 @@
         // fallback release paths on older or interrupted touch engines.
       }
     });
-    button.addEventListener("pointerup", () => set(false));
-    button.addEventListener("pointercancel", () => set(false));
-    button.addEventListener("lostpointercapture", () => set(false));
-    button.addEventListener("pointerleave", () => set(false));
+    const releasePointer = (event) => {
+      if (!touchPointerIds.has(button) || touchPointerIds.get(button) !== event.pointerId) return;
+      touchPointerIds.delete(button);
+      set(false);
+    };
+    button.addEventListener("pointerup", releasePointer);
+    button.addEventListener("pointercancel", releasePointer);
+    button.addEventListener("lostpointercapture", releasePointer);
+    button.addEventListener("pointerleave", releasePointer);
   });
 
   document.querySelectorAll("[data-touch-command]").forEach((button) => {

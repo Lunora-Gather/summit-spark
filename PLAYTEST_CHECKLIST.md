@@ -67,7 +67,7 @@ During the route, judge these chapter-level questions:
 
 Physical hardware is required for these judgments.
 
-- Phone/tablet: test portrait and landscape, browser chrome appearing/disappearing, thumb reach, accidental presses, notch/Home-indicator clearance and the 64px touch setting.
+- Phone/tablet: test portrait and landscape, browser chrome appearing/disappearing, thumb reach, accidental presses, two-finger overlap/release on a held direction or action, notch/Home-indicator clearance and the 64px touch setting.
 - Touch Echo: in R9, activate the anchor, move away and recall once without covering Jump/Dash or losing track of the character.
 - Gamepad: check stick drift, deadzone comfort, A/B/X/RT/shoulder intuition and long-session grab fatigue. Do not record the controller name.
 - Audio: play once with sound and once muted. With sound on, judge mechanic separation, act-to-act identity, relative volume and fatigue; in R7, wind should read before the crumble cascade.

@@ -4537,6 +4537,13 @@ async function runMobileSmoke(cdp, baseUrl) {
   await enableDebugPanel(cdp);
   const touchReleaseStart = await debugPosition(cdp);
   const touchRightTarget = await targetPoint(cdp, '[data-touch="right"]');
+  await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-touch="right"]');
+    window.__touchPointerProbe = null;
+    button?.addEventListener("pointerdown", (event) => {
+      window.__touchPointerProbe = event.pointerId;
+    }, { once: true, capture: true });
+  })()`);
   const heldTouchPoint = {
     x: touchRightTarget.inputX,
     y: touchRightTarget.inputY,
@@ -4548,12 +4555,41 @@ async function runMobileSmoke(cdp, baseUrl) {
   await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [heldTouchPoint] });
   await sleep(180);
   const touchReleaseHeld = await debugPosition(cdp);
-  await evaluate(cdp, `document.querySelector('[data-touch="right"]').dispatchEvent(new Event("lostpointercapture"))`);
+  const touchPointerId = await evaluate(cdp, "window.__touchPointerProbe");
+  await evaluate(cdp, `(function(pointerId) {
+    document.querySelector('[data-touch="right"]').dispatchEvent(new PointerEvent("lostpointercapture", {
+      bubbles: true,
+      cancelable: true,
+      pointerId,
+      pointerType: "touch"
+    }));
+  })(${Number.isFinite(touchPointerId) ? touchPointerId : 7})`);
   await sleep(260);
   const touchReleaseLost = await debugPosition(cdp);
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   if (touchReleaseHeld.x - touchReleaseStart.x < 1 || touchReleaseLost.x - touchReleaseHeld.x > 8) {
     errors.push("lost touch pointer capture should release movement without waiting for pointerup: " + JSON.stringify({ touchReleaseStart, touchReleaseHeld, touchReleaseLost }));
+  }
+  const multiTouchRelease = await evaluate(cdp, `(() => {
+    const button = document.querySelector('[data-touch="right"]');
+    if (!button) return { supported: false };
+    const dispatch = (type, pointerId) => button.dispatchEvent(new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      pointerId,
+      pointerType: "touch"
+    }));
+    dispatch("pointerdown", 21);
+    dispatch("pointerdown", 22);
+    const heldAfterSecondDown = button.classList.contains("active");
+    dispatch("pointerup", 22);
+    const heldAfterSecondRelease = button.classList.contains("active");
+    dispatch("pointerup", 21);
+    const releasedAfterFirstRelease = !button.classList.contains("active");
+    return { supported: true, heldAfterSecondDown, heldAfterSecondRelease, releasedAfterFirstRelease };
+  })()`);
+  if (!multiTouchRelease.supported || !multiTouchRelease.heldAfterSecondDown || !multiTouchRelease.heldAfterSecondRelease || !multiTouchRelease.releasedAfterFirstRelease) {
+    errors.push("multi-touch release should be owned by the first pointer that pressed a touch action: " + JSON.stringify(multiTouchRelease));
   }
   await keyTap(cdp, "Digit9", "9");
   await waitUntil("mobile debug jump reaches Echo room", () => evaluate(cdp, `/R9\\/10/.test(document.querySelector("#roomCount").textContent)`));

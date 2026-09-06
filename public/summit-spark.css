@@ -8184,6 +8184,23 @@ textarea,
   padding: 18px 24px 22px;
 }
 
+/* The focused account view is one card, not a card inside another card.
+   The normal disclosure keeps its grouped surface, but the startup account
+   form must inherit the outer paper surface so the form reads as one sheet. */
+.stage .settings-panel.account-focused .settings-group-account,
+.stage .settings-panel.account-focused .settings-group-account[open],
+.stage .settings-panel.account-focused .settings-group-account .settings-group-body {
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stage .settings-panel.account-focused .settings-group-account .account-body {
+  gap: 12px;
+  padding: 0;
+}
+
 .stage .settings-panel.account-focused .account-guest {
   gap: 12px;
 }

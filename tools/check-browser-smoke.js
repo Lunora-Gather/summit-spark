@@ -632,6 +632,10 @@ async function runDesktopSmoke(cdp, baseUrl) {
         width: Math.round(panelRect.width),
         radius: parseFloat(getComputedStyle(panel).borderTopLeftRadius),
         backgroundColor: getComputedStyle(panel).backgroundColor,
+        accountSurface: {
+          backgroundColor: getComputedStyle(document.querySelector(".settings-group-account")).backgroundColor,
+          boxShadow: getComputedStyle(document.querySelector(".settings-group-account")).boxShadow
+        },
         centered: Math.abs((panelRect.left + panelRect.right) / 2 - (overlayRect.left + overlayRect.right) / 2) < 3
       },
       launchMenuHidden: getComputedStyle(startPanel).visibility === "hidden"
@@ -651,6 +655,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
     Math.abs((startupVisual.gateWidth || 0) - (accountTypography.panel?.width || 0)) > 2
     || Math.abs((startupVisual.gateRadius || 0) - (accountTypography.panel?.radius || 0)) > 1
     || startupVisual.gateBackgroundColor !== accountTypography.panel?.backgroundColor
+    || !/^rgba?\(0, 0, 0(?:, 0)?\)$/.test(accountTypography.panel?.accountSurface?.backgroundColor || "")
+    || accountTypography.panel?.accountSurface?.boxShadow !== "none"
   ) {
     errors.push("startup chooser and focused account sheet should share one aligned paper-card surface: " + JSON.stringify({ startupVisual, accountPanel: accountTypography.panel }));
   }

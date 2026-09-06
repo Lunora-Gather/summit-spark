@@ -1799,6 +1799,21 @@ canvas:focus {
   pointer-events: none;
 }
 
+/* Account entry is a focused startup task. Retiring the launch menu entirely
+   avoids the translucent duplicate controls seen behind the account sheet. */
+.stage.settings-open .overlay:not(.hidden) .start-panel {
+  visibility: hidden;
+}
+
+.stage:has(.overlay:not(.hidden)) .settings-panel.account-focused {
+  top: 50%;
+  right: auto;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(430px, calc(100% - 40px));
+  max-height: min(calc(100% - 40px), calc(100dvh - 40px));
+}
+
 .stage.settings-open .overlay:not(.hidden) {
   z-index: 3;
   pointer-events: none;
@@ -7016,6 +7031,16 @@ textarea,
   .settings-panel.account-focused {
     width: min(390px, calc(100% - 24px));
     max-height: calc(100dvh - 82px);
+  }
+
+  .stage:has(.overlay:not(.hidden)) .settings-panel.account-focused {
+    top: max(58px, calc(env(safe-area-inset-top, 0px) + 8px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
+    width: auto;
+    max-height: none;
+    transform: none;
   }
 
   .settings-panel.account-focused .settings-head {

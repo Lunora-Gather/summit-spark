@@ -613,11 +613,22 @@ async function runDesktopSmoke(cdp, baseUrl) {
     account.focus({ preventScroll: true });
     account.click();
     const opened = !panel.classList.contains("hidden") && !panel.hasAttribute("inert");
+    const startPanel = document.querySelector("#startPanel");
+    const panelRect = panel.getBoundingClientRect();
+    const overlayRect = document.querySelector("#overlay").getBoundingClientRect();
     window.__summitAccountTypography = {
       label: Number.parseFloat(getComputedStyle(document.querySelector("#accountEmailField > span")).fontSize),
       note: Number.parseFloat(getComputedStyle(document.querySelector("#accountNote")).fontSize),
       status: Number.parseFloat(getComputedStyle(document.querySelector("#accountStatus")).fontSize),
-      input: Number.parseFloat(getComputedStyle(document.querySelector("#accountEmail")).fontSize)
+      input: Number.parseFloat(getComputedStyle(document.querySelector("#accountEmail")).fontSize),
+      panel: {
+        left: Math.round(panelRect.left),
+        right: Math.round(panelRect.right),
+        top: Math.round(panelRect.top),
+        bottom: Math.round(panelRect.bottom),
+        centered: Math.abs((panelRect.left + panelRect.right) / 2 - (overlayRect.left + overlayRect.right) / 2) < 3
+      },
+      launchMenuHidden: getComputedStyle(startPanel).visibility === "hidden"
     };
     document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }));
     return opened;
@@ -626,6 +637,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   const accountTypography = await evaluate(cdp, `window.__summitAccountTypography || {}`);
   if (accountTypography.label < 11 || accountTypography.note < 11 || accountTypography.status < 11 || accountTypography.input < 13) {
     errors.push("account entry typography should remain readable on large and small surfaces: " + JSON.stringify(accountTypography));
+  }
+  if (!accountTypography.launchMenuHidden || !accountTypography.panel?.centered) {
+    errors.push("startup account entry should retire the launch menu and center the focused account sheet: " + JSON.stringify(accountTypography));
   }
   const entryAccountOutsideReturn = await waitUntil("immediate outside account dismissal restores entry trigger", () => evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel");

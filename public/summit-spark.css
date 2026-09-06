@@ -7996,12 +7996,14 @@ textarea,
   .stage.run-started {
     position: fixed;
     top: auto;
-    left: 50%;
+    left: 0;
+    right: 0;
+    margin-inline: auto;
     bottom: var(--portrait-stage-bottom);
     width: min(100vw, calc(var(--portrait-stage-height) * 1.1764705882));
     height: var(--portrait-stage-height);
     aspect-ratio: 640 / 544;
-    transform: translateX(-50%);
+    transform: none;
   }
 
   .stage.run-started #game {
@@ -8044,7 +8046,8 @@ textarea,
   }
 
   .stage.run-started {
-    transform: translate(-50%, calc(-1 * var(--portrait-lift)));
+    bottom: calc(var(--portrait-stage-bottom) + var(--portrait-lift));
+    transform: none;
   }
 
   .portrait-brief {

@@ -4495,6 +4495,41 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 380 || !touchUi.retryLabels.every((label) => /重开/.test(label) && /(R|T)/.test(label))) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
+  await tapSelector(cdp, "#settingsButton");
+  await waitUntil("active portrait settings opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const activePortraitPanel = await evaluate(cdp, `(() => {
+    const panel = document.querySelector("#settingsPanel");
+    const close = document.querySelector("#settingsClose");
+    const rect = panel?.getBoundingClientRect();
+    const closeRect = close?.getBoundingClientRect();
+    return {
+      panel: rect ? { left: Math.round(rect.left), top: Math.round(rect.top), right: Math.round(rect.right), bottom: Math.round(rect.bottom), width: Math.round(rect.width), height: Math.round(rect.height) } : null,
+      close: closeRect ? { left: Math.round(closeRect.left), top: Math.round(closeRect.top), right: Math.round(closeRect.right), bottom: Math.round(closeRect.bottom), width: Math.round(closeRect.width), height: Math.round(closeRect.height) } : null,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      stageTransform: getComputedStyle(document.querySelector(".stage")).transform,
+      panelPosition: getComputedStyle(panel).position,
+      panelVisible: Boolean(panel && !panel.classList.contains("hidden"))
+    };
+  })()`);
+  if (activePortraitPanel.panelVisible) {
+    const panelFits = activePortraitPanel.panel
+      && activePortraitPanel.panel.left >= -1
+      && activePortraitPanel.panel.right <= activePortraitPanel.viewport.width + 1
+      && activePortraitPanel.panel.top >= -1
+      && activePortraitPanel.panel.bottom <= activePortraitPanel.viewport.height + 1;
+    const closeFits = activePortraitPanel.close
+      && activePortraitPanel.close.width >= 44
+      && activePortraitPanel.close.height >= 44
+      && activePortraitPanel.close.left >= -1
+      && activePortraitPanel.close.right <= activePortraitPanel.viewport.width + 1
+      && activePortraitPanel.close.top >= -1
+      && activePortraitPanel.close.bottom <= activePortraitPanel.viewport.height + 1;
+    if (!panelFits || !closeFits || activePortraitPanel.panelPosition !== "fixed" || activePortraitPanel.stageTransform !== "none") {
+      errors.push("active portrait settings should stay fixed to the viewport and keep its close action reachable: " + JSON.stringify(activePortraitPanel));
+    }
+  }
+  await tapSelector(cdp, "#settingsClose");
+  await waitUntil("active portrait settings closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await tapSelector(cdp, '[data-touch-command="retry"]');
   await waitUntil("portrait touch quick retry responds", () => evaluate(cdp, `/快速重开/.test(document.querySelector("#gameStatus")?.textContent || "")`));
   await tapSelector(cdp, '[data-touch-command="roomRestart"]');

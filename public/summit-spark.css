@@ -8066,6 +8066,37 @@ textarea,
   }
 }
 
+/* P304: give startup choices a quiet visual center without adding another
+   card or dimming the authored mountain route. The title and first action no
+   longer compete with a bright platform passing directly behind them. */
+.overlay:not(.hidden):not(.finish-overlay) {
+  background:
+    radial-gradient(ellipse 42% 34% at 50% 47%, rgba(18, 35, 44, 0.18), rgba(18, 35, 44, 0.07) 48%, transparent 78%),
+    linear-gradient(180deg, rgba(22, 39, 54, 0.04), rgba(22, 34, 47, 0.16));
+}
+
+/* P304: the account drawer is intentionally compact, but its labels should
+   remain comfortable to read on large displays as well as narrow phones. */
+.settings-panel.account-focused #accountEmailField > span,
+.settings-panel.account-focused #accountPasswordField > span,
+.settings-panel.account-focused #accountCodeFields .account-field > span,
+.settings-panel.account-focused .password-reset > span {
+  font-size: 11px !important;
+}
+
+.settings-panel.account-focused .account-note,
+.settings-panel.account-focused .account-status {
+  font-size: 11px !important;
+  line-height: 1.5;
+}
+
+.settings-panel.account-focused #accountEmailField input,
+.settings-panel.account-focused #accountPasswordField input,
+.settings-panel.account-focused #accountCodeFields .account-field input,
+.settings-panel.account-focused .password-reset input {
+  font-size: 13px !important;
+}
+
 /* P277: a collapsed portrait Practice sheet should fit its two choices and
    launch action. Opening either disclosure restores the full-height workspace. */
 @media (max-width: 760px) and (orientation: portrait) {

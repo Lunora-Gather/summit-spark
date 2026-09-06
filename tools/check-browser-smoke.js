@@ -574,6 +574,18 @@ async function runDesktopSmoke(cdp, baseUrl) {
       contrastSamples
     };
   })()`);
+  const startupVisual = await evaluate(cdp, `(() => {
+    const overlay = document.querySelector("#overlay");
+    const style = getComputedStyle(overlay);
+    const title = document.querySelector("#entryGate h1");
+    const gate = document.querySelector("#entryGate");
+    return {
+      backgroundImage: style.backgroundImage,
+      titleReadableWidth: Math.round(title?.getBoundingClientRect().width || 0),
+      gateWidth: Math.round(gate?.getBoundingClientRect().width || 0),
+      gateHeight: Math.round(gate?.getBoundingClientRect().height || 0)
+    };
+  })()`);
   if (
     !entryChoice.visible
     || !entryChoice.startPending
@@ -589,16 +601,32 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (entryChoice.contrastSamples.some((sample) => sample.ratio < 4.5)) {
     errors.push("small entry text should retain at least 4.5:1 contrast: " + JSON.stringify(entryChoice.contrastSamples));
   }
+  if (!/radial-gradient\(42% 34%/.test(startupVisual.backgroundImage)
+    || startupVisual.titleReadableWidth < 180
+    || startupVisual.gateWidth < 300
+    || startupVisual.gateHeight < 180) {
+    errors.push("startup choice should keep a quiet visual center and a substantial readable entry surface: " + JSON.stringify(startupVisual));
+  }
   const immediateAccountOpen = await evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel");
     const account = document.querySelector("#accountEntryButton");
     account.focus({ preventScroll: true });
     account.click();
     const opened = !panel.classList.contains("hidden") && !panel.hasAttribute("inert");
+    window.__summitAccountTypography = {
+      label: Number.parseFloat(getComputedStyle(document.querySelector("#accountEmailField > span")).fontSize),
+      note: Number.parseFloat(getComputedStyle(document.querySelector("#accountNote")).fontSize),
+      status: Number.parseFloat(getComputedStyle(document.querySelector("#accountStatus")).fontSize),
+      input: Number.parseFloat(getComputedStyle(document.querySelector("#accountEmail")).fontSize)
+    };
     document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }));
     return opened;
   })()`);
   if (!immediateAccountOpen) errors.push("entry account drawer should become interactive before an immediate outside dismissal");
+  const accountTypography = await evaluate(cdp, `window.__summitAccountTypography || {}`);
+  if (accountTypography.label < 11 || accountTypography.note < 11 || accountTypography.status < 11 || accountTypography.input < 13) {
+    errors.push("account entry typography should remain readable on large and small surfaces: " + JSON.stringify(accountTypography));
+  }
   const entryAccountOutsideReturn = await waitUntil("immediate outside account dismissal restores entry trigger", () => evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel");
     const account = document.querySelector("#accountEntryButton");

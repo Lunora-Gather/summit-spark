@@ -579,11 +579,14 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const style = getComputedStyle(overlay);
     const title = document.querySelector("#entryGate h1");
     const gate = document.querySelector("#entryGate");
+    const gateStyle = getComputedStyle(gate);
     return {
       backgroundImage: style.backgroundImage,
       titleReadableWidth: Math.round(title?.getBoundingClientRect().width || 0),
       gateWidth: Math.round(gate?.getBoundingClientRect().width || 0),
-      gateHeight: Math.round(gate?.getBoundingClientRect().height || 0)
+      gateHeight: Math.round(gate?.getBoundingClientRect().height || 0),
+      gateRadius: parseFloat(gateStyle.borderTopLeftRadius),
+      gateBackgroundColor: gateStyle.backgroundColor
     };
   })()`);
   if (
@@ -626,6 +629,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
         right: Math.round(panelRect.right),
         top: Math.round(panelRect.top),
         bottom: Math.round(panelRect.bottom),
+        width: Math.round(panelRect.width),
+        radius: parseFloat(getComputedStyle(panel).borderTopLeftRadius),
+        backgroundColor: getComputedStyle(panel).backgroundColor,
         centered: Math.abs((panelRect.left + panelRect.right) / 2 - (overlayRect.left + overlayRect.right) / 2) < 3
       },
       launchMenuHidden: getComputedStyle(startPanel).visibility === "hidden"
@@ -640,6 +646,13 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
   if (!accountTypography.launchMenuHidden || !accountTypography.panel?.centered) {
     errors.push("startup account entry should retire the launch menu and center the focused account sheet: " + JSON.stringify(accountTypography));
+  }
+  if (
+    Math.abs((startupVisual.gateWidth || 0) - (accountTypography.panel?.width || 0)) > 2
+    || Math.abs((startupVisual.gateRadius || 0) - (accountTypography.panel?.radius || 0)) > 1
+    || startupVisual.gateBackgroundColor !== accountTypography.panel?.backgroundColor
+  ) {
+    errors.push("startup chooser and focused account sheet should share one aligned paper-card surface: " + JSON.stringify({ startupVisual, accountPanel: accountTypography.panel }));
   }
   const entryAccountOutsideReturn = await waitUntil("immediate outside account dismissal restores entry trigger", () => evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel");

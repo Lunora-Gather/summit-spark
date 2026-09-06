@@ -4,7 +4,7 @@
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260907-p305`
+当前公开构建：`20260907-p306`
 
 ## 快速开始
 

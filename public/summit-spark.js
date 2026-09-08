@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260908-p308"),
-    import("./modules/core/math.mjs?v=20260908-p308"),
-    import("./modules/game/room-data.mjs?v=20260908-p308"),
-    import("./modules/game/world-model.mjs?v=20260908-p308"),
-    import("./modules/game/effect-budget.mjs?v=20260908-p308"),
-    import("./modules/game/landmark-progress.mjs?v=20260908-p308"),
-    import("./modules/game/audio-cues.mjs?v=20260908-p308"),
-    import("./modules/game/lumen-progress.mjs?v=20260908-p308"),
-    import("./modules/systems/storage.mjs?v=20260908-p308"),
-    import("./modules/systems/input.mjs?v=20260908-p308"),
-    import("./modules/training/state.mjs?v=20260908-p308"),
-    import("./modules/training/replay.mjs?v=20260908-p308"),
-    import("./modules/ui/presentation.mjs?v=20260908-p308")
+    import("./modules/core/format.mjs?v=20260908-p309"),
+    import("./modules/core/math.mjs?v=20260908-p309"),
+    import("./modules/game/room-data.mjs?v=20260908-p309"),
+    import("./modules/game/world-model.mjs?v=20260908-p309"),
+    import("./modules/game/effect-budget.mjs?v=20260908-p309"),
+    import("./modules/game/landmark-progress.mjs?v=20260908-p309"),
+    import("./modules/game/audio-cues.mjs?v=20260908-p309"),
+    import("./modules/game/lumen-progress.mjs?v=20260908-p309"),
+    import("./modules/systems/storage.mjs?v=20260908-p309"),
+    import("./modules/systems/input.mjs?v=20260908-p309"),
+    import("./modules/training/state.mjs?v=20260908-p309"),
+    import("./modules/training/replay.mjs?v=20260908-p309"),
+    import("./modules/ui/presentation.mjs?v=20260908-p309")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1349,6 +1349,9 @@
       updateAmbientMusic(isGamePaused());
     }
   });
+  for (const slider of [shakeSlider, ghostOpacitySlider, audioVolumeSlider, gamepadDeadzoneSlider, touchSizeSlider]) {
+    slider?.addEventListener("input", () => syncRangeValue(slider));
+  }
   audioTestButton?.addEventListener("click", async () => {
     settings.audioEnabled = true;
     if (audioToggle) audioToggle.checked = true;
@@ -7314,11 +7317,24 @@
     if (grabModeSelect) grabModeSelect.value = settings.grabMode;
     if (gamepadDeadzoneSlider) gamepadDeadzoneSlider.value = String(settings.gamepadDeadzone);
     if (touchSizeSlider) touchSizeSlider.value = String(settings.touchSize);
+    for (const slider of [shakeSlider, ghostOpacitySlider, audioVolumeSlider, gamepadDeadzoneSlider, touchSizeSlider]) {
+      syncRangeValue(slider);
+    }
     syncKeyBindingEditor();
     syncComfortSettings();
     updateSaveBackupStatus();
     updateGamepadStatusOutput();
     updatePracticeCoach();
+  }
+
+  function syncRangeValue(slider) {
+    if (!slider) return;
+    const value = Number(slider.value);
+    if (!Number.isFinite(value)) return;
+    const display = slider === touchSizeSlider ? `${Math.round(value)}px` : `${Math.round(value * 100)}%`;
+    const output = slider.parentElement?.querySelector(".range-value");
+    if (output && output.textContent !== display) output.textContent = display;
+    if (slider.getAttribute("aria-valuetext") !== display) slider.setAttribute("aria-valuetext", display);
   }
 
   function syncComfortSettings() {

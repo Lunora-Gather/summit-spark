@@ -460,6 +460,23 @@ async function debugPosition(cdp) {
   return pos;
 }
 
+async function runMenuScaleSmoke(cdp, baseUrl) {
+  const samples = [];
+  for (const [width, height] of [[960, 640], [1920, 1080]]) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+    await navigateApp(cdp, baseUrl, 'menu scale ' + width);
+    samples.push(await evaluate(cdp, `(() => {
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const button = document.querySelector('#startButton').getBoundingClientRect();
+      const title = document.querySelector('#startPanel h1').getBoundingClientRect();
+      return { width: button.width, ratio: button.width / stage.width, fits: title.left >= stage.left && title.right <= stage.right };
+    })()`));
+  }
+  if (samples.some(s => s.width < 298 || s.width > 402 || s.ratio < 0.25 || s.ratio > 0.35 || !s.fits)
+    || samples[1].width - samples[0].width < 70) errors.push('menu proportions should adapt to the game frame instead of remaining a fixed 320px: ' + JSON.stringify(samples));
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+}
+
 async function runBackwardTransitionSmoke(cdp, baseUrl) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
@@ -780,7 +797,30 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
   await clickSelector(cdp, "#settingsButton");
   await waitUntil("settings open after start", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings") && document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === -1`));
+  const refinedSettings = await evaluate(cdp, `(() => {
+    const panel = document.querySelector('#settingsPanel').getBoundingClientRect();
+    const rows = [...document.querySelectorAll('.settings-only > summary')].filter(e => e.getBoundingClientRect().height > 0);
+    const sliders = [...document.querySelectorAll('.settings-only input[type="range"]')];
+    const readings = sliders.map(slider => ({ value: slider.parentElement.querySelector('.range-value')?.textContent,
+      spoken: slider.getAttribute('aria-valuetext'), number: Number(slider.value) }));
+    return { width: panel.width, height: panel.height,
+      quietRows: rows.length === 5 && rows.every(row => getComputedStyle(row.parentElement).boxShadow === 'none'),
+      icons: rows.every(row => row.querySelector('svg[aria-hidden="true"]')?.getBoundingClientRect().width >= 16), readings };
+  })()`);
+  if (refinedSettings.width > 442 || refinedSettings.height > 370 || !refinedSettings.quietRows || !refinedSettings.icons
+    || refinedSettings.readings.length !== 5 || refinedSettings.readings.some(r => !r.value || r.value !== r.spoken || !Number.isFinite(r.number))) {
+    errors.push('Settings should retain a compact list surface and synchronized accessible slider values: ' + JSON.stringify(refinedSettings));
+  }
   await openSettingsGroup(cdp, ".settings-group-audio");
+  const changedRange = await evaluate(cdp, `(() => {
+    const slider = document.querySelector('#audioVolumeSlider');
+    const previous = slider.value;
+    slider.value = '0.6'; slider.dispatchEvent(new Event('input', { bubbles: true }));
+    const result = { visible: slider.parentElement.querySelector('.range-value').textContent, spoken: slider.getAttribute('aria-valuetext') };
+    slider.value = previous; slider.dispatchEvent(new Event('input', { bubbles: true }));
+    return result;
+  })()`);
+  if (changedRange.visible !== '60%' || changedRange.spoken !== '60%') errors.push('slider value readouts must follow actual input events: ' + JSON.stringify(changedRange));
   const settingsAccordion = await evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel");
     return {
@@ -5279,6 +5319,7 @@ async function main() {
 
     await runBootFailureSmoke(cdp, baseUrl);
     await runDesktopSmoke(cdp, baseUrl);
+    await runMenuScaleSmoke(cdp, baseUrl);
     await runBackwardTransitionSmoke(cdp, baseUrl);
     await runChapterTransitionInputSmoke(cdp, baseUrl);
     await runMountainGateLandmarkSmoke(cdp, baseUrl);

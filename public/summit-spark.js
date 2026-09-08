@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260907-p307"),
-    import("./modules/core/math.mjs?v=20260907-p307"),
-    import("./modules/game/room-data.mjs?v=20260907-p307"),
-    import("./modules/game/world-model.mjs?v=20260907-p307"),
-    import("./modules/game/effect-budget.mjs?v=20260907-p307"),
-    import("./modules/game/landmark-progress.mjs?v=20260907-p307"),
-    import("./modules/game/audio-cues.mjs?v=20260907-p307"),
-    import("./modules/game/lumen-progress.mjs?v=20260907-p307"),
-    import("./modules/systems/storage.mjs?v=20260907-p307"),
-    import("./modules/systems/input.mjs?v=20260907-p307"),
-    import("./modules/training/state.mjs?v=20260907-p307"),
-    import("./modules/training/replay.mjs?v=20260907-p307"),
-    import("./modules/ui/presentation.mjs?v=20260907-p307")
+    import("./modules/core/format.mjs?v=20260908-p308"),
+    import("./modules/core/math.mjs?v=20260908-p308"),
+    import("./modules/game/room-data.mjs?v=20260908-p308"),
+    import("./modules/game/world-model.mjs?v=20260908-p308"),
+    import("./modules/game/effect-budget.mjs?v=20260908-p308"),
+    import("./modules/game/landmark-progress.mjs?v=20260908-p308"),
+    import("./modules/game/audio-cues.mjs?v=20260908-p308"),
+    import("./modules/game/lumen-progress.mjs?v=20260908-p308"),
+    import("./modules/systems/storage.mjs?v=20260908-p308"),
+    import("./modules/systems/input.mjs?v=20260908-p308"),
+    import("./modules/training/state.mjs?v=20260908-p308"),
+    import("./modules/training/replay.mjs?v=20260908-p308"),
+    import("./modules/ui/presentation.mjs?v=20260908-p308")
   ]);
 
   const canvas = document.getElementById("game");
@@ -6363,6 +6363,9 @@
     accountAuthTabs?.classList.toggle("hidden", recovering);
     accountEmailField?.classList.toggle("hidden", recovering);
     accountNote?.classList.toggle("hidden", recovering);
+    if (accountNote) accountNote.textContent = authMode === "password"
+      ? "已有密码可直接登录；首次使用请选择邮箱验证码。"
+      : "首次使用会自动创建账号，无需单独注册。";
     accountPasswordField?.classList.toggle("hidden", !recovering && authMode !== "password");
     accountRecoveryButton?.classList.toggle("hidden", recovering || authMode !== "password");
     accountCodeFields?.classList.toggle("hidden", recovering || authMode !== "code");

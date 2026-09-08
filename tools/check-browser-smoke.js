@@ -555,13 +555,13 @@ async function runDesktopSmoke(cdp, baseUrl) {
       const backgroundLum = luminance(background);
       return (Math.max(foregroundLum, backgroundLum) + 0.05) / (Math.min(foregroundLum, backgroundLum) + 0.05);
     };
-    const gateBackground = getComputedStyle(gate).backgroundColor;
     const guestFocusStyle = getComputedStyle(guest);
     const contrastSamples = [
-      ["eyebrow", document.querySelector(".entry-eyebrow")],
-      ["guest detail", guest?.querySelector("small")],
-      ["account detail", account?.querySelector("small")]
-    ].map(([label, element]) => ({ label, ratio: Number(contrast(element, gateBackground).toFixed(2)) }));
+      // Guest uses a light-to-gold gradient; the gold endpoint is the lower
+      // contrast bound. Account uses an opaque computed mist fill.
+      ["guest detail", guest?.querySelector("small"), "rgb(230, 191, 103)"],
+      ["account detail", account?.querySelector("small"), getComputedStyle(account).backgroundColor]
+    ].map(([label, element, background]) => ({ label, ratio: Number(contrast(element, background).toFixed(2)) }));
     return {
       visible: !!gate && gateRect.width > 0 && gateRect.height > 0,
       guest: guest?.textContent || "",
@@ -585,8 +585,11 @@ async function runDesktopSmoke(cdp, baseUrl) {
       titleReadableWidth: Math.round(title?.getBoundingClientRect().width || 0),
       gateWidth: Math.round(gate?.getBoundingClientRect().width || 0),
       gateHeight: Math.round(gate?.getBoundingClientRect().height || 0),
-      gateRadius: parseFloat(gateStyle.borderTopLeftRadius),
-      gateBackgroundColor: gateStyle.backgroundColor
+      gateBackgroundColor: gateStyle.backgroundColor,
+      gateShadow: gateStyle.boxShadow,
+      title: title.textContent,
+      titleStyle: [getComputedStyle(title).fontSize, getComputedStyle(title).color, getComputedStyle(title).textShadow],
+      guestStyle: [getComputedStyle(document.querySelector('#guestEntryButton')).borderRadius, getComputedStyle(document.querySelector('#guestEntryButton')).backgroundImage]
     };
   })()`);
   if (
@@ -604,10 +607,13 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (entryChoice.contrastSamples.some((sample) => sample.ratio < 4.5)) {
     errors.push("small entry text should retain at least 4.5:1 contrast: " + JSON.stringify(entryChoice.contrastSamples));
   }
-  if (!/radial-gradient\(42% 34%/.test(startupVisual.backgroundImage)
+  if (!/radial-gradient\(42% 48%/.test(startupVisual.backgroundImage)
     || startupVisual.titleReadableWidth < 180
     || startupVisual.gateWidth < 300
-    || startupVisual.gateHeight < 180) {
+    || startupVisual.gateHeight < 180
+    || startupVisual.title !== "山巅微光"
+    || startupVisual.gateBackgroundColor !== "rgba(0, 0, 0, 0)"
+    || startupVisual.gateShadow !== "none") {
     errors.push("startup choice should keep a quiet visual center and a substantial readable entry surface: " + JSON.stringify(startupVisual));
   }
   const immediateAccountOpen = await evaluate(cdp, `(() => {
@@ -619,6 +625,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
     const startPanel = document.querySelector("#startPanel");
     const panelRect = panel.getBoundingClientRect();
     const overlayRect = document.querySelector("#overlay").getBoundingClientRect();
+    const formRect = document.querySelector('.account-body').getBoundingClientRect();
+    const headingRect = document.querySelector('#panelTitle').getBoundingClientRect();
     window.__summitAccountTypography = {
       label: Number.parseFloat(getComputedStyle(document.querySelector("#accountEmailField > span")).fontSize),
       note: Number.parseFloat(getComputedStyle(document.querySelector("#accountNote")).fontSize),
@@ -634,7 +642,11 @@ async function runDesktopSmoke(cdp, baseUrl) {
         backgroundColor: getComputedStyle(panel).backgroundColor,
         accountSurface: {
           backgroundColor: getComputedStyle(document.querySelector(".settings-group-account")).backgroundColor,
-          boxShadow: getComputedStyle(document.querySelector(".settings-group-account")).boxShadow
+          boxShadow: getComputedStyle(document.querySelector(".settings-group-account")).boxShadow,
+          sideHidden: getComputedStyle(document.querySelector('.settings-column-side')).display === 'none',
+          leftGap: formRect.left - panelRect.left,
+          rightGap: panelRect.right - formRect.right,
+          titleAligned: Math.abs(headingRect.left - formRect.left) < 2
         },
         centered: Math.abs((panelRect.left + panelRect.right) / 2 - (overlayRect.left + overlayRect.right) / 2) < 3
       },
@@ -645,20 +657,20 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })()`);
   if (!immediateAccountOpen) errors.push("entry account drawer should become interactive before an immediate outside dismissal");
   const accountTypography = await evaluate(cdp, `window.__summitAccountTypography || {}`);
-  if (accountTypography.label < 11 || accountTypography.note < 11 || accountTypography.status < 11 || accountTypography.input < 13) {
+  if (accountTypography.label < 12 || accountTypography.note < 12 || accountTypography.status < 12 || accountTypography.input < 14) {
     errors.push("account entry typography should remain readable on large and small surfaces: " + JSON.stringify(accountTypography));
   }
   if (!accountTypography.launchMenuHidden || !accountTypography.panel?.centered) {
     errors.push("startup account entry should retire the launch menu and center the focused account sheet: " + JSON.stringify(accountTypography));
   }
   if (
-    Math.abs((startupVisual.gateWidth || 0) - (accountTypography.panel?.width || 0)) > 2
-    || Math.abs((startupVisual.gateRadius || 0) - (accountTypography.panel?.radius || 0)) > 1
-    || startupVisual.gateBackgroundColor !== accountTypography.panel?.backgroundColor
-    || !/^rgba?\(0, 0, 0(?:, 0)?\)$/.test(accountTypography.panel?.accountSurface?.backgroundColor || "")
+    !/^rgba?\(0, 0, 0(?:, 0)?\)$/.test(accountTypography.panel?.accountSurface?.backgroundColor || "")
     || accountTypography.panel?.accountSurface?.boxShadow !== "none"
+    || !accountTypography.panel?.accountSurface?.sideHidden
+    || !accountTypography.panel?.accountSurface?.titleAligned
+    || Math.abs(accountTypography.panel.accountSurface.leftGap - accountTypography.panel.accountSurface.rightGap) > 2
   ) {
-    errors.push("startup chooser and focused account sheet should share one aligned paper-card surface: " + JSON.stringify({ startupVisual, accountPanel: accountTypography.panel }));
+    errors.push("focused account form should use equal gutters, one surface and no empty side-column divider: " + JSON.stringify(accountTypography.panel));
   }
   const entryAccountOutsideReturn = await waitUntil("immediate outside account dismissal restores entry trigger", () => evaluate(cdp, `(() => {
     const panel = document.querySelector("#settingsPanel");
@@ -674,6 +686,15 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
   await clickSelector(cdp, "#guestEntryButton");
   await waitUntil("guest entry resolves", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden") && !document.querySelector("#startPanel").classList.contains("entry-pending")`));
+  const menuStyle = await evaluate(cdp, `(() => {
+    const title = getComputedStyle(document.querySelector('#startPanel h1'));
+    const primary = getComputedStyle(document.querySelector('#startButton'));
+    return { titleStyle: [title.fontSize, title.color, title.textShadow], guestStyle: [primary.borderRadius, primary.backgroundImage] };
+  })()`);
+  if (JSON.stringify(menuStyle.titleStyle) !== JSON.stringify(startupVisual.titleStyle)
+    || JSON.stringify(menuStyle.guestStyle) !== JSON.stringify(startupVisual.guestStyle)) {
+    errors.push('entry and main menu must share the actual title and primary-button design: ' + JSON.stringify({ startupVisual, menuStyle }));
+  }
   await cdp.send("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: "reduce" }]
   });
@@ -4266,6 +4287,26 @@ async function runMobileSmoke(cdp, baseUrl) {
     return controls.length >= 6 && controls.every((control) => control.getBoundingClientRect().height >= 44);
   })()`);
   if (!mobileAccountTouchSafe) errors.push("mobile account inputs and actions should retain 44px touch targets");
+  const accountDesign = await evaluate(cdp, `(() => {
+    const panel = document.querySelector('#settingsPanel').getBoundingClientRect();
+    const status = document.querySelector('#accountStatus');
+    const statusRect = status.getBoundingClientRect();
+    const savedClass = status.className;
+    const colors = {};
+    try {
+      for (const state of ['', 'error', 'valid']) {
+        status.className = 'account-status ' + state;
+        colors[state || 'normal'] = getComputedStyle(status).color;
+      }
+    } finally { status.className = savedClass; }
+    return { emptyTail: panel.bottom - statusRect.bottom, colors,
+      bodyScrolls: getComputedStyle(document.querySelector('#settingsPanel .settings-body')).overflowY === 'auto' };
+  })()`);
+  if (accountDesign.emptyTail < 16 || accountDesign.emptyTail > 30 || !accountDesign.bodyScrolls
+    || accountDesign.colors.error !== 'rgb(138, 55, 55)' || accountDesign.colors.valid !== 'rgb(40, 100, 86)'
+    || accountDesign.colors.error === accountDesign.colors.normal) {
+    errors.push('account card should fit its content and retain semantic error/success colors: ' + JSON.stringify(accountDesign));
+  }
   const accountSemantics = await evaluate(cdp, `(() => {
     const group = document.querySelector("#accountAuthTabs");
     const code = document.querySelector('[data-auth-mode="code"]');
@@ -4352,6 +4393,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       outlineWidth: style.outlineWidth,
       outlineColor: style.outlineColor,
       recoveryHeight: recovery.getBoundingClientRect().height,
+      modeNote: document.querySelector('#accountNote').textContent,
       recoveryContrast: Number(((Math.max(foregroundLum, backgroundLum) + 0.05) / (Math.min(foregroundLum, backgroundLum) + 0.05)).toFixed(2)),
       codePressed: code?.getAttribute("aria-pressed") || "",
       passwordPressed: tab?.getAttribute("aria-pressed") || ""
@@ -4361,6 +4403,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     Number.parseFloat(mobilePasswordFocus.outlineWidth) < 2
     || /rgb\(0, 0, 0\)/.test(mobilePasswordFocus.outlineColor)
     || mobilePasswordFocus.recoveryHeight < 44
+    || !/首次使用请选择邮箱验证码/.test(mobilePasswordFocus.modeNote)
     || mobilePasswordFocus.recoveryContrast < 4.5
     || mobilePasswordFocus.codePressed !== "false"
     || mobilePasswordFocus.passwordPressed !== "true"

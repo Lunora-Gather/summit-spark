@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20260907-p307">
+  <meta name="build-version" content="20260908-p308">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20260907-p307">
+  <link rel="stylesheet" href="summit-spark.css?v=20260908-p308">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -357,19 +357,18 @@
       </section>
 
       <div class="overlay" id="overlay" aria-hidden="false">
-        <div class="entry-gate hidden" id="entryGate">
-          <span class="entry-eyebrow">SUMMIT SPARK</span>
-          <h1>选择游玩方式</h1>
+        <div class="entry-gate launch-surface hidden" id="entryGate">
+          <span class="entry-eyebrow launch-signature">SUMMIT SPARK</span>
+          <h1>山巅微光</h1>
+          <p class="entry-prompt">选择游玩方式</p>
           <div class="entry-options">
             <button class="entry-option guest" id="guestEntryButton" type="button">
-              <span class="entry-option-icon" aria-hidden="true">→</span>
               <span>
                 <strong>游客游玩</strong>
                 <small>无需账号 · 进度仅保存在此设备</small>
               </span>
             </button>
             <button class="entry-option account" id="accountEntryButton" type="button">
-              <span class="entry-option-icon" aria-hidden="true">S</span>
               <span>
                 <strong>邮箱登录</strong>
                 <small>云端保存 · 可在不同设备继续</small>
@@ -377,7 +376,8 @@
             </button>
           </div>
         </div>
-        <div class="start-panel entry-pending" id="startPanel">
+        <div class="start-panel launch-surface entry-pending" id="startPanel">
+          <span class="launch-signature">SUMMIT SPARK</span>
           <span class="start-eyebrow" id="startReadiness">准备游戏</span>
           <h1>山巅微光</h1>
           <div class="start-actions">
@@ -422,6 +422,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20260907-p307"></script>
+  <script src="summit-spark.js?v=20260908-p308"></script>
 </body>
 </html>

@@ -7886,6 +7886,8 @@ textarea,
 }
 
 .stage .overlay .launch-surface h1 {
+  width: 100%;
+  min-width: 0;
   margin: 0 0 12px;
   color: #fff0bd;
   font-size: clamp(42px, 6vw, 62px);

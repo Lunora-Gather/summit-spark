@@ -635,7 +635,7 @@ if (!js.includes("let accountSdkLoadPromise = null;")
   || !js.includes("async function ensureAccountSdk()")
   || !browserSmoke.includes("runCloudSdkRetrySmoke")
   || !browserSmoke.includes("guest cloud loading should stay lazy and a transient SDK failure should retry from Account without a page refresh")) errors.push("a transient Appwrite SDK failure must remove the failed loader and retry through the account surface without a full refresh");
-if (!css.includes(".launch-surface button[class]:focus-visible") || !css.includes("outline: 2px solid #fff0bd;") || !css.includes("color: #3a636c;") || !browserSmoke.includes("recoveryContrast") || !browserSmoke.includes("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target")) errors.push("first-run focus and password recovery must use refined non-default focus styling and composited 4.5:1 text contrast");
+if (!css.includes(".launch-surface button[class]:focus-visible") || !css.includes("outline: 2px solid #334e5c;") || !css.includes("outline-offset: -4px;") || !css.includes("color: #3a636c;") || !browserSmoke.includes("recoveryContrast") || !browserSmoke.includes("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target")) errors.push("first-run focus and password recovery must use refined non-default focus styling and composited 4.5:1 text contrast");
 if (!js.includes("const SAVE_ARCHIVE_MAX_CHARS = 1000000;")
   || !indexHtml.includes('id="saveImportText" maxlength="1000000"')
   || !browserSmoke.includes("runLargeCloudArchiveSmoke")

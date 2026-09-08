@@ -587,6 +587,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
       fits: !!gateRect && gateRect.left >= 0 && gateRect.right <= innerWidth && gateRect.bottom <= innerHeight,
       guestFocused: document.activeElement === guest,
       focusOutlineWidth: guestFocusStyle.outlineWidth,
+      focusOutlineStyle: guestFocusStyle.outlineStyle,
+      focusOutlineOffset: guestFocusStyle.outlineOffset,
+      focusShadow: guestFocusStyle.boxShadow,
       focusOutlineColor: guestFocusStyle.outlineColor,
       contrastSamples
     };
@@ -614,7 +617,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || !entryChoice.startPending
     || !entryChoice.fits
     || !entryChoice.guestFocused
-    || Number.parseFloat(entryChoice.focusOutlineWidth) < 2
+    || entryChoice.focusOutlineStyle !== 'none'
+    || entryChoice.focusShadow !== 'none'
     || /rgb\(0, 0, 0\)/.test(entryChoice.focusOutlineColor)
     || !/仅保存在此设备/.test(entryChoice.guest)
     || !/云端保存/.test(entryChoice.account)
@@ -623,6 +627,15 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
   if (entryChoice.contrastSamples.some((sample) => sample.ratio < 4.5)) {
     errors.push("small entry text should retain at least 4.5:1 contrast: " + JSON.stringify(entryChoice.contrastSamples));
+  }
+  await keyTap(cdp, 'Tab', 'Tab');
+  const keyboardEntry = await evaluate(cdp, `(() => {
+    const focused = document.activeElement;
+    const style = getComputedStyle(focused);
+    return { active: focused.id, outline: parseFloat(style.outlineWidth), offset: parseFloat(style.outlineOffset), shadow: style.boxShadow };
+  })()`);
+  if (keyboardEntry.active !== 'accountEntryButton' || keyboardEntry.outline < 2 || keyboardEntry.offset >= 0 || keyboardEntry.shadow !== 'none') {
+    errors.push('first-run entry should hide automatic focus decoration but retain an inset keyboard focus indicator: ' + JSON.stringify(keyboardEntry));
   }
   if (!/radial-gradient\(42% 48%/.test(startupVisual.backgroundImage)
     || startupVisual.titleReadableWidth < 180

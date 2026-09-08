@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260908-p309"),
-    import("./modules/core/math.mjs?v=20260908-p309"),
-    import("./modules/game/room-data.mjs?v=20260908-p309"),
-    import("./modules/game/world-model.mjs?v=20260908-p309"),
-    import("./modules/game/effect-budget.mjs?v=20260908-p309"),
-    import("./modules/game/landmark-progress.mjs?v=20260908-p309"),
-    import("./modules/game/audio-cues.mjs?v=20260908-p309"),
-    import("./modules/game/lumen-progress.mjs?v=20260908-p309"),
-    import("./modules/systems/storage.mjs?v=20260908-p309"),
-    import("./modules/systems/input.mjs?v=20260908-p309"),
-    import("./modules/training/state.mjs?v=20260908-p309"),
-    import("./modules/training/replay.mjs?v=20260908-p309"),
-    import("./modules/ui/presentation.mjs?v=20260908-p309")
+    import("./modules/core/format.mjs?v=20260908-p310"),
+    import("./modules/core/math.mjs?v=20260908-p310"),
+    import("./modules/game/room-data.mjs?v=20260908-p310"),
+    import("./modules/game/world-model.mjs?v=20260908-p310"),
+    import("./modules/game/effect-budget.mjs?v=20260908-p310"),
+    import("./modules/game/landmark-progress.mjs?v=20260908-p310"),
+    import("./modules/game/audio-cues.mjs?v=20260908-p310"),
+    import("./modules/game/lumen-progress.mjs?v=20260908-p310"),
+    import("./modules/systems/storage.mjs?v=20260908-p310"),
+    import("./modules/systems/input.mjs?v=20260908-p310"),
+    import("./modules/training/state.mjs?v=20260908-p310"),
+    import("./modules/training/replay.mjs?v=20260908-p310"),
+    import("./modules/ui/presentation.mjs?v=20260908-p310")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1263,6 +1263,9 @@
   window.addEventListener("resize", configureCanvasBuffer);
   startButton.addEventListener("click", begin);
   guestEntryButton?.addEventListener("click", () => resolveEntryMode("guest"));
+  window.addEventListener("keydown", () => {
+    entryGate?.classList.remove("entry-initial-focus");
+  }, { capture: true, once: true });
   accountEntryButton?.addEventListener("click", openAccountPanel);
   openTrainingButton?.addEventListener("click", openStartTrainingPanel);
   startSettingsButton?.addEventListener("click", openSettingsPanel);

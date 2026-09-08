@@ -7978,9 +7978,14 @@ textarea,
   color: #344e3e;
 }
 .stage .launch-surface button[class]:focus-visible {
-  outline: 2px solid #fff0bd;
-  outline-offset: 4px;
-  box-shadow: 0 0 0 3px #334e5c;
+  outline: 2px solid #334e5c;
+  outline-offset: -4px;
+  box-shadow: none;
+  transition: none;
+}
+.stage .entry-gate.entry-initial-focus button:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 /* Settings uses quiet list rows instead of five oversized button cards.

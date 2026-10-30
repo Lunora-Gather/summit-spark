@@ -9,6 +9,7 @@
 | `npm run check` | 默认发布门，组合语法、文档、公开面、Appwrite、数据、地图、训练状态和 HTTP 冒烟检查 |
 | `npm run browser-smoke` | Chrome/Edge 真实交互回归，覆盖账号、存档、移动端、焦点、Canvas、输入和隐藏面板 DOM 静止；R2 Relay 路线按角色实时位置发送真实输入，只允许一次完整重置后的有界重试 |
 | `npm run live-check` | 部署后逐文件比较线上 Pages 与本地 `public/`，并核对构建号、CSP、固定 Appwrite SDK 与固定发色约束；不加入离线默认门 |
+| `npm run appwrite-check` | 使用已登录 Appwrite CLI，只读比较线上服务、认证、安全策略、Web 域名、数据库和私有表字段/权限；不读取用户存档，不加入离线默认门 |
 | `npm run css-audit` | 拒绝被后续同选择器完整覆盖的顶层 CSS 规则；`--write` 只清理可证明无效的完整块 |
 | `npm run route-audit` | 十房路线、训练合同和运行时钩子审计 |
 | `npm run state-check` | Route、Feel、Drill、Challenge 和存档状态迁移矩阵 |

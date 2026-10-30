@@ -4,7 +4,7 @@
 
 在线试玩：<https://lunora-gather.github.io/summit-spark/>
 
-当前公开构建：`20260908-p310`
+当前公开构建：`20261030-p311`
 
 首屏和主菜单共用暖金标题与雾青按钮，不再显示独立的游玩方式白框；账号表单按内容自适应高度，保持对称留白和可读的提示。设计约定与视觉验收范围见 [UI_DESIGN.md](docs/UI_DESIGN.md)。
 
@@ -160,7 +160,10 @@ Appwrite 仅启用 Account、Database/TablesDB 和 REST：
 
 1. 运行文档、数据和完整质量门；
 2. 只把 `public/` 复制到 `_site`；
-3. 上传并部署 Pages artifact。
+3. 上传并部署 Pages artifact；
+4. 自动重试逐文件线上核验，失败时标记发布失败。
+
+PR 与每周计划执行 CodeQL 安全扫描，Dependabot 每周检查固定 SHA 的 Actions 更新。Appwrite 实际配置可用已登录 CLI 执行 `npm run appwrite-check` 只读核对。
 
 所有外部 GitHub Actions 固定到完整提交 SHA。发布前执行 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)，部署后运行 `npm run live-check`，确认线上构建与本地 `public/` 完全一致。
 

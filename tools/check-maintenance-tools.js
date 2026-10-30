@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, "..");
 const errors = [];
 const requiredTools = [
   "tools/check-appwrite-contract.js",
+  "tools/check-appwrite-live.js",
   "tools/check-browser-smoke.js",
   "tools/check-css-cascade.js",
   "tools/check-core-format.mjs",

@@ -11,8 +11,8 @@ body:
     id: build
     attributes:
       label: Build / version
-      description: Example: 20260608-p23
-      placeholder: 20260608-p23
+      description: "Example: 20261030-p311"
+      placeholder: 20261030-p311
     validations:
       required: true
   - type: dropdown

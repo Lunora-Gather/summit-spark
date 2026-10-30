@@ -19,6 +19,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Parse GitHub YAML configuration
+        run: ruby -r yaml -e 'Dir[".github/**/*.{yml,yaml}"].each { |file| Psych.parse_file(file) }'
+
       - name: Check documentation surface
         run: node tools/check-docs.js
 

@@ -111,6 +111,10 @@ async function verifyServerBoundary(baseUrl) {
   if (storageModuleResponse.status !== 200 || storageModuleResponse.body !== "" || !/text\/javascript/.test(storageModuleResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the storage module as JavaScript without a response body");
   }
+  const cloudModuleResponse = await request(baseUrl + "/modules/systems/cloud-save.mjs", { method: "HEAD" });
+  if (cloudModuleResponse.status !== 200 || cloudModuleResponse.body !== "" || !/text\/javascript/.test(cloudModuleResponse.headers["content-type"] || "")) {
+    errors.push("server HEAD must expose the transactional cloud-save module as JavaScript without a response body");
+  }
   const inputModuleResponse = await request(baseUrl + "/modules/systems/input.mjs", { method: "HEAD" });
   if (inputModuleResponse.status !== 200 || inputModuleResponse.body !== "" || !/text\/javascript/.test(inputModuleResponse.headers["content-type"] || "")) {
     errors.push("server HEAD must expose the input module as JavaScript without a response body");

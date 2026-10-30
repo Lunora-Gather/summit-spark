@@ -2862,7 +2862,7 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
     }
     await evaluate(cdp, `document.querySelector("#accountPassword").value = "password123"`);
     await clickSelector(cdp, "#accountSubmit");
-    const weakPassword = await waitUntil("password recovery explains dictionary rejection", () => evaluate(cdp, `(() => {
+    const rejectedRecoveryUi = await waitUntil("password recovery explains dictionary rejection", () => evaluate(cdp, `(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       return /过于常见/.test(status) ? {
         status,
@@ -2870,8 +2870,8 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
         passwordVisible: getComputedStyle(document.querySelector("#accountPasswordField")).display !== "none"
       } : null;
     })()`), 5000);
-    if (!weakPassword.stillRecovering || !weakPassword.passwordVisible) {
-      errors.push("a rejected weak password should keep the recovery form active with a precise explanation: " + JSON.stringify(weakPassword));
+    if (!rejectedRecoveryUi.stillRecovering || !rejectedRecoveryUi.passwordVisible) {
+      errors.push("a rejected weak password should keep the recovery form active with a precise explanation: " + JSON.stringify(rejectedRecoveryUi));
     }
     await evaluate(cdp, `document.querySelector("#accountPassword").value = "updated-password"`);
     await clickSelector(cdp, "#accountSubmit");
@@ -2893,7 +2893,7 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
       };
     })()`), 5000);
     if (updated.payload.userId !== "recovery-user" || updated.payload.secret !== "recovery-secret" || updated.payload.password !== "updated-password" || updated.search !== "?keep=1" || updated.title !== "账号" || updated.closeLabel !== "关闭账号" || !updated.authTabsVisible || !updated.emailVisible || updated.passwordLabel !== "密码" || updated.submit !== "使用密码登录") {
-      errors.push("completed recovery should use the captured token once and restore the regular login form: " + JSON.stringify(updated));
+      errors.push("completed recovery should use the captured token once and restore the regular login form");
     }
   } finally {
     if (injected.identifier) {
@@ -3055,7 +3055,7 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountSetPassword");
     await waitUntil("password update remains in flight", () => evaluate(cdp, `window.__summitCloudMock?.pendingPassword && document.querySelector(".settings-group-account")?.getAttribute("aria-busy") === "true"`));
     await clickSelector(cdp, "#settingsClose");
-    const passwordBusyTarget = await evaluate(cdp, `(() => {
+    const queuedSettings = await evaluate(cdp, `(() => {
       const audio = document.querySelector("#audioToggle");
       const before = window.__summitCloudMock.upserts;
       audio.checked = !audio.checked;
@@ -3066,13 +3066,13 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
         summary: document.querySelector("#accountSummary")?.textContent || ""
       };
     })()`);
-    if (passwordBusyTarget.summary !== "待同步") {
-      errors.push("local progress during password update should remain visibly queued: " + JSON.stringify(passwordBusyTarget));
+    if (queuedSettings.summary !== "待同步") {
+      errors.push("local progress during password update should remain visibly queued: " + JSON.stringify(queuedSettings));
     }
     await sleep(120);
-    const passwordBusyWrites = await evaluate(cdp, `window.__summitCloudMock?.upserts || 0`);
-    if (passwordBusyWrites !== passwordBusyTarget.before) {
-      errors.push("password update and cloud save must not write concurrently: " + JSON.stringify({ passwordBusyTarget, passwordBusyWrites }));
+    const stagedWriteCount = await evaluate(cdp, `window.__summitCloudMock?.upserts || 0`);
+    if (stagedWriteCount !== queuedSettings.before) {
+      errors.push("password update and cloud save must not write concurrently: " + JSON.stringify({ queuedSettings, stagedWriteCount }));
     }
     await evaluate(cdp, `(() => {
       const mock = window.__summitCloudMock;
@@ -3080,18 +3080,18 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       mock.pendingPassword = null;
       pending.resolve({});
     })()`);
-    const resumedAfterPassword = await waitUntil("cloud sync resumes after password update", () => evaluate(cdp, `(() => {
+    const resumedSync = await waitUntil("cloud sync resumes after password update", () => evaluate(cdp, `(() => {
       const mock = window.__summitCloudMock;
-      if (!mock || mock.upserts <= ${passwordBusyTarget.before}) return null;
+      if (!mock || mock.upserts <= ${queuedSettings.before}) return null;
       const archive = JSON.parse(mock.lastPayload?.data?.archive || "{}");
       const audioEnabled = archive.storage?.settings?.audioEnabled;
       const summary = document.querySelector("#accountSummary")?.textContent || "";
-      return audioEnabled === ${JSON.stringify(passwordBusyTarget.audioEnabled)} && summary === "已同步"
+      return audioEnabled === ${JSON.stringify(queuedSettings.audioEnabled)} && summary === "已同步"
         ? { upserts: mock.upserts, audioEnabled, summary }
         : null;
     })()`), 5000);
-    if (resumedAfterPassword.upserts <= passwordBusyTarget.before || resumedAfterPassword.audioEnabled !== passwordBusyTarget.audioEnabled) {
-      errors.push("a local change made during password update must resume cloud sync after account busy clears: " + JSON.stringify({ passwordBusyTarget, resumedAfterPassword }));
+    if (resumedSync.upserts <= queuedSettings.before || resumedSync.audioEnabled !== queuedSettings.audioEnabled) {
+      errors.push("a local change made during password update must resume cloud sync after account busy clears: " + JSON.stringify({ queuedSettings, resumedSync }));
     }
     await evaluate(cdp, `(() => {
       const backend = window.__summitCloudBackend;
@@ -4488,7 +4488,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     errors.push("account login mode should expose segmented-button semantics and autofill-ready described fields: " + JSON.stringify(accountSemantics));
   }
   await clickSelector(cdp, '[data-auth-mode="password"]');
-  const mobilePasswordFocus = await evaluate(cdp, `(() => {
+  const signInTabLayout = await evaluate(cdp, `(() => {
     const tab = document.querySelector('[data-auth-mode="password"]');
     const code = document.querySelector('[data-auth-mode="code"]');
     const recovery = document.querySelector("#accountRecovery");
@@ -4538,15 +4538,15 @@ async function runMobileSmoke(cdp, baseUrl) {
     };
   })()`);
   if (
-    Number.parseFloat(mobilePasswordFocus.outlineWidth) < 2
-    || /rgb\(0, 0, 0\)/.test(mobilePasswordFocus.outlineColor)
-    || mobilePasswordFocus.recoveryHeight < 44
-    || !/首次使用请选择邮箱验证码/.test(mobilePasswordFocus.modeNote)
-    || mobilePasswordFocus.recoveryContrast < 4.5
-    || mobilePasswordFocus.codePressed !== "false"
-    || mobilePasswordFocus.passwordPressed !== "true"
+    Number.parseFloat(signInTabLayout.outlineWidth) < 2
+    || /rgb\(0, 0, 0\)/.test(signInTabLayout.outlineColor)
+    || signInTabLayout.recoveryHeight < 44
+    || !/首次使用请选择邮箱验证码/.test(signInTabLayout.modeNote)
+    || signInTabLayout.recoveryContrast < 4.5
+    || signInTabLayout.codePressed !== "false"
+    || signInTabLayout.passwordPressed !== "true"
   ) {
-    errors.push("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target: " + JSON.stringify(mobilePasswordFocus));
+    errors.push("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target: " + JSON.stringify(signInTabLayout));
   }
   await clickSelector(cdp, "#settingsClose");
   await waitUntil("mobile account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));

@@ -31,7 +31,17 @@ function findFreePort() {
 
 function request(url, options = {}) {
   return new Promise((resolve, reject) => {
-    const pending = http.request(url, options, (response) => {
+    const target = new URL(url);
+    if (target.protocol !== "http:" || target.hostname !== "127.0.0.1") {
+      reject(new Error("HTTP smoke requests must stay on the local test server"));
+      return;
+    }
+    const pending = http.request({
+      hostname: "127.0.0.1",
+      port: target.port,
+      path: target.pathname + target.search,
+      method: options.method || "GET"
+    }, (response) => {
       let body = "";
       response.setEncoding("utf8");
       response.on("data", (chunk) => { body += chunk; });
@@ -141,11 +151,15 @@ async function verifyServerBoundary(baseUrl) {
   }
 }
 
+function inlineScriptTags(html) {
+  const scriptTags = html.match(/<script\b[^>]*>/gi) || [];
+  // The static entry supports only simple external script tags. A data-src or
+  // quoted attribute containing src= must not be mistaken for an actual source.
+  return scriptTags.filter((tag) => !/^<script\s+src\s*=\s*(?:"[^"]+"|'[^']+')\s*>$/i.test(tag));
+}
+
 function expectNoInlineScript(html) {
-  const scriptTags = html.match(/<script\b[^>]*>/g) || [];
-  for (const tag of scriptTags) {
-    if (!/\bsrc=/.test(tag)) errors.push("html must not contain inline script tags under CSP");
-  }
+  if (inlineScriptTags(html).length) errors.push("html must not contain inline script tags under CSP");
 }
 
 async function waitForServer(baseUrl, child) {
@@ -164,6 +178,11 @@ async function waitForServer(baseUrl, child) {
 }
 
 async function main() {
+  for (const tag of ['<SCRIPT>', '<ScRiPt data-src="fake.js">', '<script data-note=" src=fake.js">']) {
+    if (inlineScriptTags(tag).length !== 1) errors.push("inline script check missed mixed case or misleading attributes");
+  }
+  if (inlineScriptTags('<SCRIPT SRC="safe.js">').length !== 0) errors.push("external script check rejected uppercase SRC");
+
   const indexHtml = read("public/index.html");
 
   const buildVersion = (indexHtml.match(/name="build-version" content="([^"]+)"/) || [])[1] || "";
@@ -182,21 +201,21 @@ async function main() {
     const baseUrl = "http://127.0.0.1:" + port;
     const html = await waitForServer(baseUrl, child);
     await verifyServerBoundary(baseUrl);
-    const js = await requestText(baseUrl + "/summit-spark.js?v=" + encodeURIComponent(buildVersion));
-    const coreFormat = await requestText(baseUrl + "/modules/core/format.mjs?v=" + encodeURIComponent(buildVersion));
-    const coreMath = await requestText(baseUrl + "/modules/core/math.mjs?v=" + encodeURIComponent(buildVersion));
-    const roomData = await requestText(baseUrl + "/modules/game/room-data.mjs?v=" + encodeURIComponent(buildVersion));
-    const worldModel = await requestText(baseUrl + "/modules/game/world-model.mjs?v=" + encodeURIComponent(buildVersion));
-    const effectBudget = await requestText(baseUrl + "/modules/game/effect-budget.mjs?v=" + encodeURIComponent(buildVersion));
-    const landmarkProgress = await requestText(baseUrl + "/modules/game/landmark-progress.mjs?v=" + encodeURIComponent(buildVersion));
-    const audioCues = await requestText(baseUrl + "/modules/game/audio-cues.mjs?v=" + encodeURIComponent(buildVersion));
-    const lumenProgress = await requestText(baseUrl + "/modules/game/lumen-progress.mjs?v=" + encodeURIComponent(buildVersion));
-    const storageModule = await requestText(baseUrl + "/modules/systems/storage.mjs?v=" + encodeURIComponent(buildVersion));
-    const inputModule = await requestText(baseUrl + "/modules/systems/input.mjs?v=" + encodeURIComponent(buildVersion));
-    const trainingModule = await requestText(baseUrl + "/modules/training/state.mjs?v=" + encodeURIComponent(buildVersion));
-    const trainingReplayModule = await requestText(baseUrl + "/modules/training/replay.mjs?v=" + encodeURIComponent(buildVersion));
-    const uiPresentationModule = await requestText(baseUrl + "/modules/ui/presentation.mjs?v=" + encodeURIComponent(buildVersion));
-    const css = await requestText(baseUrl + "/summit-spark.css?v=" + encodeURIComponent(buildVersion));
+    const js = await requestText(baseUrl + "/summit-spark.js");
+    const coreFormat = await requestText(baseUrl + "/modules/core/format.mjs");
+    const coreMath = await requestText(baseUrl + "/modules/core/math.mjs");
+    const roomData = await requestText(baseUrl + "/modules/game/room-data.mjs");
+    const worldModel = await requestText(baseUrl + "/modules/game/world-model.mjs");
+    const effectBudget = await requestText(baseUrl + "/modules/game/effect-budget.mjs");
+    const landmarkProgress = await requestText(baseUrl + "/modules/game/landmark-progress.mjs");
+    const audioCues = await requestText(baseUrl + "/modules/game/audio-cues.mjs");
+    const lumenProgress = await requestText(baseUrl + "/modules/game/lumen-progress.mjs");
+    const storageModule = await requestText(baseUrl + "/modules/systems/storage.mjs");
+    const inputModule = await requestText(baseUrl + "/modules/systems/input.mjs");
+    const trainingModule = await requestText(baseUrl + "/modules/training/state.mjs");
+    const trainingReplayModule = await requestText(baseUrl + "/modules/training/replay.mjs");
+    const uiPresentationModule = await requestText(baseUrl + "/modules/ui/presentation.mjs");
+    const css = await requestText(baseUrl + "/summit-spark.css");
     expectNoInlineScript(html);
 
     [

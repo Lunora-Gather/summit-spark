@@ -200,19 +200,19 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20260908-p310"),
-    import("./modules/core/math.mjs?v=20260908-p310"),
-    import("./modules/game/room-data.mjs?v=20260908-p310"),
-    import("./modules/game/world-model.mjs?v=20260908-p310"),
-    import("./modules/game/effect-budget.mjs?v=20260908-p310"),
-    import("./modules/game/landmark-progress.mjs?v=20260908-p310"),
-    import("./modules/game/audio-cues.mjs?v=20260908-p310"),
-    import("./modules/game/lumen-progress.mjs?v=20260908-p310"),
-    import("./modules/systems/storage.mjs?v=20260908-p310"),
-    import("./modules/systems/input.mjs?v=20260908-p310"),
-    import("./modules/training/state.mjs?v=20260908-p310"),
-    import("./modules/training/replay.mjs?v=20260908-p310"),
-    import("./modules/ui/presentation.mjs?v=20260908-p310")
+    import("./modules/core/format.mjs?v=20261030-p311"),
+    import("./modules/core/math.mjs?v=20261030-p311"),
+    import("./modules/game/room-data.mjs?v=20261030-p311"),
+    import("./modules/game/world-model.mjs?v=20261030-p311"),
+    import("./modules/game/effect-budget.mjs?v=20261030-p311"),
+    import("./modules/game/landmark-progress.mjs?v=20261030-p311"),
+    import("./modules/game/audio-cues.mjs?v=20261030-p311"),
+    import("./modules/game/lumen-progress.mjs?v=20261030-p311"),
+    import("./modules/systems/storage.mjs?v=20261030-p311"),
+    import("./modules/systems/input.mjs?v=20261030-p311"),
+    import("./modules/training/state.mjs?v=20261030-p311"),
+    import("./modules/training/replay.mjs?v=20261030-p311"),
+    import("./modules/ui/presentation.mjs?v=20261030-p311")
   ]);
 
   const canvas = document.getElementById("game");
@@ -6450,7 +6450,8 @@
   }
 
   async function sendAccountCode() {
-    if (cloudSyncBusy || !await ensureAccountSdk() || accountUser) return;
+    if (cloudSyncBusy) return;
+    if (!await ensureAccountSdk() || cloudSyncBusy || accountUser) return;
     const email = validAccountEmail();
     if (!email) {
       setAccountStatus("请先填写有效邮箱", "error");
@@ -6482,7 +6483,8 @@
   }
 
   async function submitAccountLogin() {
-    if (cloudSyncBusy || !await ensureAccountSdk() || accountUser) return;
+    if (cloudSyncBusy) return;
+    if (!await ensureAccountSdk() || cloudSyncBusy || accountUser) return;
     if (recoveryUserId && recoverySecret) {
       const password = accountPasswordInput?.value || "";
       if (password.length < 8) {
@@ -6558,7 +6560,8 @@
   }
 
   async function sendPasswordRecovery() {
-    if (cloudSyncBusy || !await ensureAccountSdk() || accountUser) return;
+    if (cloudSyncBusy) return;
+    if (!await ensureAccountSdk() || cloudSyncBusy || accountUser) return;
     const email = validAccountEmail();
     if (!email) {
       setAccountStatus("请先填写要找回的邮箱", "error");

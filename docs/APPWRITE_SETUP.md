@@ -57,3 +57,23 @@ committed.
 The browser accepts save archives up to 1 MB. The live `archive` column is
 `longtext` (off-page storage), so a complete ten-room route history can be
 uploaded without colliding with the table's 64 KB inline-row budget.
+
+## Read-only live audit
+
+With Appwrite CLI 28.3.0 or newer already logged in, run:
+
+```bash
+npm run appwrite-check
+```
+
+This compares the linked project's services, auth methods, six security policies,
+three allowed web hosts, enabled database, exact table permissions, row security
+and available column definitions with this repository. It reads metadata only;
+it does not read users, save rows, API keys or local CLI credential files, and
+never changes cloud resources. A mismatch exits nonzero. No login credential is
+needed by the offline `npm run check` gate; do not copy CLI sessions into CI.
+
+The current sync conflict check runs at sign-in. Simultaneous editing on multiple
+devices can still overwrite a newer remote save after that initial comparison.
+Use one active device at a time until server-side concurrency protection is
+implemented and verified with two independent sessions.

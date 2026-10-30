@@ -10,6 +10,8 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 - Audio perception: headless smoke can verify unavailable/recovered AudioContext paths, status updates and static checkpoint/wind-entry/two-stage crumble triggers, but their volume balance, separation and fatigue still need a real listening pass.
 - Diagnostics, feedback templates and summit run reports are local-only: they can include the current feedback note, viewport/training/gamepad summary, or bounded run timing evidence as appropriate, but there is no automatic upload or issue tracker integration.
 
+- Concurrent cloud editing: the conflict guard compares saves at sign-in; later automatic uploads use last-write-wins. Two devices or tabs editing together may overwrite newer cloud progress. Use one active device until transactional conflict protection is implemented and verified.
+
 ## Current Product Boundaries
 
 - Deployment freshness is a release gate rather than a human-play issue: `npm run live-check` compares every canonical online `public/` file with the local release and also verifies the build, CSP, pinned SDK and fixed-hair invariant.

@@ -2711,13 +2711,14 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountEntryButton");
     await waitUntil("restricted storage account drawer opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
-    await clickSelector(cdp, "#accountSendCode");
+    await evaluate(cdp, `document.querySelector("#accountSendCode").click(); document.querySelector("#accountSendCode").click()`);
     const sent = await waitUntil("OTP send remains successful when session storage is blocked", () => evaluate(cdp, `(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
-      return window.__summitRestrictedAuth?.sent === 1 && /验证码已发送/.test(status)
+      return window.__summitRestrictedAuth?.sent >= 1 && /验证码已发送/.test(status)
         ? { status, sent: window.__summitRestrictedAuth.sent }
         : null;
     })()`), 5000);
+    if (sent.sent !== 1) throw new Error("Rapid OTP actions issued " + sent.sent + " requests; expected one");
     await evaluate(cdp, `(() => {
       const email = document.querySelector("#accountEmail");
       email.value = "changed@example.com";
@@ -2748,7 +2749,7 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountSendCode");
     await waitUntil("third OTP issued after guarded mismatch", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 3`));
     await evaluate(cdp, `document.querySelector("#accountCode").value = "123456"`);
-    await clickSelector(cdp, "#accountSubmit");
+    await evaluate(cdp, `document.querySelector("#accountSubmit").click(); document.querySelector("#accountSubmit").click()`);
     const signedIn = await waitUntil("OTP login remains successful when session cleanup is blocked", () => evaluate(cdp, `(() => {
       const mock = window.__summitRestrictedAuth;
       const email = document.querySelector("#accountEmailLabel")?.textContent || "";

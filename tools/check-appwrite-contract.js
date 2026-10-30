@@ -57,7 +57,7 @@ if (!table?.enabled || table.rowSecurity !== true) fail("saves table must exist 
 
 const permissions = table?.$permissions || [];
 if (!permissions.includes('create("users")')) fail('saves table must allow create("users")');
-if (permissions.some((permission) => /any|guests/.test(permission))) fail("saves table must not grant public or guest permissions");
+if (permissions.length !== 1) fail("saves table must grant only authenticated create; row permissions control all reads and writes");
 
 const columns = new Map((table?.columns || []).map((column) => [column.key, column]));
 const buildColumn = columns.get("build");
@@ -84,6 +84,37 @@ if (!/await accountSdk\.account\.createEmailPasswordSession\(\{ email, password 
 }
 if (!source.includes('if (accountOldPasswordInput) accountOldPasswordInput.value = "";')) {
   fail("logout must clear all account password fields");
+}
+
+// Exercise the live comparator without CLI access or user data.
+const { checkSnapshot } = require("./check-appwrite-live");
+const flags = (values) => Object.entries(values).map(([$id, enabled]) => ({ $id, enabled }));
+const fixture = {
+  project: { $id: config.projectId, services: flags(services), protocols: flags(protocols), authMethods: flags(methods) },
+  policies: { policies: [
+    { $id: "session-duration", duration: security.duration },
+    { $id: "session-limit", total: security.sessionsLimit },
+    { $id: "password-history", total: security.passwordHistory },
+    { $id: "password-dictionary", enabled: true },
+    { $id: "password-personal-data", enabled: true },
+    { $id: "session-alert", enabled: true }
+  ] },
+  platforms: { platforms: ["localhost", "127.0.0.1", "lunora-gather.github.io"].map((hostname) => ({ type: "web", hostname })) },
+  database,
+  table: { ...table, columns: table.columns.map((column) => ({ ...column, status: "available" })) }
+};
+if (checkSnapshot(fixture).length) fail("live comparator rejects matching metadata");
+for (const mutate of [
+  (data) => { data.table.$permissions.push('read("users")'); },
+  (data) => { data.table.rowSecurity = false; },
+  (data) => { data.table.columns[1].status = "processing"; },
+  (data) => { data.policies.policies[1].total = 100; },
+  (data) => { data.platforms.platforms.push({ type: "web", hostname: "*" }); },
+  (data) => { data.project.authMethods.find((entry) => entry.$id === "anonymous").enabled = true; }
+]) {
+  const drifted = structuredClone(fixture);
+  mutate(drifted);
+  if (!checkSnapshot(drifted).length) fail("live comparator missed configuration drift");
 }
 
 if (errors.length > 0) {

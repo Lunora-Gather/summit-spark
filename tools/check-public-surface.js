@@ -184,6 +184,11 @@ if (/20\d{6}-p\d+/.test(playtestChecklist)) {
   fail("PLAYTEST_CHECKLIST.md should not pin a release build that becomes stale after the next update");
 }
 
+for (const match of runtimeSource.matchAll(/import\("\.\/([^"?]+)\?v=([^"\)]+)"\)/g)) {
+  if (!fs.existsSync(path.join(root, "public", match[1]))) fail(`missing imported module ${match[1]}`);
+  if (match[2] !== buildVersion) fail(`imported module ${match[1]} has stale version ${match[2]}`);
+}
+
 const requiredFragments = [
   '<html lang="zh-CN">',
   'http-equiv="Content-Security-Policy"',

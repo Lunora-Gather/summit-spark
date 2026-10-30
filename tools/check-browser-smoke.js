@@ -11,6 +11,46 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const errors = [];
 
+// Preserve the existing account failure/slow-write fixtures while modeling
+// staged writes separately from committed state.
+const transactionalTablesMockSource = `
+window.__summitTransactionalTables = (Base) => class extends Base {
+  constructor(...args) {
+    super(...args);
+    this.transactions = new Map();
+    this.revision = 0;
+    this.nextTransaction = 0;
+    this.committedRow = undefined;
+    window.__summitCloudBackend = this;
+  }
+  setRemote(row) { this.committedRow = row; this.revision += 1; }
+  async createTransaction() {
+    const $id = String(++this.nextTransaction);
+    this.transactions.set($id, {});
+    return { $id };
+  }
+  async upsertRow(payload) {
+    const result = await super.upsertRow(payload);
+    this.transactions.set(payload.transactionId, { payload, revision: this.revision, result });
+    return result;
+  }
+  async getRow(payload) {
+    if (this.committedRow !== undefined) {
+      if (!this.committedRow) throw { code: 404 };
+      return structuredClone(this.committedRow);
+    }
+    return super.getRow(payload);
+  }
+  async updateTransaction({ transactionId, commit }) {
+    if (!commit) { this.transactions.delete(transactionId); return {}; }
+    const staged = this.transactions.get(transactionId);
+    if (staged.revision !== this.revision) throw { code: 409, type: "transaction_conflict" };
+    this.setRemote({ ...staged.result, ...staged.payload.data, $updatedAt: new Date().toISOString() });
+    return { status: "committed" };
+  }
+  async deleteTransaction({ transactionId }) { this.transactions.delete(transactionId); }
+};`;
+
 function findFreePort() {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -2695,10 +2735,11 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
       }
       const Permission = { read: (role) => "read(" + role + ")", update: (role) => "update(" + role + ")", delete: (role) => "delete(" + role + ")" };
       const Role = { user: (id) => "user:" + id };
+      ${transactionalTablesMockSource}
       window.Appwrite = {
         Client,
         Account,
-        TablesDB,
+        TablesDB: window.__summitTransactionalTables(TablesDB),
         Permission,
         Role,
         ID: { unique: () => "restricted-user" }
@@ -2896,7 +2937,8 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       }
       const Permission = { read: (role) => "read(" + role + ")", update: (role) => "update(" + role + ")", delete: (role) => "delete(" + role + ")" };
       const Role = { user: (id) => "user:" + id };
-      window.Appwrite = { Client, Account, TablesDB, Permission, Role };
+      ${transactionalTablesMockSource}
+      window.Appwrite = { Client, Account, TablesDB: window.__summitTransactionalTables(TablesDB), Permission, Role };
     })();`
   });
   try {
@@ -3052,6 +3094,47 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       errors.push("a local change made during password update must resume cloud sync after account busy clears: " + JSON.stringify({ passwordBusyTarget, resumedAfterPassword }));
     }
     await evaluate(cdp, `(() => {
+      const backend = window.__summitCloudBackend;
+      const remote = JSON.parse(backend.committedRow.archive);
+      remote.storage.profile.summitClears = 9;
+      backend.setRemote({ archive: JSON.stringify(remote), $updatedAt: "2030-01-01T00:00:00.000Z" });
+      const toggle = document.querySelector("#audioToggle");
+      toggle.checked = !toggle.checked;
+      toggle.dispatchEvent(new Event("change", { bubbles: true }));
+      window.dispatchEvent(new Event("pagehide"));
+    })()`);
+    const accountAlreadyOpen = await evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account").open`);
+    if (!accountAlreadyOpen) await clickSelector(cdp, "#startAccountButton");
+    const conflict = await waitUntil("external device update pauses automatic sync", () => evaluate(cdp, `(() => {
+      const status = document.querySelector("#accountStatus")?.textContent || "";
+      if (!/另一设备/.test(status)) return null;
+      return {
+        remoteClears: JSON.parse(window.__summitCloudBackend.committedRow.archive).storage.profile.summitClears,
+        localClears: JSON.parse(localStorage.getItem("summit-spark-profile") || "{}").summitClears || 0,
+        summary: document.querySelector("#accountSummary")?.textContent,
+        uploadEnabled: !document.querySelector("#cloudUploadButton").disabled,
+        downloadEnabled: !document.querySelector("#cloudDownloadButton").disabled
+      };
+    })()`), 5000);
+    if (conflict.remoteClears !== 9 || conflict.localClears === 9 || conflict.summary !== "待确认" || !conflict.uploadEnabled || !conflict.downloadEnabled) {
+      errors.push("external cloud update must preserve both saves and require a choice: " + JSON.stringify(conflict));
+    }
+    // Even an explicit upload must reject a version changed after it was shown.
+    await evaluate(cdp, `(() => {
+      const backend = window.__summitCloudBackend;
+      const remote = JSON.parse(backend.committedRow.archive);
+      remote.storage.profile.summitClears = 10;
+      backend.setRemote({ archive: JSON.stringify(remote), $updatedAt: "2030-01-02T00:00:00.000Z" });
+    })()`);
+    await clickSelector(cdp, "#cloudUploadButton");
+    await waitUntil("stale explicit choice is rejected", () => evaluate(cdp, `document.querySelector(".settings-group-account").getAttribute("aria-busy") === "false" && /另一设备/.test(document.querySelector("#accountStatus").textContent)`));
+    const preserved = await evaluate(cdp, `JSON.parse(window.__summitCloudBackend.committedRow.archive).storage.profile.summitClears`);
+    if (preserved !== 10) errors.push("explicit upload must not bypass the remote version guard");
+    await clickSelector(cdp, "#cloudUploadButton");
+    await waitUntil("fresh explicit choice resumes cloud sync", () => evaluate(cdp, `document.querySelector("#accountSummary").textContent === "已同步"`));
+    await clickSelector(cdp, "#settingsClose");
+    await waitUntil("conflict account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+    await evaluate(cdp, `(() => {
       const toggle = document.querySelector("#audioToggle");
       toggle.checked = !toggle.checked;
       toggle.dispatchEvent(new Event("change", { bubbles: true }));
@@ -3117,7 +3200,8 @@ async function runLargeCloudArchiveSmoke(cdp, baseUrl) {
       }
       const Permission = { read: (role) => "read(" + role + ")", update: (role) => "update(" + role + ")", delete: (role) => "delete(" + role + ")" };
       const Role = { user: (id) => "user:" + id };
-      window.Appwrite = { Client, Account, TablesDB, Permission, Role };
+      ${transactionalTablesMockSource}
+      window.Appwrite = { Client, Account, TablesDB: window.__summitTransactionalTables(TablesDB), Permission, Role };
     })();`
   });
   try {

@@ -10,7 +10,7 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 - Audio perception: headless smoke can verify unavailable/recovered AudioContext paths, status updates and static checkpoint/wind-entry/two-stage crumble triggers, but their volume balance, separation and fatigue still need a real listening pass.
 - Diagnostics, feedback templates and summit run reports are local-only: they can include the current feedback note, viewport/training/gamepad summary, or bounded run timing evidence as appropriate, but there is no automatic upload or issue tracker integration.
 
-- Concurrent cloud editing: the conflict guard compares saves at sign-in; later automatic uploads use last-write-wins. Two devices or tabs editing together may overwrite newer cloud progress. Use one active device until transactional conflict protection is implemented and verified.
+- Old open tabs from before p312 can still issue legacy last-write-wins uploads. Reload every device before using cloud sync concurrently. Current clients stage uploads in transactions, reject stale versions and concurrent commits, and ask which save to use; conflicts are not automatically merged.
 
 ## Current Product Boundaries
 

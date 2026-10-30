@@ -22,6 +22,7 @@ summit-spark/
 │  │  └─ lumen-progress.mjs # 本房微光在死亡/重试时的精确回滚规则
 │  ├─ modules/systems/
 │  │  ├─ storage.mjs        # 设置/存档迁移、精确同步比较、冲突保护、档案/备份与事务回滚
+│  │  ├─ cloud-save.mjs     # 注入 TablesDB 的事务上传、版本检查、冲突检测和回滚清理
 │  │  └─ input.mjs          # 三类设备状态、动作缓冲、手柄映射与键位规则
 │  ├─ modules/training/
 │  │  ├─ state.mjs          # Drill、Route、Feel、Focus、五类房间推荐、三步计划、挑战与转场纯规则
@@ -65,6 +66,7 @@ public/index.html
        ├─ public/modules/game/audio-cues.mjs
        ├─ public/modules/game/lumen-progress.mjs
        ├─ public/modules/systems/storage.mjs
+       ├─ public/modules/systems/cloud-save.mjs
        ├─ public/modules/systems/input.mjs
        ├─ public/modules/training/state.mjs
        ├─ public/modules/training/replay.mjs

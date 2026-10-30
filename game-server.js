@@ -40,6 +40,7 @@ const publicFiles = new Map([
   ["/modules/game/audio-cues.mjs", path.join("public", "modules", "game", "audio-cues.mjs")],
   ["/modules/game/lumen-progress.mjs", path.join("public", "modules", "game", "lumen-progress.mjs")],
   ["/modules/systems/storage.mjs", path.join("public", "modules", "systems", "storage.mjs")],
+  ["/modules/systems/cloud-save.mjs", path.join("public", "modules", "systems", "cloud-save.mjs")],
   ["/modules/systems/input.mjs", path.join("public", "modules", "systems", "input.mjs")],
   ["/modules/training/state.mjs", path.join("public", "modules", "training", "state.mjs")],
   ["/modules/training/replay.mjs", path.join("public", "modules", "training", "replay.mjs")],

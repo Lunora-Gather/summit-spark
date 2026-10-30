@@ -9,6 +9,7 @@
 | `npm run check` | 默认发布门，组合语法、文档、公开面、Appwrite、数据、地图、训练状态和 HTTP 冒烟检查 |
 | `npm run browser-smoke` | Chrome/Edge 真实交互回归，覆盖账号、存档、移动端、焦点、Canvas、输入和隐藏面板 DOM 静止；R2 Relay 路线按角色实时位置发送真实输入，只允许一次完整重置后的有界重试 |
 | `npm run live-check` | 部署后逐文件比较线上 Pages 与本地 `public/`，并核对构建号、CSP、固定 Appwrite SDK 与固定发色约束；不加入离线默认门 |
+| `npm run cloud-live-smoke` | 显式联网集成测试，创建并清理临时无邮箱用户，验证多会话并发、事务回滚与跨用户隔离；需要已登录管理 CLI |
 | `npm run appwrite-check` | 使用已登录 Appwrite CLI，只读比较线上服务、认证、安全策略、Web 域名、数据库和私有表字段/权限；不读取用户存档，不加入离线默认门 |
 | `npm run css-audit` | 拒绝被后续同选择器完整覆盖的顶层 CSS 规则；`--write` 只清理可证明无效的完整块 |
 | `npm run route-audit` | 十房路线、训练合同和运行时钩子审计 |
@@ -18,6 +19,8 @@
 `check-core-format.mjs`、`check-core-math.mjs`、`check-room-data.mjs`、`check-effect-budget.mjs`、`check-landmark-progress.mjs`、`check-audio-cues.mjs`、`check-lumen-progress.mjs`、`check-storage.mjs`、`check-input.mjs`、`check-training.mjs`、`check-training-replay.mjs` 和 `check-ui-presentation.mjs` 直接导入公开模块，固定有限计时/差值、本地云时间、安全文本、数学、十房只读边界、长局视觉效果预算、山门/旧峰当前尝试地标进度、四幕声纹与转场节拍、本房微光重试回滚、存档精确同步/云冲突保护规则、输入映射、训练状态、五类房间推荐与三步计划目标、PB 路线动作语义，以及章节完成度/收束文案、Drill/合约/路线槽标签、五类 Drill 目标/实际练习句/悬停简报、房间训练/进度摘要、练习优先级、练习档案/长期挑战/手柄状态摘要、存档导入/备份摘要、安全反馈备注/模板、四幕汇总和本轮报告展示模型；它们由 `npm run check` 自动执行。
 
 浏览器回归会构造一份因果合法的十房训练档案，同时验证开始页、三步计划、四类队列、四张长期挑战和实际“继续训练”启动均消费同一组综合/Clean/Pace/Style/Expert 推荐结果。
+
+`check-cloud-save.mjs` 用离线事务模型验证旧版本、提交竞态、首次建档、提交后读回、回滚和清理失败；由默认检查执行。
 
 ## 房间数据
 

@@ -73,7 +73,31 @@ it does not read users, save rows, API keys or local CLI credential files, and
 never changes cloud resources. A mismatch exits nonzero. No login credential is
 needed by the offline `npm run check` gate; do not copy CLI sessions into CI.
 
-The current sync conflict check runs at sign-in. Simultaneous editing on multiple
-devices can still overwrite a newer remote save after that initial comparison.
-Use one active device at a time until server-side concurrency protection is
-implemented and verified with two independent sessions.
+## Concurrent devices
+
+Since p312, every upload is staged in an Appwrite transaction before reading the
+committed row and comparing it with the exact version last acknowledged by this
+client. The subsequent commit rejects writes racing after staging. A read before
+an ordinary upsert is insufficient. The client reads the committed row back
+because staged and committed timestamps differ, and only then reports success.
+
+A stale device or stale explicit upload choice pauses automatic sync and keeps
+local progress. The user chooses the refreshed cloud version or explicitly
+uploads local progress against that new version. Failed writes roll back; cleanup
+is best-effort and the transaction TTL is 60 seconds. No schema change or API key
+is needed in the browser. Network failures keep local progress and the account
+signed in. Reload older open tabs on all devices: clients from before p312 still
+use the old upload protocol and can overwrite saves.
+
+To verify the real cloud behavior with the already logged-in administrative CLI:
+
+```bash
+npm run cloud-live-smoke
+```
+
+This is an explicit online integration test, separate from offline CI. It creates
+two temporary users without email addresses, opens independent sessions, verifies
+stale writes, commit races, failure rollback, first-save creation and cross-user
+read/write isolation, then deletes only those temporary users and their save.
+Session secrets stay in memory and are never printed. No player data or project
+settings are changed.

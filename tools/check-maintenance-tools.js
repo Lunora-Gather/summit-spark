@@ -22,6 +22,8 @@ const requiredTools = [
   "tools/check-lumen-progress.mjs",
   "tools/check-live-deployment.js",
   "tools/check-storage.mjs",
+  "tools/check-cloud-save.mjs",
+  "tools/check-cloud-save-live.mjs",
   "tools/check-input.mjs",
   "tools/check-training.mjs",
   "tools/check-training-replay.mjs",

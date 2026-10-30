@@ -103,6 +103,7 @@
       saveArchiveSyncKeyData,
       writeStorageTransaction: writeStorageTransactionData
     },
+    { commitCloudSave },
     {
       defaultBindingsForLayoutData,
       effectiveBindingsData,
@@ -200,19 +201,20 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261030-p311"),
-    import("./modules/core/math.mjs?v=20261030-p311"),
-    import("./modules/game/room-data.mjs?v=20261030-p311"),
-    import("./modules/game/world-model.mjs?v=20261030-p311"),
-    import("./modules/game/effect-budget.mjs?v=20261030-p311"),
-    import("./modules/game/landmark-progress.mjs?v=20261030-p311"),
-    import("./modules/game/audio-cues.mjs?v=20261030-p311"),
-    import("./modules/game/lumen-progress.mjs?v=20261030-p311"),
-    import("./modules/systems/storage.mjs?v=20261030-p311"),
-    import("./modules/systems/input.mjs?v=20261030-p311"),
-    import("./modules/training/state.mjs?v=20261030-p311"),
-    import("./modules/training/replay.mjs?v=20261030-p311"),
-    import("./modules/ui/presentation.mjs?v=20261030-p311")
+    import("./modules/core/format.mjs?v=20261030-p312"),
+    import("./modules/core/math.mjs?v=20261030-p312"),
+    import("./modules/game/room-data.mjs?v=20261030-p312"),
+    import("./modules/game/world-model.mjs?v=20261030-p312"),
+    import("./modules/game/effect-budget.mjs?v=20261030-p312"),
+    import("./modules/game/landmark-progress.mjs?v=20261030-p312"),
+    import("./modules/game/audio-cues.mjs?v=20261030-p312"),
+    import("./modules/game/lumen-progress.mjs?v=20261030-p312"),
+    import("./modules/systems/storage.mjs?v=20261030-p312"),
+    import("./modules/systems/cloud-save.mjs?v=20261030-p312"),
+    import("./modules/systems/input.mjs?v=20261030-p312"),
+    import("./modules/training/state.mjs?v=20261030-p312"),
+    import("./modules/training/replay.mjs?v=20261030-p312"),
+    import("./modules/ui/presentation.mjs?v=20261030-p312")
   ]);
 
   const canvas = document.getElementById("game");
@@ -6778,10 +6780,13 @@
     setCloudStatus("正在同步…", "同步中");
     try {
       const userRole = accountSdk.Role.user(accountUser.$id);
-      const uploadedRow = await accountSdk.tables.upsertRow({
-        databaseId: APPWRITE_DATABASE_ID,
-        tableId: APPWRITE_SAVES_TABLE_ID,
-        rowId: accountUser.$id,
+      const uploadedRow = await commitCloudSave(accountSdk.tables, {
+        location: {
+          databaseId: APPWRITE_DATABASE_ID,
+          tableId: APPWRITE_SAVES_TABLE_ID,
+          rowId: accountUser.$id
+        },
+        expectedRow: cloudRow,
         data: { build: archive.build, archive: archiveText },
         permissions: [
           accountSdk.Permission.read(userRole),
@@ -6801,8 +6806,23 @@
     } catch (error) {
       cloudSaveDirty = true;
       cloudSyncRetryBlocked = true;
-      setCloudStatus("同步失败，本地进度已保留", "同步失败");
-      setAccountStatus(friendlyAccountError(error), "error");
+      if (error?.type === "cloud_save_conflict") {
+        cloudSyncReady = false;
+        cloudSyncFlushRequested = false;
+        cloudRemoteUsable = false;
+        if (error.remoteKnown) {
+          cloudRow = error.remoteRow;
+          if (cloudRow?.archive) {
+            try { normalizeSaveArchiveText(cloudRow.archive); cloudRemoteUsable = true; }
+            catch { /* A damaged remote archive must never be downloaded. */ }
+          }
+        }
+        setCloudStatus("云端进度已变化，本地进度已保留", "待确认");
+        setAccountStatus("另一设备更新了云存档。请选择“使用云端”或“上传本地”，确认后将自动同步");
+      } else {
+        setCloudStatus("同步失败，本地进度已保留", "同步失败");
+        setAccountStatus(friendlyAccountError(error), "error");
+      }
       return false;
     } finally {
       setAccountBusy(false);

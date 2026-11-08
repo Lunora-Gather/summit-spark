@@ -4710,12 +4710,23 @@ async function runMobileSmoke(cdp, baseUrl) {
       return { id: button.dataset.touch || button.dataset.touchCommand, width: Math.round(rect.width), height: Math.round(rect.height), top: Math.round(rect.top), bottom: Math.round(rect.bottom) };
     }).filter((button) => button.width > 0 && button.height > 0);
     const recall = document.querySelector('[data-touch="recall"]');
+    const rgb = (color) => color.match(/\\d+/g).slice(0, 3).map(Number);
+    const luminance = (color) => rgb(color).reduce((sum, channel, index) => {
+      const value = channel / 255;
+      const linear = value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+      return sum + linear * [0.2126, 0.7152, 0.0722][index];
+    }, 0);
+    const touchStyle = getComputedStyle(document.querySelector("[data-touch]"));
+    const stops = touchStyle.backgroundImage.match(/rgb\\([^)]*\\)/g) || [];
+    const touchContrast = stops.length
+      ? Math.min(...stops.map((stop) => (luminance(touchStyle.color) + 0.05) / (luminance(stop) + 0.05)))
+      : 0;
     return {
       visible: getComputedStyle(touch).display !== "none",
       position: getComputedStyle(touch).position,
       directionGrid: getComputedStyle(direction).display === "grid",
       actionGrid: getComputedStyle(action).display === "grid",
-      buttonBackground: getComputedStyle(document.querySelector("[data-touch]")).backgroundImage,
+      touchContrast,
       buttons,
       recallContextual: recall.hidden && recall.disabled && recall.getAttribute("aria-label") === "先激活回声锚点",
       hudActions,
@@ -4734,7 +4745,7 @@ async function runMobileSmoke(cdp, baseUrl) {
       stageTop: Math.round(stage.top)
     };
   })()`);
-  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || !/68, 89, 98/.test(touchUi.buttonBackground) || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 380 || !touchUi.retryLabels.every((label) => /重开/.test(label) && /(R|T)/.test(label))) {
+  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || touchUi.touchContrast < 4.5 || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 380 || !touchUi.retryLabels.every((label) => /重开/.test(label) && /(R|T)/.test(label))) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
   await tapSelector(cdp, "#settingsButton");
@@ -4929,24 +4940,43 @@ async function runMobileSmoke(cdp, baseUrl) {
   const shortPortrait = await evaluate(cdp, `(() => {
     const brief = document.querySelector("#portraitBrief").getBoundingClientRect();
     const hud = document.querySelector(".hud").getBoundingClientRect();
-    const stage = document.querySelector(".stage").getBoundingClientRect();
+    const stage = document.querySelector(".stage");
     const touch = document.querySelector("#touchControls").getBoundingClientRect();
-    const buttons = [...document.querySelectorAll("[data-touch]")]
-      .map((button) => button.getBoundingClientRect())
-      .filter((button) => button.width > 0 && button.height > 0);
+    const shell = document.querySelector(".shell");
+    const previousSize = shell.style.getPropertyValue("--touch-size");
+    const targets = [...document.querySelectorAll("#touchControls button:not([hidden])")];
+    const measureControls = () => {
+      const stageBottom = stage.getBoundingClientRect().bottom;
+      const rects = targets.map((button) => button.getBoundingClientRect());
+      return {
+        minSize: Math.min(...rects.map((rect) => Math.min(rect.width, rect.height))),
+        detached: rects.every((rect) => rect.top >= stageBottom + 4),
+        fits: rects.every((rect) => rect.left >= -1 && rect.right <= innerWidth + 1 && rect.bottom <= innerHeight + 1),
+        clear: rects.every((rect, index) => rects.slice(index + 1).every((other) =>
+          rect.right <= other.left || other.right <= rect.left || rect.bottom <= other.top || other.bottom <= rect.top
+        ))
+      };
+    };
+    const normal = measureControls();
+    shell.style.setProperty("--touch-size", "64px");
+    const large = measureControls();
+    if (previousSize) shell.style.setProperty("--touch-size", previousSize);
+    else shell.style.removeProperty("--touch-size");
     return {
       briefAboveHud: brief.bottom <= hud.top - 6,
       briefTop: Math.round(brief.top),
       briefBottom: Math.round(brief.bottom),
       hudTop: Math.round(hud.top),
-      controlsDetached: buttons.every((button) => button.top >= stage.bottom + 4),
-      controlsFit: buttons.every((button) => button.left >= -1 && button.right <= window.innerWidth + 1 && button.bottom <= window.innerHeight + 1),
+      normal,
+      large,
       touchBottom: Math.round(touch.bottom),
       viewport: { width: window.innerWidth, height: window.innerHeight }
     };
   })()`);
-  if (!shortPortrait.briefAboveHud || !shortPortrait.controlsDetached || !shortPortrait.controlsFit) {
-    errors.push("320x480 portrait should keep the room brief clear of the HUD and all touch controls on-screen: " + JSON.stringify(shortPortrait));
+  if (!shortPortrait.briefAboveHud || [shortPortrait.normal, shortPortrait.large].some((controls) =>
+    !controls.detached || !controls.fits || !controls.clear || controls.minSize < 44
+  )) {
+    errors.push("320x480 portrait should keep the room brief clear of the HUD and all touch controls separate, reachable and on-screen: " + JSON.stringify(shortPortrait));
   }
 }
 

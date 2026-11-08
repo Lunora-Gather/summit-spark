@@ -4713,10 +4713,6 @@ body {
    not push Dash off a 390px phone. The requested size only yields as much as
    the current viewport can safely fit, with Jump and Dash kept side by side. */
 @media (max-width: 760px) and (orientation: portrait) {
-  .touch {
-    --portrait-touch-size: clamp(44px, calc((100vw - 82px) / 5), var(--touch-size, 48px));
-  }
-
   .touch-directions {
     grid-template-columns: repeat(3, var(--portrait-touch-size));
     grid-template-rows: repeat(2, var(--portrait-touch-size));
@@ -7604,7 +7600,7 @@ textarea,
   min-height: 48px;
   border-color: rgba(67, 112, 112, 0.36);
   border-radius: 11px;
-  background: linear-gradient(180deg, #739b9e, #5f858e);
+  background: linear-gradient(180deg, #446b72, #36555f);
   color: #f6faf7;
   box-shadow: 0 3px 0 rgba(48, 79, 86, 0.38);
   font-size: 13px;
@@ -7759,7 +7755,14 @@ textarea,
    their own context, so the duplicate room brief stays out of every overlay. */
 @media (max-width: 760px) and (orientation: portrait) {
   .shell {
-    --portrait-touch-size: clamp(44px, calc((100vw - 82px) / 5), var(--touch-size, 48px));
+    --portrait-touch-left: max(10px, env(safe-area-inset-left, 0px));
+    --portrait-touch-right: max(10px, env(safe-area-inset-right, 0px));
+    --portrait-touch-gap: 5px;
+    /* Five thumb columns, one 44px restart column and five gaps. */
+    --portrait-touch-size: clamp(44px, calc(
+      (100vw - var(--portrait-touch-left) - var(--portrait-touch-right)
+      - 44px - 5 * var(--portrait-touch-gap)) / 5
+    ), var(--touch-size, 48px));
     --portrait-stage-bottom: calc(
       46px + env(safe-area-inset-bottom, 0px)
       + var(--portrait-touch-size) + var(--portrait-touch-size)
@@ -8290,18 +8293,24 @@ textarea,
 
 @media (max-width: 760px) and (orientation: portrait) {
   .touch {
-    gap: 8px;
+    left: var(--portrait-touch-left);
+    right: var(--portrait-touch-right);
+    gap: var(--portrait-touch-gap);
   }
 
-  .touch-system {
-    position: absolute;
-    left: 50%;
-    bottom: 0;
-    transform: translateX(-50%);
+  .touch-directions,
+  .touch-actions {
+    gap: var(--portrait-touch-gap);
+  }
+
+  .touch button,
+  .stage.low-performance + .touch button {
+    background: linear-gradient(180deg, #48616b, #405b65);
+    color: #f6faf7;
   }
 
   .touch .touch-system button {
-    width: 44px;
-    height: 44px;
+    background: #4c5e65;
+    color: #f6faf7;
   }
 }

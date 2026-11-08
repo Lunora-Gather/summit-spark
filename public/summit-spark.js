@@ -201,20 +201,20 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261030-p312"),
-    import("./modules/core/math.mjs?v=20261030-p312"),
-    import("./modules/game/room-data.mjs?v=20261030-p312"),
-    import("./modules/game/world-model.mjs?v=20261030-p312"),
-    import("./modules/game/effect-budget.mjs?v=20261030-p312"),
-    import("./modules/game/landmark-progress.mjs?v=20261030-p312"),
-    import("./modules/game/audio-cues.mjs?v=20261030-p312"),
-    import("./modules/game/lumen-progress.mjs?v=20261030-p312"),
-    import("./modules/systems/storage.mjs?v=20261030-p312"),
-    import("./modules/systems/cloud-save.mjs?v=20261030-p312"),
-    import("./modules/systems/input.mjs?v=20261030-p312"),
-    import("./modules/training/state.mjs?v=20261030-p312"),
-    import("./modules/training/replay.mjs?v=20261030-p312"),
-    import("./modules/ui/presentation.mjs?v=20261030-p312")
+    import("./modules/core/format.mjs?v=20261108-p313"),
+    import("./modules/core/math.mjs?v=20261108-p313"),
+    import("./modules/game/room-data.mjs?v=20261108-p313"),
+    import("./modules/game/world-model.mjs?v=20261108-p313"),
+    import("./modules/game/effect-budget.mjs?v=20261108-p313"),
+    import("./modules/game/landmark-progress.mjs?v=20261108-p313"),
+    import("./modules/game/audio-cues.mjs?v=20261108-p313"),
+    import("./modules/game/lumen-progress.mjs?v=20261108-p313"),
+    import("./modules/systems/storage.mjs?v=20261108-p313"),
+    import("./modules/systems/cloud-save.mjs?v=20261108-p313"),
+    import("./modules/systems/input.mjs?v=20261108-p313"),
+    import("./modules/training/state.mjs?v=20261108-p313"),
+    import("./modules/training/replay.mjs?v=20261108-p313"),
+    import("./modules/ui/presentation.mjs?v=20261108-p313")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1939,8 +1939,8 @@
   }
 
   function openingControlHint() {
+    if (window.matchMedia?.("(pointer: coarse)")?.matches) return "方向键移动 · 跳/冲/抓 · ↻/房重开";
     if (lastGamepadStatus.connected) return "摇杆移 · A 跳 · B 冲 · 肩抓 · View 重开";
-    if (window.matchMedia?.("(pointer: coarse)")?.matches) return "左移 · 右跳/冲/抓 · 中间↻/房重开";
     return "WASD 移 · Space 跳 · K 冲 · J 抓 · R/T 重开";
   }
 
@@ -9015,16 +9015,19 @@
     const introCompact = isCompactCanvas();
     const width = introCompact ? 250 : 218;
     const height = introCompact ? 40 : 36;
-    const x = W / 2 - width / 2;
-    const y = introCompact ? 78 : 70;
+    const scale = introCompact ? Math.max(1, H / Math.max(1, canvas.clientHeight)) : 1;
+    const x = -width / 2;
     ctx.save();
+    // Keep the card below the fixed-height HUD when the canvas shrinks.
+    ctx.translate(W / 2, introCompact ? 72 * scale : 70);
+    ctx.scale(scale, scale);
     ctx.globalAlpha = introAlpha * 0.9;
     ctx.fillStyle = "rgba(224, 234, 225, 0.72)";
-    roundRect(ctx, x, y, width, height, 10);
+    roundRect(ctx, x, 0, width, height, 10);
     ctx.fill();
     ctx.strokeStyle = "rgba(74, 108, 104, 0.24)";
     ctx.lineWidth = 1;
-    roundRect(ctx, x + 0.5, y + 0.5, width - 1, height - 1, 10);
+    roundRect(ctx, x + 0.5, 0.5, width - 1, height - 1, 10);
     ctx.stroke();
     ctx.globalAlpha = introAlpha;
     ctx.textAlign = "center";
@@ -9032,9 +9035,9 @@
     ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(37, 59, 67, 0.96)";
     ctx.font = `700 ${introCompact ? 13 : 12}px system-ui, sans-serif`;
-    ctx.fillText(`R${roomIndex + 1} ${ROOM_NAMES[roomIndex] || "Summit"}`, W / 2, y + 13);
+    ctx.fillText(`R${roomIndex + 1} ${ROOM_NAMES[roomIndex] || "Summit"}`, 0, 13);
     ctx.fillStyle = "rgba(50, 75, 80, 0.76)";
-    ctx.font = `600 ${introCompact ? 10.5 : 10}px system-ui, sans-serif`;
+    ctx.font = `600 ${introCompact ? 11 : 10}px system-ui, sans-serif`;
     const openingChapter = CHAPTER_START_ROOMS[0] === roomIndex
       ? CHAPTER_EXPERIENCE[chapterIndexForRoom(roomIndex)]
       : null;
@@ -9052,7 +9055,7 @@
       : openingChapter
         ? `${openingChapter.title} · ${openingChapter.vow}`
         : ROOM_WHISPERS[roomIndex] || "继续向上。";
-    ctx.fillText(fitText(subline, width - 18), W / 2, y + 27);
+    ctx.fillText(fitText(subline, width - 18), 0, 27);
     ctx.restore();
   }
 

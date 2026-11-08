@@ -6735,10 +6735,10 @@
       const cleared = maps.reduce((count, _, index) =>
         count + Number(archive.roomBests[index] > 0 || (archive.roomFocus[index]?.clears || 0) > 0), 0);
       const drills = archive.roomFocus.reduce((count, room) => count + (room.drillClears || 0), 0);
-      return `通关 ${cleared}/${maps.length} 房 · 登顶 ${archive.profile.summitClears} 次 · 完成训练 ${drills} 次`;
+      return `通关 ${cleared}/${maps.length} 房\n登顶 ${archive.profile.summitClears} 次\n完成训练 ${drills} 次`;
     };
     localSaveSummary.textContent = summarize({ profile, roomBests: bestRoomTimes, roomFocus });
-    remoteSaveSummary.textContent = `${summarize(remote)} · 更新于 ${formatLocalDateTime(cloudRow.$updatedAt)}`;
+    remoteSaveSummary.textContent = `${summarize(remote)}\n更新于 ${formatLocalDateTime(cloudRow.$updatedAt)}`;
   }
 
   function syncCloudActionAvailability() {

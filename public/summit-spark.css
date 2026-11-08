@@ -6829,7 +6829,8 @@ textarea,
   font-size: 10.5px;
 }
 
-.account-submit {
+.account-submit,
+#cloudUploadButton {
   min-height: 42px;
   border-radius: 9px !important;
   background: linear-gradient(135deg, #456c73, #365760) !important;
@@ -6838,8 +6839,9 @@ textarea,
   font-size: 12px;
 }
 
-.account-submit:hover {
-  background: linear-gradient(135deg, #4c7478, #35656b) !important;
+.account-submit:hover,
+#cloudUploadButton:hover {
+  background: linear-gradient(135deg, #385e65, #304e58) !important;
 }
 
 .account-note {
@@ -8266,6 +8268,7 @@ textarea,
   border-radius: 8px;
   background: #f4f8f5;
 }
+.cloud-comparison-grid span { white-space: pre-line; }
 .cloud-comparison p { margin: 0; }
 .settings-group-plan #nextPracticeLabel {
   color: #415f67;

@@ -6829,14 +6829,17 @@ textarea,
   font-size: 10.5px;
 }
 
-.account-submit,
-#cloudUploadButton {
+.account-submit {
   min-height: 42px;
   border-radius: 9px !important;
-  background: linear-gradient(135deg, #456c73, #365760) !important;
-  color: #f7fbf9 !important;
   box-shadow: 0 8px 18px rgba(46, 81, 85, 0.14) !important;
   font-size: 12px;
+}
+
+.account-submit,
+#cloudUploadButton {
+  background: linear-gradient(135deg, #456c73, #365760) !important;
+  color: #f7fbf9 !important;
 }
 
 .account-submit:hover,

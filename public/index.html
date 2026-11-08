@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20261108-p313">
+  <meta name="build-version" content="20261109-p314">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20261108-p313">
+  <link rel="stylesheet" href="summit-spark.css?v=20261109-p314">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -95,9 +95,16 @@
                       <span id="cloudSyncStatus">正在检查云端进度</span>
                     </div>
                   </div>
+                  <section class="cloud-comparison" id="cloudComparison" aria-label="比较两份存档" tabindex="-1" hidden>
+                    <div class="cloud-comparison-grid">
+                      <div><strong>本机存档</strong><span id="localSaveSummary"></span></div>
+                      <div><strong>云端存档</strong><span id="remoteSaveSummary"></span></div>
+                    </div>
+                    <p id="cloudChoiceHelp">上传本地会覆盖云端。使用云端会替换本机存档，并保留本机备份。</p>
+                  </section>
                   <div class="cloud-actions">
-                    <button class="focus-button" id="cloudUploadButton" type="button">上传本地</button>
-                    <button class="focus-button ghost" id="cloudDownloadButton" type="button">使用云端</button>
+                    <button class="focus-button" id="cloudUploadButton" type="button" aria-describedby="cloudChoiceHelp">上传本地</button>
+                    <button class="focus-button ghost" id="cloudDownloadButton" type="button" aria-describedby="cloudChoiceHelp">使用云端</button>
                   </div>
                   <div class="password-reset">
                     <span>设置或更改密码</span>
@@ -313,11 +320,16 @@
                 <div class="save-import-status backup-status" id="saveBackupStatus" aria-live="polite">暂无导入前备份</div>
               </div>
             </details>
+            <details class="settings-group settings-group-plan practice-only">
+              <summary aria-expanded="false"><span>训练计划 <small id="nextPracticeLabel">下一项</small></span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
+              <div class="settings-group-body">
+                <div class="practice-plan" id="practicePlan" aria-label="训练计划"></div>
+              </div>
+            </details>
             <details class="settings-group settings-group-training practice-only">
-              <summary aria-expanded="false"><span>训练记录</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
+              <summary aria-expanded="false"><span>记录与进阶</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
               <div class="settings-group-body">
                 <div class="chapter-overview" id="chapterOverview" aria-label="章节完成度"></div>
-                <div class="practice-plan" id="practicePlan" aria-label="训练计划"></div>
                 <details class="practice-subgroup practice-subgroup-route">
                   <summary>路线挑战</summary>
                   <div class="practice-subgroup-body">
@@ -427,6 +439,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20261108-p313"></script>
+  <script src="summit-spark.js?v=20261109-p314"></script>
 </body>
 </html>

@@ -6832,14 +6832,19 @@ textarea,
 .account-submit {
   min-height: 42px;
   border-radius: 9px !important;
-  background: linear-gradient(135deg, #557f83, #3d6e74) !important;
-  color: #f7fbf9 !important;
   box-shadow: 0 8px 18px rgba(46, 81, 85, 0.14) !important;
   font-size: 12px;
 }
 
-.account-submit:hover {
-  background: linear-gradient(135deg, #4c7478, #35656b) !important;
+.account-submit,
+#cloudUploadButton {
+  background: linear-gradient(135deg, #456c73, #365760) !important;
+  color: #f7fbf9 !important;
+}
+
+.account-submit:hover,
+#cloudUploadButton:hover {
+  background: linear-gradient(135deg, #385e65, #304e58) !important;
 }
 
 .account-note {
@@ -8241,6 +8246,38 @@ textarea,
 }
 @media (prefers-reduced-motion: reduce) {
   .stage .launch-surface button[class] { transition: none; }
+}
+
+/* Keep comparison and next-step information readable within their existing sheets. */
+.cloud-comparison:not([hidden]) {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334f57;
+}
+.cloud-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.cloud-comparison-grid > div {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #b8cbc8;
+  border-radius: 8px;
+  background: #f4f8f5;
+}
+.cloud-comparison-grid span { white-space: pre-line; }
+.cloud-comparison p { margin: 0; }
+.settings-group-plan #nextPracticeLabel {
+  color: #415f67;
+  font-size: 11px;
+  font-weight: 650;
+  margin-inline-start: 5px;
 }
 
 /* P277: a collapsed portrait Practice sheet should fit its two choices and

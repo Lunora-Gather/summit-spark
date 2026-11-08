@@ -201,20 +201,20 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261108-p313"),
-    import("./modules/core/math.mjs?v=20261108-p313"),
-    import("./modules/game/room-data.mjs?v=20261108-p313"),
-    import("./modules/game/world-model.mjs?v=20261108-p313"),
-    import("./modules/game/effect-budget.mjs?v=20261108-p313"),
-    import("./modules/game/landmark-progress.mjs?v=20261108-p313"),
-    import("./modules/game/audio-cues.mjs?v=20261108-p313"),
-    import("./modules/game/lumen-progress.mjs?v=20261108-p313"),
-    import("./modules/systems/storage.mjs?v=20261108-p313"),
-    import("./modules/systems/cloud-save.mjs?v=20261108-p313"),
-    import("./modules/systems/input.mjs?v=20261108-p313"),
-    import("./modules/training/state.mjs?v=20261108-p313"),
-    import("./modules/training/replay.mjs?v=20261108-p313"),
-    import("./modules/ui/presentation.mjs?v=20261108-p313")
+    import("./modules/core/format.mjs?v=20261109-p314"),
+    import("./modules/core/math.mjs?v=20261109-p314"),
+    import("./modules/game/room-data.mjs?v=20261109-p314"),
+    import("./modules/game/world-model.mjs?v=20261109-p314"),
+    import("./modules/game/effect-budget.mjs?v=20261109-p314"),
+    import("./modules/game/landmark-progress.mjs?v=20261109-p314"),
+    import("./modules/game/audio-cues.mjs?v=20261109-p314"),
+    import("./modules/game/lumen-progress.mjs?v=20261109-p314"),
+    import("./modules/systems/storage.mjs?v=20261109-p314"),
+    import("./modules/systems/cloud-save.mjs?v=20261109-p314"),
+    import("./modules/systems/input.mjs?v=20261109-p314"),
+    import("./modules/training/state.mjs?v=20261109-p314"),
+    import("./modules/training/replay.mjs?v=20261109-p314"),
+    import("./modules/ui/presentation.mjs?v=20261109-p314")
   ]);
 
   const canvas = document.getElementById("game");
@@ -307,6 +307,9 @@
   const accountLogoutButton = document.getElementById("accountLogout");
   const accountStatus = document.getElementById("accountStatus");
   const cloudSyncStatus = document.getElementById("cloudSyncStatus");
+  const cloudComparison = document.getElementById("cloudComparison");
+  const localSaveSummary = document.getElementById("localSaveSummary");
+  const remoteSaveSummary = document.getElementById("remoteSaveSummary");
   const cloudUploadButton = document.getElementById("cloudUploadButton");
   const cloudDownloadButton = document.getElementById("cloudDownloadButton");
   const saveExportButton = document.getElementById("saveExportButton");
@@ -320,6 +323,7 @@
   const roomBrief = document.getElementById("roomBrief");
   const chapterOverview = document.getElementById("chapterOverview");
   const practicePlan = document.getElementById("practicePlan");
+  const nextPracticeLabel = document.getElementById("nextPracticeLabel");
   const routeContracts = document.getElementById("routeContracts");
   const feelLab = document.getElementById("feelLab");
   const focusRoomButton = document.getElementById("focusRoomButton");
@@ -1939,9 +1943,15 @@
   }
 
   function openingControlHint() {
-    if (window.matchMedia?.("(pointer: coarse)")?.matches) return "方向键移动 · 跳/冲/抓 · ↻/房重开";
-    if (lastGamepadStatus.connected) return "摇杆移 · A 跳 · B 冲 · 肩抓 · View 重开";
-    return "WASD 移 · Space 跳 · K 冲 · J 抓 · R/T 重开";
+    if (window.matchMedia?.("(pointer: coarse)")?.matches) return ["方向键移动 · 跳／冲／抓", "↻ 快速重开 · 房 重开本房"];
+    if (lastGamepadStatus.connected) return ["摇杆移 · A 跳 · B 冲 · 肩抓", "View 快速重开 · 双摇杆按下 重开本房"];
+    const bindings = effectiveBindings();
+    const key = (action) => keyCodeLabel(bindings[action]);
+    const movement = ["up", "left", "down", "right"].map(key).join("/");
+    return [
+      `${movement} 移 · ${key("jump")} 跳 · ${key("dash")} 冲 · ${key("grab")} 抓`,
+      `${key("retry")} 快速重开 · ${key("roomRestart")} 重开本房`
+    ];
   }
 
   function begin() {
@@ -2070,6 +2080,10 @@
       window.setTimeout(() => {
         if (!settingsVisible || panelMode !== "settings" || !accountFocused || !accountGroup.open) return;
         if (accountUser) {
+          if (cloudComparison && !cloudComparison.hidden) {
+            cloudComparison.focus({ preventScroll: true });
+            return;
+          }
           const cloudAction = [cloudUploadButton, cloudDownloadButton]
             .find((button) => button && !button.disabled && button.getClientRects().length > 0);
           cloudAction?.focus({ preventScroll: true });
@@ -4807,6 +4821,9 @@
   function updatePracticePlan() {
     if (!practicePlan || !settingsVisible) return;
     const steps = practicePlanSteps();
+    const next = steps[0];
+    const nextLabel = `下一项 · R${next.index + 1} ${drillModeLabel(next.mode)}`;
+    if (nextPracticeLabel && nextPracticeLabel.textContent !== nextLabel) nextPracticeLabel.textContent = nextLabel;
     const html = `<div class="plan-head"><span>训练计划</span><em>短板 → 迁移 → 跨房</em></div>`
       + steps.map((step, index) => {
         const stats = drillContractStats(step.index, step.mode);
@@ -6349,12 +6366,9 @@
       if (Number(error?.code) === 401) writeAccountHint(false);
       revealEntryGate();
       syncAccountUi();
-      setAccountStatus(
-        error?.type === "restore_timeout"
-          ? "云端连接超时，可先以游客身份开始"
-          : "进度保存在本机，登录后可同步",
-        error?.type === "restore_timeout" ? "error" : ""
-      );
+      if (error?.type === "project_paused") setAccountStatus(friendlyAccountError(error), "error");
+      else if (error?.type === "restore_timeout") setAccountStatus("云端连接超时，可先以游客身份开始", "error");
+      else setAccountStatus("进度保存在本机，登录后可同步");
     } finally {
       if (timeoutId) window.clearTimeout(timeoutId);
     }
@@ -6425,6 +6439,7 @@
   function friendlyAccountError(error) {
     const code = Number(error?.code || 0);
     const type = String(error?.type || "");
+    if (type === "project_paused") return "云服务暂时暂停，可先以游客游玩，本机进度会保留。";
     if (code === 401) return "邮箱、密码或验证码不正确";
     if (code === 409) return "当前已有登录会话，请刷新后重试";
     if (code === 429) return "操作过于频繁，请稍后再试";
@@ -6666,6 +6681,7 @@
       cloudSaveDirty = false;
       setCloudStatus(`已同步 · ${formatLocalDateTime(cloudRow.$updatedAt)}`);
       setAccountStatus("本地与云端进度一致", "valid");
+      syncCloudActionAvailability();
       return;
     }
     if (!hasMeaningfulLocalProgress() && meaningfulSaveData(remote)) {
@@ -6708,6 +6724,23 @@
     if (accountSummary) accountSummary.textContent = accountUser ? (summary || (cloudSyncReady ? "已同步" : "待确认")) : "未登录";
   }
 
+  function syncCloudComparison() {
+    if (!cloudComparison || !localSaveSummary || !remoteSaveSummary) return;
+    const visible = Boolean(accountUser && !cloudSyncReady && cloudRemoteUsable && !cloudInspectionPending && cloudRow?.archive);
+    cloudComparison.hidden = !visible;
+    if (!visible) return;
+
+    const remote = normalizeSaveArchiveText(cloudRow.archive);
+    const summarize = (archive) => {
+      const cleared = maps.reduce((count, _, index) =>
+        count + Number(archive.roomBests[index] > 0 || (archive.roomFocus[index]?.clears || 0) > 0), 0);
+      const drills = archive.roomFocus.reduce((count, room) => count + (room.drillClears || 0), 0);
+      return `通关 ${cleared}/${maps.length} 房 · 登顶 ${archive.profile.summitClears} 次 · 完成训练 ${drills} 次`;
+    };
+    localSaveSummary.textContent = summarize({ profile, roomBests: bestRoomTimes, roomFocus });
+    remoteSaveSummary.textContent = `${summarize(remote)} · 更新于 ${formatLocalDateTime(cloudRow.$updatedAt)}`;
+  }
+
   function syncCloudActionAvailability() {
     if (started && !settingsVisible) {
       deferredAccountUi = true;
@@ -6716,6 +6749,7 @@
     const signedIn = Boolean(accountUser);
     if (cloudUploadButton) cloudUploadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudUploadPermitted;
     if (cloudDownloadButton) cloudDownloadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudRemoteUsable;
+    syncCloudComparison();
   }
 
   function setAccountBusy(busy) {
@@ -9013,9 +9047,12 @@
     const introTarget = ROOM_TARGETS[roomIndex] || 0;
     const trainingActive = Boolean(activeDrill || activeChallenge || activeRouteContract || activeFeelFixture);
     const introCompact = isCompactCanvas();
-    const width = introCompact ? 250 : 218;
-    const height = introCompact ? 40 : 36;
+    const openingControls = roomIndex === 0 && needsOpeningControlsHint();
     const scale = introCompact ? Math.max(1, H / Math.max(1, canvas.clientHeight)) : 1;
+    const visibleWidth = Math.min(stage.clientWidth, canvas.clientWidth);
+    const maxCardWidth = Math.max(64, (visibleWidth - 16) * W / Math.max(1, canvas.clientWidth) / scale);
+    const width = openingControls ? Math.min(286, maxCardWidth) : introCompact ? 250 : 218;
+    const height = openingControls ? 54 : introCompact ? 40 : 36;
     const x = -width / 2;
     ctx.save();
     // Keep the card below the fixed-height HUD when the canvas shrinks.
@@ -9046,16 +9083,20 @@
       : roomIndex === 7
         ? "棱镜强化冲刺，也会放大失误"
         : "";
-    const subline = roomIndex === 0 && needsOpeningControlsHint()
-      ? openingControlHint()
-      : trainingActive
+    const subline = trainingActive
       ? `${ROOM_CHAPTER_LABELS[roomIndex] || "山巅"} · 目标 ${formatTime(introTarget)}`
       : chapterRampLine
         ? chapterRampLine
       : openingChapter
         ? `${openingChapter.title} · ${openingChapter.vow}`
         : ROOM_WHISPERS[roomIndex] || "继续向上。";
-    ctx.fillText(fitText(subline, width - 18), 0, 27);
+    if (openingControls) {
+      const [movement, restart] = openingControlHint();
+      ctx.fillText(movement, 0, 28, width - 18);
+      ctx.fillText(restart, 0, 43, width - 18);
+    } else {
+      ctx.fillText(fitText(subline, width - 18), 0, 27);
+    }
     ctx.restore();
   }
 

@@ -3465,11 +3465,17 @@ async function runCloudConflictGuardSmoke(cdp, baseUrl) {
           summary: document.querySelector("#accountSummary")?.textContent || "",
           localPreserved: Boolean(${conflictCase.probe}),
           remoteNotApplied: (JSON.parse(localStorage.getItem("summit-spark-profile") || "{}").summitClears || 0) === 0,
+          comparisonVisible: !document.querySelector("#cloudComparison").hidden,
+          local: document.querySelector("#localSaveSummary").textContent,
+          remote: document.querySelector("#remoteSaveSummary").textContent,
+          choiceHelp: document.querySelector("#cloudChoiceHelp").textContent,
           uploadEnabled: !document.querySelector("#cloudUploadButton")?.disabled,
           downloadEnabled: !document.querySelector("#cloudDownloadButton")?.disabled
         };
       })()`), 7000);
-      if (!guarded.localPreserved || !guarded.remoteNotApplied || guarded.summary !== "待确认" || !guarded.uploadEnabled || !guarded.downloadEnabled) {
+      if (!guarded.localPreserved || !guarded.remoteNotApplied || guarded.summary !== "待确认" || !guarded.uploadEnabled || !guarded.downloadEnabled
+        || !guarded.comparisonVisible || !/登顶 0 次/.test(guarded.local) || !/登顶 1 次/.test(guarded.remote)
+        || !/覆盖云端.*替换本机/.test(guarded.choiceHelp)) {
         errors.push(`cloud conflict must preserve ${conflictCase.name} local data instead of treating it as empty: ` + JSON.stringify(guarded));
       }
     }
@@ -3515,6 +3521,12 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
 
   await clickSelector(cdp, "#openTrainingButton");
   await waitUntil("recommendation practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  const next = await evaluate(cdp, `(() => {
+    const label = document.querySelector("#nextPracticeLabel");
+    return { text: label.textContent, visible: label.getBoundingClientRect().height > 0 };
+  })()`);
+  if (!next.visible || next.text !== "下一项 · R3 Style") errors.push("collapsed Practice should advertise its next recommended drill");
+  await openSettingsGroup(cdp, ".settings-group-plan");
   await openSettingsGroup(cdp, ".settings-group-training");
   await openSettingsGroup(cdp, ".practice-subgroup-advanced");
   const surfaces = await waitUntil("all recommendation surfaces render from the seeded evidence", () => evaluate(cdp, `(() => {
@@ -3686,6 +3698,32 @@ async function runKeyboardSettingsSmoke(cdp, baseUrl) {
   })()`), 3500);
   await keyTap(cdp, "KeyP", "P");
   await waitUntil("practice toggles closed from keyboard P", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
+  await clickSelector(cdp, "#startSettingsButton");
+  await openSettingsGroup(cdp, ".settings-group-controls");
+  await clickSelector(cdp, '[data-preset-choice="classic"]');
+  await clickSelector(cdp, "#settingsClose");
+  await evaluate(cdp, `(() => {
+    Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => [] });
+    const prototype = CanvasRenderingContext2D.prototype;
+    const original = prototype.fillText;
+    window.__summitIntroLines = [];
+    prototype.fillText = function(text, x, y, ...rest) {
+      if (y === 28 || y === 43) window.__summitIntroLines.push(text);
+      return original.call(this, text, x, y, ...rest);
+    };
+    window.__summitRestoreIntroProbe = () => { prototype.fillText = original; };
+  })()`);
+  try {
+    await clickSelector(cdp, "#startButton");
+    await waitUntil("classic preset renders the actual keys and a separate restart line", () => evaluate(cdp, `(() => {
+      const lines = window.__summitIntroLines;
+      return lines.some((line) => /C 跳 · X 冲 · Z 抓/.test(line))
+        && lines.some((line) => line === "R 快速重开 · T 重开本房");
+    })()`));
+  } finally {
+    await evaluate(cdp, "window.__summitRestoreIntroProbe()");
+  }
+
 }
 
 async function runAssistModeSmoke(cdp, baseUrl) {
@@ -4527,11 +4565,19 @@ async function runMobileSmoke(cdp, baseUrl) {
     };
     const foregroundLum = luminance(recoveryForeground);
     const backgroundLum = luminance(recoveryBackground);
+    const submitStyle = getComputedStyle(document.querySelector("#accountSubmit"));
+    const submitText = luminance(parseRgba(submitStyle.color));
+    const submitStops = submitStyle.backgroundImage.match(/rgb\\([^)]*\\)/g) || [];
+    const submitContrast = submitStops.length ? Math.min(...submitStops.map((stop) => {
+      const fill = luminance(parseRgba(stop));
+      return (Math.max(fill, submitText) + 0.05) / (Math.min(fill, submitText) + 0.05);
+    })) : 0;
     return {
       outlineWidth: style.outlineWidth,
       outlineColor: style.outlineColor,
       recoveryHeight: recovery.getBoundingClientRect().height,
       modeNote: document.querySelector('#accountNote').textContent,
+      submitContrast,
       recoveryContrast: Number(((Math.max(foregroundLum, backgroundLum) + 0.05) / (Math.min(foregroundLum, backgroundLum) + 0.05)).toFixed(2)),
       codePressed: code?.getAttribute("aria-pressed") || "",
       passwordPressed: tab?.getAttribute("aria-pressed") || ""
@@ -4543,6 +4589,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     || signInTabLayout.recoveryHeight < 44
     || !/首次使用请选择邮箱验证码/.test(signInTabLayout.modeNote)
     || signInTabLayout.recoveryContrast < 4.5
+    || signInTabLayout.submitContrast < 4.5
     || signInTabLayout.codePressed !== "false"
     || signInTabLayout.passwordPressed !== "true"
   ) {
@@ -4587,13 +4634,13 @@ async function runMobileSmoke(cdp, baseUrl) {
       panelHeight: Math.round(panel.height),
       viewportHeight: innerHeight,
       emptyTail: last ? Math.round(dock.top - last.bottom) : 999,
-      allCollapsed: groups.length === 2 && groups.every((group) => !group.open),
+      allCollapsed: groups.length === 3 && groups.every((group) => !group.open),
       dockVisible: dock.height >= 44 && dock.bottom <= panel.bottom + 1,
       bounded: panel.top >= 0 && panel.bottom <= innerHeight
     };
   })()`);
   if (!collapsedPracticeFit.allCollapsed || !collapsedPracticeFit.dockVisible || !collapsedPracticeFit.bounded || collapsedPracticeFit.emptyTail > 28 || collapsedPracticeFit.panelHeight > collapsedPracticeFit.viewportHeight * 0.56) {
-    errors.push("collapsed mobile Practice should fit its two choices and launch action instead of leaving an empty full-height workspace: " + JSON.stringify(collapsedPracticeFit));
+    errors.push("collapsed mobile Practice should fit its collapsed choices and launch action instead of leaving an empty full-height workspace: " + JSON.stringify(collapsedPracticeFit));
   }
   const roomGroupOpen = await evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`);
   if (!roomGroupOpen) {

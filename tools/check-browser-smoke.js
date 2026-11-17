@@ -2548,9 +2548,12 @@ async function runExpiredAccountHintSmoke(cdp, baseUrl) {
 }
 
 async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `(() => {
+  const originalFlow = await evaluate(cdp, `(() => {
     sessionStorage.removeItem("summit-spark-entry-mode");
     localStorage.setItem("summit-spark-account-hint", "1");
+    const flow = localStorage.getItem("summit-spark-best-flow");
+    localStorage.setItem("summit-spark-best-flow", "77");
+    return flow;
   })()`);
   const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `(() => {
@@ -2561,8 +2564,22 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
       class Account {
         async get() { return { $id: "smoke-user", email: "signed-in@example.com" }; }
       }
+      const nativeSetTimeout = window.setTimeout.bind(window);
+      window.setTimeout = (callback, delay, ...args) =>
+        nativeSetTimeout(callback, delay === 10000 ? 300 : delay, ...args);
+      window.__summitInspectionReads = 0;
       class TablesDB {
-        async getRow() { throw { code: 500, message: "smoke cloud read skipped" }; }
+        async getRow() {
+          const read = ++window.__summitInspectionReads;
+          if (read === 1) throw { code: 404, type: "table_not_found", message: "Test table unavailable" };
+          if (read === 2) {
+            return new Promise((resolve) => { window.__summitLateInspection = resolve; });
+          }
+          return {
+            archive: JSON.stringify({ kind: "summit-spark-save", schemaVersion: 1, storage: {} }),
+            $updatedAt: "2026-11-18T00:00:00.000Z"
+          };
+        }
       }
       window.Appwrite = { Client, Account, TablesDB };
     })();`
@@ -2611,12 +2628,43 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
       || failedInspectionPermissions.logoutDisabled) {
       errors.push("failed cloud inspection must keep both replacement actions locked while preserving logout: " + JSON.stringify(failedInspectionPermissions));
     }
+    await clickSelector(cdp, "#startSettingsButton");
+    await clickSelector(cdp, ".settings-group-account > summary");
+    await clickSelector(cdp, "#cloudRetryButton");
+    await waitUntil("a stalled cloud read offers another retry while keeping save choices locked", () => evaluate(cdp, `(() => {
+      const retry = document.querySelector("#cloudRetryButton");
+      return window.__summitInspectionReads === 2
+        && !retry.hidden && !retry.disabled
+        && /读取超时/.test(document.querySelector("#cloudSyncStatus").textContent)
+        && document.querySelector("#cloudUploadButton").disabled
+        && document.querySelector("#cloudDownloadButton").disabled;
+    })()`));
+    await clickSelector(cdp, "#cloudRetryButton");
+    await waitUntil("cloud retry recovers choices with both saves available and local progress retained", () => evaluate(cdp, `(() => {
+      const retry = document.querySelector("#cloudRetryButton");
+      return window.__summitInspectionReads === 3 && retry.hidden
+        && !document.querySelector("#cloudComparison").hidden
+        && !document.querySelector("#cloudUploadButton").disabled
+        && !document.querySelector("#cloudDownloadButton").disabled
+        && localStorage.getItem("summit-spark-best-flow") === "77";
+    })()`));
+    await evaluate(cdp, `window.__summitLateInspection({ archive: "invalid late response" })`);
+    await sleep(100);
+    if (!await evaluate(cdp, `!document.querySelector("#cloudComparison").hidden && !document.querySelector("#cloudDownloadButton").disabled`)) {
+      errors.push("cloud read results arriving after timeout must not replace the recovered comparison");
+    }
+    await clickSelector(cdp, "#settingsClose");
   } finally {
     if (injected.identifier) {
       await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
     }
     await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
-    await evaluate(cdp, `localStorage.removeItem("summit-spark-account-hint")`);
+    await evaluate(cdp, `(() => {
+      localStorage.removeItem("summit-spark-account-hint");
+      const flow = ${JSON.stringify(originalFlow)};
+      if (flow === null) localStorage.removeItem("summit-spark-best-flow");
+      else localStorage.setItem("summit-spark-best-flow", flow);
+    })()`);
   }
 }
 

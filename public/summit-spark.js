@@ -201,20 +201,20 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261109-p314"),
-    import("./modules/core/math.mjs?v=20261109-p314"),
-    import("./modules/game/room-data.mjs?v=20261109-p314"),
-    import("./modules/game/world-model.mjs?v=20261109-p314"),
-    import("./modules/game/effect-budget.mjs?v=20261109-p314"),
-    import("./modules/game/landmark-progress.mjs?v=20261109-p314"),
-    import("./modules/game/audio-cues.mjs?v=20261109-p314"),
-    import("./modules/game/lumen-progress.mjs?v=20261109-p314"),
-    import("./modules/systems/storage.mjs?v=20261109-p314"),
-    import("./modules/systems/cloud-save.mjs?v=20261109-p314"),
-    import("./modules/systems/input.mjs?v=20261109-p314"),
-    import("./modules/training/state.mjs?v=20261109-p314"),
-    import("./modules/training/replay.mjs?v=20261109-p314"),
-    import("./modules/ui/presentation.mjs?v=20261109-p314")
+    import("./modules/core/format.mjs?v=20261118-p315"),
+    import("./modules/core/math.mjs?v=20261118-p315"),
+    import("./modules/game/room-data.mjs?v=20261118-p315"),
+    import("./modules/game/world-model.mjs?v=20261118-p315"),
+    import("./modules/game/effect-budget.mjs?v=20261118-p315"),
+    import("./modules/game/landmark-progress.mjs?v=20261118-p315"),
+    import("./modules/game/audio-cues.mjs?v=20261118-p315"),
+    import("./modules/game/lumen-progress.mjs?v=20261118-p315"),
+    import("./modules/systems/storage.mjs?v=20261118-p315"),
+    import("./modules/systems/cloud-save.mjs?v=20261118-p315"),
+    import("./modules/systems/input.mjs?v=20261118-p315"),
+    import("./modules/training/state.mjs?v=20261118-p315"),
+    import("./modules/training/replay.mjs?v=20261118-p315"),
+    import("./modules/ui/presentation.mjs?v=20261118-p315")
   ]);
 
   const canvas = document.getElementById("game");
@@ -307,6 +307,7 @@
   const accountLogoutButton = document.getElementById("accountLogout");
   const accountStatus = document.getElementById("accountStatus");
   const cloudSyncStatus = document.getElementById("cloudSyncStatus");
+  const cloudRetryButton = document.getElementById("cloudRetryButton");
   const cloudComparison = document.getElementById("cloudComparison");
   const localSaveSummary = document.getElementById("localSaveSummary");
   const remoteSaveSummary = document.getElementById("remoteSaveSummary");
@@ -433,6 +434,7 @@
   const APPWRITE_SAVES_TABLE_ID = "saves";
   const CLOUD_SYNC_DELAY_MS = 1800;
   const ACCOUNT_RESTORE_TIMEOUT_MS = 6500;
+  const CLOUD_INSPECTION_TIMEOUT_MS = 10000;
   const ENTRY_MODE_SESSION_KEY = "summit-spark-entry-mode";
   const ACCOUNT_HINT_STORAGE_KEY = "summit-spark-account-hint";
   const ACCOUNT_OTP_SESSION_KEY = "summit-spark-otp-user";
@@ -806,6 +808,7 @@
   let cloudSyncReady = false;
   let cloudSyncBusy = false;
   let cloudInspectionPending = false;
+  let cloudInspectionNeedsRetry = false;
   let cloudRemoteUsable = false;
   let cloudUploadPermitted = false;
   let cloudSyncTimer = 0;
@@ -1515,6 +1518,11 @@
   accountLogoutButton?.addEventListener("click", logoutAccount);
   cloudUploadButton?.addEventListener("click", () => uploadCloudSave({ force: true }));
   cloudDownloadButton?.addEventListener("click", downloadCloudSave);
+  cloudRetryButton?.addEventListener("click", () => {
+    if (!accountUser || cloudSyncBusy || cloudInspectionPending || !cloudInspectionNeedsRetry) return;
+    if (document.activeElement === cloudRetryButton) cloudSyncStatus?.focus({ preventScroll: true });
+    inspectCloudSave();
+  });
   roomSelect?.addEventListener("change", () => {
     const target = Number(roomSelect.value);
     if (Number.isInteger(target) && target >= 0 && target < maps.length) {
@@ -2069,7 +2077,6 @@
   function openAccountPanel() {
     accountFocused = true;
     openPanel("settings");
-    flushDeferredAccountUi();
     if (!accountSdk) loadAppwriteSdk();
     if (accountGroup) {
       document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
@@ -2084,7 +2091,7 @@
             cloudComparison.focus({ preventScroll: true });
             return;
           }
-          const cloudAction = [cloudUploadButton, cloudDownloadButton]
+          const cloudAction = [cloudUploadButton, cloudDownloadButton, cloudRetryButton]
             .find((button) => button && !button.disabled && button.getClientRects().length > 0);
           cloudAction?.focus({ preventScroll: true });
         } else if (recoverySecret) accountPasswordInput?.focus({ preventScroll: true });
@@ -2110,6 +2117,7 @@
     syncSettingsVisibility();
     settingsPanel.scrollTop = 0;
     syncSettingsPanel();
+    if (panelMode === "settings") flushDeferredAccountUi();
     setGameStatus(panelMode === "practice" ? "练习面板已打开" : "设置已打开，游戏暂停");
     settingsCloseButton?.focus({ preventScroll: true });
   }
@@ -6566,14 +6574,13 @@
       }
       accountUser = await accountSdk.account.get();
       accountSessionGeneration += 1;
-      const loginGeneration = accountSessionGeneration;
-      setAccountBusy(false);
-      await finishAccountLogin(loginGeneration);
     } catch (error) {
       setAccountStatus(friendlyAccountError(error), "error");
+      return;
     } finally {
       setAccountBusy(false);
     }
+    await finishAccountLogin(accountSessionGeneration);
   }
 
   async function sendPasswordRecovery() {
@@ -6603,6 +6610,7 @@
     cloudRow = null;
     cloudSyncReady = false;
     cloudInspectionPending = false;
+    cloudInspectionNeedsRetry = false;
     cloudRemoteUsable = false;
     cloudUploadPermitted = false;
     cloudSaveDirty = false;
@@ -6623,26 +6631,39 @@
       && accountUser?.$id === expectedUserId;
     cloudSyncReady = false;
     cloudInspectionPending = true;
+    cloudInspectionNeedsRetry = false;
     cloudRemoteUsable = false;
     cloudUploadPermitted = false;
     setCloudStatus("正在检查云端进度", "检查中");
     syncCloudActionAvailability();
     let inspectedRow = null;
+    let timeoutId;
     try {
-      inspectedRow = await accountSdk.tables.getRow({
-        databaseId: APPWRITE_DATABASE_ID,
-        tableId: APPWRITE_SAVES_TABLE_ID,
-        rowId: expectedUserId
-      });
+      inspectedRow = await Promise.race([
+        accountSdk.tables.getRow({
+          databaseId: APPWRITE_DATABASE_ID,
+          tableId: APPWRITE_SAVES_TABLE_ID,
+          rowId: expectedUserId
+        }),
+        new Promise((_, reject) => {
+          timeoutId = window.setTimeout(() => reject({ type: "cloud_inspection_timeout" }), CLOUD_INSPECTION_TIMEOUT_MS);
+        })
+      ]);
     } catch (error) {
       if (!sessionIsCurrent()) return;
-      if (Number(error?.code) !== 404) {
+      if (Number(error?.code) !== 404 || error?.type !== "row_not_found") {
         cloudInspectionPending = false;
+        cloudInspectionNeedsRetry = true;
         syncCloudActionAvailability();
-        setCloudStatus("云端读取失败", "读取失败");
-        setAccountStatus(friendlyAccountError(error), "error");
+        const timedOut = error?.type === "cloud_inspection_timeout";
+        setCloudStatus(timedOut ? "云端读取超时" : "云端读取失败", "读取失败");
+        setAccountStatus(timedOut
+          ? "云端暂未响应。本机存档已保留，可重新检查云存档。"
+          : `${friendlyAccountError(error)}。可重新检查云存档。`, "error");
         return;
       }
+    } finally {
+      window.clearTimeout(timeoutId);
     }
     if (!sessionIsCurrent()) return;
     cloudRow = inspectedRow;
@@ -6749,6 +6770,10 @@
     const signedIn = Boolean(accountUser);
     if (cloudUploadButton) cloudUploadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudUploadPermitted;
     if (cloudDownloadButton) cloudDownloadButton.disabled = !signedIn || cloudSyncBusy || cloudInspectionPending || !cloudRemoteUsable;
+    if (cloudRetryButton) {
+      cloudRetryButton.hidden = !signedIn || !cloudInspectionNeedsRetry;
+      cloudRetryButton.disabled = cloudSyncBusy || cloudInspectionPending;
+    }
     syncCloudComparison();
   }
 
@@ -6780,7 +6805,7 @@
   }
 
   function flushDeferredAccountUi() {
-    if (!settingsVisible || !accountFocused) return;
+    if (!settingsVisible || panelMode !== "settings") return;
     const pendingStatus = deferredAccountStatus;
     const pendingCloud = deferredCloudStatus;
     if (deferredAccountUi) syncAccountUi();
@@ -6844,6 +6869,8 @@
         cloudSyncReady = false;
         cloudSyncFlushRequested = false;
         cloudRemoteUsable = false;
+        cloudInspectionNeedsRetry = !error.remoteKnown;
+        cloudUploadPermitted = error.remoteKnown;
         if (error.remoteKnown) {
           cloudRow = error.remoteRow;
           if (cloudRow?.archive) {
@@ -6852,7 +6879,11 @@
           }
         }
         setCloudStatus("云端进度已变化，本地进度已保留", "待确认");
-        setAccountStatus("另一设备更新了云存档。请选择“使用云端”或“上传本地”，确认后将自动同步");
+        if (cloudInspectionNeedsRetry) {
+          setAccountStatus("暂时无法读取更新后的云存档。本机存档已保留，请重新检查云存档。", "error");
+        } else {
+          setAccountStatus("另一设备更新了云存档。请选择“使用云端”或“上传本地”，确认后将自动同步");
+        }
       } else {
         setCloudStatus("同步失败，本地进度已保留", "同步失败");
         setAccountStatus(friendlyAccountError(error), "error");
@@ -6932,6 +6963,7 @@
       cloudRow = null;
       cloudSyncReady = false;
       cloudInspectionPending = false;
+      cloudInspectionNeedsRetry = false;
       cloudRemoteUsable = false;
       cloudUploadPermitted = false;
       cloudSaveDirty = false;

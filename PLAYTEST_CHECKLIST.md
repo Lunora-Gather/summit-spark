@@ -14,7 +14,7 @@ This checklist begins only after `npm run check` and `npm run browser-smoke` pas
 
 - Start from a clean profile without opening Settings or Practice first.
 - Confirm the start choice and primary action are obvious at normal viewing distance.
-- Verify the first room uses one short input line for a clean profile, including `R` quick retry and `T` room restart, then does not show a redundant Move → Jump → Dash strip or routine coaching cards; labelled touch controls remain the only persistent input labels during touch play.
+- With a clean profile, wait at the R1 start and read the keyboard or gamepad guide. Verify that it stays readable until play begins and that its separate restart line distinguishes the last checkpoint from the room start. Once the guide disappears, check that no redundant Move → Jump → Dash strip or routine coaching cards appear. The labelled touch controls remain the only persistent input labels during touch play.
 - Confirm free play remains visually quiet: no training report, split analysis or extra cards compete with the route.
 - Note the first death, the first point of uncertainty and any place where the player pauses for more than 20 seconds.
 - Open and close Settings and Practice once. Judge discoverability and visual weight; deterministic focus and click-through behavior is already covered by browser smoke.

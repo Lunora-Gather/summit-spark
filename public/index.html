@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20261118-p315">
+  <meta name="build-version" content="20261118-p316">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20261118-p315">
+  <link rel="stylesheet" href="summit-spark.css?v=20261118-p316">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -42,6 +42,12 @@
           <button class="icon-button practice-icon" id="practiceButton" type="button" aria-label="练习" aria-controls="settingsPanel" aria-expanded="false">&#9678;</button>
           <button class="icon-button" id="settingsButton" type="button" aria-label="设置" aria-controls="settingsPanel" aria-expanded="false">&#9881;</button>
         </div>
+      </div>
+
+      <div class="opening-guide" id="openingGuide" hidden>
+        <strong>R1 · 起势山门</strong>
+        <span id="openingGuideControls"></span>
+        <span id="openingGuideRestart"></span>
       </div>
 
       <pre class="debug-panel hidden" id="debugPanel" aria-hidden="true"></pre>
@@ -429,8 +435,8 @@
         <button type="button" data-touch="dash" aria-label="冲刺">冲</button>
       </div>
       <div class="touch-cluster touch-system" aria-label="重开">
-        <button type="button" data-touch-command="retry" aria-label="快速重开（R）" title="快速重开（R）">↻</button>
-        <button type="button" data-touch-command="roomRestart" aria-label="从房间起点重开（T）" title="从房间起点重开（T）">房</button>
+        <button type="button" data-touch-command="retry" aria-label="回到检查点" title="回到检查点">↻</button>
+        <button type="button" data-touch-command="roomRestart" aria-label="重开本房" title="回到房间起点">房</button>
       </div>
     </div>
     <aside class="portrait-brief" id="portraitBrief" aria-hidden="true">
@@ -440,6 +446,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20261118-p315"></script>
+  <script src="summit-spark.js?v=20261118-p316"></script>
 </body>
 </html>

@@ -201,20 +201,20 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261118-p315"),
-    import("./modules/core/math.mjs?v=20261118-p315"),
-    import("./modules/game/room-data.mjs?v=20261118-p315"),
-    import("./modules/game/world-model.mjs?v=20261118-p315"),
-    import("./modules/game/effect-budget.mjs?v=20261118-p315"),
-    import("./modules/game/landmark-progress.mjs?v=20261118-p315"),
-    import("./modules/game/audio-cues.mjs?v=20261118-p315"),
-    import("./modules/game/lumen-progress.mjs?v=20261118-p315"),
-    import("./modules/systems/storage.mjs?v=20261118-p315"),
-    import("./modules/systems/cloud-save.mjs?v=20261118-p315"),
-    import("./modules/systems/input.mjs?v=20261118-p315"),
-    import("./modules/training/state.mjs?v=20261118-p315"),
-    import("./modules/training/replay.mjs?v=20261118-p315"),
-    import("./modules/ui/presentation.mjs?v=20261118-p315")
+    import("./modules/core/format.mjs?v=20261118-p316"),
+    import("./modules/core/math.mjs?v=20261118-p316"),
+    import("./modules/game/room-data.mjs?v=20261118-p316"),
+    import("./modules/game/world-model.mjs?v=20261118-p316"),
+    import("./modules/game/effect-budget.mjs?v=20261118-p316"),
+    import("./modules/game/landmark-progress.mjs?v=20261118-p316"),
+    import("./modules/game/audio-cues.mjs?v=20261118-p316"),
+    import("./modules/game/lumen-progress.mjs?v=20261118-p316"),
+    import("./modules/systems/storage.mjs?v=20261118-p316"),
+    import("./modules/systems/cloud-save.mjs?v=20261118-p316"),
+    import("./modules/systems/input.mjs?v=20261118-p316"),
+    import("./modules/training/state.mjs?v=20261118-p316"),
+    import("./modules/training/replay.mjs?v=20261118-p316"),
+    import("./modules/ui/presentation.mjs?v=20261118-p316")
   ]);
 
   const canvas = document.getElementById("game");
@@ -250,6 +250,10 @@
   const runTimeText = document.getElementById("runTime");
   const deathCountText = document.getElementById("deathCount");
   const debugPanel = document.getElementById("debugPanel");
+  const openingGuide = document.getElementById("openingGuide");
+  const openingGuideControls = document.getElementById("openingGuideControls");
+  const openingGuideRestart = document.getElementById("openingGuideRestart");
+  const coarsePointerQuery = window.matchMedia?.("(pointer: coarse)");
   const gameTip = document.getElementById("gameTip");
   const gameTipTitle = document.getElementById("gameTipTitle");
   const gameTipDetail = document.getElementById("gameTipDetail");
@@ -446,6 +450,7 @@
   const NEAR_MISS_COOLDOWN = 0.48;
   const ECHO_RECALL_COOLDOWN = 0.32;
   const ROOM_INTRO_TIME = 1.2;
+  const OPENING_GUIDE_TIME = 3.6;
   const CHAPTER_RAMP_INTRO_TIME = 2.1;
   const CHAPTER_RAMP_ROOMS = new Set([6, 7]);
   const RESPAWN_RECOVERY_TIME = 0.34;
@@ -670,6 +675,7 @@
     roomRestart: false,
     pause: false
   };
+  let lastGameplayInput = "";
   let lastGamepadStatusText = "";
   let lastGamepadStatus = {
     supported: false,
@@ -827,6 +833,7 @@
   let echoLessonTimer = 0;
   let echoLessonShown = false;
   let roomIntroTimer = ROOM_INTRO_TIME;
+  let openingGuideTimer = 0;
   let chapterTransitionTimer = 0;
   let chapterTransitionChapter = 0;
   let chapterTransitionFromChapter = -1;
@@ -956,6 +963,8 @@
       return;
     }
     if (textEntry) return;
+    if ((!started || won) && event.target instanceof HTMLButtonElement
+      && (event.code === "Enter" || event.code === "Space")) return;
     if (settingsVisible && event.code !== "KeyO" && event.code !== "KeyP" && event.code !== "F3") {
       return;
     }
@@ -966,6 +975,7 @@
     }
     const firstPress = pressInput(keys, pressed, event.code);
     if (firstPress) {
+      if (Object.values(effectiveBindings()).includes(event.code)) lastGameplayInput = "keyboard";
       queueAction(event.code);
     }
     if (event.code === "F3" && firstPress) {
@@ -977,7 +987,7 @@
     if (event.code === "KeyP" && firstPress) {
       togglePracticePanel();
     }
-    if (!started && isStartCode(event.code)) {
+    if (canStartFromMenu() && isStartCode(event.code)) {
       begin();
     }
     if (isActionCode(event.code, "retry") && firstPress && started) {
@@ -1636,6 +1646,7 @@
       const transition = transitionDigitalInput(touch, touchPressed, action, value);
       button.classList.toggle("active", value);
       if (transition.pressed) {
+        lastGameplayInput = "touch";
         if (action === "jump") setInputBuffer(player, "jump", JUMP_BUFFER_TIME);
         if (action === "dash") setInputBuffer(player, "dash", DASH_BUFFER_TIME);
         if (actionPulse[action] !== undefined) actionPulse[action] = ACTION_PULSE_TIME;
@@ -1674,6 +1685,7 @@
         begin();
         return;
       }
+      lastGameplayInput = "touch";
       const command = button.getAttribute("data-touch-command");
       if (command === "retry") {
         if (won) hardReset();
@@ -1914,7 +1926,8 @@
     clearGrabToggle();
     resetActionVisuals();
     triggerActionVisual("spawn", 0.32);
-    roomIntroTimer = openingIntroDuration(index);
+    openingGuideTimer = 0;
+    roomIntroTimer = roomIntroDuration(index);
     routeCueTimer = 0;
     routeCueReason = "";
   }
@@ -1941,25 +1954,52 @@
     return !hasRoomResult && (profile.summitClears || 0) === 0;
   }
 
-  function openingIntroDuration(index = roomIndex) {
-    if (index === 0 && needsOpeningControlsHint()) return 3.6;
-    return roomIntroDuration(index);
-  }
-
   function roomIntroDuration(index = roomIndex) {
     return CHAPTER_RAMP_ROOMS.has(index) ? CHAPTER_RAMP_INTRO_TIME : ROOM_INTRO_TIME;
   }
 
-  function openingControlHint() {
-    if (window.matchMedia?.("(pointer: coarse)")?.matches) return ["方向键移动 · 跳／冲／抓", "↻ 快速重开 · 房 重开本房"];
-    if (lastGamepadStatus.connected) return ["摇杆移 · A 跳 · B 冲 · 肩抓", "View 快速重开 · 双摇杆按下 重开本房"];
+  function gameplayInputSource() {
+    if (lastGameplayInput && (lastGameplayInput !== "gamepad" || lastGamepadStatus.connected)) {
+      return lastGameplayInput;
+    }
+    return coarsePointerQuery?.matches ? "touch" : "keyboard";
+  }
+
+  function restartControlHint(source, bindings = effectiveBindings()) {
+    if (source === "gamepad") return "View 回到检查点 · 双摇杆按下 重开本房";
+    if (source === "touch") return "↻ 回到检查点 · 房 重开本房";
+    return `${keyCodeLabel(bindings.retry)} 回到检查点 · ${keyCodeLabel(bindings.roomRestart)} 重开本房`;
+  }
+
+  function startOpeningGuide() {
+    if (activeDrill || activeChallenge || activeRouteContract || activeFeelFixture || !needsOpeningControlsHint()) return;
+    openingGuideTimer = OPENING_GUIDE_TIME;
+    roomIntroTimer = 0;
+  }
+
+  function syncOpeningGuide() {
+    const hidden = !started || won || roomIndex !== 0 || openingGuideTimer <= 0
+      || settingsVisible || gameTipVisible();
+    const source = hidden ? "" : gameplayInputSource();
+    const show = source === "keyboard" || source === "gamepad";
+    if (openingGuide.hidden === show) {
+      openingGuide.hidden = !show;
+      if (show) canvas.setAttribute("aria-describedby", openingGuide.id);
+      else canvas.removeAttribute("aria-describedby");
+    }
+    if (!show) return;
+
     const bindings = effectiveBindings();
     const key = (action) => keyCodeLabel(bindings[action]);
     const movement = ["up", "left", "down", "right"].map(key).join("/");
-    return [
-      `${movement} 移 · ${key("jump")} 跳 · ${key("dash")} 冲 · ${key("grab")} 抓`,
-      `${key("retry")} 快速重开 · ${key("roomRestart")} 重开本房`
-    ];
+    setElementText(openingGuideControls, source === "gamepad"
+      ? "左摇杆移动／定向 · A 跳跃 · B 冲刺 · 肩键抓墙"
+      : `${movement} 移动／定向 · ${key("jump")} 跳跃 · ${key("dash")} 冲刺 · ${key("grab")} 抓墙`);
+    setElementText(openingGuideRestart, restartControlHint(source, bindings));
+  }
+
+  function canStartFromMenu() {
+    return !started && !settingsVisible && !startPanel.classList.contains("entry-pending");
   }
 
   function begin() {
@@ -1969,7 +2009,8 @@
     }
     started = true;
     focusPaused = false;
-    roomIntroTimer = openingIntroDuration(0);
+    roomIntroTimer = roomIntroDuration(0);
+    startOpeningGuide();
     clearTransientTrainingResults();
     unlockAudio();
     overlay.classList.add("hidden");
@@ -2047,6 +2088,7 @@
     else canvas.setAttribute("inert", "");
     canvas.setAttribute("aria-hidden", String(!available));
     canvas.tabIndex = available ? 0 : -1;
+    syncOpeningGuide();
   }
 
   function resumeRecommendedTraining() {
@@ -2237,6 +2279,8 @@
     overlay.scrollTop = 0;
     syncGameplayAccessibility();
     resetToStart(0);
+    startOpeningGuide();
+    syncOpeningGuide();
     refreshRoomSelectOptions();
     updateHud();
     setGameStatus(openingActStatus("游戏重开"));
@@ -2450,8 +2494,11 @@
     if (!started || won) {
       updateGamepad();
       inputEdgesConsumed = true;
-      if (!started && (gamepadPressed.has("jump") || gamepadPressed.has("dash"))) {
+      if (canStartFromMenu() && (gamepadPressed.has("jump") || gamepadPressed.has("dash"))) {
         begin();
+      } else if (!started && !settingsVisible && gamepadPressed.has("jump")
+        && entryGate && !entryGate.classList.contains("hidden")) {
+        resolveEntryMode("guest");
       }
     }
 
@@ -2485,6 +2532,7 @@
       if (paused) updateHud();
     }
 
+    syncOpeningGuide();
     render(now / 1000);
     if (inputEdgesConsumed) clearInputEdges(pressed, touchPressed, gamepadPressed);
     scheduleFrame();
@@ -3811,6 +3859,7 @@
 
   function respawn(options = {}) {
     roomIndex = player.respawnRoom;
+    openingGuideTimer = 0;
     resetCurrentRoomLumenAttempt();
     restoreRespawnLumenSnapshot();
     room = parseRoom(roomIndex);
@@ -3876,7 +3925,7 @@
     respawnRecoveryTimer = RESPAWN_RECOVERY_TIME;
     restorePlayableFocus();
     if (options.preserveInputBuffers) {
-      setGameStatus(`已恢复 · R${roomIndex + 1} · R 快速重开 / T 房间重开`);
+      setGameStatus(`已恢复 · R${roomIndex + 1} · ${restartControlHint(gameplayInputSource())}`);
     }
     burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", 7, 190);
   }
@@ -5591,6 +5640,9 @@
       supported,
       deadzone: settings.gamepadDeadzone
     });
+    if (!settingsVisible && resolved.status.activeActions.some((action) => !gamepadInput[action])) {
+      lastGameplayInput = "gamepad";
+    }
     Object.assign(gamepadInput, resolved.input);
     lastGamepadStatus = resolved.status;
     updateGamepadStatusOutput();
@@ -7896,6 +7948,8 @@
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
     echoLessonTimer = Math.max(0, echoLessonTimer - dt);
     roomIntroTimer = Math.max(0, roomIntroTimer - dt);
+    if (roomIndex !== 0) openingGuideTimer = 0;
+    else if (timingArmed && openingGuideTimer > 0) openingGuideTimer = Math.max(0, openingGuideTimer - dt);
     splitPopupTimer = Math.max(0, splitPopupTimer - (chapterBreathing ? 0 : dt));
     feelCueTimer = Math.max(0, feelCueTimer - dt);
     routeCueTimer = Math.max(0, routeCueTimer - (chapterBreathing ? 0 : dt));
@@ -9079,12 +9133,9 @@
     const introTarget = ROOM_TARGETS[roomIndex] || 0;
     const trainingActive = Boolean(activeDrill || activeChallenge || activeRouteContract || activeFeelFixture);
     const introCompact = isCompactCanvas();
-    const openingControls = roomIndex === 0 && needsOpeningControlsHint();
     const scale = introCompact ? Math.max(1, H / Math.max(1, canvas.clientHeight)) : 1;
-    const visibleWidth = Math.min(stage.clientWidth, canvas.clientWidth);
-    const maxCardWidth = Math.max(64, (visibleWidth - 16) * W / Math.max(1, canvas.clientWidth) / scale);
-    const width = openingControls ? Math.min(286, maxCardWidth) : introCompact ? 250 : 218;
-    const height = openingControls ? 54 : introCompact ? 40 : 36;
+    const width = introCompact ? 250 : 218;
+    const height = introCompact ? 40 : 36;
     const x = -width / 2;
     ctx.save();
     // Keep the card below the fixed-height HUD when the canvas shrinks.
@@ -9122,13 +9173,7 @@
       : openingChapter
         ? `${openingChapter.title} · ${openingChapter.vow}`
         : ROOM_WHISPERS[roomIndex] || "继续向上。";
-    if (openingControls) {
-      const [movement, restart] = openingControlHint();
-      ctx.fillText(movement, 0, 28, width - 18);
-      ctx.fillText(restart, 0, 43, width - 18);
-    } else {
-      ctx.fillText(fitText(subline, width - 18), 0, 27);
-    }
+    ctx.fillText(fitText(subline, width - 18), 0, 27);
     ctx.restore();
   }
 
@@ -12682,7 +12727,12 @@
       ? `${hasProgress ? "上次训练" : "攀登起点"} · ${chapter}`
       : chapter);
     setElementText(portraitRoomTitle, `R${target + 1} · ${ROOM_NAMES[target] || "Summit"}`);
-    setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(mode)} · ` : ""}${ROOM_PURPOSES[target] || ROOM_GUIDES[target] || "保持节奏，向上。"}`);
+    const firstTouchClimb = openingGuideTimer > 0 && !startContext && target === 0
+      && gameplayInputSource() === "touch";
+    const goal = firstTouchClimb
+      ? "先跳起，按住上＋冲刺可以抬高"
+      : ROOM_PURPOSES[target] || ROOM_GUIDES[target] || "保持节奏，向上。";
+    setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(mode)} · ` : ""}${goal}`);
   }
 
   function updateHud() {

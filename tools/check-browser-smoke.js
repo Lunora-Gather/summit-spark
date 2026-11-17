@@ -423,9 +423,10 @@ async function keyDown(cdp, code, key) {
     key,
     windowsVirtualKeyCode: virtualKeyCode(code, key)
   };
-  if (key && key.length === 1) {
-    event.text = key;
-    event.unmodifiedText = key;
+  const text = key === "Enter" ? "\r" : key;
+  if (text && text.length === 1) {
+    event.text = text;
+    event.unmodifiedText = text;
   }
   await cdp.send("Input.dispatchKeyEvent", event);
 }
@@ -2425,6 +2426,17 @@ async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
     if (!entry.gateVisible || entry.checking || !entry.pending || entry.focused !== "guestEntryButton") {
       errors.push("fresh visitors should see the focused guest/email chooser immediately without waiting for account restore: " + JSON.stringify(entry));
     }
+    await evaluate(cdp, `document.querySelector("#accountEntryButton").focus()`);
+    await keyTap(cdp, "Enter", "Enter");
+    await waitUntil("Enter on email login opens the account panel without starting", () => evaluate(cdp, `
+      document.querySelector("#settingsPanel").classList.contains("account-focused")
+        && !document.querySelector("#overlay").hidden
+    `));
+    await keyTap(cdp, "Escape", "Escape");
+    await waitUntil("Escape returns to the entry chooser", () => evaluate(cdp, `
+      document.querySelector("#settingsPanel").classList.contains("hidden")
+        && !document.querySelector("#entryGate").classList.contains("hidden")
+    `));
     const preStartContext = await evaluate(cdp, `(() => {
       const canvas = document.querySelector("#game");
       canvas.dispatchEvent(new Event("contextlost", { cancelable: true }));
@@ -2432,7 +2444,11 @@ async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
       canvas.dispatchEvent(new Event("contextrestored"));
       return document.querySelector("#gameStatus")?.textContent || "";
     })()`);
-    await clickSelector(cdp, "#guestEntryButton");
+    await evaluate(cdp, `document.querySelector("#guestEntryButton").focus()`);
+    await keyTap(cdp, "Space", " ");
+    if (await evaluate(cdp, `document.querySelector("#overlay").hidden`)) {
+      errors.push("Space on the guest entry should choose guest without skipping the launch menu");
+    }
     await waitUntil("guest entry after pre-start context restore", () => evaluate(cdp, `document.querySelector("#entryGate")?.classList.contains("hidden")`));
     await clickSelector(cdp, "#startButton");
     await waitUntil("start after pre-start context restore", () => evaluate(cdp, `document.querySelector("#overlay")?.classList.contains("hidden")`));
@@ -3750,27 +3766,29 @@ async function runKeyboardSettingsSmoke(cdp, baseUrl) {
   await openSettingsGroup(cdp, ".settings-group-controls");
   await clickSelector(cdp, '[data-preset-choice="classic"]');
   await clickSelector(cdp, "#settingsClose");
-  await evaluate(cdp, `(() => {
-    Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => [] });
-    const prototype = CanvasRenderingContext2D.prototype;
-    const original = prototype.fillText;
-    window.__summitIntroLines = [];
-    prototype.fillText = function(text, x, y, ...rest) {
-      if (y === 28 || y === 43) window.__summitIntroLines.push(text);
-      return original.call(this, text, x, y, ...rest);
-    };
-    window.__summitRestoreIntroProbe = () => { prototype.fillText = original; };
-  })()`);
-  try {
-    await clickSelector(cdp, "#startButton");
-    await waitUntil("classic preset renders the actual keys and a separate restart line", () => evaluate(cdp, `(() => {
-      const lines = window.__summitIntroLines;
-      return lines.some((line) => /C 跳 · X 冲 · Z 抓/.test(line))
-        && lines.some((line) => line === "R 快速重开 · T 重开本房");
-    })()`));
-  } finally {
-    await evaluate(cdp, "window.__summitRestoreIntroProbe()");
-  }
+  await evaluate(cdp, `document.querySelector("#startButton").focus()`);
+  await keyTap(cdp, "Enter", "Enter");
+  await waitUntil("classic preset shows current keys with idle gamepad connected", () => evaluate(cdp, `(() => {
+    const guide = document.querySelector("#openingGuide");
+    const style = getComputedStyle(guide);
+    return !guide.hidden
+      && parseFloat(style.fontSize) >= 13
+      && document.querySelector("#game").getAttribute("aria-describedby") === guide.id
+      && /C 跳跃 · X 冲刺 · Z 抓墙/.test(document.querySelector("#openingGuideControls").textContent)
+      && document.querySelector("#openingGuideRestart").textContent === "R 回到检查点 · T 重开本房";
+  })()`));
+  await sleep(3800);
+  const stillReading = await evaluate(cdp, `!document.querySelector("#openingGuide").hidden && document.querySelector("#runTime").textContent === "0:00.00"`);
+  if (!stillReading) errors.push("first-time players should be able to read the guide before starting the run clock");
+
+  await evaluate(cdp, `window.__summitMockPadState.axes[0] = 1`);
+  await waitUntil("first gamepad action updates the guide", () => evaluate(cdp, `/左摇杆移动/.test(document.querySelector("#openingGuideControls").textContent)`));
+  await evaluate(cdp, `window.__summitMockPadState.axes[0] = 0`);
+  await keyTap(cdp, "KeyC", "c");
+  await waitUntil("keyboard action restores the classic guide", () => evaluate(cdp, `/C 跳跃/.test(document.querySelector("#openingGuideControls").textContent)`));
+  await waitUntil("moving removes the opening guide and canvas description", () => evaluate(cdp, `
+    document.querySelector("#openingGuide").hidden && !document.querySelector("#game").hasAttribute("aria-describedby")
+  `), 6000);
 
 }
 
@@ -4834,13 +4852,13 @@ async function runMobileSmoke(cdp, baseUrl) {
       portraitBriefGap: Math.round(stage.top - portraitBriefRect.bottom),
       portraitAtmosphere: shell.dataset.portraitChapter === "gate" && ridgeStyle.content !== "none" && ridgeStyle.clipPath !== "none",
       portraitBriefText: portraitBrief.textContent.trim(),
-      controlHintRemoved: !document.querySelector("#controlHint"),
+      controlHintRemoved: !document.querySelector("#controlHint") && document.querySelector("#openingGuide").hidden,
       retryLabels: [document.querySelector('[data-touch-command="retry"]'), document.querySelector('[data-touch-command="roomRestart"]')]
         .map((button) => (button?.getAttribute("aria-label") || "") + " " + (button?.getAttribute("title") || "")),
       stageTop: Math.round(stage.top)
     };
   })()`);
-  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || touchUi.touchContrast < 4.5 || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 380 || !touchUi.retryLabels.every((label) => /重开/.test(label) && /(R|T)/.test(label))) {
+  if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || touchUi.touchContrast < 4.5 || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 380 || !touchUi.retryLabels[0].includes("回到检查点") || !touchUi.retryLabels[1].includes("回到房间起点")) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
   await tapSelector(cdp, "#settingsButton");
@@ -5220,6 +5238,7 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
       visible: getComputedStyle(touch).display === "flex",
       buttonCount: buttons.length,
       commandCount: touch.querySelectorAll("[data-touch-command]").length,
+      openingGuideHidden: document.querySelector("#openingGuide").hidden,
       allLarge: buttons.every((button) => {
         const rect = button.getBoundingClientRect();
         return rect.width >= 44 && rect.height >= 44;
@@ -5228,7 +5247,7 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
       backdrop: getComputedStyle(buttons[0]).backdropFilter || ""
     };
   })()`);
-  if (!landscapeTouch.visible || landscapeTouch.buttonCount !== 9 || landscapeTouch.commandCount !== 2 || !landscapeTouch.allLarge || landscapeTouch.backgroundAlpha > 0.34 || !/blur\(4px\)/.test(landscapeTouch.backdrop)) {
+  if (!landscapeTouch.visible || !landscapeTouch.openingGuideHidden || landscapeTouch.buttonCount !== 9 || landscapeTouch.commandCount !== 2 || !landscapeTouch.allLarge || landscapeTouch.backgroundAlpha > 0.34 || !/blur\(4px\)/.test(landscapeTouch.backdrop)) {
     errors.push("mobile landscape touch controls should remain usable without obscuring terrain: " + JSON.stringify(landscapeTouch));
   }
   await cdp.send("Emulation.setDeviceMetricsOverride", {
@@ -5426,18 +5445,28 @@ async function runGamepadSmoke(cdp, baseUrl) {
   });
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
   await navigateApp(cdp, baseUrl, "gamepad seed");
-  await evaluate(cdp, `localStorage.setItem("summit-spark-settings", JSON.stringify({ gamepadDeadzone: 0.4, audioEnabled: false }))`);
+  await evaluate(cdp, `(() => {
+    sessionStorage.removeItem("summit-spark-entry-mode");
+    localStorage.removeItem("summit-spark-account-hint");
+    localStorage.setItem("summit-spark-settings", JSON.stringify({ gamepadDeadzone: 0.4, audioEnabled: false }));
+  })()`);
   await navigateApp(cdp, baseUrl, "gamepad clean");
-  await evaluate(cdp, `(() => {
-    window.__summitMockPadState.buttons[0].pressed = true;
-    window.__summitMockPadState.buttons[0].value = 1;
+  const holdPadJump = (pressed) => evaluate(cdp, `(() => {
+    const button = window.__summitMockPadState.buttons[0];
+    button.pressed = ${pressed};
+    button.value = ${pressed ? 1 : 0};
   })()`);
-  await waitUntil("gamepad button starts game", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`), 5000);
-  await evaluate(cdp, `(() => {
-    window.__summitMockPadState.buttons[0].pressed = false;
-    window.__summitMockPadState.buttons[0].value = 0;
-    window.__summitMockPadState.axes[0] = 0;
-  })()`);
+  await holdPadJump(true);
+  await waitUntil("first gamepad press chooses guest and leaves the launch menu visible", () => evaluate(cdp, `
+    document.querySelector("#entryGate").classList.contains("hidden")
+      && !document.querySelector("#startPanel").classList.contains("entry-pending")
+      && !document.querySelector("#overlay").hidden
+  `));
+  await holdPadJump(false);
+  await sleep(100);
+  await holdPadJump(true);
+  await waitUntil("second gamepad press starts the game", () => evaluate(cdp, `document.querySelector("#overlay").hidden`), 5000);
+  await holdPadJump(false);
   const gamepadErrorsBeforeThrow = await evaluate(cdp, `window.__earlyRuntimeErrors?.length || window.__summitEarlyRuntimeErrors?.length || 0`);
   await evaluate(cdp, `window.__summitMockPadState.throw = true`);
   await sleep(220);

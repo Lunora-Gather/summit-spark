@@ -256,6 +256,36 @@ canvas:focus {
   display: none;
 }
 
+.opening-guide {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  gap: 3px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 9px 14px;
+  transform: translateX(-50%);
+  border: 1px solid #a6bebc;
+  border-radius: 10px;
+  background: #e0ebe6;
+  color: #29434d;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.opening-guide[hidden] {
+  display: none;
+}
+
+.opening-guide strong {
+  font-size: 14px;
+}
+
 .game-tip {
   --tip-progress: 100%;
   position: absolute;

@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20261109-p314">
+  <meta name="build-version" content="20261118-p315">
   <title>山巅微光</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20261109-p314">
+  <link rel="stylesheet" href="summit-spark.css?v=20261118-p315">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -92,7 +92,7 @@
                     <span class="account-avatar" id="accountAvatar">S</span>
                     <div>
                       <strong id="accountEmailLabel">已登录</strong>
-                      <span id="cloudSyncStatus">正在检查云端进度</span>
+                      <span id="cloudSyncStatus" tabindex="-1">正在检查云端进度</span>
                     </div>
                   </div>
                   <section class="cloud-comparison" id="cloudComparison" aria-label="比较两份存档" tabindex="-1" hidden>
@@ -106,6 +106,7 @@
                     <button class="focus-button" id="cloudUploadButton" type="button" aria-describedby="cloudChoiceHelp">上传本地</button>
                     <button class="focus-button ghost" id="cloudDownloadButton" type="button" aria-describedby="cloudChoiceHelp">使用云端</button>
                   </div>
+                  <button class="focus-button ghost" id="cloudRetryButton" type="button" aria-describedby="cloudSyncStatus" hidden>重新检查云存档</button>
                   <div class="password-reset">
                     <span>设置或更改密码</span>
                     <div>
@@ -439,6 +440,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20261109-p314"></script>
+  <script src="summit-spark.js?v=20261118-p315"></script>
 </body>
 </html>

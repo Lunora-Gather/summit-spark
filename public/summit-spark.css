@@ -8249,6 +8249,14 @@ textarea,
 }
 
 /* Keep comparison and next-step information readable within their existing sheets. */
+#cloudRetryButton {
+  min-height: 44px;
+}
+
+#cloudRetryButton[hidden] {
+  display: none;
+}
+
 .cloud-comparison:not([hidden]) {
   display: grid;
   gap: 8px;

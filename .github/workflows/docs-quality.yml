@@ -53,6 +53,11 @@ jobs:
       - run: npm ci
       - run: sudo safaridriver --enable
       - run: npm run test:safari
+      - name: Select standard motion and full keyboard tab navigation
+        run: |
+          defaults write com.apple.universalaccess reduceMotion -bool false
+          defaults write -g AppleKeyboardUIMode -int 3
+          defaults write com.apple.Safari WebKitTabToLinksPreferenceKey -bool true
       - name: Verify desktop and account regressions in native Safari
         run: node tools/check-browser-smoke.js --native-safari
 

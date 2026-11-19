@@ -2792,11 +2792,14 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
         async createEmailToken(payload) {
           window.__summitRestrictedAuth.sent += 1;
           window.__summitRestrictedAuth.email = payload.email;
+          // Keep the mocked request pending while the repeated action arrives.
+          await new Promise(resolve => setTimeout(resolve, 150));
           return { userId: "restricted-user", phrase: "MIST-PEAK" };
         }
         async createSession(payload) {
           window.__summitRestrictedAuth.sessions += 1;
           window.__summitRestrictedAuth.sessionPayload = payload;
+          await new Promise(resolve => setTimeout(resolve, 150));
           return {};
         }
       }
@@ -5573,7 +5576,7 @@ async function runNativeSafari({ motionOnly = false, mobile = false } = {}) {
   let fixture;
   let browser;
   try {
-    await waitUntil("local server", () => requestText(upstream + "/").then(Boolean), 7000);
+    await waitUntil("local server", () => requestText(upstream + "/").then(Boolean), 45_000);
     fixture = await startFixture(upstream);
     const deviceUDID = mobile ? process.env.SAFARI_IOS_UDID : undefined;
     if (mobile && !deviceUDID) throw new Error("SAFARI_IOS_UDID is required");

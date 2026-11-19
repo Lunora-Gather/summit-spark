@@ -5,7 +5,7 @@ Use this before publishing a public demo update. Deterministic behavior belongs 
 ## Automated Gate
 
 1. Run `npm run check`.
-2. Run `npm run browser-smoke` on a machine with Chrome or Edge.
+2. Enable Safari’s Allow Remote Automation on macOS and run `npm run browser-smoke`.
 3. Run `git diff --check`.
 4. Run `node tools/export-room-data.js --check`.
 5. Confirm `public/index.html` is the only HTML entry and its build meta, CSS query, main-script query and all runtime module queries use the intended release version.

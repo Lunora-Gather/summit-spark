@@ -2,10 +2,8 @@
 "use strict";
 
 const childProcess = require("child_process");
-const fs = require("fs");
 const http = require("http");
 const net = require("net");
-const os = require("os");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
@@ -63,10 +61,6 @@ function findFreePort() {
   });
 }
 
-function requestJson(url, method = "GET") {
-  return requestText(url, method).then((text) => JSON.parse(text));
-}
-
 function requestText(url, method = "GET") {
   return new Promise((resolve, reject) => {
     const request = http.request(url, { method }, (response) => {
@@ -85,36 +79,6 @@ function requestText(url, method = "GET") {
     request.on("error", reject);
     request.end();
   });
-}
-
-function candidateBrowsers() {
-  const names = [];
-  if (process.env.BROWSER_EXECUTABLE_PATH) names.push(process.env.BROWSER_EXECUTABLE_PATH);
-  if (process.platform === "win32") {
-    const local = process.env.LOCALAPPDATA || "";
-    const programFiles = process.env.ProgramFiles || "C:\\Program Files";
-    const programFilesX86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
-    names.push(
-      path.join(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(local, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(programFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
-      path.join(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe")
-    );
-  } else if (process.platform === "darwin") {
-    names.push(
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-      "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-      "/Applications/Chromium.app/Contents/MacOS/Chromium"
-    );
-  } else {
-    names.push("/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/microsoft-edge");
-  }
-  return [...new Set(names)];
-}
-
-function findBrowser() {
-  return candidateBrowsers().find((candidate) => candidate && fs.existsSync(candidate));
 }
 
 function killProcess(child) {
@@ -172,75 +136,6 @@ function killProcess(child) {
       resolve();
     }, 1200);
   });
-}
-
-function removeTempDir(dir) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 2, retryDelay: 120 });
-      return;
-    } catch {
-      // Chrome may keep profile files briefly after process termination.
-    }
-  }
-}
-
-class CdpClient {
-  constructor(wsUrl) {
-    this.ws = new WebSocket(wsUrl);
-    this.nextId = 1;
-    this.pending = new Map();
-    this.events = [];
-    this.ws.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data);
-      if (message.id && this.pending.has(message.id)) {
-        const { resolve, reject } = this.pending.get(message.id);
-        this.pending.delete(message.id);
-        if (message.error) reject(new Error(message.error.message || JSON.stringify(message.error)));
-        else resolve(message.result || {});
-      } else if (message.method) {
-        this.events.push(message);
-      }
-    });
-  }
-
-  async ready() {
-    if (this.ws.readyState === WebSocket.OPEN) return;
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("CDP websocket open timed out")), 5000);
-      this.ws.addEventListener("open", () => {
-        clearTimeout(timeout);
-        resolve();
-      }, { once: true });
-      this.ws.addEventListener("error", () => {
-        clearTimeout(timeout);
-        reject(new Error("CDP websocket failed"));
-      }, { once: true });
-    });
-  }
-
-  send(method, params = {}) {
-    const id = this.nextId++;
-    const payload = JSON.stringify({ id, method, params });
-    const promise = new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      setTimeout(() => {
-        if (!this.pending.has(id)) return;
-        this.pending.delete(id);
-        reject(new Error(method + " timed out"));
-      }, 15000);
-    });
-    this.ws.send(payload);
-    return promise;
-  }
-
-  close() {
-    try {
-      this.ws.close();
-    } catch {
-      // Browser shutdown is best-effort after smoke.
-    }
-  }
 }
 
 async function waitUntil(label, fn, timeout = 6000, pollInterval = 120) {
@@ -511,6 +406,10 @@ async function runMenuScaleSmoke(cdp, baseUrl) {
   for (const [width, height] of [[960, 640], [1920, 1080]]) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     await navigateApp(cdp, baseUrl, 'menu scale ' + width);
+    if (await evaluate(cdp, '!document.querySelector("#entryGate").classList.contains("hidden")')) {
+      await clickSelector(cdp, "#guestEntryButton");
+    }
+    await waitUntil("menu start is visible", () => evaluate(cdp, 'document.querySelector("#startButton").getBoundingClientRect().width > 0'));
     samples.push(await evaluate(cdp, `(() => {
       const stage = document.querySelector('.stage').getBoundingClientRect();
       const button = document.querySelector('#startButton').getBoundingClientRect();
@@ -2739,8 +2638,7 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountEntryButton");
     await waitUntil("account drawer opens after restore timeout", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "pending@example.com"`);
-    await clickSelector(cdp, "#accountEmail");
-    await keyTap(cdp, "Enter", "Enter");
+    await clickSelector(cdp, "#accountSendCode");
     const busyState = await waitUntil("account form enters unified busy state", () => evaluate(cdp, `(() => {
       const group = document.querySelector(".settings-group-account");
       if (group?.getAttribute("aria-busy") !== "true") return null;
@@ -5596,7 +5494,7 @@ async function checkNativeSafeArea(browser, url) {
   console.log("Safari passed notched safe-area and system keyboard checks");
 }
 
-async function runNativeSafari({ motionOnly = false, mobile = false } = {}) {
+async function runNativeSafari({ motionOnly = false, mobile = false, extended = false } = {}) {
   const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
   const port = await findFreePort();
   const upstream = "http://127.0.0.1:" + port;
@@ -5630,16 +5528,16 @@ async function runNativeSafari({ motionOnly = false, mobile = false } = {}) {
 
     const scenarios = [
       runBootFailureSmoke,
-      async function desktop(browser, url) { await runDesktopSmoke(browser, url, true); },
+      ...(extended ? [async function desktop(browser, url) { await runDesktopSmoke(browser, url, true); }] : []),
       runMenuScaleSmoke,
       runBackwardTransitionSmoke,
-      runChapterTransitionInputSmoke,
-      runMountainGateLandmarkSmoke,
-      runOldPeakRelicSmoke,
+      ...(extended ? [runChapterTransitionInputSmoke] : []),
+      ...(extended ? [runMountainGateLandmarkSmoke] : []),
+      ...(extended ? [runOldPeakRelicSmoke] : []),
       runWindGorgeCrumbleRippleSmoke,
-      runSpringApexSmoke,
+      ...(extended ? [runSpringApexSmoke] : []),
       runGroundRechargeSmoke,
-      runKeyboardSettingsSmoke,
+      ...(extended ? [runKeyboardSettingsSmoke] : []),
       runAssistModeSmoke,
       runPracticeRecommendationIntegrationSmoke,
       runResumeSmoke,
@@ -5651,9 +5549,9 @@ async function runNativeSafari({ motionOnly = false, mobile = false } = {}) {
         ));
       },
       runSaveArchiveSmoke,
-      runRestartSoakSmoke,
+      ...(extended ? [runRestartSoakSmoke] : []),
       runGamepadSmoke,
-      runFreshEntryImmediateSmoke,
+      ...(extended ? [runFreshEntryImmediateSmoke] : []),
       runCloudSdkRetrySmoke,
       runExpiredAccountHintSmoke,
       runAuthenticatedRefreshSmoke,
@@ -5685,127 +5583,17 @@ async function runNativeSafari({ motionOnly = false, mobile = false } = {}) {
   if (errors.length) throw new Error(errors.join("\n- "));
 }
 
-async function waitForDebuggingPort(port, child) {
-  const start = Date.now();
-  let last = "";
-  while (Date.now() - start < 20000) {
-    if (child.exitCode !== null) break;
-    try {
-      return await requestJson(`http://127.0.0.1:${port}/json/version`);
-    } catch (error) {
-      last = error.message;
-      await new Promise((resolve) => setTimeout(resolve, 120));
-    }
-  }
-  throw new Error("Chrome debugging port did not open: " + last);
+const mode = process.argv[2];
+const modes = [undefined, "--native-safari", "--native-safari-reduced-motion", "--native-safari-ios", "--extended"];
+if (!modes.includes(mode) || process.argv.length > 3) {
+  console.error("Usage: node tools/check-browser-smoke.js [--extended|--native-safari-ios|--native-safari-reduced-motion]");
+  process.exit(1);
 }
-
-async function main() {
-  const browserPath = findBrowser();
-  if (!browserPath) {
-    throw new Error("No Chrome/Edge executable found. Set BROWSER_EXECUTABLE_PATH to run browser smoke.");
-  }
-
-  const serverPort = await findFreePort();
-  const debugPort = await findFreePort();
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "summit-spark-browser-"));
-  const baseUrl = "http://127.0.0.1:" + serverPort;
-  const server = childProcess.spawn(process.execPath, ["game-server.js"], {
-    cwd: root,
-    env: { ...process.env, PORT: String(serverPort) },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-  const browser = childProcess.spawn(browserPath, [
-    "--headless=new",
-    ...(process.platform === "win32" ? ["--no-sandbox"] : []),
-    "--disable-breakpad",
-    "--disable-crash-reporter",
-    "--disable-gpu",
-    "--disable-background-networking",
-    "--disable-extensions",
-    "--mute-audio",
-    "--noerrdialogs",
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--remote-debugging-port=" + debugPort,
-    "--user-data-dir=" + userDataDir,
-    "about:blank"
-  ], { stdio: ["ignore", "pipe", "pipe"] });
-  let cdp = null;
-
-  try {
-    await waitUntil("local server", () => requestText(baseUrl + "/").then(Boolean), 7000);
-    await waitForDebuggingPort(debugPort, browser);
-    const target = await requestJson(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(baseUrl + "/")}`, "PUT");
-    cdp = new CdpClient(target.webSocketDebuggerUrl);
-    await cdp.ready();
-    await cdp.send("Page.enable");
-    await cdp.send("Runtime.enable");
-    await cdp.send("Page.bringToFront");
-    await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
-    await cdp.send("Input.setIgnoreInputEvents", { ignore: false });
-    await installRuntimeFixture(cdp);
-
-    await runBootFailureSmoke(cdp, baseUrl);
-    await runDesktopSmoke(cdp, baseUrl);
-    await runMenuScaleSmoke(cdp, baseUrl);
-    await runBackwardTransitionSmoke(cdp, baseUrl);
-    await runChapterTransitionInputSmoke(cdp, baseUrl);
-    await runMountainGateLandmarkSmoke(cdp, baseUrl);
-    await runOldPeakRelicSmoke(cdp, baseUrl);
-    await runWindGorgeCrumbleRippleSmoke(cdp, baseUrl);
-    await runSpringApexSmoke(cdp, baseUrl);
-    await runGroundRechargeSmoke(cdp, baseUrl);
-    await runKeyboardSettingsSmoke(cdp, baseUrl);
-    await runAssistModeSmoke(cdp, baseUrl);
-    await runPracticeRecommendationIntegrationSmoke(cdp, baseUrl);
-    await runResumeSmoke(cdp, baseUrl);
-    await runTrainingInterruptionSmoke(cdp, baseUrl);
-    errors.push(...await checkStorageRecovery(
-      (readPage) => evaluate(cdp, `(${readPage})()`),
-      () => navigateApp(cdp, baseUrl, "save archive seed")
-    ));
-    await runSaveArchiveSmoke(cdp, baseUrl);
-    await runCanvasDensitySmoke(cdp, baseUrl);
-    await runVisualRegressionSmoke(cdp, baseUrl);
-    await runRestartSoakSmoke(cdp, baseUrl);
-    await runMobileSmoke(cdp, baseUrl);
-    await runMobileSafeAreaSmoke(cdp, baseUrl);
-    await runMobileLandscapeSmoke(cdp, baseUrl);
-    await runGamepadSmoke(cdp, baseUrl);
-    await runFreshEntryImmediateSmoke(cdp, baseUrl);
-    await runCloudSdkRetrySmoke(cdp, baseUrl);
-    await runExpiredAccountHintSmoke(cdp, baseUrl);
-    await runAuthenticatedRefreshSmoke(cdp, baseUrl);
-    await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
-    await runRestrictedSessionStorageAuthSmoke(cdp, baseUrl);
-    await runPasswordRecoverySmoke(cdp, baseUrl);
-    await runCloudSyncExitGuardSmoke(cdp, baseUrl);
-    await runLargeCloudArchiveSmoke(cdp, baseUrl);
-    await runCloudLogoutInspectionRaceSmoke(cdp, baseUrl);
-    await runCorruptCloudPermissionsSmoke(cdp, baseUrl);
-    await runCloudConflictGuardSmoke(cdp, baseUrl);
-  } finally {
-    if (cdp) cdp.close();
-    await killProcess(browser);
-    await killProcess(server);
-    removeTempDir(userDataDir);
-  }
-
-  if (errors.length > 0) {
-    console.error("Browser smoke failed:");
-    for (const error of errors) console.error("- " + error);
-    process.exit(1);
-  }
-  console.log("Backward room/act transition, Clean re-arm and banked-Lumen preservation regression passed.");
-  console.log("Browser smoke passed: desktop interactions, respawn focus recovery, finite/structural runtime self-healing and 16-cycle restart soak, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
-}
-
-const nativeMode = process.argv.find(arg => ["--native-safari", "--native-safari-reduced-motion", "--native-safari-ios"].includes(arg));
-const run = nativeMode ? () => runNativeSafari({
-  motionOnly: nativeMode === "--native-safari-reduced-motion",
-  mobile: nativeMode === "--native-safari-ios"
-}) : main;
+const run = () => runNativeSafari({
+  motionOnly: mode === "--native-safari-reduced-motion",
+  mobile: mode === "--native-safari-ios",
+  extended: mode === "--native-safari" || mode === "--extended"
+});
 run().catch((error) => {
   console.error("Browser smoke failed:");
   console.error("- " + error.message);

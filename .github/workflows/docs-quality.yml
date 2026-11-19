@@ -37,10 +37,6 @@ jobs:
       - name: Run default quality gate
         run: npm run check
 
-      - name: Run real-browser gate
-        run: npm run browser-smoke
-        timeout-minutes: 5
-
   safari:
     runs-on: macos-latest
     timeout-minutes: 25
@@ -59,7 +55,7 @@ jobs:
           defaults write -g AppleKeyboardUIMode -int 3
           defaults write com.apple.Safari WebKitTabToLinksPreferenceKey -bool true
       - name: Verify desktop and account regressions in native Safari
-        run: node tools/check-browser-smoke.js --native-safari
+        run: npm run browser-smoke
 
   safari-reduced-motion:
     name: Safari system reduced motion

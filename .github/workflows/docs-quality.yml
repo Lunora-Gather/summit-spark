@@ -43,7 +43,7 @@ jobs:
 
   safari:
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -53,5 +53,19 @@ jobs:
       - run: npm ci
       - run: sudo safaridriver --enable
       - run: npm run test:safari
-      - name: Verify startup and account regressions in native Safari
+      - name: Verify desktop and account regressions in native Safari
         run: node tools/check-browser-smoke.js --native-safari
+
+  safari-reduced-motion:
+    name: Safari system reduced motion
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: sudo safaridriver --enable
+      - run: defaults write com.apple.universalaccess reduceMotion -bool true
+      - run: node tools/check-browser-smoke.js --native-safari-reduced-motion

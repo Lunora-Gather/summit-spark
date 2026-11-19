@@ -572,7 +572,20 @@ async function runBackwardTransitionSmoke(cdp, baseUrl) {
   }
 }
 
-async function runDesktopSmoke(cdp, baseUrl) {
+async function checkReducedMotion(cdp) {
+  const reducedMotionState = await waitUntil("reduced motion preference", () => evaluate(cdp, `(() => {
+    const stage = document.querySelector(".stage");
+    const canvas = document.querySelector("#game");
+    return stage.classList.contains("reduced-motion")
+      ? { matches: matchMedia("(prefers-reduced-motion: reduce)").matches, stageClass: true, canvasTransition: getComputedStyle(canvas).transitionDuration, transitionSeconds: parseFloat(getComputedStyle(canvas).transitionDuration) }
+      : null;
+  })()`));
+  if (!reducedMotionState.matches || !reducedMotionState.stageClass || !Number.isFinite(reducedMotionState.transitionSeconds) || reducedMotionState.transitionSeconds > 0.001) {
+    errors.push("system reduced-motion preference should quiet both UI transitions and nonessential canvas ambience: " + JSON.stringify(reducedMotionState));
+  }
+}
+
+async function runDesktopSmoke(cdp, baseUrl, useSystemMotion = false) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
     height: 720,
@@ -767,23 +780,19 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || JSON.stringify(menuStyle.guestStyle) !== JSON.stringify(startupVisual.guestStyle)) {
     errors.push('entry and main menu must share the actual title and primary-button design: ' + JSON.stringify({ startupVisual, menuStyle }));
   }
-  await cdp.send("Emulation.setEmulatedMedia", {
-    features: [{ name: "prefers-reduced-motion", value: "reduce" }]
-  });
-  const reducedMotionState = await waitUntil("reduced motion preference", () => evaluate(cdp, `(() => {
-    const stage = document.querySelector(".stage");
-    const canvas = document.querySelector("#game");
-    return stage.classList.contains("reduced-motion")
-      ? { matches: matchMedia("(prefers-reduced-motion: reduce)").matches, stageClass: true, canvasTransition: getComputedStyle(canvas).transitionDuration, transitionSeconds: parseFloat(getComputedStyle(canvas).transitionDuration) }
-      : null;
-  })()`));
-  if (!reducedMotionState.matches || !reducedMotionState.stageClass || !Number.isFinite(reducedMotionState.transitionSeconds) || reducedMotionState.transitionSeconds > 0.001) {
-    errors.push("system reduced-motion preference should quiet both UI transitions and nonessential canvas ambience: " + JSON.stringify(reducedMotionState));
+  if (useSystemMotion) {
+    await waitUntil("default system motion", () => evaluate(cdp, `!matchMedia("(prefers-reduced-motion: reduce)").matches
+      && !document.querySelector(".stage").classList.contains("reduced-motion")`));
+  } else {
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "reduce" }]
+    });
+    await checkReducedMotion(cdp);
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "no-preference" }]
+    });
+    await waitUntil("reduced motion preference clears", () => evaluate(cdp, `!document.querySelector(".stage").classList.contains("reduced-motion")`));
   }
-  await cdp.send("Emulation.setEmulatedMedia", {
-    features: [{ name: "prefers-reduced-motion", value: "no-preference" }]
-  });
-  await waitUntil("reduced motion preference clears", () => evaluate(cdp, `!document.querySelector(".stage").classList.contains("reduced-motion")`));
   const initial = await evaluate(cdp, `({
     build: document.querySelector('meta[name="build-version"]')?.content || "",
     ready: document.documentElement.classList.contains("app-ready"),
@@ -2817,7 +2826,9 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountEntryButton");
     await waitUntil("restricted storage account drawer opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
-    await evaluate(cdp, `document.querySelector("#accountSendCode").click(); document.querySelector("#accountSendCode").click()`);
+    await evaluate(cdp, `(() => {
+      for (let click = 0; click < 2; click++) document.querySelector("#accountSendCode").click();
+    })()`);
     const sent = await waitUntil("OTP send remains successful when session storage is blocked", () => evaluate(cdp, `(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       return window.__summitRestrictedAuth?.sent >= 1 && /验证码已发送/.test(status)
@@ -2855,7 +2866,9 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountSendCode");
     await waitUntil("third OTP issued after guarded mismatch", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 3`));
     await evaluate(cdp, `document.querySelector("#accountCode").value = "123456"`);
-    await evaluate(cdp, `document.querySelector("#accountSubmit").click(); document.querySelector("#accountSubmit").click()`);
+    await evaluate(cdp, `(() => {
+      for (let click = 0; click < 2; click++) document.querySelector("#accountSubmit").click();
+    })()`);
     const signedIn = await waitUntil("OTP login remains successful when session cleanup is blocked", () => evaluate(cdp, `(() => {
       const mock = window.__summitRestrictedAuth;
       const email = document.querySelector("#accountEmailLabel")?.textContent || "";
@@ -5493,7 +5506,7 @@ async function installRuntimeFixture(cdp) {
     });
 }
 
-async function runNativeDesktop() {
+async function runNativeDesktop({ motionOnly = false } = {}) {
   const { launchDesktopSafari, startFixture } = require("./safari-smoke-transport.cjs");
   const port = await findFreePort();
   const upstream = "http://127.0.0.1:" + port;
@@ -5511,8 +5524,39 @@ async function runNativeDesktop() {
     const { url } = fixture;
     await installRuntimeFixture(browser);
 
-    for (const scenario of [
+    if (motionOnly) {
+      await navigateApp(browser, url, "Safari reduced motion");
+      await checkReducedMotion(browser);
+      if (errors.length) throw new Error(errors.join("\n- "));
+      console.log("Safari passed system reduced-motion preference and canvas transitions");
+      return;
+    }
+
+    const scenarios = [
       runBootFailureSmoke,
+      async function desktop(browser, url) { await runDesktopSmoke(browser, url, true); },
+      runMenuScaleSmoke,
+      runBackwardTransitionSmoke,
+      runChapterTransitionInputSmoke,
+      runMountainGateLandmarkSmoke,
+      runOldPeakRelicSmoke,
+      runWindGorgeCrumbleRippleSmoke,
+      runSpringApexSmoke,
+      runGroundRechargeSmoke,
+      runKeyboardSettingsSmoke,
+      runAssistModeSmoke,
+      runPracticeRecommendationIntegrationSmoke,
+      runResumeSmoke,
+      runTrainingInterruptionSmoke,
+      async function storageRecovery(browser, url) {
+        errors.push(...await checkStorageRecovery(
+          readPage => evaluate(browser, `(${readPage})()`),
+          () => navigateApp(browser, url, "save archive seed")
+        ));
+      },
+      runSaveArchiveSmoke,
+      runRestartSoakSmoke,
+      runGamepadSmoke,
       runFreshEntryImmediateSmoke,
       runCloudSdkRetrySmoke,
       runExpiredAccountHintSmoke,
@@ -5525,7 +5569,8 @@ async function runNativeDesktop() {
       runCloudLogoutInspectionRaceSmoke,
       runCorruptCloudPermissionsSmoke,
       runCloudConflictGuardSmoke
-    ]) {
+    ];
+    for (const scenario of scenarios) {
       const errorCount = errors.length;
       try {
         await scenario(browser, url);
@@ -5660,7 +5705,8 @@ async function main() {
   console.log("Browser smoke passed: desktop interactions, respawn focus recovery, finite/structural runtime self-healing and 16-cycle restart soak, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
-(process.argv.includes("--native-safari") ? runNativeDesktop() : main()).catch((error) => {
+const nativeMode = process.argv.find(arg => ["--native-safari", "--native-safari-reduced-motion"].includes(arg));
+(nativeMode ? runNativeDesktop({ motionOnly: nativeMode === "--native-safari-reduced-motion" }) : main()).catch((error) => {
   console.error("Browser smoke failed:");
   console.error("- " + error.message);
   process.exit(1);

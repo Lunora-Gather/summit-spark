@@ -2853,7 +2853,8 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     })()`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
     await clickSelector(cdp, "#accountSendCode");
-    await waitUntil("fresh OTP issued after email change", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 2`));
+    await waitUntil("fresh OTP issued after email change", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 2
+      && /验证码已发送/.test(document.querySelector('#accountStatus')?.textContent || '')`));
     await evaluate(cdp, `(() => {
       document.querySelector("#accountEmail").value = "autofill-change@example.com";
       document.querySelector("#accountCode").value = "123456";
@@ -2867,7 +2868,8 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     })()`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
     await clickSelector(cdp, "#accountSendCode");
-    await waitUntil("third OTP issued after guarded mismatch", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 3`));
+    await waitUntil("third OTP issued after guarded mismatch", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 3
+      && /验证码已发送/.test(document.querySelector('#accountStatus')?.textContent || '')`));
     await evaluate(cdp, `document.querySelector("#accountCode").value = "123456"`);
     await evaluate(cdp, `(() => {
       for (let click = 0; click < 2; click++) document.querySelector("#accountSubmit").click();

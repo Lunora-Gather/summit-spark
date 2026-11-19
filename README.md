@@ -107,8 +107,11 @@ npm run check
 # 首次运行先执行 npm ci，并在 Safari 开发者设置中开启“允许远程自动化”
 npm run test:safari
 
-# 完整的 Chromium 专项回归
+# 系统 Safari 的账号、存档和玩法回归，也是 CI 和发布检查使用的入口
 npm run browser-smoke
+
+# 在系统 Safari 试跑仍在迁移的用例
+npm run browser-smoke -- --extended
 ```
 
 部署后逐文件核对线上版本：

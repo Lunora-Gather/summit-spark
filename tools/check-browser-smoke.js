@@ -2,10 +2,8 @@
 "use strict";
 
 const childProcess = require("child_process");
-const fs = require("fs");
 const http = require("http");
 const net = require("net");
-const os = require("os");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
@@ -63,10 +61,6 @@ function findFreePort() {
   });
 }
 
-function requestJson(url, method = "GET") {
-  return requestText(url, method).then((text) => JSON.parse(text));
-}
-
 function requestText(url, method = "GET") {
   return new Promise((resolve, reject) => {
     const request = http.request(url, { method }, (response) => {
@@ -85,36 +79,6 @@ function requestText(url, method = "GET") {
     request.on("error", reject);
     request.end();
   });
-}
-
-function candidateBrowsers() {
-  const names = [];
-  if (process.env.BROWSER_EXECUTABLE_PATH) names.push(process.env.BROWSER_EXECUTABLE_PATH);
-  if (process.platform === "win32") {
-    const local = process.env.LOCALAPPDATA || "";
-    const programFiles = process.env.ProgramFiles || "C:\\Program Files";
-    const programFilesX86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
-    names.push(
-      path.join(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(local, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(programFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
-      path.join(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe")
-    );
-  } else if (process.platform === "darwin") {
-    names.push(
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-      "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-      "/Applications/Chromium.app/Contents/MacOS/Chromium"
-    );
-  } else {
-    names.push("/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/microsoft-edge");
-  }
-  return [...new Set(names)];
-}
-
-function findBrowser() {
-  return candidateBrowsers().find((candidate) => candidate && fs.existsSync(candidate));
 }
 
 function killProcess(child) {
@@ -174,75 +138,6 @@ function killProcess(child) {
   });
 }
 
-function removeTempDir(dir) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 2, retryDelay: 120 });
-      return;
-    } catch {
-      // Chrome may keep profile files briefly after process termination.
-    }
-  }
-}
-
-class CdpClient {
-  constructor(wsUrl) {
-    this.ws = new WebSocket(wsUrl);
-    this.nextId = 1;
-    this.pending = new Map();
-    this.events = [];
-    this.ws.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data);
-      if (message.id && this.pending.has(message.id)) {
-        const { resolve, reject } = this.pending.get(message.id);
-        this.pending.delete(message.id);
-        if (message.error) reject(new Error(message.error.message || JSON.stringify(message.error)));
-        else resolve(message.result || {});
-      } else if (message.method) {
-        this.events.push(message);
-      }
-    });
-  }
-
-  async ready() {
-    if (this.ws.readyState === WebSocket.OPEN) return;
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("CDP websocket open timed out")), 5000);
-      this.ws.addEventListener("open", () => {
-        clearTimeout(timeout);
-        resolve();
-      }, { once: true });
-      this.ws.addEventListener("error", () => {
-        clearTimeout(timeout);
-        reject(new Error("CDP websocket failed"));
-      }, { once: true });
-    });
-  }
-
-  send(method, params = {}) {
-    const id = this.nextId++;
-    const payload = JSON.stringify({ id, method, params });
-    const promise = new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      setTimeout(() => {
-        if (!this.pending.has(id)) return;
-        this.pending.delete(id);
-        reject(new Error(method + " timed out"));
-      }, 15000);
-    });
-    this.ws.send(payload);
-    return promise;
-  }
-
-  close() {
-    try {
-      this.ws.close();
-    } catch {
-      // Browser shutdown is best-effort after smoke.
-    }
-  }
-}
-
 async function waitUntil(label, fn, timeout = 6000, pollInterval = 120) {
   const start = Date.now();
   let last = "";
@@ -265,7 +160,7 @@ async function evaluate(cdp, expression) {
     awaitPromise: true,
     returnByValue: true
   });
-  if (result.exceptionDetails) throw new Error("Evaluation failed: " + expression);
+  if (result.exceptionDetails) throw new Error("Evaluation failed: " + (result.exceptionDetails.text ?? result.exceptionDetails) + "\n" + expression);
   return result.result ? result.result.value : undefined;
 }
 
@@ -462,14 +357,18 @@ async function windowKeyHold(cdp, code, key, ms = 300) {
 async function canvasInkSummary(cdp) {
   return evaluate(cdp, `(() => {
     const canvas = document.querySelector("#game");
-    const context = canvas.getContext("2d");
-    const { width, height } = canvas;
+    const sample = document.createElement("canvas");
+    sample.width = Math.min(256, canvas.width);
+    sample.height = Math.max(1, Math.round(canvas.height * sample.width / canvas.width));
+    const context = sample.getContext("2d", { willReadFrequently: true });
+    const { width, height } = sample;
+    context.drawImage(canvas, 0, 0, width, height);
     const data = context.getImageData(0, 0, width, height).data;
     const first = [data[0], data[1], data[2], data[3]];
     let varied = 0;
     let bright = 0;
     let samples = 0;
-    const step = Math.max(8, Math.floor(Math.min(width, height) / 32));
+    const step = Math.max(1, Math.floor(Math.min(width, height) / 32));
     for (let y = 0; y < height; y += step) {
       for (let x = 0; x < width; x += step) {
         const i = (y * width + x) * 4;
@@ -507,6 +406,10 @@ async function runMenuScaleSmoke(cdp, baseUrl) {
   for (const [width, height] of [[960, 640], [1920, 1080]]) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     await navigateApp(cdp, baseUrl, 'menu scale ' + width);
+    if (await evaluate(cdp, '!document.querySelector("#entryGate").classList.contains("hidden")')) {
+      await clickSelector(cdp, "#guestEntryButton");
+    }
+    await waitUntil("menu start is visible", () => evaluate(cdp, 'document.querySelector("#startButton").getBoundingClientRect().width > 0'));
     samples.push(await evaluate(cdp, `(() => {
       const stage = document.querySelector('.stage').getBoundingClientRect();
       const button = document.querySelector('#startButton').getBoundingClientRect();
@@ -572,7 +475,20 @@ async function runBackwardTransitionSmoke(cdp, baseUrl) {
   }
 }
 
-async function runDesktopSmoke(cdp, baseUrl) {
+async function checkReducedMotion(cdp) {
+  const reducedMotionState = await waitUntil("reduced motion preference", () => evaluate(cdp, `(() => {
+    const stage = document.querySelector(".stage");
+    const canvas = document.querySelector("#game");
+    return stage.classList.contains("reduced-motion")
+      ? { matches: matchMedia("(prefers-reduced-motion: reduce)").matches, stageClass: true, canvasTransition: getComputedStyle(canvas).transitionDuration, transitionSeconds: parseFloat(getComputedStyle(canvas).transitionDuration) }
+      : null;
+  })()`));
+  if (!reducedMotionState.matches || !reducedMotionState.stageClass || !Number.isFinite(reducedMotionState.transitionSeconds) || reducedMotionState.transitionSeconds > 0.001) {
+    errors.push("system reduced-motion preference should quiet both UI transitions and nonessential canvas ambience: " + JSON.stringify(reducedMotionState));
+  }
+}
+
+async function runDesktopSmoke(cdp, baseUrl, useSystemMotion = false) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
     height: 720,
@@ -767,23 +683,19 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || JSON.stringify(menuStyle.guestStyle) !== JSON.stringify(startupVisual.guestStyle)) {
     errors.push('entry and main menu must share the actual title and primary-button design: ' + JSON.stringify({ startupVisual, menuStyle }));
   }
-  await cdp.send("Emulation.setEmulatedMedia", {
-    features: [{ name: "prefers-reduced-motion", value: "reduce" }]
-  });
-  const reducedMotionState = await waitUntil("reduced motion preference", () => evaluate(cdp, `(() => {
-    const stage = document.querySelector(".stage");
-    const canvas = document.querySelector("#game");
-    return stage.classList.contains("reduced-motion")
-      ? { matches: matchMedia("(prefers-reduced-motion: reduce)").matches, stageClass: true, canvasTransition: getComputedStyle(canvas).transitionDuration, transitionSeconds: parseFloat(getComputedStyle(canvas).transitionDuration) }
-      : null;
-  })()`));
-  if (!reducedMotionState.matches || !reducedMotionState.stageClass || !Number.isFinite(reducedMotionState.transitionSeconds) || reducedMotionState.transitionSeconds > 0.001) {
-    errors.push("system reduced-motion preference should quiet both UI transitions and nonessential canvas ambience: " + JSON.stringify(reducedMotionState));
+  if (useSystemMotion) {
+    await waitUntil("default system motion", () => evaluate(cdp, `!matchMedia("(prefers-reduced-motion: reduce)").matches
+      && !document.querySelector(".stage").classList.contains("reduced-motion")`));
+  } else {
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "reduce" }]
+    });
+    await checkReducedMotion(cdp);
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "no-preference" }]
+    });
+    await waitUntil("reduced motion preference clears", () => evaluate(cdp, `!document.querySelector(".stage").classList.contains("reduced-motion")`));
   }
-  await cdp.send("Emulation.setEmulatedMedia", {
-    features: [{ name: "prefers-reduced-motion", value: "no-preference" }]
-  });
-  await waitUntil("reduced motion preference clears", () => evaluate(cdp, `!document.querySelector(".stage").classList.contains("reduced-motion")`));
   const initial = await evaluate(cdp, `({
     build: document.querySelector('meta[name="build-version"]')?.content || "",
     ready: document.documentElement.classList.contains("app-ready"),
@@ -2726,8 +2638,7 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountEntryButton");
     await waitUntil("account drawer opens after restore timeout", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "pending@example.com"`);
-    await clickSelector(cdp, "#accountEmail");
-    await keyTap(cdp, "Enter", "Enter");
+    await clickSelector(cdp, "#accountSendCode");
     const busyState = await waitUntil("account form enters unified busy state", () => evaluate(cdp, `(() => {
       const group = document.querySelector(".settings-group-account");
       if (group?.getAttribute("aria-busy") !== "true") return null;
@@ -2783,11 +2694,14 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
         async createEmailToken(payload) {
           window.__summitRestrictedAuth.sent += 1;
           window.__summitRestrictedAuth.email = payload.email;
+          // Keep the mocked request pending while the repeated action arrives.
+          await new Promise(resolve => setTimeout(resolve, 150));
           return { userId: "restricted-user", phrase: "MIST-PEAK" };
         }
         async createSession(payload) {
           window.__summitRestrictedAuth.sessions += 1;
           window.__summitRestrictedAuth.sessionPayload = payload;
+          await new Promise(resolve => setTimeout(resolve, 150));
           return {};
         }
       }
@@ -2817,7 +2731,9 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     await clickSelector(cdp, "#accountEntryButton");
     await waitUntil("restricted storage account drawer opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
-    await evaluate(cdp, `document.querySelector("#accountSendCode").click(); document.querySelector("#accountSendCode").click()`);
+    await evaluate(cdp, `(() => {
+      for (let click = 0; click < 2; click++) document.querySelector("#accountSendCode").click();
+    })()`);
     const sent = await waitUntil("OTP send remains successful when session storage is blocked", () => evaluate(cdp, `(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       return window.__summitRestrictedAuth?.sent >= 1 && /验证码已发送/.test(status)
@@ -2839,7 +2755,8 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     })()`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
     await clickSelector(cdp, "#accountSendCode");
-    await waitUntil("fresh OTP issued after email change", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 2`));
+    await waitUntil("fresh OTP issued after email change", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 2
+      && /验证码已发送/.test(document.querySelector('#accountStatus')?.textContent || '')`));
     await evaluate(cdp, `(() => {
       document.querySelector("#accountEmail").value = "autofill-change@example.com";
       document.querySelector("#accountCode").value = "123456";
@@ -2853,9 +2770,12 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     })()`));
     await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
     await clickSelector(cdp, "#accountSendCode");
-    await waitUntil("third OTP issued after guarded mismatch", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 3`));
+    await waitUntil("third OTP issued after guarded mismatch", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 3
+      && /验证码已发送/.test(document.querySelector('#accountStatus')?.textContent || '')`));
     await evaluate(cdp, `document.querySelector("#accountCode").value = "123456"`);
-    await evaluate(cdp, `document.querySelector("#accountSubmit").click(); document.querySelector("#accountSubmit").click()`);
+    await evaluate(cdp, `(() => {
+      for (let click = 0; click < 2; click++) document.querySelector("#accountSubmit").click();
+    })()`);
     const signedIn = await waitUntil("OTP login remains successful when session cleanup is blocked", () => evaluate(cdp, `(() => {
       const mock = window.__summitRestrictedAuth;
       const email = document.querySelector("#accountEmailLabel")?.textContent || "";
@@ -5473,66 +5393,8 @@ async function runGamepadSmoke(cdp, baseUrl) {
   if (!/pad dz 0\.16/.test(moved.text)) errors.push("debug panel did not report updated gamepad deadzone");
 }
 
-async function waitForDebuggingPort(port, child) {
-  const start = Date.now();
-  let last = "";
-  while (Date.now() - start < 20000) {
-    if (child.exitCode !== null) break;
-    try {
-      return await requestJson(`http://127.0.0.1:${port}/json/version`);
-    } catch (error) {
-      last = error.message;
-      await new Promise((resolve) => setTimeout(resolve, 120));
-    }
-  }
-  throw new Error("Chrome debugging port did not open: " + last);
-}
-
-async function main() {
-  const browserPath = findBrowser();
-  if (!browserPath) {
-    throw new Error("No Chrome/Edge executable found. Set BROWSER_EXECUTABLE_PATH to run browser smoke.");
-  }
-
-  const serverPort = await findFreePort();
-  const debugPort = await findFreePort();
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "summit-spark-browser-"));
-  const baseUrl = "http://127.0.0.1:" + serverPort;
-  const server = childProcess.spawn(process.execPath, ["game-server.js"], {
-    cwd: root,
-    env: { ...process.env, PORT: String(serverPort) },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-  const browser = childProcess.spawn(browserPath, [
-    "--headless=new",
-    ...(process.platform === "win32" ? ["--no-sandbox"] : []),
-    "--disable-breakpad",
-    "--disable-crash-reporter",
-    "--disable-gpu",
-    "--disable-background-networking",
-    "--disable-extensions",
-    "--mute-audio",
-    "--noerrdialogs",
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--remote-debugging-port=" + debugPort,
-    "--user-data-dir=" + userDataDir,
-    "about:blank"
-  ], { stdio: ["ignore", "pipe", "pipe"] });
-  let cdp = null;
-
-  try {
-    await waitUntil("local server", () => requestText(baseUrl + "/").then(Boolean), 7000);
-    await waitForDebuggingPort(debugPort, browser);
-    const target = await requestJson(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(baseUrl + "/")}`, "PUT");
-    cdp = new CdpClient(target.webSocketDebuggerUrl);
-    await cdp.ready();
-    await cdp.send("Page.enable");
-    await cdp.send("Runtime.enable");
-    await cdp.send("Page.bringToFront");
-    await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
-    await cdp.send("Input.setIgnoreInputEvents", { ignore: false });
-    await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+async function installRuntimeFixture(cdp) {
+  await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `(() => {
         window.__summitEarlyRuntimeErrors = [];
         window.addEventListener("error", (event) => {
@@ -5549,63 +5411,190 @@ async function main() {
         });
       })();`
     });
-
-    await runBootFailureSmoke(cdp, baseUrl);
-    await runDesktopSmoke(cdp, baseUrl);
-    await runMenuScaleSmoke(cdp, baseUrl);
-    await runBackwardTransitionSmoke(cdp, baseUrl);
-    await runChapterTransitionInputSmoke(cdp, baseUrl);
-    await runMountainGateLandmarkSmoke(cdp, baseUrl);
-    await runOldPeakRelicSmoke(cdp, baseUrl);
-    await runWindGorgeCrumbleRippleSmoke(cdp, baseUrl);
-    await runSpringApexSmoke(cdp, baseUrl);
-    await runGroundRechargeSmoke(cdp, baseUrl);
-    await runKeyboardSettingsSmoke(cdp, baseUrl);
-    await runAssistModeSmoke(cdp, baseUrl);
-    await runPracticeRecommendationIntegrationSmoke(cdp, baseUrl);
-    await runResumeSmoke(cdp, baseUrl);
-    await runTrainingInterruptionSmoke(cdp, baseUrl);
-    errors.push(...await checkStorageRecovery(
-      (readPage) => evaluate(cdp, `(${readPage})()`),
-      () => navigateApp(cdp, baseUrl, "save archive seed")
-    ));
-    await runSaveArchiveSmoke(cdp, baseUrl);
-    await runCanvasDensitySmoke(cdp, baseUrl);
-    await runVisualRegressionSmoke(cdp, baseUrl);
-    await runRestartSoakSmoke(cdp, baseUrl);
-    await runMobileSmoke(cdp, baseUrl);
-    await runMobileSafeAreaSmoke(cdp, baseUrl);
-    await runMobileLandscapeSmoke(cdp, baseUrl);
-    await runGamepadSmoke(cdp, baseUrl);
-    await runFreshEntryImmediateSmoke(cdp, baseUrl);
-    await runCloudSdkRetrySmoke(cdp, baseUrl);
-    await runExpiredAccountHintSmoke(cdp, baseUrl);
-    await runAuthenticatedRefreshSmoke(cdp, baseUrl);
-    await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
-    await runRestrictedSessionStorageAuthSmoke(cdp, baseUrl);
-    await runPasswordRecoverySmoke(cdp, baseUrl);
-    await runCloudSyncExitGuardSmoke(cdp, baseUrl);
-    await runLargeCloudArchiveSmoke(cdp, baseUrl);
-    await runCloudLogoutInspectionRaceSmoke(cdp, baseUrl);
-    await runCorruptCloudPermissionsSmoke(cdp, baseUrl);
-    await runCloudConflictGuardSmoke(cdp, baseUrl);
-  } finally {
-    if (cdp) cdp.close();
-    await killProcess(browser);
-    await killProcess(server);
-    removeTempDir(userDataDir);
-  }
-
-  if (errors.length > 0) {
-    console.error("Browser smoke failed:");
-    for (const error of errors) console.error("- " + error);
-    process.exit(1);
-  }
-  console.log("Backward room/act transition, Clean re-arm and banked-Lumen preservation regression passed.");
-  console.log("Browser smoke passed: desktop interactions, respawn focus recovery, finite/structural runtime self-healing and 16-cycle restart soak, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
-main().catch((error) => {
+async function checkNativeSafeArea(browser, url) {
+  await navigateApp(browser, url, "native iOS safe-area entry");
+  const entry = await evaluate(browser, `(() => {
+    const gate = document.querySelector("#entryGate");
+    const insets = document.createElement("div");
+    insets.style.padding = "env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
+    document.body.append(insets);
+    const style = getComputedStyle(insets);
+    const safeArea = Object.fromEntries(["Top", "Right", "Bottom", "Left"].map(side =>
+      [side.toLowerCase(), parseFloat(style["padding" + side])]));
+    insets.remove();
+    const rect = gate.getBoundingClientRect();
+    return {
+      safariVersion: navigator.userAgent,
+      touchCount: navigator.maxTouchPoints,
+      safeArea,
+      viewport: document.querySelector('meta[name="viewport"]').content,
+      fits: rect.top >= safeArea.top - 1 && rect.right <= innerWidth - safeArea.right + 1
+        && rect.bottom <= innerHeight - safeArea.bottom + 1 && rect.left >= safeArea.left - 1,
+      actionSizes: [...gate.querySelectorAll("button")].map(button => button.getBoundingClientRect().height),
+      briefHidden: getComputedStyle(document.querySelector("#portraitBrief")).visibility === "hidden",
+      guestFocused: document.activeElement === document.querySelector("#guestEntryButton")
+    };
+  })()`);
+  if (!entry.touchCount || !Object.values(entry.safeArea).every(Number.isFinite) || !entry.fits
+    || !entry.briefHidden || !entry.guestFocused || entry.actionSizes.length !== 2
+    || entry.actionSizes.some(height => height < 44) || !entry.viewport.includes("viewport-fit=cover")
+    || !entry.viewport.includes("interactive-widget=resizes-content")) {
+    throw new Error("Native iOS entry safe-area regression: " + JSON.stringify(entry));
+  }
+
+  // The Safari toolbar can already cover the device's notch. Retain the
+  // non-zero inset regression by exercising fixed insets in the fixture CSS.
+  const notch = { top: 47, right: 0, bottom: 34, left: 0 };
+  browser.setSafeAreaFixture(notch);
+  try {
+    await navigateApp(browser, url, "native Safari fixed notch layout");
+    const layout = await evaluate(browser, `(() => {
+      const gate = document.querySelector("#entryGate").getBoundingClientRect();
+      return {
+        top: gate.top,
+        roomBelow: innerHeight - gate.bottom,
+        actionsFit: [...document.querySelectorAll("#entryGate button")].every(button => {
+          const rect = button.getBoundingClientRect();
+          return rect.width >= 44 && rect.height >= 44;
+        })
+      };
+    })()`);
+    if (layout.top < notch.top || layout.roomBelow < notch.bottom || !layout.actionsFit) {
+      throw new Error("Safari fixed notch layout regression: " + JSON.stringify(layout));
+    }
+  } finally {
+    browser.setSafeAreaFixture(undefined);
+  }
+  await navigateApp(browser, url, "native iOS keyboard entry");
+  await targetPoint(browser, "#accountEntryButton");
+  await browser.tap("#accountEntryButton");
+  await waitUntil("account drawer opens on iOS", () => evaluate(browser,
+    `document.querySelector("#settingsPanel").classList.contains("account-focused")`));
+  const originalHeight = await evaluate(browser, "visualViewport.height");
+  await targetPoint(browser, "#accountEmail");
+  await browser.tap("#accountEmail");
+  await waitUntil("system keyboard reduces the visible viewport", () => evaluate(browser,
+    `visualViewport.height < ${originalHeight - 80}`), 10000);
+  const account = await evaluate(browser, `(() => {
+    const viewport = visualViewport;
+    const panel = document.querySelector("#settingsPanel");
+    const field = document.querySelector("#accountEmail");
+    const box = field.getBoundingClientRect();
+    return {
+      focused: document.activeElement === field,
+      accountScrolls: ["auto", "scroll"].includes(getComputedStyle(panel.querySelector(".settings-body")).overflowY),
+      fieldVisible: box.top >= viewport.offsetTop - 1 && box.bottom <= viewport.offsetTop + viewport.height + 1
+    };
+  })()`);
+  if (!account.focused || !account.accountScrolls || !account.fieldVisible) {
+    throw new Error("Native iOS keyboard regression: " + JSON.stringify(account));
+  }
+  console.log("Safari passed notched safe-area and system keyboard checks");
+}
+
+async function runNativeSafari({ motionOnly = false, mobile = false, extended = false } = {}) {
+  const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
+  const port = await findFreePort();
+  const upstream = "http://127.0.0.1:" + port;
+  const server = childProcess.spawn(process.execPath, ["game-server.js"], {
+    cwd: root,
+    env: { ...process.env, PORT: String(port) },
+    stdio: "inherit"
+  });
+  let fixture;
+  let browser;
+  try {
+    await waitUntil("local server", () => requestText(upstream + "/").then(Boolean), 45_000);
+    fixture = await startFixture(upstream);
+    const deviceUDID = mobile ? process.env.SAFARI_IOS_UDID : undefined;
+    if (mobile && !deviceUDID) throw new Error("SAFARI_IOS_UDID is required");
+    browser = await launchSafari(fixture, deviceUDID);
+    const { url } = fixture;
+    await installRuntimeFixture(browser);
+
+    if (mobile) {
+      await checkNativeSafeArea(browser, url);
+      return;
+    }
+    if (motionOnly) {
+      await navigateApp(browser, url, "Safari reduced motion");
+      await checkReducedMotion(browser);
+      if (errors.length) throw new Error(errors.join("\n- "));
+      console.log("Safari passed system reduced-motion preference and canvas transitions");
+      return;
+    }
+
+    const scenarios = [
+      runBootFailureSmoke,
+      ...(extended ? [async function desktop(browser, url) { await runDesktopSmoke(browser, url, true); }] : []),
+      runMenuScaleSmoke,
+      runBackwardTransitionSmoke,
+      ...(extended ? [runChapterTransitionInputSmoke] : []),
+      ...(extended ? [runMountainGateLandmarkSmoke] : []),
+      ...(extended ? [runOldPeakRelicSmoke] : []),
+      runWindGorgeCrumbleRippleSmoke,
+      ...(extended ? [runSpringApexSmoke] : []),
+      runGroundRechargeSmoke,
+      ...(extended ? [runKeyboardSettingsSmoke] : []),
+      runAssistModeSmoke,
+      runPracticeRecommendationIntegrationSmoke,
+      runResumeSmoke,
+      runTrainingInterruptionSmoke,
+      async function storageRecovery(browser, url) {
+        errors.push(...await checkStorageRecovery(
+          readPage => evaluate(browser, `(${readPage})()`),
+          () => navigateApp(browser, url, "save archive seed")
+        ));
+      },
+      runSaveArchiveSmoke,
+      ...(extended ? [runRestartSoakSmoke] : []),
+      runGamepadSmoke,
+      ...(extended ? [runFreshEntryImmediateSmoke] : []),
+      runCloudSdkRetrySmoke,
+      runExpiredAccountHintSmoke,
+      runAuthenticatedRefreshSmoke,
+      runAccountRestoreTimeoutSmoke,
+      runRestrictedSessionStorageAuthSmoke,
+      runPasswordRecoverySmoke,
+      runCloudSyncExitGuardSmoke,
+      runLargeCloudArchiveSmoke,
+      runCloudLogoutInspectionRaceSmoke,
+      runCorruptCloudPermissionsSmoke,
+      runCloudConflictGuardSmoke
+    ];
+    for (const scenario of scenarios) {
+      const errorCount = errors.length;
+      try {
+        await scenario(browser, url);
+        if (errors.length === errorCount) console.log("Safari passed " + scenario.name);
+      } catch (error) {
+        errors.push(scenario.name + ": " + error.message);
+      }
+    }
+  } finally {
+    try {
+      await browser?.close();
+    } finally {
+      try { await fixture?.close(); } finally { await killProcess(server); }
+    }
+  }
+  if (errors.length) throw new Error(errors.join("\n- "));
+}
+
+const mode = process.argv[2];
+const modes = [undefined, "--native-safari", "--native-safari-reduced-motion", "--native-safari-ios", "--extended"];
+if (!modes.includes(mode) || process.argv.length > 3) {
+  console.error("Usage: node tools/check-browser-smoke.js [--extended|--native-safari-ios|--native-safari-reduced-motion]");
+  process.exit(1);
+}
+const run = () => runNativeSafari({
+  motionOnly: mode === "--native-safari-reduced-motion",
+  mobile: mode === "--native-safari-ios",
+  extended: mode === "--native-safari" || mode === "--extended"
+});
+run().catch((error) => {
   console.error("Browser smoke failed:");
   console.error("- " + error.message);
   process.exit(1);

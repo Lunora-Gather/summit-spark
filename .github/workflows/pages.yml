@@ -17,6 +17,8 @@ concurrency:
 
 jobs:
   safari:
+    permissions:
+      contents: read
     runs-on: macos-latest
     timeout-minutes: 20
     steps:

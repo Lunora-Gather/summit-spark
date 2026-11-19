@@ -93,4 +93,5 @@ jobs:
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
           echo "SAFARI_IOS_UDID=$udid" >> "$GITHUB_ENV"
+          open -a Simulator --args -CurrentDeviceUDID "$udid"
       - run: node tools/check-browser-smoke.js --native-safari-ios

@@ -2,7 +2,7 @@
 
 const http = require("node:http");
 const { once } = require("node:events");
-const { Builder, Key } = require("selenium-webdriver");
+const { Builder, By, Key } = require("selenium-webdriver");
 const safari = require("selenium-webdriver/safari");
 const { Pointer } = require("selenium-webdriver/lib/input");
 
@@ -189,6 +189,13 @@ async function launchSafari(fixture, deviceUDID) {
   }
   return {
     send,
+    async tap(selector) {
+      if (!deviceUDID) throw new Error("Touch requires native iOS Safari");
+      const element = await driver.findElement(By.css(selector));
+      await driver.actions().insert(
+        finger, finger.move({origin: element, duration: 0}), finger.press(), finger.release()
+      ).perform();
+    },
     setSafeAreaFixture: fixture.setSafeAreaFixture,
     async close() {
       try { await driver.quit(); } finally { await service.kill(); }

@@ -5566,11 +5566,13 @@ async function checkNativeSafeArea(browser, url) {
     browser.setSafeAreaFixture(undefined);
   }
   await navigateApp(browser, url, "native iOS keyboard entry");
-  await tapSelector(browser, "#accountEntryButton");
+  await targetPoint(browser, "#accountEntryButton");
+  await browser.tap("#accountEntryButton");
   await waitUntil("account drawer opens on iOS", () => evaluate(browser,
     `document.querySelector("#settingsPanel").classList.contains("account-focused")`));
   const originalHeight = await evaluate(browser, "visualViewport.height");
-  await tapSelector(browser, "#accountEmail");
+  await targetPoint(browser, "#accountEmail");
+  await browser.tap("#accountEmail");
   await waitUntil("system keyboard reduces the visible viewport", () => evaluate(browser,
     `visualViewport.height < ${originalHeight - 80}`), 10000);
   const account = await evaluate(browser, `(() => {

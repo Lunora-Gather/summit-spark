@@ -53,3 +53,5 @@ jobs:
       - run: npm ci
       - run: sudo safaridriver --enable
       - run: npm run test:safari
+      - name: Verify startup and account regressions in native Safari
+        run: node tools/check-browser-smoke.js --native-safari

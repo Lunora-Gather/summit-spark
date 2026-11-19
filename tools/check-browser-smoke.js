@@ -5473,6 +5473,77 @@ async function runGamepadSmoke(cdp, baseUrl) {
   if (!/pad dz 0\.16/.test(moved.text)) errors.push("debug panel did not report updated gamepad deadzone");
 }
 
+async function installRuntimeFixture(cdp) {
+  await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `(() => {
+        window.__summitEarlyRuntimeErrors = [];
+        window.addEventListener("error", (event) => {
+          window.__summitEarlyRuntimeErrors.push(String(event.message || "unknown boot runtime error"));
+        });
+        const makeButtons = () => Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }));
+        window.__summitMockPadState = { axes: [0, 0, 0, 0], buttons: makeButtons(), connected: true, mapping: "standard" };
+        Object.defineProperty(Navigator.prototype, "getGamepads", {
+          configurable: true,
+          value() {
+            if (window.__summitMockPadState.throw) throw new Error("summit smoke gamepad poll fault");
+            return [window.__summitMockPadState];
+          }
+        });
+      })();`
+    });
+}
+
+async function runNativeDesktop() {
+  const { launchDesktopSafari, startFixture } = require("./safari-smoke-transport.cjs");
+  const port = await findFreePort();
+  const upstream = "http://127.0.0.1:" + port;
+  const server = childProcess.spawn(process.execPath, ["game-server.js"], {
+    cwd: root,
+    env: { ...process.env, PORT: String(port) },
+    stdio: "inherit"
+  });
+  let fixture;
+  let browser;
+  try {
+    await waitUntil("local server", () => requestText(upstream + "/").then(Boolean), 7000);
+    fixture = await startFixture(upstream);
+    browser = await launchDesktopSafari(fixture);
+    const { url } = fixture;
+    await installRuntimeFixture(browser);
+
+    for (const scenario of [
+      runBootFailureSmoke,
+      runFreshEntryImmediateSmoke,
+      runCloudSdkRetrySmoke,
+      runExpiredAccountHintSmoke,
+      runAuthenticatedRefreshSmoke,
+      runAccountRestoreTimeoutSmoke,
+      runRestrictedSessionStorageAuthSmoke,
+      runPasswordRecoverySmoke,
+      runCloudSyncExitGuardSmoke,
+      runLargeCloudArchiveSmoke,
+      runCloudLogoutInspectionRaceSmoke,
+      runCorruptCloudPermissionsSmoke,
+      runCloudConflictGuardSmoke
+    ]) {
+      const errorCount = errors.length;
+      try {
+        await scenario(browser, url);
+        if (errors.length === errorCount) console.log("Safari passed " + scenario.name);
+      } catch (error) {
+        errors.push(scenario.name + ": " + error.message);
+      }
+    }
+  } finally {
+    try {
+      await browser?.close();
+    } finally {
+      try { await fixture?.close(); } finally { await killProcess(server); }
+    }
+  }
+  if (errors.length) throw new Error(errors.join("\n- "));
+}
+
 async function waitForDebuggingPort(port, child) {
   const start = Date.now();
   let last = "";
@@ -5532,23 +5603,7 @@ async function main() {
     await cdp.send("Page.bringToFront");
     await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
     await cdp.send("Input.setIgnoreInputEvents", { ignore: false });
-    await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: `(() => {
-        window.__summitEarlyRuntimeErrors = [];
-        window.addEventListener("error", (event) => {
-          window.__summitEarlyRuntimeErrors.push(String(event.message || "unknown boot runtime error"));
-        });
-        const makeButtons = () => Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }));
-        window.__summitMockPadState = { axes: [0, 0, 0, 0], buttons: makeButtons(), connected: true, mapping: "standard" };
-        Object.defineProperty(Navigator.prototype, "getGamepads", {
-          configurable: true,
-          value() {
-            if (window.__summitMockPadState.throw) throw new Error("summit smoke gamepad poll fault");
-            return [window.__summitMockPadState];
-          }
-        });
-      })();`
-    });
+    await installRuntimeFixture(cdp);
 
     await runBootFailureSmoke(cdp, baseUrl);
     await runDesktopSmoke(cdp, baseUrl);
@@ -5605,7 +5660,7 @@ async function main() {
   console.log("Browser smoke passed: desktop interactions, respawn focus recovery, finite/structural runtime self-healing and 16-cycle restart soak, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
-main().catch((error) => {
+(process.argv.includes("--native-safari") ? runNativeDesktop() : main()).catch((error) => {
   console.error("Browser smoke failed:");
   console.error("- " + error.message);
   process.exit(1);

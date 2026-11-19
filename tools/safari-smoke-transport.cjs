@@ -10,6 +10,7 @@ async function startFixture(upstream) {
   const port = new URL(upstream).port;
   const scripts = new Map();
   const blocked = new Set();
+  let safeAreaFixture;
   const server = http.createServer((incoming, outgoing) => {
     const url = new URL(incoming.url, "http://127.0.0.1");
     if (blocked.has(url.pathname)) {
@@ -28,6 +29,22 @@ async function startFixture(upstream) {
       method: incoming.method
     }, response => {
       const headers = {...response.headers, "Cache-Control": "no-store"};
+      const insets = url.pathname === "/summit-spark.css" ? safeAreaFixture : undefined;
+      if (insets && incoming.method === "GET") {
+        const css = [];
+        response.on("data", chunk => css.push(chunk));
+        response.on("end", () => {
+          delete headers["content-length"];
+          delete headers.etag;
+          outgoing.writeHead(response.statusCode, headers);
+          // Exercise the original Safari layout with a known unobstructed notch geometry.
+          outgoing.end(Buffer.concat(css).toString("utf8").replace(
+            /env\(safe-area-inset-(top|right|bottom|left)(?:,\s*[\w.%-]+)?\)/g,
+            (_, side) => insets[side] + "px"
+          ));
+        });
+        return;
+      }
       if (!response.headers["content-type"]?.startsWith("text/html") || incoming.method === "HEAD") {
         outgoing.writeHead(response.statusCode, headers);
         response.pipe(outgoing);
@@ -53,6 +70,7 @@ async function startFixture(upstream) {
     url: `http://127.0.0.1:${server.address().port}`,
     scripts,
     blocked,
+    setSafeAreaFixture(insets) {safeAreaFixture = insets;},
     async close() {
       const closed = once(server, "close");
       server.close();
@@ -171,6 +189,7 @@ async function launchSafari(fixture, deviceUDID) {
   }
   return {
     send,
+    setSafeAreaFixture: fixture.setSafeAreaFixture,
     async close() {
       try { await driver.quit(); } finally { await service.kill(); }
     }

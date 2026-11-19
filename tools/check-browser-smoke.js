@@ -5535,13 +5535,37 @@ async function checkNativeSafeArea(browser, url) {
       guestFocused: document.activeElement === document.querySelector("#guestEntryButton")
     };
   })()`);
-  if (!entry.touchCount || !entry.safeArea.top || !entry.safeArea.bottom || !entry.fits
+  if (!entry.touchCount || !Object.values(entry.safeArea).every(Number.isFinite) || !entry.fits
     || !entry.briefHidden || !entry.guestFocused || entry.actionSizes.length !== 2
     || entry.actionSizes.some(height => height < 44) || !entry.viewport.includes("viewport-fit=cover")
     || !entry.viewport.includes("interactive-widget=resizes-content")) {
     throw new Error("Native iOS entry safe-area regression: " + JSON.stringify(entry));
   }
 
+  // The Safari toolbar can already cover the device's notch. Retain the
+  // non-zero inset regression by exercising fixed insets in the fixture CSS.
+  const notch = { top: 47, right: 0, bottom: 34, left: 0 };
+  browser.setSafeAreaFixture(notch);
+  try {
+    await navigateApp(browser, url, "native Safari fixed notch layout");
+    const layout = await evaluate(browser, `(() => {
+      const gate = document.querySelector("#entryGate").getBoundingClientRect();
+      return {
+        top: gate.top,
+        roomBelow: innerHeight - gate.bottom,
+        actionsFit: [...document.querySelectorAll("#entryGate button")].every(button => {
+          const rect = button.getBoundingClientRect();
+          return rect.width >= 44 && rect.height >= 44;
+        })
+      };
+    })()`);
+    if (layout.top < notch.top || layout.roomBelow < notch.bottom || !layout.actionsFit) {
+      throw new Error("Safari fixed notch layout regression: " + JSON.stringify(layout));
+    }
+  } finally {
+    browser.setSafeAreaFixture(undefined);
+  }
+  await navigateApp(browser, url, "native iOS keyboard entry");
   await tapSelector(browser, "#accountEntryButton");
   await waitUntil("account drawer opens on iOS", () => evaluate(browser,
     `document.querySelector("#settingsPanel").classList.contains("account-focused")`));

@@ -6,10 +6,11 @@ const { Builder, Key } = require("selenium-webdriver");
 const safari = require("selenium-webdriver/safari");
 
 async function startFixture(upstream) {
+  const port = new URL(upstream).port;
   const scripts = new Map();
   const blocked = new Set();
   const server = http.createServer((incoming, outgoing) => {
-    const url = new URL(incoming.url, upstream);
+    const url = new URL(incoming.url, "http://127.0.0.1");
     if (blocked.has(url.pathname)) {
       outgoing.writeHead(503, {"Cache-Control": "no-store"}).end();
       return;
@@ -19,7 +20,12 @@ async function startFixture(upstream) {
       outgoing.end([...scripts.values()].join("\n;\n"));
       return;
     }
-    const proxy = http.request(url, {method: incoming.method}, response => {
+    const proxy = http.request({
+      hostname: "127.0.0.1",
+      port,
+      path: url.pathname + url.search,
+      method: incoming.method
+    }, response => {
       const headers = {...response.headers, "Cache-Control": "no-store"};
       if (!response.headers["content-type"]?.startsWith("text/html") || incoming.method === "HEAD") {
         outgoing.writeHead(response.statusCode, headers);

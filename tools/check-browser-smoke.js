@@ -265,7 +265,7 @@ async function evaluate(cdp, expression) {
     awaitPromise: true,
     returnByValue: true
   });
-  if (result.exceptionDetails) throw new Error("Evaluation failed: " + expression);
+  if (result.exceptionDetails) throw new Error("Evaluation failed: " + (result.exceptionDetails.text ?? result.exceptionDetails) + "\n" + expression);
   return result.result ? result.result.value : undefined;
 }
 
@@ -462,14 +462,18 @@ async function windowKeyHold(cdp, code, key, ms = 300) {
 async function canvasInkSummary(cdp) {
   return evaluate(cdp, `(() => {
     const canvas = document.querySelector("#game");
-    const context = canvas.getContext("2d");
-    const { width, height } = canvas;
+    const sample = document.createElement("canvas");
+    sample.width = Math.min(256, canvas.width);
+    sample.height = Math.max(1, Math.round(canvas.height * sample.width / canvas.width));
+    const context = sample.getContext("2d", { willReadFrequently: true });
+    const { width, height } = sample;
+    context.drawImage(canvas, 0, 0, width, height);
     const data = context.getImageData(0, 0, width, height).data;
     const first = [data[0], data[1], data[2], data[3]];
     let varied = 0;
     let bright = 0;
     let samples = 0;
-    const step = Math.max(8, Math.floor(Math.min(width, height) / 32));
+    const step = Math.max(1, Math.floor(Math.min(width, height) / 32));
     for (let y = 0; y < height; y += step) {
       for (let x = 0; x < width; x += step) {
         const i = (y * width + x) * 4;

@@ -103,6 +103,11 @@ npm run check
 真实浏览器回归：
 
 ```bash
+# Mac 上用系统 Safari 验证游客入场、重载推荐、进入训练和损坏存档恢复
+# 首次运行先执行 npm ci，并在 Safari 开发者设置中开启“允许远程自动化”
+npm run test:safari
+
+# 完整的 Chromium 专项回归
 npm run browser-smoke
 ```
 

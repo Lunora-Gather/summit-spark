@@ -4,6 +4,7 @@ const http = require("node:http");
 const { once } = require("node:events");
 const { Builder, Key } = require("selenium-webdriver");
 const safari = require("selenium-webdriver/safari");
+const { Pointer } = require("selenium-webdriver/lib/input");
 
 async function startFixture(upstream) {
   const port = new URL(upstream).port;
@@ -70,17 +71,25 @@ function safariKey({code, key}) {
   return aliases[code] ?? aliases[key] ?? key;
 }
 
-async function launchDesktopSafari(fixture) {
+async function launchSafari(fixture, deviceUDID) {
   const service = new safari.ServiceBuilder("/usr/bin/safaridriver").build();
   let driver;
   try {
-    driver = await new Builder().disableEnvironmentOverrides()
-      .usingServer(await service.start()).forBrowser("safari").build();
+    const builder = new Builder().disableEnvironmentOverrides()
+      .usingServer(await service.start()).forBrowser("safari");
+    if (deviceUDID) builder.withCapabilities({
+      browserName: "safari",
+      platformName: "iOS",
+      "safari:useSimulator": true,
+      "safari:deviceUDID": deviceUDID
+    });
+    driver = await builder.build();
   } catch (error) {
     await service.kill();
     throw error;
   }
   let initSequence = 0;
+  const finger = new Pointer("smoke-finger", Pointer.Type.TOUCH);
   async function send(method, options = {}) {
     switch (method) {
       case "Runtime.evaluate": {
@@ -113,6 +122,14 @@ async function launchDesktopSafari(fixture) {
       case "Emulation.setTouchEmulationEnabled":
         if (options.enabled) throw new Error("This scenario requires native mobile Safari");
         return;
+      case "Input.dispatchTouchEvent": {
+        if (!deviceUDID) throw new Error("Touch requires native iOS Safari");
+        const actions = driver.actions();
+        if (options.type === "touchEnd") return actions.insert(finger, finger.release()).perform();
+        const point = options.touchPoints[0];
+        const move = finger.move({x: Math.round(point.x), y: Math.round(point.y), duration: 0});
+        return actions.insert(finger, move, finger.press()).perform();
+      }
       case "Input.dispatchMouseEvent": {
         const action = driver.actions();
         if (options.type === "mouseReleased") return action.release().perform();
@@ -159,4 +176,4 @@ async function launchDesktopSafari(fixture) {
     }
   };
 }
-module.exports = { launchDesktopSafari, startFixture };
+module.exports = { launchSafari, startFixture };

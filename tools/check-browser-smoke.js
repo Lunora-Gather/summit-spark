@@ -5506,8 +5506,63 @@ async function installRuntimeFixture(cdp) {
     });
 }
 
-async function runNativeDesktop({ motionOnly = false } = {}) {
-  const { launchDesktopSafari, startFixture } = require("./safari-smoke-transport.cjs");
+async function checkNativeSafeArea(browser, url) {
+  await navigateApp(browser, url, "native iOS safe-area entry");
+  const entry = await evaluate(browser, `(() => {
+    const gate = document.querySelector("#entryGate");
+    const insets = document.createElement("div");
+    insets.style.padding = "env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
+    document.body.append(insets);
+    const style = getComputedStyle(insets);
+    const safeArea = Object.fromEntries(["Top", "Right", "Bottom", "Left"].map(side =>
+      [side.toLowerCase(), parseFloat(style["padding" + side])]));
+    insets.remove();
+    const rect = gate.getBoundingClientRect();
+    return {
+      safariVersion: navigator.userAgent,
+      touchCount: navigator.maxTouchPoints,
+      safeArea,
+      viewport: document.querySelector('meta[name="viewport"]').content,
+      fits: rect.top >= safeArea.top - 1 && rect.right <= innerWidth - safeArea.right + 1
+        && rect.bottom <= innerHeight - safeArea.bottom + 1 && rect.left >= safeArea.left - 1,
+      actionSizes: [...gate.querySelectorAll("button")].map(button => button.getBoundingClientRect().height),
+      briefHidden: getComputedStyle(document.querySelector("#portraitBrief")).visibility === "hidden",
+      guestFocused: document.activeElement === document.querySelector("#guestEntryButton")
+    };
+  })()`);
+  if (!entry.touchCount || !entry.safeArea.top || !entry.safeArea.bottom || !entry.fits
+    || !entry.briefHidden || !entry.guestFocused || entry.actionSizes.length !== 2
+    || entry.actionSizes.some(height => height < 44) || !entry.viewport.includes("viewport-fit=cover")
+    || !entry.viewport.includes("interactive-widget=resizes-content")) {
+    throw new Error("Native iOS entry safe-area regression: " + JSON.stringify(entry));
+  }
+
+  await tapSelector(browser, "#accountEntryButton");
+  await waitUntil("account drawer opens on iOS", () => evaluate(browser,
+    `document.querySelector("#settingsPanel").classList.contains("account-focused")`));
+  const originalHeight = await evaluate(browser, "visualViewport.height");
+  await tapSelector(browser, "#accountEmail");
+  await waitUntil("system keyboard reduces the visible viewport", () => evaluate(browser,
+    `visualViewport.height < ${originalHeight - 80}`), 10000);
+  const account = await evaluate(browser, `(() => {
+    const viewport = visualViewport;
+    const panel = document.querySelector("#settingsPanel");
+    const field = document.querySelector("#accountEmail");
+    const box = field.getBoundingClientRect();
+    return {
+      focused: document.activeElement === field,
+      accountScrolls: ["auto", "scroll"].includes(getComputedStyle(panel.querySelector(".settings-body")).overflowY),
+      fieldVisible: box.top >= viewport.offsetTop - 1 && box.bottom <= viewport.offsetTop + viewport.height + 1
+    };
+  })()`);
+  if (!account.focused || !account.accountScrolls || !account.fieldVisible) {
+    throw new Error("Native iOS keyboard regression: " + JSON.stringify(account));
+  }
+  console.log("Safari passed notched safe-area and system keyboard checks");
+}
+
+async function runNativeSafari({ motionOnly = false, mobile = false } = {}) {
+  const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
   const port = await findFreePort();
   const upstream = "http://127.0.0.1:" + port;
   const server = childProcess.spawn(process.execPath, ["game-server.js"], {
@@ -5520,10 +5575,16 @@ async function runNativeDesktop({ motionOnly = false } = {}) {
   try {
     await waitUntil("local server", () => requestText(upstream + "/").then(Boolean), 7000);
     fixture = await startFixture(upstream);
-    browser = await launchDesktopSafari(fixture);
+    const deviceUDID = mobile ? process.env.SAFARI_IOS_UDID : undefined;
+    if (mobile && !deviceUDID) throw new Error("SAFARI_IOS_UDID is required");
+    browser = await launchSafari(fixture, deviceUDID);
     const { url } = fixture;
     await installRuntimeFixture(browser);
 
+    if (mobile) {
+      await checkNativeSafeArea(browser, url);
+      return;
+    }
     if (motionOnly) {
       await navigateApp(browser, url, "Safari reduced motion");
       await checkReducedMotion(browser);
@@ -5705,8 +5766,12 @@ async function main() {
   console.log("Browser smoke passed: desktop interactions, respawn focus recovery, finite/structural runtime self-healing and 16-cycle restart soak, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
-const nativeMode = process.argv.find(arg => ["--native-safari", "--native-safari-reduced-motion"].includes(arg));
-(nativeMode ? runNativeDesktop({ motionOnly: nativeMode === "--native-safari-reduced-motion" }) : main()).catch((error) => {
+const nativeMode = process.argv.find(arg => ["--native-safari", "--native-safari-reduced-motion", "--native-safari-ios"].includes(arg));
+const run = nativeMode ? () => runNativeSafari({
+  motionOnly: nativeMode === "--native-safari-reduced-motion",
+  mobile: nativeMode === "--native-safari-ios"
+}) : main;
+run().catch((error) => {
   console.error("Browser smoke failed:");
   console.error("- " + error.message);
   process.exit(1);

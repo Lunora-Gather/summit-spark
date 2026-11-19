@@ -69,3 +69,23 @@ jobs:
       - run: sudo safaridriver --enable
       - run: defaults write com.apple.universalaccess reduceMotion -bool true
       - run: node tools/check-browser-smoke.js --native-safari-reduced-motion
+
+  safari-ios:
+    name: Native iOS Safari safe areas
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: sudo safaridriver --enable
+      - name: Boot a notched iPhone simulator
+        run: |
+          set -euo pipefail
+          udid="$(xcrun simctl list devices available -j | jq -er '[.devices | to_entries | sort_by(.key) | reverse | .[].value[] | select((.name | startswith("iPhone")) and (.name | contains("SE") | not))][0].udid')"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "SAFARI_IOS_UDID=$udid" >> "$GITHUB_ENV"
+      - run: node tools/check-browser-smoke.js --native-safari-ios

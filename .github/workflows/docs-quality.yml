@@ -94,4 +94,13 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
           echo "SAFARI_IOS_UDID=$udid" >> "$GITHUB_ENV"
           open -a Simulator --args -CurrentDeviceUDID "$udid"
+          xcrun simctl launch "$udid" com.apple.mobilesafari
       - run: node tools/check-browser-smoke.js --native-safari-ios
+      - name: Report simulator state if Safari fails
+        if: failure()
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices booted
+          if [[ -n "${SAFARI_IOS_UDID:-}" ]]; then
+            xcrun simctl spawn "$SAFARI_IOS_UDID" launchctl list | awk '/com.apple.mobilesafari|webinspectord/'
+          fi

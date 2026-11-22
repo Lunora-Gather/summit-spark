@@ -52,7 +52,10 @@ jobs:
         run: |
           defaults write com.apple.Safari WebKitPreferences.canvasUsesAcceleratedDrawing -bool false
           defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2CanvasUsesAcceleratedDrawing -bool false
-          system_profiler SPDisplaysDataType
+          defaults write com.apple.Safari WebKitPreferences.useGPUProcessForCanvasRenderingEnabled -bool false
+          defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2UseGPUProcessForCanvasRenderingEnabled -bool false
+          defaults write com.apple.Safari WebKitPreferences.acceleratedDrawingEnabled -bool false
+          defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2AcceleratedDrawingEnabled -bool false
       - run: npm run test:safari
       - name: Preserve the practice map on failure
         if: failure()
@@ -99,10 +102,11 @@ jobs:
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/axe.tar.gz"
-          curl --fail --location --retry 3 -o "$archive" https://github.com/cameroncooke/AXe/releases/download/v2.1.1/AXe-macOS-homebrew-v2.1.1.tar.gz
-          echo "e8a4d873fe49e38d70b8fe1bea180658b5b997f5501561755e304641b1395256  $archive" | shasum -a 256 -c -
+          curl --fail --location --retry 3 -o "$archive" https://github.com/cameroncooke/AXe/releases/download/v2.1.1/AXe-macOS-v2.1.1-universal.tar.gz
+          echo "8788838b1b32059d143cf06541b72fcaead85c16274457cdbff086510a5b17fa  $archive" | shasum -a 256 -c -
           mkdir -p "$RUNNER_TEMP/axe"
           tar -xzf "$archive" -C "$RUNNER_TEMP/axe"
+          "$RUNNER_TEMP/axe/axe" --version
           echo "$RUNNER_TEMP/axe" >> "$GITHUB_PATH"
       - name: Boot a notched iPhone simulator
         run: |

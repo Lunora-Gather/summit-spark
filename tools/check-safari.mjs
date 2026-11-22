@@ -27,7 +27,7 @@ async function terrainPixel(driver, tileX, tileY, columns, expected) {
       let source;
       try { source = Array.from(context.getImageData(x * tile, y * tile, 1, 1).data); }
       catch (error) { source = String(error); }
-      return { point: [px / innerWidth, py / innerHeight], visible: document.elementFromPoint(px, py) === canvas,
+      return { point: [(px - rect.left) / rect.width, (py - rect.top) / rect.height], visible: document.elementFromPoint(px, py) === canvas,
         source, contextLost: context.isContextLost?.() };
     }, tileX, tileY, columns);
     return lastSample.visible && expected.every((value, i) => value === lastSample.source[i]) && lastSample;
@@ -35,7 +35,9 @@ async function terrainPixel(driver, tileX, tileY, columns, expected) {
   const { point } = geometry;
   assert.ok(geometry.visible, "The terrain marker must be visible inside the scrolling practice drawer");
   assert.ok(point.every(value => value >= 0 && value < 1), "Terrain marker must be on screen");
-  const png = Buffer.from(await driver.takeScreenshot(), "base64");
+  // Safari snapshots the element's own bounds, independent of the host window backing scale.
+  const terrain = await driver.findElement(By.id("roomTerrainMap"));
+  const png = Buffer.from(await terrain.takeScreenshot(), "base64");
   if (process.env.RUNNER_TEMP) writeFileSync(join(process.env.RUNNER_TEMP, "practice-map.png"), png);
   const reader = `
     import Foundation

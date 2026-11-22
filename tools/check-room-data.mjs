@@ -2,6 +2,8 @@
 "use strict";
 
 import assert from "node:assert/strict";
+import { access } from "node:fs/promises";
+import { rockMaterials, rockRuns } from "../public/modules/game/terrain-art.mjs";
 import {
   CHAPTER_EXPERIENCE,
   CHAPTER_START_ROOMS,
@@ -95,6 +97,20 @@ CHAPTER_START_ROOMS.forEach((room, chapter) => {
 });
 assert.deepEqual(CHAPTER_SURFACE_KINDS, ["gate-slate", "old-peak", "wind-cut", "star-etched"], "four acts should own distinct platform materials");
 assert.equal(new Set(CHAPTER_SURFACE_KINDS).size, CHAPTER_EXPERIENCE.length, "chapter platform materials should remain distinct");
+for (const kind of CHAPTER_SURFACE_KINDS) {
+  await access(new URL(`../public/assets/terrain/${rockMaterials[kind].file}.jpg`, import.meta.url));
+}
+for (const rows of maps) {
+  const coverage = rows.map(row => Array(row.length).fill(0));
+  for (const run of rockRuns(rows)) {
+    for (let x = run.x; x < run.x + run.length; x++) {
+      coverage[run.y][x] += 1;
+      assert.equal(run.top, rows[run.y - 1]?.[x] !== "#");
+      assert.equal(run.bottom, rows[run.y + 1]?.[x] !== "#");
+    }
+  }
+  assert.deepEqual(coverage, rows.map(row => [...row].map(cell => Number(cell === "#"))), "painted runs must cover every solid cell exactly once");
+}
 assert.deepEqual(
   CHAPTER_SURFACE_FEEDBACK.map((feedback) => feedback.kind),
   ["slate-chip", "warm-dust", "ice-flake", "star-spark"],

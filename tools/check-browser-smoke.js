@@ -2,10 +2,8 @@
 "use strict";
 
 const childProcess = require("child_process");
-const fs = require("fs");
 const http = require("http");
 const net = require("net");
-const os = require("os");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
@@ -63,10 +61,6 @@ function findFreePort() {
   });
 }
 
-function requestJson(url, method = "GET") {
-  return requestText(url, method).then((text) => JSON.parse(text));
-}
-
 function requestText(url, method = "GET") {
   return new Promise((resolve, reject) => {
     const request = http.request(url, { method }, (response) => {
@@ -85,36 +79,6 @@ function requestText(url, method = "GET") {
     request.on("error", reject);
     request.end();
   });
-}
-
-function candidateBrowsers() {
-  const names = [];
-  if (process.env.BROWSER_EXECUTABLE_PATH) names.push(process.env.BROWSER_EXECUTABLE_PATH);
-  if (process.platform === "win32") {
-    const local = process.env.LOCALAPPDATA || "";
-    const programFiles = process.env.ProgramFiles || "C:\\Program Files";
-    const programFilesX86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
-    names.push(
-      path.join(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(local, "Google", "Chrome", "Application", "chrome.exe"),
-      path.join(programFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
-      path.join(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe")
-    );
-  } else if (process.platform === "darwin") {
-    names.push(
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-      "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-      "/Applications/Chromium.app/Contents/MacOS/Chromium"
-    );
-  } else {
-    names.push("/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/microsoft-edge");
-  }
-  return [...new Set(names)];
-}
-
-function findBrowser() {
-  return candidateBrowsers().find((candidate) => candidate && fs.existsSync(candidate));
 }
 
 function killProcess(child) {
@@ -174,75 +138,6 @@ function killProcess(child) {
   });
 }
 
-function removeTempDir(dir) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 2, retryDelay: 120 });
-      return;
-    } catch {
-      // Chrome may keep profile files briefly after process termination.
-    }
-  }
-}
-
-class CdpClient {
-  constructor(wsUrl) {
-    this.ws = new WebSocket(wsUrl);
-    this.nextId = 1;
-    this.pending = new Map();
-    this.events = [];
-    this.ws.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data);
-      if (message.id && this.pending.has(message.id)) {
-        const { resolve, reject } = this.pending.get(message.id);
-        this.pending.delete(message.id);
-        if (message.error) reject(new Error(message.error.message || JSON.stringify(message.error)));
-        else resolve(message.result || {});
-      } else if (message.method) {
-        this.events.push(message);
-      }
-    });
-  }
-
-  async ready() {
-    if (this.ws.readyState === WebSocket.OPEN) return;
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("CDP websocket open timed out")), 5000);
-      this.ws.addEventListener("open", () => {
-        clearTimeout(timeout);
-        resolve();
-      }, { once: true });
-      this.ws.addEventListener("error", () => {
-        clearTimeout(timeout);
-        reject(new Error("CDP websocket failed"));
-      }, { once: true });
-    });
-  }
-
-  send(method, params = {}) {
-    const id = this.nextId++;
-    const payload = JSON.stringify({ id, method, params });
-    const promise = new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      setTimeout(() => {
-        if (!this.pending.has(id)) return;
-        this.pending.delete(id);
-        reject(new Error(method + " timed out"));
-      }, 15000);
-    });
-    this.ws.send(payload);
-    return promise;
-  }
-
-  close() {
-    try {
-      this.ws.close();
-    } catch {
-      // Browser shutdown is best-effort after smoke.
-    }
-  }
-}
-
 async function waitUntil(label, fn, timeout = 6000, pollInterval = 120) {
   const start = Date.now();
   let last = "";
@@ -259,38 +154,28 @@ async function waitUntil(label, fn, timeout = 6000, pollInterval = 120) {
   throw new Error(label + " timed out" + (last ? ": " + last : ""));
 }
 
-async function evaluate(cdp, expression) {
-  const result = await cdp.send("Runtime.evaluate", {
-    expression,
-    awaitPromise: true,
-    returnByValue: true
-  });
-  if (result.exceptionDetails) throw new Error("Evaluation failed: " + expression);
-  return result.result ? result.result.value : undefined;
-}
-
-async function waitForAppReady(cdp) {
+async function waitForAppReady(browser) {
   await waitUntil("app ready", async () => {
-    return evaluate(cdp, `document.readyState === "complete" && document.documentElement.classList.contains("app-ready")`);
+    return browser.evaluate(`document.readyState === "complete" && document.documentElement.classList.contains("app-ready")`);
   }, 7000);
 }
 
 let navigationId = 0;
 
-async function navigateApp(cdp, baseUrl, label = "app") {
+async function navigateApp(browser, baseUrl, label = "app") {
   navigationId += 1;
   const url = `${baseUrl}/?smoke=${navigationId}`;
-  await cdp.send("Page.navigate", { url });
-  await waitUntil(label + " navigation", () => evaluate(cdp, `location.href === ${JSON.stringify(url)}`), 7000);
-  await waitForAppReady(cdp);
+  await browser.navigate(url);
+  await waitUntil(label + " navigation", () => browser.evaluate(`location.href === ${JSON.stringify(url)}`), 7000);
+  await waitForAppReady(browser);
 }
 
-async function runBootFailureSmoke(cdp, baseUrl) {
+async function runBootFailureSmoke(browser, baseUrl) {
   navigationId += 1;
   const url = `${baseUrl}/?smoke=${navigationId}&boot-fault=1`;
-  await cdp.send("Page.navigate", { url });
-  await waitUntil("boot failure navigation", () => evaluate(cdp, `location.href === ${JSON.stringify(url)}`), 7000);
-  const state = await waitUntil("boot failure recovery surface", () => evaluate(cdp, `(() => {
+  await browser.navigate(url);
+  await waitUntil("boot failure navigation", () => browser.evaluate(`location.href === ${JSON.stringify(url)}`), 7000);
+  const state = await waitUntil("boot failure recovery surface", () => browser.evaluate(`(() => {
     const root = document.documentElement;
     const actions = document.querySelector("#startPanel .start-actions");
     const retry = document.querySelector("#bootRetryButton");
@@ -325,10 +210,10 @@ async function runBootFailureSmoke(cdp, baseUrl) {
   }
 }
 
-async function targetPoint(cdp, selector) {
+async function targetPoint(browser, selector) {
   let lastProbe = null;
   const rect = await waitUntil("click target " + selector, async () => {
-    lastProbe = await evaluate(cdp, `(() => {
+    lastProbe = await browser.evaluate(`(() => {
     const el = document.querySelector(${JSON.stringify(selector)});
     if (!el) return null;
     el.scrollIntoView({ block: "center", inline: "center" });
@@ -376,31 +261,28 @@ async function targetPoint(cdp, selector) {
   return rect;
 }
 
-async function clickSelector(cdp, selector) {
-  const rect = await targetPoint(cdp, selector);
-  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
-  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+async function clickSelector(browser, selector) {
+  await targetPoint(browser, selector);
+  await browser.clickElement(selector);
 }
 
-async function clickPoint(cdp, x, y) {
-  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
-  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+async function clickPoint(browser, x, y) {
+  await browser.clickAt(x, y);
 }
 
-async function tapSelector(cdp, selector) {
-  const rect = await targetPoint(cdp, selector);
-  await tapPoint(cdp, rect.inputX, rect.inputY);
+async function tapSelector(browser, selector) {
+  const rect = await targetPoint(browser, selector);
+  await tapPoint(browser, rect.inputX, rect.inputY);
 }
 
-async function tapPoint(cdp, x, y) {
-  const touchPoint = { x, y, id: 1, radiusX: 2, radiusY: 2, force: 1 };
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [touchPoint] });
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+async function tapPoint(browser, x, y) {
+  await browser.touchDown({x, y});
+  await browser.touchUp();
   await sleep(80);
 }
 
-async function openSettingsGroup(cdp, selector) {
-  await evaluate(cdp, `(() => {
+async function openSettingsGroup(browser, selector) {
+  await browser.evaluate(`(() => {
     const group = document.querySelector(${JSON.stringify(selector)});
     if (group) group.open = true;
   })()`);
@@ -411,65 +293,47 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function virtualKeyCode(code, key) {
-  if (key && key.length === 1) return key.toUpperCase().charCodeAt(0);
-  const named = { Enter: 13, Escape: 27, Tab: 9, F3: 114, Space: 32, Shift: 16 };
-  return named[key] || named[code] || 0;
+async function keyDown(browser, code, key) {
+  await browser.keyDown(code, key);
 }
 
-async function keyDown(cdp, code, key) {
-  const event = {
-    type: "keyDown",
-    code,
-    key,
-    windowsVirtualKeyCode: virtualKeyCode(code, key)
-  };
-  const text = key === "Enter" ? "\r" : key;
-  if (text && text.length === 1) {
-    event.text = text;
-    event.unmodifiedText = text;
-  }
-  await cdp.send("Input.dispatchKeyEvent", event);
+async function keyUp(browser, code, key) {
+  await browser.keyUp(code, key);
 }
 
-async function keyUp(cdp, code, key) {
-  await cdp.send("Input.dispatchKeyEvent", {
-    type: "keyUp",
-    code,
-    key,
-    windowsVirtualKeyCode: virtualKeyCode(code, key)
-  });
+async function keyTap(browser, code, key) {
+  await keyDown(browser, code, key);
+  await keyUp(browser, code, key);
 }
 
-async function keyTap(cdp, code, key) {
-  await keyDown(cdp, code, key);
-  await keyUp(cdp, code, key);
-}
-
-async function keyHold(cdp, code, key, ms = 300) {
-  await keyDown(cdp, code, key);
+async function keyHold(browser, code, key, ms = 300) {
+  await keyDown(browser, code, key);
   await sleep(ms);
-  await keyUp(cdp, code, key);
+  await keyUp(browser, code, key);
 }
 
-async function windowKeyHold(cdp, code, key, ms = 300) {
-  await evaluate(cdp, `window.dispatchEvent(new KeyboardEvent("keydown", { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key)}, bubbles: true }))`);
+async function windowKeyHold(browser, code, key, ms = 300) {
+  await browser.evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key)}, bubbles: true }))`);
   await sleep(ms);
-  await evaluate(cdp, `window.dispatchEvent(new KeyboardEvent("keyup", { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key)}, bubbles: true }))`);
+  await browser.evaluate(`window.dispatchEvent(new KeyboardEvent("keyup", { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key)}, bubbles: true }))`);
   await sleep(80);
 }
 
-async function canvasInkSummary(cdp) {
-  return evaluate(cdp, `(() => {
+async function canvasInkSummary(browser) {
+  return browser.evaluate(`(() => {
     const canvas = document.querySelector("#game");
-    const context = canvas.getContext("2d");
-    const { width, height } = canvas;
+    const sample = document.createElement("canvas");
+    sample.width = Math.min(256, canvas.width);
+    sample.height = Math.max(1, Math.round(canvas.height * sample.width / canvas.width));
+    const context = sample.getContext("2d", { willReadFrequently: true });
+    const { width, height } = sample;
+    context.drawImage(canvas, 0, 0, width, height);
     const data = context.getImageData(0, 0, width, height).data;
     const first = [data[0], data[1], data[2], data[3]];
     let varied = 0;
     let bright = 0;
     let samples = 0;
-    const step = Math.max(8, Math.floor(Math.min(width, height) / 32));
+    const step = Math.max(1, Math.floor(Math.min(width, height) / 32));
     for (let y = 0; y < height; y += step) {
       for (let x = 0; x < width; x += step) {
         const i = (y * width + x) * 4;
@@ -486,28 +350,32 @@ async function canvasInkSummary(cdp) {
   })()`);
 }
 
-async function enableDebugPanel(cdp) {
-  await evaluate(cdp, `(() => {
+async function enableDebugPanel(browser) {
+  await browser.evaluate(`(() => {
     window.dispatchEvent(new KeyboardEvent("keydown", { code: "F3", key: "F3", bubbles: true }));
     window.dispatchEvent(new KeyboardEvent("keyup", { code: "F3", key: "F3", bubbles: true }));
   })()`);
-  await waitUntil("debug panel visible", () => evaluate(cdp, `!document.querySelector("#debugPanel").classList.contains("hidden") && /pos /.test(document.querySelector("#debugPanel").textContent)`), 2500);
+  await waitUntil("debug panel visible", () => browser.evaluate(`!document.querySelector("#debugPanel").classList.contains("hidden") && /pos /.test(document.querySelector("#debugPanel").textContent)`), 2500);
 }
 
-async function debugPosition(cdp) {
-  const pos = await waitUntil("debug position", () => evaluate(cdp, `(() => {
+async function debugPosition(browser) {
+  const pos = await waitUntil("debug position", () => browser.evaluate(`(() => {
     const match = document.querySelector("#debugPanel").textContent.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     return match ? { x: Number(match[1]), y: Number(match[2]), text: document.querySelector("#debugPanel").textContent } : null;
   })()`), 2500);
   return pos;
 }
 
-async function runMenuScaleSmoke(cdp, baseUrl) {
+async function runMenuScaleSmoke(browser, baseUrl) {
   const samples = [];
   for (const [width, height] of [[960, 640], [1920, 1080]]) {
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
-    await navigateApp(cdp, baseUrl, 'menu scale ' + width);
-    samples.push(await evaluate(cdp, `(() => {
+    await browser.setViewport(width, height);
+    await navigateApp(browser, baseUrl, 'menu scale ' + width);
+    if (await browser.evaluate('!document.querySelector("#entryGate").classList.contains("hidden")')) {
+      await clickSelector(browser, "#guestEntryButton");
+    }
+    await waitUntil("menu start is visible", () => browser.evaluate('document.querySelector("#startButton").getBoundingClientRect().width > 0'));
+    samples.push(await browser.evaluate(`(() => {
       const stage = document.querySelector('.stage').getBoundingClientRect();
       const button = document.querySelector('#startButton').getBoundingClientRect();
       const title = document.querySelector('#startPanel h1').getBoundingClientRect();
@@ -516,52 +384,47 @@ async function runMenuScaleSmoke(cdp, baseUrl) {
   }
   if (samples.some(s => s.width < 298 || s.width > 402 || s.ratio < 0.25 || s.ratio > 0.35 || !s.fits)
     || samples[1].width - samples[0].width < 70) errors.push('menu proportions should adapt to the game frame instead of remaining a fixed 320px: ' + JSON.stringify(samples));
-  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  await browser.setViewport(1280, 720);
 }
 
-async function runBackwardTransitionSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await navigateApp(cdp, baseUrl, "backward transition");
-  const entryGateVisible = await evaluate(cdp, `(() => {
+async function runBackwardTransitionSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "backward transition");
+  const entryGateVisible = await browser.evaluate(`(() => {
     const gate = document.querySelector("#entryGate");
     return Boolean(gate && !gate.classList.contains("hidden"));
   })()`);
   if (entryGateVisible) {
-    await clickSelector(cdp, "#guestEntryButton");
-    await waitUntil("backward transition guest entry", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden")`));
+    await clickSelector(browser, "#guestEntryButton");
+    await waitUntil("backward transition guest entry", () => browser.evaluate(`document.querySelector("#entryGate").classList.contains("hidden")`));
   }
-  await clickSelector(cdp, "#startButton");
-  await waitUntil("backward transition starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
-  await enableDebugPanel(cdp);
+  await clickSelector(browser, "#startButton");
+  await waitUntil("backward transition starts", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden")`));
+  await enableDebugPanel(browser);
 
   // R2 -> R1 exercises the same-act path. The local-only probe seeds a
   // previous-room Lumen and an already-faulted current attempt, then crosses
   // the actual left boundary on the next update.
-  await keyTap(cdp, "Digit2", "2");
-  await waitUntil("backward probe reaches R2", () => evaluate(cdp, `/room 2\\/10/.test(document.querySelector("#debugPanel").textContent)`));
-  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
-  const sameAct = await waitUntil("backward R2 transition restores clean and carried Lumen", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "Digit2", "2");
+  await waitUntil("backward probe reaches R2", () => browser.evaluate(`/room 2\\/10/.test(document.querySelector("#debugPanel").textContent)`));
+  await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
+  const sameAct = await waitUntil("backward R2 transition restores clean and carried Lumen", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /room 1\\/10/.test(text) && /attempt clean 1/.test(text) && /carry 1/.test(text) && /lumen 1\\//.test(text) && /drill 0/.test(text)
       ? { text }
       : null;
   })()`), 3000, 20);
-  const sameActStatus = await evaluate(cdp, `document.querySelector("#gameStatus")?.textContent || ""`);
+  const sameActStatus = await browser.evaluate(`document.querySelector("#gameStatus")?.textContent || ""`);
   if (!/attempt clean 1/.test(sameAct.text) || !/carry 1/.test(sameAct.text) || !/drill 0/.test(sameAct.text) || !/已回退 · 本房 Drill 已暂停/.test(sameActStatus)) {
     errors.push("backward same-act transition should re-arm Clean, preserve banked Lumen and leave room training cleanly: " + JSON.stringify({ text: sameAct.text, status: sameActStatus }));
   }
 
   // R4 -> R3 additionally proves a backward act boundary restores the
   // existing chapter transition cue instead of silently changing ambience.
-  await keyTap(cdp, "Digit4", "4");
-  await waitUntil("backward probe reaches R4", () => evaluate(cdp, `/room 4\\/10/.test(document.querySelector("#debugPanel").textContent)`));
-  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
-  const actBoundary = await waitUntil("backward act transition restores chapter cue", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "Digit4", "4");
+  await waitUntil("backward probe reaches R4", () => browser.evaluate(`/room 4\\/10/.test(document.querySelector("#debugPanel").textContent)`));
+  await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
+  const actBoundary = await waitUntil("backward act transition restores chapter cue", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /room 3\\/10/.test(text) && /act 0\\.\\d+/.test(text) && /attempt clean 1/.test(text)
       ? { text }
@@ -572,23 +435,31 @@ async function runBackwardTransitionSmoke(cdp, baseUrl) {
   }
 }
 
-async function runDesktopSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await navigateApp(cdp, baseUrl, "desktop smoke");
-  const bootRuntimeErrors = await evaluate(cdp, `window.__summitEarlyRuntimeErrors || []`);
+async function checkReducedMotion(browser) {
+  const reducedMotionState = await waitUntil("reduced motion preference", () => browser.evaluate(`(() => {
+    const stage = document.querySelector(".stage");
+    const canvas = document.querySelector("#game");
+    return stage.classList.contains("reduced-motion")
+      ? { matches: matchMedia("(prefers-reduced-motion: reduce)").matches, stageClass: true, canvasTransition: getComputedStyle(canvas).transitionDuration, transitionSeconds: parseFloat(getComputedStyle(canvas).transitionDuration) }
+      : null;
+  })()`));
+  if (!reducedMotionState.matches || !reducedMotionState.stageClass || !Number.isFinite(reducedMotionState.transitionSeconds) || reducedMotionState.transitionSeconds > 0.001) {
+    errors.push("system reduced-motion preference should quiet both UI transitions and nonessential canvas ambience: " + JSON.stringify(reducedMotionState));
+  }
+}
+
+async function runDesktopSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "desktop smoke");
+  const bootRuntimeErrors = await browser.evaluate(`window.__summitEarlyRuntimeErrors || []`);
   if (bootRuntimeErrors.length) throw new Error("runtime error during boot: " + JSON.stringify(bootRuntimeErrors));
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     window.__summitSmokeRuntimeErrors = [];
     window.addEventListener("error", (event) => {
       window.__summitSmokeRuntimeErrors.push(String(event.message || "unknown runtime error"));
     });
   })()`);
-  await waitUntil("entry chooser after session check", () => evaluate(cdp, `(() => {
+  await waitUntil("entry chooser after session check", () => browser.evaluate(`(() => {
     const gate = document.querySelector("#entryGate");
     const guest = document.querySelector("#guestEntryButton");
     return !!gate
@@ -596,7 +467,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       && !document.querySelector("#overlay")?.classList.contains("entry-checking")
       && document.activeElement === guest;
   })()`), 7000);
-  const entryChoice = await evaluate(cdp, `(() => {
+  const entryChoice = await browser.evaluate(`(() => {
     const gate = document.querySelector("#entryGate");
     const guest = document.querySelector("#guestEntryButton");
     const account = document.querySelector("#accountEntryButton");
@@ -636,7 +507,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
       contrastSamples
     };
   })()`);
-  const startupVisual = await evaluate(cdp, `(() => {
+  const startupVisual = await browser.evaluate(`(() => {
     const overlay = document.querySelector("#overlay");
     const style = getComputedStyle(overlay);
     const title = document.querySelector("#entryGate h1");
@@ -670,8 +541,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (entryChoice.contrastSamples.some((sample) => sample.ratio < 4.5)) {
     errors.push("small entry text should retain at least 4.5:1 contrast: " + JSON.stringify(entryChoice.contrastSamples));
   }
-  await keyTap(cdp, 'Tab', 'Tab');
-  const keyboardEntry = await evaluate(cdp, `(() => {
+  await keyTap(browser, 'Tab', 'Tab');
+  const keyboardEntry = await browser.evaluate(`(() => {
     const focused = document.activeElement;
     const style = getComputedStyle(focused);
     return { active: focused.id, outline: parseFloat(style.outlineWidth), offset: parseFloat(style.outlineOffset), shadow: style.boxShadow };
@@ -679,7 +550,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (keyboardEntry.active !== 'accountEntryButton' || keyboardEntry.outline < 2 || keyboardEntry.offset >= 0 || keyboardEntry.shadow !== 'none') {
     errors.push('first-run entry should hide automatic focus decoration but retain an inset keyboard focus indicator: ' + JSON.stringify(keyboardEntry));
   }
-  if (!/radial-gradient\(42% 48%/.test(startupVisual.backgroundImage)
+  if (!startupVisual.backgroundImage.includes("radial-gradient")
+    || !startupVisual.backgroundImage.includes("assets/moonlit-pass.jpg")
     || startupVisual.titleReadableWidth < 180
     || startupVisual.gateWidth < 300
     || startupVisual.gateHeight < 180
@@ -688,7 +560,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || startupVisual.gateShadow !== "none") {
     errors.push("startup choice should keep a quiet visual center and a substantial readable entry surface: " + JSON.stringify(startupVisual));
   }
-  const immediateAccountOpen = await evaluate(cdp, `(() => {
+  const immediateAccountOpen = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const account = document.querySelector("#accountEntryButton");
     account.focus({ preventScroll: true });
@@ -728,7 +600,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     return opened;
   })()`);
   if (!immediateAccountOpen) errors.push("entry account drawer should become interactive before an immediate outside dismissal");
-  const accountTypography = await evaluate(cdp, `window.__summitAccountTypography || {}`);
+  const accountTypography = await browser.evaluate(`window.__summitAccountTypography || {}`);
   if (accountTypography.label < 12 || accountTypography.note < 12 || accountTypography.status < 12 || accountTypography.input < 14) {
     errors.push("account entry typography should remain readable on large and small surfaces: " + JSON.stringify(accountTypography));
   }
@@ -744,7 +616,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   ) {
     errors.push("focused account form should use equal gutters, one surface and no empty side-column divider: " + JSON.stringify(accountTypography.panel));
   }
-  const entryAccountOutsideReturn = await waitUntil("immediate outside account dismissal restores entry trigger", () => evaluate(cdp, `(() => {
+  const entryAccountOutsideReturn = await waitUntil("immediate outside account dismissal restores entry trigger", () => browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const account = document.querySelector("#accountEntryButton");
     return panel.classList.contains("hidden") && panel.hasAttribute("inert") && document.activeElement === account
@@ -752,13 +624,13 @@ async function runDesktopSmoke(cdp, baseUrl) {
       : null;
   })()`), 2500);
   await sleep(80);
-  const delayedAccountFocus = await evaluate(cdp, `document.activeElement?.id || ""`);
+  const delayedAccountFocus = await browser.evaluate(`document.activeElement?.id || ""`);
   if (entryAccountOutsideReturn.active !== "accountEntryButton" || !entryAccountOutsideReturn.visible || !entryAccountOutsideReturn.inert || delayedAccountFocus !== "accountEntryButton") {
     errors.push("immediate outside account dismissal should stay on its visible entry trigger after delayed focus work: " + JSON.stringify({ entryAccountOutsideReturn, delayedAccountFocus }));
   }
-  await clickSelector(cdp, "#guestEntryButton");
-  await waitUntil("guest entry resolves", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden") && !document.querySelector("#startPanel").classList.contains("entry-pending")`));
-  const menuStyle = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#guestEntryButton");
+  await waitUntil("guest entry resolves", () => browser.evaluate(`document.querySelector("#entryGate").classList.contains("hidden") && !document.querySelector("#startPanel").classList.contains("entry-pending")`));
+  const menuStyle = await browser.evaluate(`(() => {
     const title = getComputedStyle(document.querySelector('#startPanel h1'));
     const primary = getComputedStyle(document.querySelector('#startButton'));
     return { titleStyle: [title.fontSize, title.color, title.textShadow], guestStyle: [primary.borderRadius, primary.backgroundImage] };
@@ -767,24 +639,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || JSON.stringify(menuStyle.guestStyle) !== JSON.stringify(startupVisual.guestStyle)) {
     errors.push('entry and main menu must share the actual title and primary-button design: ' + JSON.stringify({ startupVisual, menuStyle }));
   }
-  await cdp.send("Emulation.setEmulatedMedia", {
-    features: [{ name: "prefers-reduced-motion", value: "reduce" }]
-  });
-  const reducedMotionState = await waitUntil("reduced motion preference", () => evaluate(cdp, `(() => {
-    const stage = document.querySelector(".stage");
-    const canvas = document.querySelector("#game");
-    return stage.classList.contains("reduced-motion")
-      ? { matches: matchMedia("(prefers-reduced-motion: reduce)").matches, stageClass: true, canvasTransition: getComputedStyle(canvas).transitionDuration, transitionSeconds: parseFloat(getComputedStyle(canvas).transitionDuration) }
-      : null;
-  })()`));
-  if (!reducedMotionState.matches || !reducedMotionState.stageClass || !Number.isFinite(reducedMotionState.transitionSeconds) || reducedMotionState.transitionSeconds > 0.001) {
-    errors.push("system reduced-motion preference should quiet both UI transitions and nonessential canvas ambience: " + JSON.stringify(reducedMotionState));
-  }
-  await cdp.send("Emulation.setEmulatedMedia", {
-    features: [{ name: "prefers-reduced-motion", value: "no-preference" }]
-  });
-  await waitUntil("reduced motion preference clears", () => evaluate(cdp, `!document.querySelector(".stage").classList.contains("reduced-motion")`));
-  const initial = await evaluate(cdp, `({
+  await waitUntil("default system motion", () => browser.evaluate(`!matchMedia("(prefers-reduced-motion: reduce)").matches
+    && !document.querySelector(".stage").classList.contains("reduced-motion")`));
+  const initial = await browser.evaluate(`({
     build: document.querySelector('meta[name="build-version"]')?.content || "",
     ready: document.documentElement.classList.contains("app-ready"),
     startVisible: !!document.querySelector("#startButton"),
@@ -822,9 +679,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (initial.canvasSize.bufferWidth < initial.canvasSize.requiredWidth || initial.canvasSize.bufferHeight < initial.canvasSize.requiredHeight) errors.push("desktop canvas buffer should cover its physical display size: " + JSON.stringify(initial.canvasSize));
   if (initial.startActionLayout.primaryWidth < initial.startActionLayout.practiceWidth * 1.8) errors.push("primary start action should span the full two-column menu row: " + JSON.stringify(initial.startActionLayout));
 
-  await clickSelector(cdp, "#startButton");
-  await waitUntil("start button begins game with first-act framing", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden") && /游戏开始.*第一幕.*先读懂落点/.test(document.querySelector("#gameStatus").textContent)`));
-  const quietHud = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#startButton");
+  await waitUntil("start button begins game with first-act framing", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden") && /游戏开始.*第一幕.*先读懂落点/.test(document.querySelector("#gameStatus").textContent)`));
+  const quietHud = await browser.evaluate(`(() => {
     const stage = document.querySelector(".stage");
     const visible = (selector) => getComputedStyle(document.querySelector(selector)).display !== "none";
     return {
@@ -850,9 +707,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!quietHud.freePlay || quietHud.trainingActive || quietHud.splitTimeVisible || quietHud.splitDeltaVisible || quietHud.flowVisible || quietHud.paceVisible || !quietHud.roomVisible || !quietHud.timeVisible || !quietHud.gameSurfaceAvailable || !quietHud.overlayHidden) {
     errors.push("free-play HUD should hide advanced timing/flow meters while keeping core status: " + JSON.stringify(quietHud));
   }
-  await clickSelector(cdp, "#settingsButton");
-  await waitUntil("settings open after start", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings") && document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === -1`));
-  const refinedSettings = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#settingsButton");
+  await waitUntil("settings open after start", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings") && document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === -1`));
+  const refinedSettings = await browser.evaluate(`(() => {
     const panel = document.querySelector('#settingsPanel').getBoundingClientRect();
     const rows = [...document.querySelectorAll('.settings-only > summary')].filter(e => e.getBoundingClientRect().height > 0);
     const sliders = [...document.querySelectorAll('.settings-only input[type="range"]')];
@@ -866,8 +723,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || refinedSettings.readings.length !== 5 || refinedSettings.readings.some(r => !r.value || r.value !== r.spoken || !Number.isFinite(r.number))) {
     errors.push('Settings should retain a compact list surface and synchronized accessible slider values: ' + JSON.stringify(refinedSettings));
   }
-  await openSettingsGroup(cdp, ".settings-group-audio");
-  const changedRange = await evaluate(cdp, `(() => {
+  await openSettingsGroup(browser, ".settings-group-audio");
+  const changedRange = await browser.evaluate(`(() => {
     const slider = document.querySelector('#audioVolumeSlider');
     const previous = slider.value;
     slider.value = '0.6'; slider.dispatchEvent(new Event('input', { bubbles: true }));
@@ -876,7 +733,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     return result;
   })()`);
   if (changedRange.visible !== '60%' || changedRange.spoken !== '60%') errors.push('slider value readouts must follow actual input events: ' + JSON.stringify(changedRange));
-  const settingsAccordion = await evaluate(cdp, `(() => {
+  const settingsAccordion = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     return {
       audioOpen: document.querySelector(".settings-group-audio").open,
@@ -889,7 +746,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!settingsAccordion.audioOpen || !settingsAccordion.controlsClosed || !settingsAccordion.displayClosed || !settingsAccordion.feedbackClosed || !settingsAccordion.noForcedScroll) {
     errors.push("settings-only groups should keep a compact single-open accordion: " + JSON.stringify(settingsAccordion));
   }
-  const storageWriteFault = await evaluate(cdp, `(() => {
+  const storageWriteFault = await browser.evaluate(`(() => {
     const proto = Storage.prototype;
     const original = proto.setItem;
     let result;
@@ -913,7 +770,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!/本地存档不可写/.test(storageWriteFault.tip)) {
     errors.push("a mid-session storage write failure should expose the existing persistence warning: " + JSON.stringify(storageWriteFault));
   }
-  const duplicateClose = await evaluate(cdp, `(() => {
+  const duplicateClose = await browser.evaluate(`(() => {
     const button = document.querySelector("#settingsClose");
     button.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerType: "touch" }));
     button.dispatchEvent(new Event("touchend", { bubbles: true, cancelable: true }));
@@ -926,8 +783,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!duplicateClose.hidden || duplicateClose.active !== "settingsButton") {
     errors.push("duplicate touch/click close events should be idempotent and preserve the opener focus: " + JSON.stringify(duplicateClose));
   }
-  await waitUntil("settings close after start", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === 0`));
-  const hiddenPanelMutations = await evaluate(cdp, `(async () => {
+  await waitUntil("settings close after start", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#gameHud").hasAttribute("inert") && document.querySelector("#game").tabIndex === 0`));
+  const hiddenPanelMutations = await browser.evaluate(`(async () => {
     const panel = document.querySelector("#settingsPanel");
     const changes = [];
     const observer = new MutationObserver((records) => {
@@ -945,26 +802,26 @@ async function runDesktopSmoke(cdp, baseUrl) {
     return changes;
   })()`);
   if (hiddenPanelMutations.length !== 0) errors.push(`hidden practice/settings DOM should remain mutation-free during gameplay: ${JSON.stringify(hiddenPanelMutations)}`);
-  await enableDebugPanel(cdp);
-  const beforeMove = await debugPosition(cdp);
+  await enableDebugPanel(browser);
+  const beforeMove = await debugPosition(browser);
   if (!/relay chain 0  path 0/.test(beforeMove.text)) {
     errors.push("a fresh room should begin without a stale Relay thread: " + beforeMove.text);
   }
-  await keyHold(cdp, "KeyD", "D", 360);
-  const afterMove = await debugPosition(cdp);
+  await keyHold(browser, "KeyD", "D", 360);
+  const afterMove = await debugPosition(browser);
   const moved = afterMove.x - beforeMove.x;
   if (moved < 8) errors.push("keyboard movement did not shift player enough: " + moved.toFixed(2));
-  await clickSelector(cdp, "#settingsButton");
-  await waitUntil("settings pause opens after timed movement", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  const pausedClockStart = await evaluate(cdp, `document.querySelector("#runTime").textContent`);
+  await clickSelector(browser, "#settingsButton");
+  await waitUntil("settings pause opens after timed movement", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const pausedClockStart = await browser.evaluate(`document.querySelector("#runTime").textContent`);
   await sleep(360);
-  const pausedClockEnd = await evaluate(cdp, `document.querySelector("#runTime").textContent`);
+  const pausedClockEnd = await browser.evaluate(`document.querySelector("#runTime").textContent`);
   if (pausedClockEnd !== pausedClockStart) errors.push("run timer advanced while settings paused the game: " + pausedClockStart + " -> " + pausedClockEnd);
-  await clickSelector(cdp, "#settingsClose");
-  await waitUntil("settings pause closes after timer check", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  const retryDeathsBefore = await evaluate(cdp, `document.querySelector("#deathCount").textContent`);
-  await keyTap(cdp, "KeyR", "R");
-  const retryState = await waitUntil("quick retry status", () => evaluate(cdp, `(() => {
+  await clickSelector(browser, "#settingsClose");
+  await waitUntil("settings pause closes after timer check", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const retryDeathsBefore = await browser.evaluate(`document.querySelector("#deathCount").textContent`);
+  await keyTap(browser, "KeyR", "R");
+  const retryState = await waitUntil("quick retry status", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus").textContent;
     const deaths = document.querySelector("#deathCount").textContent;
     return /快速重开 · R1/.test(status) && deaths !== ${JSON.stringify(retryDeathsBefore)}
@@ -972,21 +829,21 @@ async function runDesktopSmoke(cdp, baseUrl) {
       : null;
   })()`));
   if (!/失 1/.test(retryState.deaths)) errors.push("quick retry should increment the visible mistake count once: " + JSON.stringify({ retryDeathsBefore, retryState }));
-  const manualRetryBuffers = await debugPosition(cdp);
+  const manualRetryBuffers = await debugPosition(browser);
   if (!/jbuf 0\.000/.test(manualRetryBuffers.text) || !/dbuf 0\.000/.test(manualRetryBuffers.text)) {
     errors.push("manual Quick Retry should clear stale Jump/Dash buffers: " + manualRetryBuffers.text);
   }
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", code: "KeyD", key: "D", windowsVirtualKeyCode: 68 });
-  const earlyDeathWindow = await waitUntil("automatic death exposes an early stale-input window", () => evaluate(cdp, `(() => {
+  await browser.keyDown("KeyD", "D");
+  const earlyDeathWindow = await waitUntil("automatic death exposes an early stale-input window", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const match = text.match(/dead ([\\d.]+)/);
     const remaining = match ? Number(match[1]) : 0;
     return remaining >= 0.15 ? { remaining } : null;
   })()`), 5000, 20);
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "KeyD", key: "d", windowsVirtualKeyCode: 68 });
-  await keyTap(cdp, "Space", " ");
+  await browser.keyUp("KeyD", "d");
+  await keyTap(browser, "Space", " ");
   await sleep(420);
-  const staleRespawnProbe = await debugPosition(cdp);
+  const staleRespawnProbe = await debugPosition(browser);
   const staleJump = staleRespawnProbe.text.match(/jbuf ([\d.]+)/);
   const staleDead = staleRespawnProbe.text.match(/dead ([\d.]+)/);
   if (!(earlyDeathWindow.remaining >= 0.15)
@@ -995,17 +852,17 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || Math.abs(staleRespawnProbe.y - manualRetryBuffers.y) > 2) {
     errors.push("an action pressed before the final death buffer window must expire instead of launching the respawn: " + JSON.stringify({ earlyDeathWindow, staleRespawnProbe }));
   }
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", code: "KeyD", key: "D", windowsVirtualKeyCode: 68 });
-  const lateDeathWindow = await waitUntil("automatic death reaches the late input-buffer window", () => evaluate(cdp, `(() => {
+  await browser.keyDown("KeyD", "D");
+  const lateDeathWindow = await waitUntil("automatic death reaches the late input-buffer window", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const match = text.match(/dead ([\\d.]+)/);
     const remaining = match ? Number(match[1]) : 0;
     return remaining >= 0.055 && remaining <= 0.105 ? { remaining, text } : null;
   })()`), 5000, 20);
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "KeyD", key: "d", windowsVirtualKeyCode: 68 });
-  await keyTap(cdp, "Space", " ");
+  await browser.keyUp("KeyD", "d");
+  await keyTap(browser, "Space", " ");
   await sleep(260);
-  const bufferedRespawnProbe = await debugPosition(cdp);
+  const bufferedRespawnProbe = await debugPosition(browser);
   const bufferedVelocity = bufferedRespawnProbe.text.match(/vel ([\d.-]+), ([\d.-]+)/);
   const bufferedDead = bufferedRespawnProbe.text.match(/dead ([\d.]+)/);
   const bufferedRespawnJump = {
@@ -1020,38 +877,38 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || bufferedRespawnJump.y >= manualRetryBuffers.y - 4) {
     errors.push("automatic respawn should preserve a Jump pressed inside the final input-buffer window: " + JSON.stringify({ lateDeathWindow, bufferedRespawnJump }));
   }
-  await evaluate(cdp, `window.dispatchEvent(new Event("blur"))`);
-  await waitUntil("visible gameplay records unmatched focus pause", () => evaluate(cdp, `/pause focus 1  settings 0  hidden 0/.test(document.querySelector("#debugPanel").textContent)`));
-  const focusRecoveryStart = await debugPosition(cdp);
-  await keyHold(cdp, "KeyD", "D", 280);
-  const keyboardFocusRecovery = await debugPosition(cdp);
+  await browser.evaluate(`window.dispatchEvent(new Event("blur"))`);
+  await waitUntil("visible gameplay records unmatched focus pause", () => browser.evaluate(`/pause focus 1  settings 0  hidden 0/.test(document.querySelector("#debugPanel").textContent)`));
+  const focusRecoveryStart = await debugPosition(browser);
+  await keyHold(browser, "KeyD", "D", 280);
+  const keyboardFocusRecovery = await debugPosition(browser);
   if (!/pause focus 0  settings 0  hidden 0/.test(keyboardFocusRecovery.text)
     || keyboardFocusRecovery.x - focusRecoveryStart.x < 6) {
     errors.push("a real keyboard action should recover an unmatched visible-window focus pause after respawn: " + JSON.stringify({ focusRecoveryStart, keyboardFocusRecovery }));
   }
-  await evaluate(cdp, `window.dispatchEvent(new Event("blur"))`);
-  await waitUntil("second unmatched focus pause", () => evaluate(cdp, `/pause focus 1  settings 0  hidden 0/.test(document.querySelector("#debugPanel").textContent)`));
-  await clickSelector(cdp, "#game");
-  const pointerFocusRecovery = await waitUntil("canvas pointer recovers unmatched focus pause", () => evaluate(cdp, `(() => {
+  await browser.evaluate(`window.dispatchEvent(new Event("blur"))`);
+  await waitUntil("second unmatched focus pause", () => browser.evaluate(`/pause focus 1  settings 0  hidden 0/.test(document.querySelector("#debugPanel").textContent)`));
+  await clickSelector(browser, "#game");
+  const pointerFocusRecovery = await waitUntil("canvas pointer recovers unmatched focus pause", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /pause focus 0  settings 0  hidden 0/.test(text) ? text : "";
   })()`));
   if (!/pause focus 0/.test(pointerFocusRecovery)) errors.push("canvas pointer should recover a stale visible focus pause");
-  const gameplayCanvas = await canvasInkSummary(cdp);
+  const gameplayCanvas = await canvasInkSummary(browser);
   if (gameplayCanvas.varied < 20 || gameplayCanvas.bright < 20) errors.push("canvas appears blank during gameplay: " + JSON.stringify(gameplayCanvas));
-  await keyTap(cdp, "Digit0", "0");
-  await waitUntil("debug jump reaches summit room", () => evaluate(cdp, `/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
+  await keyTap(browser, "Digit0", "0");
+  await waitUntil("debug jump reaches summit room", () => browser.evaluate(`/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
   await sleep(2100);
-  await keyHold(cdp, "KeyD", "D", 180);
-  await waitUntil("summit room timing contributes to current-run evidence", () => evaluate(cdp, `!/0:00\\.00$/.test(document.querySelector("#runTime").textContent)`));
-  await keyTap(cdp, "KeyR", "R");
-  await waitUntil("summit route records a current-run mistake", () => evaluate(cdp, `/快速重开 · R10/.test(document.querySelector("#gameStatus").textContent) && /失 1/.test(document.querySelector("#deathCount").textContent)`));
-  const earlyRuntimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
+  await keyHold(browser, "KeyD", "D", 180);
+  await waitUntil("summit room timing contributes to current-run evidence", () => browser.evaluate(`!/0:00\\.00$/.test(document.querySelector("#runTime").textContent)`));
+  await keyTap(browser, "KeyR", "R");
+  await waitUntil("summit route records a current-run mistake", () => browser.evaluate(`/快速重开 · R10/.test(document.querySelector("#gameStatus").textContent) && /失 1/.test(document.querySelector("#deathCount").textContent)`));
+  const earlyRuntimeErrors = await browser.evaluate(`window.__summitSmokeRuntimeErrors || []`);
   if (earlyRuntimeErrors.length) throw new Error("runtime error stopped gameplay: " + JSON.stringify(earlyRuntimeErrors));
-  await evaluate(cdp, `window.addEventListener("error", (event) => { window.__summitRevealTestError = event.message || "unknown"; }, { once: true })`);
-  await keyTap(cdp, "KeyH", "H");
+  await browser.evaluate(`window.addEventListener("error", (event) => { window.__summitRevealTestError = event.message || "unknown"; }, { once: true })`);
+  await keyTap(browser, "KeyH", "H");
   await sleep(80);
-  const debugSummitState = await evaluate(cdp, `({
+  const debugSummitState = await browser.evaluate(`({
     status: document.querySelector("#gameStatus").textContent,
     room: document.querySelector("#roomCount").textContent,
     debugVisible: !document.querySelector("#debugPanel").classList.contains("hidden"),
@@ -1061,7 +918,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!/星顶回应 · 第四幕 · 星顶 · 1\/2 房 ·/.test(debugSummitState.status) || !debugSummitState.lumenSky) {
     errors.push("debug summit trigger should begin the reveal with partial final-act evidence: " + JSON.stringify(debugSummitState));
   }
-  const summitRevealState = await waitUntil("summit reveal holds before review", () => evaluate(cdp, `(() => {
+  const summitRevealState = await waitUntil("summit reveal holds before review", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus").textContent;
     const hidden = document.querySelector("#overlay").classList.contains("hidden");
     return /星顶回应 · 第四幕 · 星顶 · 1\\/2 房 ·/.test(status) && hidden ? { status, hidden } : null;
@@ -1070,7 +927,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
     errors.push("summit goal should hold on an in-world reveal with final-act evidence before opening review: " + JSON.stringify(summitRevealState));
   }
   await sleep(2800);
-  const finishProbe = await evaluate(cdp, `({
+  const finishProbe = await browser.evaluate(`({
     hasTitle: !!document.querySelector("#finishTitle"),
     line: document.querySelector(".finish-line")?.textContent || "",
     whisper: document.querySelector(".finish-whisper")?.textContent || "",
@@ -1086,11 +943,11 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (finishProbe.hasTitle && (!/微光 0\/12/.test(finishProbe.line) || finishProbe.whisper !== "山没有变轻，是你学会了继续向上。")) {
     errors.push("summit review should close the current-run Lumen loop without granting the all-Lumen ending to a partial route: " + JSON.stringify(finishProbe));
   }
-  const runEvidenceReview = finishProbe.hasTitle ? await evaluate(cdp, `(() => {
+  const runEvidenceReview = finishProbe.hasTitle ? await browser.evaluate(`(() => {
     const title = document.querySelector("#finishTitle");
     const more = document.querySelector(".review-more");
     const text = more.textContent || "";
-    const nextCard = [...document.querySelectorAll(".review-card")].find((card) => card.querySelector("span")?.textContent.trim() === "下一 Drill");
+    const nextCard = [...document.querySelectorAll(".review-card")].find((card) => card.querySelector("span")?.textContent.trim() === "建议练习");
     const lossCard = [...document.querySelectorAll(".review-card")].find((card) => card.querySelector("span")?.textContent.trim() === "本轮最大损失");
     const sheetRect = document.querySelector(".finish-sheet")?.getBoundingClientRect();
     const titleRect = title?.getBoundingClientRect();
@@ -1123,10 +980,10 @@ async function runDesktopSmoke(cdp, baseUrl) {
     errors.push("summit review should preserve the summit scene while exposing bounded current-run evidence without losing modal focus: " + JSON.stringify(runEvidenceReview));
   }
   if (finishProbe.hasTitle) {
-    await evaluate(cdp, `document.querySelector(".review-more").open = true`);
-    await waitUntil("current-run report action becomes visible", () => evaluate(cdp, `document.querySelector("[data-copy-run-report]")?.getClientRects().length > 0`));
-    await clickSelector(cdp, "[data-copy-run-report]");
-    const runReport = await waitUntil("current-run report copy", () => evaluate(cdp, `(() => {
+    await browser.evaluate(`document.querySelector(".review-more").open = true`);
+    await waitUntil("current-run report action becomes visible", () => browser.evaluate(`document.querySelector("[data-copy-run-report]")?.getClientRects().length > 0`));
+    await clickSelector(browser, "[data-copy-run-report]");
+    const runReport = await waitUntil("current-run report copy", () => browser.evaluate(`(() => {
       const text = window.__summitLastRunReport || "";
       const status = document.querySelector("#gameStatus").textContent;
       return text && /本轮报告/.test(status) ? { text, status } : null;
@@ -1143,10 +1000,10 @@ async function runDesktopSmoke(cdp, baseUrl) {
       errors.push("current-run report should be bounded, useful and privacy-labelled: " + JSON.stringify(runReport));
     }
   }
-  await navigateApp(cdp, baseUrl, "desktop reset");
-  await tapSelector(cdp, "#openTrainingButton");
-  await waitUntil("practice panel open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  const cockpit = await evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "desktop reset");
+  await tapSelector(browser, "#openTrainingButton");
+  await waitUntil("practice panel open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  const cockpit = await browser.evaluate(`(() => {
     const visible = (selector) => {
       const el = document.querySelector(selector);
       return !!el && getComputedStyle(el).display !== "none";
@@ -1196,31 +1053,31 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!cockpit.systemList || !cockpit.panelWidthCalm || !/235, 241, 238/.test(cockpit.panelSurface)) errors.push("practice panel should render as a restrained adaptive training sheet: " + JSON.stringify(cockpit));
   if (cockpit.actionTray.trayBackground !== "none" || cockpit.actionTray.trayShadow !== "none" || !/103, 142, 121/.test(cockpit.actionTray.buttonBackground) || cockpit.actionTray.buttonRadius !== "11px") errors.push("upper-right actions should remain unboxed, individually surfaced tools with a restrained practice-active state: " + JSON.stringify(cockpit.actionTray));
   if (cockpit.panelBox.overflow) errors.push("practice panel overflows desktop viewport: " + JSON.stringify(cockpit.panelBox));
-  await openSettingsGroup(cdp, ".settings-group-training");
-  await openSettingsGroup(cdp, ".practice-subgroup-advanced");
-  await clickSelector(cdp, "#focusResetButton");
-  const resetArmed = await evaluate(cdp, `document.querySelector("#focusResetButton").textContent.trim()`);
+  await openSettingsGroup(browser, ".settings-group-training");
+  await openSettingsGroup(browser, ".practice-subgroup-advanced");
+  await clickSelector(browser, "#focusResetButton");
+  const resetArmed = await browser.evaluate(`document.querySelector("#focusResetButton").textContent.trim()`);
   if (resetArmed !== "确认清空") errors.push("advanced reset should retain its first-step confirmation after being moved out of the launch dock: " + resetArmed);
-  await clickSelector(cdp, "#focusResetButton");
-  const resetComplete = await waitUntil("advanced reset completes", () => evaluate(cdp, `(() => {
+  await clickSelector(browser, "#focusResetButton");
+  const resetComplete = await waitUntil("advanced reset completes", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus").textContent;
     const label = document.querySelector("#focusResetButton").textContent.trim();
     return /统计已清空/.test(status) && label === "清空" ? { status, label } : null;
   })()`));
   if (!/统计已清空/.test(resetComplete.status) || resetComplete.label !== "清空") errors.push("advanced reset should finish and return to its concise label: " + JSON.stringify(resetComplete));
-  await evaluate(cdp, `document.querySelector(".practice-subgroup-advanced").open = false`);
-  await waitUntil("advanced disclosure closes with synchronized semantics", () => evaluate(cdp, `(() => {
+  await browser.evaluate(`document.querySelector(".practice-subgroup-advanced").open = false`);
+  await waitUntil("advanced disclosure closes with synchronized semantics", () => browser.evaluate(`(() => {
     const group = document.querySelector(".practice-subgroup-advanced");
     return !group.open;
   })()`));
-  await clickSelector(cdp, "#settingsClose");
-  await waitUntil("practice panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await clickSelector(browser, "#settingsClose");
+  await waitUntil("practice panel closes", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
 
-  await clickSelector(cdp, "#startSettingsButton");
-  await waitUntil("quiet settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
-  const defaultOpenGroups = await evaluate(cdp, `[...document.querySelectorAll(".settings-group.settings-only[open]")].map((group) => group.className)`);
+  await clickSelector(browser, "#startSettingsButton");
+  await waitUntil("quiet settings open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  const defaultOpenGroups = await browser.evaluate(`[...document.querySelectorAll(".settings-group.settings-only[open]")].map((group) => group.className)`);
   if (defaultOpenGroups.length !== 0) errors.push("settings should open with every system group collapsed: " + JSON.stringify(defaultOpenGroups));
-  const collapsedDisclosureSemantics = await evaluate(cdp, `(() => {
+  const collapsedDisclosureSemantics = await browser.evaluate(`(() => {
     const groups = [...document.querySelectorAll(".settings-group.settings-only")];
     return {
       groupCount: groups.length,
@@ -1243,8 +1100,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   ) {
     errors.push("settings disclosures should keep decorative chevrons out of accessible names and expose collapsed state: " + JSON.stringify(collapsedDisclosureSemantics));
   }
-  await openSettingsGroup(cdp, ".settings-group-controls");
-  const openedControlsDisclosure = await evaluate(cdp, `(() => {
+  await openSettingsGroup(browser, ".settings-group-controls");
+  const openedControlsDisclosure = await browser.evaluate(`(() => {
     const group = document.querySelector(".settings-group-controls");
     const summary = group?.querySelector(":scope > summary");
     const chevron = summary?.querySelector(".settings-group-chevron");
@@ -1258,7 +1115,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!openedControlsDisclosure.open || openedControlsDisclosure.expanded !== "true" || openedControlsDisclosure.chevronHidden !== "true" || openedControlsDisclosure.generatedContent !== "none") {
     errors.push("opening a settings disclosure should synchronize its accessible expanded state without exposing the decorative chevron: " + JSON.stringify(openedControlsDisclosure));
   }
-  const settingsAudit = await evaluate(cdp, `(() => {
+  const settingsAudit = await browser.evaluate(`(() => {
     const visible = (selector) => {
       const el = document.querySelector(selector);
       return !!el && getComputedStyle(el).display !== "none";
@@ -1372,7 +1229,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (settingsAudit.contrastSamples.some((sample) => sample.ratio < 4.5)) {
     errors.push("small settings text should retain at least 4.5:1 contrast: " + JSON.stringify(settingsAudit.contrastSamples));
   }
-  const comfortControls = await evaluate(cdp, `({
+  const comfortControls = await browser.evaluate(`({
     lowPerformance: !!document.querySelector("#lowPerformanceToggle"),
     touchSize: !!document.querySelector("#touchSizeSlider"),
     resetAppearance: (() => {
@@ -1392,7 +1249,7 @@ async function runDesktopSmoke(cdp, baseUrl) {
   }
   if (settingsAudit.panelBox.overflow) errors.push("settings panel overflows desktop viewport: " + JSON.stringify(settingsAudit.panelBox));
 
-  const macLayoutApplied = await evaluate(cdp, `(() => {
+  const macLayoutApplied = await browser.evaluate(`(() => {
     const select = document.querySelector("#keyboardLayout");
     select.value = "mac";
     select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1408,8 +1265,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (macLayoutApplied.layout !== "mac" || macLayoutApplied.preset !== "comfort" || macLayoutApplied.left !== "A" || !/避开.*⌘.*⌥/.test(macLayoutApplied.profile) || macLayoutApplied.visibleBindings < 10) {
     errors.push("keyboard layout selection should preserve the Mac-safe comfort profile: " + JSON.stringify(macLayoutApplied));
   }
-  await clickSelector(cdp, '[data-preset-choice="classic"]');
-  const classicBindings = await evaluate(cdp, `(() => Object.fromEntries(
+  await clickSelector(browser, '[data-preset-choice="classic"]');
+  const classicBindings = await browser.evaluate(`(() => Object.fromEntries(
     ["left", "up", "jump", "dash", "grab"].map((action) => [
       action,
       document.querySelector('[data-binding-action="' + action + '"] kbd')?.textContent.trim()
@@ -1418,9 +1275,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (classicBindings.left !== "←" || classicBindings.up !== "↑" || classicBindings.jump !== "C" || classicBindings.dash !== "X" || classicBindings.grab !== "Z") {
     errors.push("classic preset should expose Celeste-style arrows plus C/X/Z: " + JSON.stringify(classicBindings));
   }
-  await clickSelector(cdp, '[data-binding-action="jump"]');
-  await keyTap(cdp, "Escape", "Escape");
-  const cancelledBinding = await evaluate(cdp, `(() => ({
+  await clickSelector(browser, '[data-binding-action="jump"]');
+  await keyTap(browser, "Escape", "Escape");
+  const cancelledBinding = await browser.evaluate(`(() => ({
     panelOpen: !document.querySelector("#settingsPanel").classList.contains("hidden"),
     preset: document.querySelector("#controlPreset").value,
     classicPressed: document.querySelector('[data-preset-choice="classic"]')?.getAttribute("aria-pressed"),
@@ -1431,12 +1288,12 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!cancelledBinding.panelOpen || cancelledBinding.preset !== "classic" || cancelledBinding.classicPressed !== "true" || cancelledBinding.jump !== "C" || cancelledBinding.capturing !== 0 || !/原方案保持不变/.test(cancelledBinding.status)) {
     errors.push("Escape should cancel rebinding without silently switching the active preset: " + JSON.stringify(cancelledBinding));
   }
-  await clickSelector(cdp, '[data-binding-action="dash"]');
-  await clickSelector(cdp, "#settingsClose");
-  await waitUntil("closing settings cancels pending rebinding", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  await clickSelector(cdp, "#startSettingsButton");
-  await openSettingsGroup(cdp, ".settings-group-controls");
-  const closedBinding = await evaluate(cdp, `({
+  await clickSelector(browser, '[data-binding-action="dash"]');
+  await clickSelector(browser, "#settingsClose");
+  await waitUntil("closing settings cancels pending rebinding", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await clickSelector(browser, "#startSettingsButton");
+  await openSettingsGroup(browser, ".settings-group-controls");
+  const closedBinding = await browser.evaluate(`({
     preset: document.querySelector("#controlPreset").value,
     dash: document.querySelector('[data-binding-action="dash"] kbd')?.textContent.trim(),
     capturing: document.querySelectorAll("[data-binding-action].capturing").length
@@ -1444,8 +1301,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (closedBinding.preset !== "classic" || closedBinding.dash !== "X" || closedBinding.capturing !== 0) {
     errors.push("closing settings should roll back an unfinished key capture: " + JSON.stringify(closedBinding));
   }
-  await clickSelector(cdp, '[data-preset-choice="comfort"]');
-  const comfortBindings = await evaluate(cdp, `(() => Object.fromEntries(
+  await clickSelector(browser, '[data-preset-choice="comfort"]');
+  const comfortBindings = await browser.evaluate(`(() => Object.fromEntries(
     ["left", "up", "jump", "dash", "grab"].map((action) => [
       action,
       document.querySelector('[data-binding-action="' + action + '"] kbd')?.textContent.trim()
@@ -1454,9 +1311,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (comfortBindings.left !== "A" || comfortBindings.up !== "W" || comfortBindings.jump !== "Space" || comfortBindings.dash !== "K" || comfortBindings.grab !== "J") {
     errors.push("comfort preset should split WASD movement from Space/J/K actions: " + JSON.stringify(comfortBindings));
   }
-  await clickSelector(cdp, '[data-binding-action="jump"]');
-  await keyTap(cdp, "KeyF", "f");
-  const reboundJump = await evaluate(cdp, `(() => {
+  await clickSelector(browser, '[data-binding-action="jump"]');
+  await keyTap(browser, "KeyF", "f");
+  const reboundJump = await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     return {
       code: saved.customBindings?.jump,
@@ -1467,8 +1324,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (reboundJump.code !== "KeyF" || reboundJump.label !== "F" || !/跳跃/.test(reboundJump.status)) {
     errors.push("click-to-rebind should persist and render the captured keyboard key: " + JSON.stringify(reboundJump));
   }
-  await clickSelector(cdp, '[data-layout-choice="pc"]');
-  const customAfterPcSwitch = await evaluate(cdp, `(() => {
+  await clickSelector(browser, '[data-layout-choice="pc"]');
+  const customAfterPcSwitch = await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     return {
       layout: saved.keyboardLayout,
@@ -1478,8 +1335,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
       status: document.querySelector("#gameStatus")?.textContent || ""
     };
   })()`);
-  await clickSelector(cdp, '[data-layout-choice="mac"]');
-  const customAfterMacSwitch = await evaluate(cdp, `(() => {
+  await clickSelector(browser, '[data-layout-choice="mac"]');
+  const customAfterMacSwitch = await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     return {
       layout: saved.keyboardLayout,
@@ -1493,8 +1350,8 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || customAfterMacSwitch.layout !== "mac" || customAfterMacSwitch.preset !== "custom" || customAfterMacSwitch.jump !== "KeyF" || customAfterMacSwitch.label !== "F" || !/自定义键位保持不变/.test(customAfterMacSwitch.status)) {
     errors.push("switching Mac and PC labels must preserve every custom binding until the explicit restore action: " + JSON.stringify({ customAfterPcSwitch, customAfterMacSwitch }));
   }
-  await clickSelector(cdp, "#resetKeyBindings");
-  const resetBindings = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#resetKeyBindings");
+  const resetBindings = await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     return {
       jump: saved.customBindings?.jump,
@@ -1506,32 +1363,32 @@ async function runDesktopSmoke(cdp, baseUrl) {
     errors.push("binding reset should restore the selected keyboard layout: " + JSON.stringify(resetBindings));
   }
 
-  await openSettingsGroup(cdp, ".settings-group-audio");
-  const audioFailure = await evaluate(cdp, `(() => {
+  await openSettingsGroup(browser, ".settings-group-audio");
+  const audioFailure = await browser.evaluate(`(() => {
     window.__summitSmokeAudioUnavailable = true;
     document.querySelector("#audioTestButton")?.click();
     return document.querySelector("#gameStatus")?.textContent || "";
   })()`);
-  const unavailableAudioStatus = await waitUntil("audio unavailable status", () => evaluate(cdp, `(() => {
+  const unavailableAudioStatus = await waitUntil("audio unavailable status", () => browser.evaluate(`(() => {
     const text = document.querySelector("#gameStatus")?.textContent || "";
     return /声音暂不可用/.test(text) ? text : null;
   })()`), 1200, 40);
-  await evaluate(cdp, `window.__summitSmokeAudioUnavailable = false`);
-  await clickSelector(cdp, "#audioTestButton");
-  const audioStatus = await waitUntil("audio test status", () => evaluate(cdp, `(() => {
+  await browser.evaluate(`window.__summitSmokeAudioUnavailable = false`);
+  await clickSelector(browser, "#audioTestButton");
+  const audioStatus = await waitUntil("audio test status", () => browser.evaluate(`(() => {
     const text = document.querySelector("#gameStatus")?.textContent || "";
     return /声音试听/.test(text) ? text : null;
   })()`), 1200, 40);
-  await evaluate(cdp, `window.__summitSmokeAudioContextClosed = true`);
-  await clickSelector(cdp, "#audioTestButton");
-  const audioRecoveryStatus = await waitUntil("audio context recovery status", () => evaluate(cdp, `(() => {
+  await browser.evaluate(`window.__summitSmokeAudioContextClosed = true`);
+  await clickSelector(browser, "#audioTestButton");
+  const audioRecoveryStatus = await waitUntil("audio context recovery status", () => browser.evaluate(`(() => {
     const text = document.querySelector("#gameStatus")?.textContent || "";
     return /声音试听/.test(text) ? text : null;
   })()`), 1200, 40);
   if (!/声音暂不可用/.test(unavailableAudioStatus) || !/声音试听/.test(audioStatus) || !/声音试听/.test(audioRecoveryStatus)) {
     errors.push("audio test should distinguish unavailable audio and recover a replaced context: " + JSON.stringify({ audioFailure, unavailableAudioStatus, audioStatus, audioRecoveryStatus }));
   }
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const type = document.querySelector("#feedbackType");
     const note = document.querySelector("#feedbackNote");
     type.value = "mobile";
@@ -1539,9 +1396,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
     note.value = "R7 touch note with extra spacing";
     note.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
-  await openSettingsGroup(cdp, ".settings-group-feedback");
-  await clickSelector(cdp, "#diagnosticsButton");
-  const diagnostics = await waitUntil("diagnostics snapshot", () => evaluate(cdp, `(() => {
+  await openSettingsGroup(browser, ".settings-group-feedback");
+  await clickSelector(browser, "#diagnosticsButton");
+  const diagnostics = await waitUntil("diagnostics snapshot", () => browser.evaluate(`(() => {
     const snapshot = window.__summitLastDiagnostics;
     if (!snapshot) return null;
     const status = document.querySelector("#gameStatus").textContent;
@@ -1567,67 +1424,67 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!/^\d{8}-p\d+$/.test(diagnostics.build) || diagnostics.schemaVersion !== 1 || diagnostics.feedbackType !== "mobile" || !/R7 touch note/.test(diagnostics.feedbackNote || "") || !diagnostics.gamepad || typeof diagnostics.gamepad.deadzone !== "number" || !diagnostics.hasSettings || !diagnostics.hasProgress || !diagnostics.hasRunEvidence || !diagnostics.hasNoUserAgent || !/诊断/.test(diagnostics.status)) {
     errors.push("diagnostics button did not produce a safe feedback snapshot: " + JSON.stringify(diagnostics));
   }
-  await clickSelector(cdp, "#feedbackTemplateButton");
-  const template = await waitUntil("feedback template", () => evaluate(cdp, `(() => {
+  await clickSelector(browser, "#feedbackTemplateButton");
+  const template = await waitUntil("feedback template", () => browser.evaluate(`(() => {
     const text = window.__summitLastFeedbackTemplate || "";
     return /Summit Spark/.test(text) && /反馈类型：移动端/.test(text) && /复现步骤：/.test(text) && !/userAgent/.test(text) ? text : null;
   })()`), 5000);
   if (!/R7 touch note/.test(template)) errors.push("feedback template should include the current note");
   await sleep(420);
 
-  const outsidePoint = await evaluate(cdp, `({ x: 18, y: Math.round(innerHeight / 2) })`);
-  await clickPoint(cdp, outsidePoint.x, outsidePoint.y);
-  await waitUntil("outside pointer closes quiet settings", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  const outsideDismissFocus = await waitUntil("outside pointer restores safe focus", () => evaluate(cdp, `(() => {
+  const outsidePoint = await browser.evaluate(`({ x: 18, y: Math.round(innerHeight / 2) })`);
+  await clickPoint(browser, outsidePoint.x, outsidePoint.y);
+  await waitUntil("outside pointer closes quiet settings", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const outsideDismissFocus = await waitUntil("outside pointer restores safe focus", () => browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const active = document.activeElement;
     return active && active !== document.body && !panel.contains(active) ? (active.id || active.tagName) : "";
   })()`));
   if (outsideDismissFocus !== "startSettingsButton") errors.push("outside settings dismissal should return start-screen focus to its visible trigger: " + outsideDismissFocus);
-  await clickSelector(cdp, "#startSettingsButton");
-  await waitUntil("quiet settings reopens collapsed", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group.settings-only[open]").length === 0`));
-  const outsideStartPoint = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#startSettingsButton");
+  await waitUntil("quiet settings reopens collapsed", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelectorAll(".settings-group.settings-only[open]").length === 0`));
+  const outsideStartPoint = await browser.evaluate(`(() => {
     const rect = document.querySelector("#startButton").getBoundingClientRect();
     return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
   })()`);
-  await clickPoint(cdp, outsideStartPoint.x, outsideStartPoint.y);
-  await waitUntil("outside start-button region closes without click-through", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#overlay").classList.contains("hidden") && document.querySelector("#gameHud").hidden`));
-  await clickSelector(cdp, "#startSettingsButton");
-  const outsideTrainingPoint = await evaluate(cdp, `(() => {
+  await clickPoint(browser, outsideStartPoint.x, outsideStartPoint.y);
+  await waitUntil("outside start-button region closes without click-through", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#overlay").classList.contains("hidden") && document.querySelector("#gameHud").hidden`));
+  await clickSelector(browser, "#startSettingsButton");
+  const outsideTrainingPoint = await browser.evaluate(`(() => {
     const rect = document.querySelector("#openTrainingButton").getBoundingClientRect();
     return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
   })()`);
-  await clickPoint(cdp, outsideTrainingPoint.x, outsideTrainingPoint.y);
-  await waitUntil("real outside training-button pointer switches panels", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await clickSelector(cdp, "#settingsClose");
-  await waitUntil("switched practice panel closes to its actual trigger", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#openTrainingButton")`));
-  await clickSelector(cdp, "#startSettingsButton");
-  const outsideAccountPoint = await evaluate(cdp, `(() => {
+  await clickPoint(browser, outsideTrainingPoint.x, outsideTrainingPoint.y);
+  await waitUntil("real outside training-button pointer switches panels", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await clickSelector(browser, "#settingsClose");
+  await waitUntil("switched practice panel closes to its actual trigger", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#openTrainingButton")`));
+  await clickSelector(browser, "#startSettingsButton");
+  const outsideAccountPoint = await browser.evaluate(`(() => {
     const rect = document.querySelector("#startAccountButton").getBoundingClientRect();
     return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
   })()`);
-  await clickPoint(cdp, outsideAccountPoint.x, outsideAccountPoint.y);
-  await waitUntil("real outside account-button pointer switches panels", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("account-focused") && document.querySelector(".settings-group-account").open`));
-  await clickSelector(cdp, "#settingsClose");
-  await waitUntil("switched account panel closes to its actual trigger", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#startAccountButton")`));
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("practice panel opens for feel", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-training");
-  await openSettingsGroup(cdp, ".practice-subgroup-feel");
-  await evaluate(cdp, `document.querySelector(".settings-group-training")?.scrollIntoView({ block: "start" })`);
+  await clickPoint(browser, outsideAccountPoint.x, outsideAccountPoint.y);
+  await waitUntil("real outside account-button pointer switches panels", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("account-focused") && document.querySelector(".settings-group-account").open`));
+  await clickSelector(browser, "#settingsClose");
+  await waitUntil("switched account panel closes to its actual trigger", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#startAccountButton")`));
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("practice panel opens for feel", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-training");
+  await openSettingsGroup(browser, ".practice-subgroup-feel");
+  await browser.evaluate(`document.querySelector(".settings-group-training")?.scrollIntoView({ block: "start" })`);
   await sleep(160);
-  await clickSelector(cdp, "[data-feel-fixture]");
-  await waitUntil("feel fixture launch", () => evaluate(cdp, `/手感校准/.test(document.querySelector("#gameStatus").textContent)`));
-  await clickSelector(cdp, "#practiceButton");
-  await waitUntil("practice reopened after feel fixture", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-training");
-  await openSettingsGroup(cdp, ".practice-subgroup-feel");
-  await evaluate(cdp, `document.querySelector(".settings-group-training")?.scrollIntoView({ block: "start" })`);
+  await clickSelector(browser, "[data-feel-fixture]");
+  await waitUntil("feel fixture launch", () => browser.evaluate(`/手感校准/.test(document.querySelector("#gameStatus").textContent)`));
+  await clickSelector(browser, "#practiceButton");
+  await waitUntil("practice reopened after feel fixture", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-training");
+  await openSettingsGroup(browser, ".practice-subgroup-feel");
+  await browser.evaluate(`document.querySelector(".settings-group-training")?.scrollIntoView({ block: "start" })`);
   await sleep(160);
-  const feelState = await evaluate(cdp, `document.querySelector(".feel-card.active, .feel-card.recent, .feel-card.interrupted")?.className || ""`);
+  const feelState = await browser.evaluate(`document.querySelector(".feel-card.active, .feel-card.recent, .feel-card.interrupted")?.className || ""`);
   if (!/feel-card/.test(feelState)) errors.push("Feel Lab did not preserve active/recent/interrupted state after launch");
 
-  const routeAfterFeel = await evaluate(cdp, `(() => {
+  const routeAfterFeel = await browser.evaluate(`(() => {
     const group = document.querySelector(".settings-group-training");
     const subgroup = document.querySelector(".practice-subgroup-route");
     const panel = document.querySelector("#settingsPanel");
@@ -1648,10 +1505,10 @@ async function runDesktopSmoke(cdp, baseUrl) {
   })()`);
   if (process.env.SMOKE_DEBUG) console.error("routeAfterFeel " + JSON.stringify(routeAfterFeel));
 
-  await clickSelector(cdp, "[data-route-contract]");
-  await waitUntil("route contract launch", () => evaluate(cdp, `/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent)`));
-  await keyTap(cdp, "KeyD", "D");
-  const gameplay = await evaluate(cdp, `({
+  await clickSelector(browser, "[data-route-contract]");
+  await waitUntil("route contract launch", () => browser.evaluate(`/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent)`));
+  await keyTap(browser, "KeyD", "D");
+  const gameplay = await browser.evaluate(`({
     overlayHidden: document.querySelector("#overlay").classList.contains("hidden"),
     status: document.querySelector("#gameStatus").textContent,
     room: document.querySelector("#roomCount").textContent,
@@ -1662,17 +1519,17 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (!gameplay.overlayHidden || !gameplay.room) errors.push("gameplay did not remain active after route contract launch");
   if (!/48, 73, 87/.test(gameplay.hudBackground) || !/227, 239, 234/.test(gameplay.counterBackground) || !/55, 80, 92/.test(gameplay.actionSurface)) errors.push("desktop HUD should use the refined deep-mist surface system instead of near-black slabs: " + JSON.stringify(gameplay));
 
-  await navigateApp(cdp, baseUrl, "selected room Drill action");
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("selected room practice opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-room");
-  await evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "selected room Drill action");
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("selected room practice opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-room");
+  await browser.evaluate(`(() => {
     const select = document.querySelector("#roomSelect");
     select.value = "1";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await waitUntil("room selector previews R2 without launching", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#roomSelect").value === "1" && document.querySelector("#roomCount").textContent.startsWith("R1/")`));
-  const selectedRoomAction = await evaluate(cdp, `(() => {
+  await waitUntil("room selector previews R2 without launching", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#roomSelect").value === "1" && document.querySelector("#roomCount").textContent.startsWith("R1/")`));
+  const selectedRoomAction = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const button = document.querySelector("#focusRoomButton").getBoundingClientRect();
     const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
@@ -1688,12 +1545,12 @@ async function runDesktopSmoke(cdp, baseUrl) {
     };
   })()`);
   if (selectedRoomAction.selected !== "1" || !/^开始 R2 /.test(selectedRoomAction.label) || !/R2 光继横桥/.test(selectedRoomAction.roomBrief) || /R10 星顶终线/.test(selectedRoomAction.roomBrief) || !selectedRoomAction.singleDockAction || !selectedRoomAction.launchInsidePanel || selectedRoomAction.launchHeight < 42 || !selectedRoomAction.bodyScrolls) errors.push("room selection should preview R2 while the fixed dock keeps one clear launch action: " + JSON.stringify(selectedRoomAction));
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const select = document.querySelector("#roomSelect");
     select.value = "5";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  const r6AuthoredBrief = await waitUntil("R6 brief names its authored mechanic counts", () => evaluate(cdp, `(() => {
+  const r6AuthoredBrief = await waitUntil("R6 brief names its authored mechanic counts", () => browser.evaluate(`(() => {
     const brief = document.querySelector("#roomBrief").textContent.trim();
     const launch = document.querySelector("#focusRoomButton").textContent.trim();
     if (document.querySelector("#roomSelect").value !== "5" || !/^开始 R6 /.test(launch)) return null;
@@ -1705,28 +1562,28 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || /双光继|双弹簧/.test(r6AuthoredBrief.brief)) {
     errors.push("R6 Practice brief should describe its actual six-relay, three-stage-spring long route without stale double-mechanic copy: " + JSON.stringify(r6AuthoredBrief));
   }
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const select = document.querySelector("#roomSelect");
     select.value = "1";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await waitUntil("room selector returns to R2 before launch", () => evaluate(cdp, `document.querySelector("#roomSelect").value === "1" && /^开始 R2 /.test(document.querySelector("#focusRoomButton").textContent.trim())`));
-  await clickSelector(cdp, "#focusRoomButton");
-  await waitUntil("selected room action starts R2 Drill", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R2/.test(document.querySelector("#gameStatus").textContent)`));
+  await waitUntil("room selector returns to R2 before launch", () => browser.evaluate(`document.querySelector("#roomSelect").value === "1" && /^开始 R2 /.test(document.querySelector("#focusRoomButton").textContent.trim())`));
+  await clickSelector(browser, "#focusRoomButton");
+  await waitUntil("selected room action starts R2 Drill", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R2/.test(document.querySelector("#gameStatus").textContent)`));
 
-  await navigateApp(cdp, baseUrl, "R3 full-route Practice entry");
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("R3 practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-room");
-  await evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "R3 full-route Practice entry");
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("R3 practice panel opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-room");
+  await browser.evaluate(`(() => {
     const select = document.querySelector("#roomSelect");
     select.value = "2";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await clickSelector(cdp, "#focusRoomButton");
-  await waitUntil("selected room action starts R3 Drill", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R3/.test(document.querySelector("#gameStatus").textContent)`));
-  await keyTap(cdp, "F3", "F3");
-  const r3PracticeEntry = await waitUntil("R3 Practice uses its full-route left checkpoint", () => evaluate(cdp, `(() => {
+  await clickSelector(browser, "#focusRoomButton");
+  await waitUntil("selected room action starts R3 Drill", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R3/.test(document.querySelector("#gameStatus").textContent)`));
+  await keyTap(browser, "F3", "F3");
+  const r3PracticeEntry = await waitUntil("R3 Practice uses its full-route left checkpoint", () => browser.evaluate(`(() => {
     const debug = document.querySelector("#debugPanel").textContent;
     const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     const ground = /ground 1/.test(debug);
@@ -1742,9 +1599,9 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || r3PracticeEntry.dash !== 1) {
     errors.push("direct R3 Practice should begin on the full-route left Gate capstone checkpoint: " + JSON.stringify(r3PracticeEntry));
   }
-  await keyHold(cdp, "ArrowRight", "ArrowRight", 420);
+  await keyHold(browser, "ArrowRight", "ArrowRight", 420);
   await sleep(120);
-  const fullResourceRefill = await evaluate(cdp, `(() => {
+  const fullResourceRefill = await browser.evaluate(`(() => {
     const debug = document.querySelector("#debugPanel").textContent;
     const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     const flow = debug.match(/flow (\\d+)/);
@@ -1762,15 +1619,15 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || !fullResourceRefill.ground) {
     errors.push("walking through a refill with full dash and stamina should neither consume it nor award passive Flow: " + JSON.stringify(fullResourceRefill));
   }
-  await keyTap(cdp, "KeyR", "R");
-  await waitUntil("R3 quick retry returns to the authored checkpoint", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyR", "R");
+  await waitUntil("R3 quick retry returns to the authored checkpoint", () => browser.evaluate(`(() => {
     const debug = document.querySelector("#debugPanel").textContent;
     const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     return position && Math.abs(Number(position[1]) - 70.5) < 1 && /dash 1/.test(debug) && /flow 0/.test(debug);
   })()`), 2500);
-  await keyTap(cdp, "ShiftLeft", "Shift");
+  await keyTap(browser, "ShiftLeft", "Shift");
   await sleep(600);
-  const spentResourceRefill = await evaluate(cdp, `(() => {
+  const spentResourceRefill = await browser.evaluate(`(() => {
     const debug = document.querySelector("#debugPanel").textContent;
     const flow = debug.match(/flow (\\d+)/);
     const dash = debug.match(/dash (\\d+)/);
@@ -1782,29 +1639,29 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (spentResourceRefill.flow < 19 || spentResourceRefill.dash !== 1) {
     errors.push("R3 refill should still restore and reward a genuinely spent dash: " + JSON.stringify(spentResourceRefill));
   }
-  await keyTap(cdp, "F3", "F3");
+  await keyTap(browser, "F3", "F3");
 
-  await navigateApp(cdp, baseUrl, "R7 grounded Practice seed");
-  await evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "R7 grounded Practice seed");
+  await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     saved.assistMode = "off";
     saved.controlsPreset = "comfort";
     saved.keyboardLayout = "pc";
     localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
   })()`);
-  await navigateApp(cdp, baseUrl, "R7 grounded Practice entry");
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("R7 practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-room");
-  await evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "R7 grounded Practice entry");
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("R7 practice panel opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-room");
+  await browser.evaluate(`(() => {
     const select = document.querySelector("#roomSelect");
     select.value = "6";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await clickSelector(cdp, "#focusRoomButton");
-  await waitUntil("selected room action starts R7 Drill", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R7/.test(document.querySelector("#gameStatus").textContent)`));
-  await keyTap(cdp, "F3", "F3");
-  const r7PracticeEntry = await waitUntil("R7 Practice uses its grounded checkpoint", () => evaluate(cdp, `(() => {
+  await clickSelector(browser, "#focusRoomButton");
+  await waitUntil("selected room action starts R7 Drill", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R7/.test(document.querySelector("#gameStatus").textContent)`));
+  await keyTap(browser, "F3", "F3");
+  const r7PracticeEntry = await waitUntil("R7 Practice uses its grounded checkpoint", () => browser.evaluate(`(() => {
     const debug = document.querySelector("#debugPanel").textContent;
     const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     const ground = /ground 1/.test(debug);
@@ -1814,20 +1671,20 @@ async function runDesktopSmoke(cdp, baseUrl) {
   if (Math.abs(r7PracticeEntry.x - 70.5) > 1 || Math.abs(r7PracticeEntry.y - 487) > 1 || !r7PracticeEntry.ground) {
     errors.push("direct R7 Practice should begin on the intended grounded Wind Gorge checkpoint: " + JSON.stringify(r7PracticeEntry));
   }
-  await keyDown(cdp, "KeyD", "D");
+  await keyDown(browser, "KeyD", "D");
   let r7WindWake;
   try {
-    r7WindWake = await waitUntil("R7 floor route enters its authored updraft", () => evaluate(cdp, `(() => {
+    r7WindWake = await waitUntil("R7 floor route enters its authored updraft", () => browser.evaluate(`(() => {
       const debug = document.querySelector("#debugPanel").textContent;
       const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
       if (!position || !/wind 1/.test(debug)) return null;
       return { x: Number(position[1]), y: Number(position[2]), debug };
     })()`), 3600, 20);
   } finally {
-    await keyUp(cdp, "KeyD", "D");
+    await keyUp(browser, "KeyD", "D");
   }
-  await keyHold(cdp, "KeyA", "A", 520);
-  const r7WindExit = await waitUntil("R7 updraft wake clears after leaving the exact field", () => evaluate(cdp, `(() => {
+  await keyHold(browser, "KeyA", "A", 520);
+  const r7WindExit = await waitUntil("R7 updraft wake clears after leaving the exact field", () => browser.evaluate(`(() => {
     const debug = document.querySelector("#debugPanel").textContent;
     const position = debug.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     if (!position || !/wind 0/.test(debug)) return null;
@@ -1840,39 +1697,39 @@ async function runDesktopSmoke(cdp, baseUrl) {
     || !/wind 0/.test(r7WindExit.debug)) {
     errors.push("R7 player-relative updraft wake should exist only inside the exact occupied field: " + JSON.stringify({ r7WindWake, r7WindExit }));
   }
-  await keyTap(cdp, "F3", "F3");
+  await keyTap(browser, "F3", "F3");
 
-  await navigateApp(cdp, baseUrl, "first-run keyboard onboarding seed");
-  await evaluate(cdp, `localStorage.clear()`);
-  await navigateApp(cdp, baseUrl, "first-run keyboard onboarding clean");
-  await clickSelector(cdp, "#startButton");
-  const quietOnboarding = await evaluate(cdp, `({
+  await navigateApp(browser, baseUrl, "first-run keyboard onboarding seed");
+  await browser.evaluate(`localStorage.clear()`);
+  await navigateApp(browser, baseUrl, "first-run keyboard onboarding clean");
+  await clickSelector(browser, "#startButton");
+  const quietOnboarding = await browser.evaluate(`({
     controlHintRemoved: !document.querySelector("#controlHint"),
     ordinaryTipHidden: document.querySelector("#gameTip").classList.contains("hidden")
   })`);
   if (!quietOnboarding.controlHintRemoved || !quietOnboarding.ordinaryTipHidden) errors.push("first-run play should start without redundant move/jump/dash strips or coach cards: " + JSON.stringify(quietOnboarding));
-  await keyHold(cdp, "KeyD", "D", 180);
-  await keyTap(cdp, "Space", " ");
-  await keyTap(cdp, "KeyX", "X");
-  const afterInputsTipHidden = await evaluate(cdp, `document.querySelector("#gameTip").classList.contains("hidden")`);
+  await keyHold(browser, "KeyD", "D", 180);
+  await keyTap(browser, "Space", " ");
+  await keyTap(browser, "KeyX", "X");
+  const afterInputsTipHidden = await browser.evaluate(`document.querySelector("#gameTip").classList.contains("hidden")`);
   if (!afterInputsTipHidden) errors.push("ordinary movement inputs should not raise a coaching card");
 }
 
-async function runChapterTransitionInputSmoke(cdp, baseUrl) {
+async function runChapterTransitionInputSmoke(browser, baseUrl) {
   async function launchR4Transition(label) {
-    await navigateApp(cdp, baseUrl, label);
-    await clickSelector(cdp, "#openTrainingButton");
-    await waitUntil(label + " practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-    await openSettingsGroup(cdp, ".settings-group-room");
-    await evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, label);
+    await clickSelector(browser, "#openTrainingButton");
+    await waitUntil(label + " practice panel opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+    await openSettingsGroup(browser, ".settings-group-room");
+    await browser.evaluate(`(() => {
       const select = document.querySelector("#roomSelect");
       select.value = "3";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     })()`);
-    await clickSelector(cdp, "#focusRoomButton");
-    await waitUntil(label + " starts R4 transition", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R4/.test(document.querySelector("#gameStatus").textContent)`));
-    await enableDebugPanel(cdp);
-    return waitUntil(label + " exposes act timer", () => evaluate(cdp, `(() => {
+    await clickSelector(browser, "#focusRoomButton");
+    await waitUntil(label + " starts R4 transition", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && /Drill R4/.test(document.querySelector("#gameStatus").textContent)`));
+    await enableDebugPanel(browser);
+    return waitUntil(label + " exposes act timer", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const act = text.match(/act ([\\d.]+)/);
       const pos = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
@@ -1883,10 +1740,10 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
   }
 
   const earlyStart = await launchR4Transition("early chapter-buffer");
-  await keyTap(cdp, "Space", " ");
-  await keyTap(cdp, "KeyX", "X");
+  await keyTap(browser, "Space", " ");
+  await keyTap(browser, "KeyX", "X");
   await sleep(360);
-  const earlyExpired = await evaluate(cdp, `(() => {
+  const earlyExpired = await browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const act = text.match(/act ([\\d.]+)/);
     const jump = text.match(/jbuf ([\\d.]+)/);
@@ -1898,7 +1755,7 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
       text
     };
   })()`);
-  const earlySettled = await waitUntil("early chapter inputs remain stale after transition", () => evaluate(cdp, `(() => {
+  const earlySettled = await waitUntil("early chapter inputs remain stale after transition", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const act = text.match(/act ([\\d.]+)/);
     const pos = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
@@ -1928,16 +1785,16 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
   }
 
   const lateStart = await launchR4Transition("late chapter-buffer");
-  const lateWindow = await waitUntil("chapter transition reaches final input-buffer window", () => evaluate(cdp, `(() => {
+  const lateWindow = await waitUntil("chapter transition reaches final input-buffer window", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const act = text.match(/act ([\\d.]+)/);
     const remaining = act ? Number(act[1]) : -1;
     return remaining > 0 && remaining <= 0.09 ? { remaining, text } : null;
   })()`), 3500, 8);
-  await keyTap(cdp, "Space", " ");
+  await keyTap(browser, "Space", " ");
   let lateJump;
   try {
-    lateJump = await waitUntil("late chapter Jump connects after transition", () => evaluate(cdp, `(() => {
+    lateJump = await waitUntil("late chapter Jump connects after transition", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const act = text.match(/act ([\\d.]+)/);
       const pos = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
@@ -1953,7 +1810,7 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
       return state.y < ${lateStart.y - 3} && state.vy < -20 ? state : null;
     })()`), 1800, 10);
   } catch (error) {
-    const snapshot = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
+    const snapshot = await browser.evaluate(`document.querySelector("#debugPanel").textContent`);
     throw new Error(`${error.message}: ${snapshot}`);
   }
   if (!(lateWindow.remaining > 0)
@@ -1963,28 +1820,28 @@ async function runChapterTransitionInputSmoke(cdp, baseUrl) {
   }
 }
 
-async function runOldPeakRelicSmoke(cdp, baseUrl) {
-  await navigateApp(cdp, baseUrl, "Old Peak Relay relic");
-  await clickSelector(cdp, "#startButton");
-  await enableDebugPanel(cdp);
-  await keyTap(cdp, "Digit5", "5");
-  const dormant = await waitUntil("R5 Relay relic starts dormant", () => evaluate(cdp, `(() => {
+async function runOldPeakRelicSmoke(browser, baseUrl) {
+  await navigateApp(browser, baseUrl, "Old Peak Relay relic");
+  await clickSelector(browser, "#startButton");
+  await enableDebugPanel(browser);
+  await keyTap(browser, "Digit5", "5");
+  const dormant = await waitUntil("R5 Relay relic starts dormant", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /room 5\\/10/.test(text) && /relays 5  gate 0\\.00  relic 0\\.00/.test(text) ? { text } : null;
   })()`), 3500);
-  await keyDown(cdp, "KeyD", "D");
-  const awakened = await waitUntil("R5 first Relay awakens its switchback relic", () => evaluate(cdp, `(() => {
+  await keyDown(browser, "KeyD", "D");
+  const awakened = await waitUntil("R5 first Relay awakens its switchback relic", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     return /relays 5  gate 0\\.00  relic 0\\.20/.test(text) && position
       ? { x: Number(position[1]), y: Number(position[2]), text }
       : null;
   })()`), 1800, 20);
-  await keyUp(cdp, "KeyD", "D");
+  await keyUp(browser, "KeyD", "D");
   await sleep(4350);
-  const afterCooldown = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
-  await keyTap(cdp, "KeyR", "R");
-  const reset = await waitUntil("R5 retry clears attempt-local Relay relic", () => evaluate(cdp, `(() => {
+  const afterCooldown = await browser.evaluate(`document.querySelector("#debugPanel").textContent`);
+  await keyTap(browser, "KeyR", "R");
+  const reset = await waitUntil("R5 retry clears attempt-local Relay relic", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R5/.test(document.querySelector("#gameStatus").textContent)
       && /relays 5  gate 0\\.00  relic 0\\.00/.test(text)
@@ -2000,19 +1857,19 @@ async function runOldPeakRelicSmoke(cdp, baseUrl) {
   }
 }
 
-async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
-  await navigateApp(cdp, baseUrl, "Mountain Gate landmark seed");
-  await evaluate(cdp, `(() => {
+async function runMountainGateLandmarkSmoke(browser, baseUrl) {
+  await navigateApp(browser, baseUrl, "Mountain Gate landmark seed");
+  await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     saved.assistMode = "off";
     saved.controlsPreset = "comfort";
     saved.keyboardLayout = "pc";
     localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
   })()`);
-  await navigateApp(cdp, baseUrl, "Mountain Gate landmarks");
-  await clickSelector(cdp, "#startButton");
-  await enableDebugPanel(cdp);
-  const r1Dormant = await waitUntil("R1 gate landmark starts dormant", () => evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "Mountain Gate landmarks");
+  await clickSelector(browser, "#startButton");
+  await enableDebugPanel(browser);
+  const r1Dormant = await waitUntil("R1 gate landmark starts dormant", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /room 1\\/10/.test(text) && /gate 0\\.00  relic 0\\.00/.test(text) ? { text } : null;
   })()`), 2500, 20);
@@ -2024,15 +1881,15 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
   ];
   for (let attempt = 0; attempt < r1Timings.length && !r1Awake; attempt += 1) {
     if (attempt > 0) {
-      await keyTap(cdp, "KeyR", "R");
-      await waitUntil("R1 bounded Spark retry restores its start", () => evaluate(cdp, `(() => {
+      await keyTap(browser, "KeyR", "R");
+      await waitUntil("R1 bounded Spark retry restores its start", () => browser.evaluate(`(() => {
         const text = document.querySelector("#debugPanel").textContent;
         return /快速重开 · R1/.test(document.querySelector("#gameStatus")?.textContent || "")
           && /gate 0\\.00  relic 0\\.00/.test(text);
       })()`), 2500, 20);
     }
     const timing = r1Timings[attempt];
-    await evaluate(cdp, `new Promise((resolve) => {
+    await browser.evaluate(`new Promise((resolve) => {
       const send = (type, code, key) => window.dispatchEvent(new KeyboardEvent(type, { code, key, bubbles: true }));
       const tap = (code, key) => {
         send("keydown", code, key);
@@ -2048,29 +1905,29 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
       }, 330);
     })`);
     try {
-      r1Awake = await waitUntil("R1 Spark wakes the gate steps", () => evaluate(cdp, `(() => {
+      r1Awake = await waitUntil("R1 Spark wakes the gate steps", () => browser.evaluate(`(() => {
         const text = document.querySelector("#debugPanel").textContent;
         return /room 1\\/10/.test(text) && /gate 1\\.00  relic 0\\.00/.test(text)
           ? { text }
           : null;
       })()`), 1100, 20);
     } catch {
-      r1AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel")?.textContent || ""`));
+      r1AttemptSnapshots.push(await browser.evaluate(`document.querySelector("#debugPanel")?.textContent || ""`));
     }
   }
   if (!r1Awake) {
     throw new Error("R1 Spark wakes the gate steps timed out: " + JSON.stringify(r1AttemptSnapshots));
   }
-  await keyTap(cdp, "KeyR", "R");
-  const r1Reset = await waitUntil("R1 retry restores the dormant gate steps", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyR", "R");
+  const r1Reset = await waitUntil("R1 retry restores the dormant gate steps", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R1/.test(document.querySelector("#gameStatus").textContent)
       && /gate 0\\.00  relic 0\\.00/.test(text)
       ? { text }
       : null;
   })()`), 2500, 20);
-  await keyTap(cdp, "Digit2", "2");
-  const r2Dormant = await waitUntil("R2 Relay bridge starts dormant", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "Digit2", "2");
+  const r2Dormant = await waitUntil("R2 Relay bridge starts dormant", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /room 2\\/10/.test(text) && /ground 1/.test(text) && /act 0\\.000/.test(text)
       && /respawn 70\\.5, 263\\.0  overlap 0/.test(text)
@@ -2083,8 +1940,8 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
   const r2LaunchCues = [{ jumpX: 105, dashX: 155 }, { jumpX: 95, dashX: 145 }];
   for (let attempt = 0; attempt < r2LaunchCues.length && !r2Awake; attempt += 1) {
     if (attempt > 0) {
-      await keyTap(cdp, "KeyR", "R");
-      await waitUntil("R2 bounded Relay retry restores its start", () => evaluate(cdp, `(() => {
+      await keyTap(browser, "KeyR", "R");
+      await waitUntil("R2 bounded Relay retry restores its start", () => browser.evaluate(`(() => {
         const text = document.querySelector("#debugPanel").textContent;
         return /快速重开 · R2/.test(document.querySelector("#gameStatus").textContent)
           && /ground 1/.test(text)
@@ -2092,10 +1949,10 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
           && /relays 2  gate 0\\.00  relic 0\\.00/.test(text);
       })()`), 3500, 20);
     }
-    await keyDown(cdp, "KeyD", "D");
+    await keyDown(browser, "KeyD", "D");
     try {
       try {
-        await waitUntil("R2 real-input run-up reaches jump cue", () => evaluate(cdp, `(() => {
+        await waitUntil("R2 real-input run-up reaches jump cue", () => browser.evaluate(`(() => {
           const text = document.querySelector("#debugPanel").textContent;
           const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
           return position && Number(position[1]) >= ${r2LaunchCues[attempt].jumpX} && /ground 1/.test(text)
@@ -2103,13 +1960,13 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
             : null;
         })()`), 1200, 8);
       } catch {
-        r2AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel").textContent`));
+        r2AttemptSnapshots.push(await browser.evaluate(`document.querySelector("#debugPanel").textContent`));
         continue;
       }
-      await keyHold(cdp, "Space", " ", 90);
+      await keyHold(browser, "Space", " ", 90);
       let launchCue;
       try {
-        launchCue = await waitUntil("R2 real-input launch reaches dash cue", () => evaluate(cdp, `(() => {
+        launchCue = await waitUntil("R2 real-input launch reaches dash cue", () => browser.evaluate(`(() => {
           const text = document.querySelector("#debugPanel").textContent;
           const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
           if (!position) return null;
@@ -2117,16 +1974,16 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
           return state.x >= ${r2LaunchCues[attempt].dashX} ? state : null;
         })()`), 1500, 8);
       } catch {
-        r2AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel").textContent`));
+        r2AttemptSnapshots.push(await browser.evaluate(`document.querySelector("#debugPanel").textContent`));
         continue;
       }
       if (launchCue.x > 245) {
         r2AttemptSnapshots.push(launchCue.text);
         continue;
       }
-      await keyTap(cdp, "KeyK", "K");
+      await keyTap(browser, "KeyK", "K");
       try {
-        r2Awake = await waitUntil("R2 first unique Relay wakes half the bridge", () => evaluate(cdp, `(() => {
+        r2Awake = await waitUntil("R2 first unique Relay wakes half the bridge", () => browser.evaluate(`(() => {
           const text = document.querySelector("#debugPanel").textContent;
           const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
           return /relays 2  gate 0\\.50  relic 0\\.00/.test(text) && position
@@ -2134,17 +1991,17 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
             : null;
         })()`), 2200, 20);
       } catch {
-        r2AttemptSnapshots.push(await evaluate(cdp, `document.querySelector("#debugPanel").textContent`));
+        r2AttemptSnapshots.push(await browser.evaluate(`document.querySelector("#debugPanel").textContent`));
       }
     } finally {
-      await keyUp(cdp, "KeyD", "D");
+      await keyUp(browser, "KeyD", "D");
     }
   }
   if (!r2Awake) throw new Error(`R2 first unique Relay wakes half the bridge failed after two bounded input attempts: ${JSON.stringify(r2AttemptSnapshots)}`);
   await sleep(4350);
-  const r2Cooldown = await evaluate(cdp, `document.querySelector("#debugPanel").textContent`);
-  await keyTap(cdp, "KeyR", "R");
-  const r2Reset = await waitUntil("R2 retry restores the dormant Relay bridge", () => evaluate(cdp, `(() => {
+  const r2Cooldown = await browser.evaluate(`document.querySelector("#debugPanel").textContent`);
+  await keyTap(browser, "KeyR", "R");
+  const r2Reset = await waitUntil("R2 retry restores the dormant Relay bridge", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R2/.test(document.querySelector("#gameStatus").textContent)
       && /respawn 70\\.5, 263\\.0  overlap 0/.test(text)
@@ -2164,49 +2021,49 @@ async function runMountainGateLandmarkSmoke(cdp, baseUrl) {
   }
 }
 
-async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
-  await navigateApp(cdp, baseUrl, "Wind Gorge crumble ripple seed");
-  await evaluate(cdp, `(() => {
+async function runWindGorgeCrumbleRippleSmoke(browser, baseUrl) {
+  await navigateApp(browser, baseUrl, "Wind Gorge crumble ripple seed");
+  await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     saved.assistMode = "off";
     saved.controlsPreset = "comfort";
     saved.keyboardLayout = "pc";
     localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
   })()`);
-  await navigateApp(cdp, baseUrl, "Wind Gorge crumble ripple");
-  await clickSelector(cdp, "#startButton");
-  await enableDebugPanel(cdp);
-  await keyTap(cdp, "Digit8", "8");
-  const dormant = await waitUntil("R8 crumble strip starts fully restored", () => evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "Wind Gorge crumble ripple");
+  await clickSelector(browser, "#startButton");
+  await enableDebugPanel(browser);
+  await keyTap(browser, "Digit8", "8");
+  const dormant = await waitUntil("R8 crumble strip starts fully restored", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /room 8\\/10/.test(text) && /crumble 15\\/15 q0 a0/.test(text) ? { text } : null;
   })()`), 3500);
   let waveStart;
   let waveBroken;
-  await keyDown(cdp, "KeyD", "D");
+  await keyDown(browser, "KeyD", "D");
   try {
-    await waitUntil("R8 crumble approach reaches its launch pocket", () => evaluate(cdp, `(() => {
+    await waitUntil("R8 crumble approach reaches its launch pocket", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
       return /ground 1/.test(text) && position && Number(position[1]) >= 155 && Number(position[1]) <= 170;
     })()`), 1400, 20);
-    await keyTap(cdp, "KeyK", "K");
-    waveStart = await waitUntil("R8 five-tile strip enters a staged fracture wave", () => evaluate(cdp, `(() => {
+    await keyTap(browser, "KeyK", "K");
+    waveStart = await waitUntil("R8 five-tile strip enters a staged fracture wave", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
       return /crumble (?:15\\/15 q[1-4] a1|10\\/15 q0 a0)/.test(text) && position
         ? { x: Number(position[1]), y: Number(position[2]), text }
         : null;
     })()`), 1600, 20);
-    waveBroken = await waitUntil("R8 staged strip completes five bounded breaks", () => evaluate(cdp, `(() => {
+    waveBroken = await waitUntil("R8 staged strip completes five bounded breaks", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
       return /crumble 10\\/15 q0 a0/.test(text) ? { text } : null;
     })()`), 1800, 20);
   } finally {
-    await keyUp(cdp, "KeyD", "D");
+    await keyUp(browser, "KeyD", "D");
   }
-  await keyTap(cdp, "KeyR", "R");
-  const reset = await waitUntil("R8 retry restores the full crumble strip", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyR", "R");
+  const reset = await waitUntil("R8 retry restores the full crumble strip", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R8/.test(document.querySelector("#gameStatus").textContent)
       && /crumble 15\\/15 q0 a0/.test(text)
@@ -2222,20 +2079,20 @@ async function runWindGorgeCrumbleRippleSmoke(cdp, baseUrl) {
   }
 }
 
-async function runSpringApexSmoke(cdp, baseUrl) {
-  await navigateApp(cdp, baseUrl, "spring apex seed");
-  await evaluate(cdp, `(() => {
+async function runSpringApexSmoke(browser, baseUrl) {
+  await navigateApp(browser, baseUrl, "spring apex seed");
+  await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     saved.assistMode = "off";
     saved.controlsPreset = "comfort";
     saved.keyboardLayout = "pc";
     localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
   })()`);
-  await navigateApp(cdp, baseUrl, "spring apex");
-  await clickSelector(cdp, "#startButton");
-  await enableDebugPanel(cdp);
-  await keyTap(cdp, "Digit0", "0");
-  const ready = await waitUntil("R10 spring route starts settled", () => evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "spring apex");
+  await clickSelector(browser, "#startButton");
+  await enableDebugPanel(browser);
+  await keyTap(browser, "Digit0", "0");
+  const ready = await waitUntil("R10 spring route starts settled", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     return /room 10\\/10/.test(text) && /ground 1/.test(text) && /act 0\\.000/.test(text) && position
@@ -2244,9 +2101,9 @@ async function runSpringApexSmoke(cdp, baseUrl) {
   })()`), 4500, 20);
   let approach;
   let approachProbe = null;
-  await keyDown(cdp, "KeyD", "D");
+  await keyDown(browser, "KeyD", "D");
   try {
-    approach = await waitUntil("R10 spring approach reaches the lower floor", () => evaluate(cdp, `(() => {
+    approach = await waitUntil("R10 spring approach reaches the lower floor", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
       return position && Number(position[1]) >= 245 && Number(position[1]) <= 270
@@ -2254,15 +2111,15 @@ async function runSpringApexSmoke(cdp, baseUrl) {
         : null;
     })()`), 1800, 20);
   } catch {
-    approachProbe = await debugPosition(cdp);
+    approachProbe = await debugPosition(browser);
   } finally {
-    await keyUp(cdp, "KeyD", "D");
+    await keyUp(browser, "KeyD", "D");
   }
   if (approachProbe) throw new Error("R10 spring approach missed lower-floor window: " + JSON.stringify(approachProbe));
   let launch;
-  await keyDown(cdp, "KeyD", "D");
+  await keyDown(browser, "KeyD", "D");
   try {
-    launch = await waitUntil("R10 floor spring opens the apex window", () => evaluate(cdp, `(() => {
+    launch = await waitUntil("R10 floor spring opens the apex window", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const timer = text.match(/spring apex ([\\d.]+) hit/);
       const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
@@ -2271,9 +2128,9 @@ async function runSpringApexSmoke(cdp, baseUrl) {
         : null;
     })()`), 1200, 20);
   } finally {
-    await keyUp(cdp, "KeyD", "D");
+    await keyUp(browser, "KeyD", "D");
   }
-  const apex = await waitUntil("R10 spring reaches its authored apex timing", () => evaluate(cdp, `(() => {
+  const apex = await waitUntil("R10 spring reaches its authored apex timing", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const timer = text.match(/spring apex ([\\d.]+) hit/);
     const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
@@ -2284,7 +2141,7 @@ async function runSpringApexSmoke(cdp, baseUrl) {
   })()`), 1200, 10);
   let recognized;
   try {
-    recognized = await waitUntil("R10 apex dash closes the spring timing loop", () => evaluate(cdp, `(() => {
+    recognized = await waitUntil("R10 apex dash closes the spring timing loop", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
       const hit = text.match(/spring apex ([\\d.]+) hit ([\\d.]+)/);
       const velocity = text.match(/vel ([\\d.-]+), ([\\d.-]+)/);
@@ -2309,14 +2166,14 @@ async function runSpringApexSmoke(cdp, baseUrl) {
       };
     })()`), 900, 10);
   } catch (error) {
-    const probe = await debugPosition(cdp);
+    const probe = await debugPosition(browser);
     throw new Error(`${error.message}: ${JSON.stringify({ apex, probe })}`);
   } finally {
     // The localhost-only test event writes the normal Dash buffer synchronously;
     // keyboard and gamepad delivery are covered by their broader interaction tests.
   }
-  await keyTap(cdp, "KeyR", "R");
-  const reset = await waitUntil("R10 retry clears spring apex attempt state", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyR", "R");
+  const reset = await waitUntil("R10 retry clears spring apex attempt state", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     return /快速重开 · R10/.test(document.querySelector("#gameStatus").textContent)
       && /spring apex 0\\.000 hit 0\\.000/.test(text)
@@ -2336,28 +2193,101 @@ async function runSpringApexSmoke(cdp, baseUrl) {
   }
 }
 
-async function runGroundRechargeSmoke(cdp, baseUrl) {
-  await navigateApp(cdp, baseUrl, "ground recharge seed");
-  await evaluate(cdp, `(() => {
+async function runRetryAndTouchAimSmoke(browser, baseUrl) {
+  // Advance each animation frame explicitly to press retry during the short death animation.
+  const clock = await browser.addInitScript({source: `(() => {
+    let pending = [];
+    let time;
+    window.requestAnimationFrame = callback => pending.push(callback);
+    window.stepGameFrame = () => {
+      time = (time ?? performance.now()) + 1000 / 60;
+      const callbacks = pending;
+      pending = [];
+      for (const callback of callbacks) callback(time);
+    };
+  })();`});
+  try {
+    await browser.setViewport(390, 760);
+    // Keep the recorded falls and the guest choice out of other first-run scenarios.
+    const isolated = new URL(baseUrl);
+    isolated.hostname = "localhost";
+    await navigateApp(browser, isolated.origin, "retry and touch aim");
+    const exercise = () => {
+      const el = id => document.getElementById(id);
+      if (!el("entryGate").classList.contains("hidden")) el("guestEntryButton").click();
+      el("startButton").click();
+      const key = (code, type) => window.dispatchEvent(new KeyboardEvent(type, {code, bubbles: true}));
+      key("F3", "keydown");
+      key("F3", "keyup");
+      const status = el("gameStatus");
+      for (const [retry, message] of [["KeyR", "快速重开"], ["KeyT", "房间重开"]]) {
+        const previous = Number(el("deathCount").textContent.split(" ")[1]);
+        key("KeyD", "keydown");
+        for (let i = 0; i < 320 && !status.textContent.includes("自动复位"); i++) window.stepGameFrame();
+        key("KeyD", "keyup");
+        if (!status.textContent.includes("自动复位")) throw new Error("Did not reach the R1 fall");
+        key(retry, "keydown");
+        key(retry, "keyup");
+        window.stepGameFrame();
+        if (!status.textContent.includes(message) || el("deathCount").textContent !== "失 " + (previous + 1)) {
+          throw new Error(retry + " should resume play and count the fall exactly once");
+        }
+      }
+
+      for (let frame = 0; frame < 50; frame++) window.stepGameFrame();
+      const right = document.querySelector('[data-touch="right"]');
+      const dash = document.querySelector('[data-touch="dash"]');
+      const bounds = right.getBoundingClientRect();
+      const center = bounds.y + bounds.height / 2;
+      const touch = (button, type, pointerId, y = center) => button.dispatchEvent(new PointerEvent(type, {
+        pointerType: "touch", pointerId, clientX: bounds.x + bounds.width / 2, clientY: y, bubbles: true
+      }));
+      touch(right, "pointerdown", 8);
+      touch(right, "pointermove", 8, center - bounds.height * 0.6);
+      touch(right, "pointerup", 9);
+      if (right.dataset.slideAim !== "up") throw new Error("Second finger interrupted upward aim");
+      touch(dash, "pointerdown", 10);
+      for (let frame = 0; frame < 3; frame++) window.stepGameFrame();
+      const speed = el("debugPanel").textContent.match(/vel ([\d.-]+), ([\d.-]+)/);
+      if (!speed || Number(speed[1]) <= 0 || Number(speed[2]) >= 0
+        || document.querySelector(".dash-meter").getAttribute("aria-valuenow") !== "0") {
+        throw new Error("Expected an upward right dash that consumes the charge");
+      }
+      touch(dash, "pointerup", 10);
+      touch(right, "pointermove", 8, center + bounds.height * 0.6);
+      if (right.dataset.slideAim !== "down") throw new Error("Downward drag did not change aim");
+      touch(right, "pointercancel", 8);
+      if (right.dataset.slideAim || right.classList.contains("active")) throw new Error("Cancelled touch stayed active");
+    };
+    await browser.evaluate(`(${exercise})()`);
+  } finally {
+    await browser.removeInitScript(clock);
+    await browser.setViewport(1280, 720);
+  }
+}
+
+async function runGroundRechargeSmoke(browser, baseUrl) {
+  await navigateApp(browser, baseUrl, "ground recharge seed");
+  await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     saved.assistMode = "off";
     saved.controlsPreset = "classic";
     saved.keyboardLayout = "pc";
     localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
   })()`);
-  await navigateApp(cdp, baseUrl, "ground recharge");
-  await clickSelector(cdp, "#startButton");
-  await waitUntil("ground recharge run starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden") && /游戏开始/.test(document.querySelector("#gameStatus").textContent)`));
-  await enableDebugPanel(cdp);
-  const ready = await waitUntil("ground recharge begins from stable full dash", () => evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "ground recharge");
+  await clickSelector(browser, "#startButton");
+  await waitUntil("ground recharge run starts", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden") && /游戏开始/.test(document.querySelector("#gameStatus").textContent)`));
+  await enableDebugPanel(browser);
+  const ready = await waitUntil("ground recharge begins from stable full dash", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const recharge = text.match(/recharge ([\\d.]+)/);
     return /ground 1/.test(text) && /dash 1/.test(text) && recharge && Number(recharge[1]) === 0
       ? { text, status: document.querySelector("#gameStatus").textContent }
       : null;
   })()`), 2500);
-  await keyHold(cdp, "KeyX", "x", 80);
-  const active = await waitUntil("ground dash emits one recharge pulse", () => evaluate(cdp, `(() => {
+  await keyHold(browser, "KeyX", "x", 80);
+  const active = await waitUntil("ground dash emits one recharge pulse", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const recharge = text.match(/recharge ([\\d.]+)/);
     const dash = text.match(/dash (\\d+)/);
@@ -2370,14 +2300,14 @@ async function runGroundRechargeSmoke(cdp, baseUrl) {
       text
     };
   })()`), 2500, 20);
-  const settled = await waitUntil("ground recharge pulse expires", () => evaluate(cdp, `(() => {
+  const settled = await waitUntil("ground recharge pulse expires", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const recharge = text.match(/recharge ([\\d.]+)/);
     if (!recharge || Number(recharge[1]) !== 0 || !/dash 1/.test(text) || !/ground 1/.test(text)) return null;
     return { recharge: Number(recharge[1]), status: document.querySelector("#gameStatus").textContent, text };
   })()`), 1800, 20);
   await sleep(320);
-  const noRepeat = await evaluate(cdp, `(() => {
+  const noRepeat = await browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const recharge = text.match(/recharge ([\\d.]+)/);
     return { recharge: recharge ? Number(recharge[1]) : -1, dash: /dash 1/.test(text), status: document.querySelector("#gameStatus").textContent, text };
@@ -2393,12 +2323,12 @@ async function runGroundRechargeSmoke(cdp, baseUrl) {
   }
 }
 
-async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `(() => {
+async function runFreshEntryImmediateSmoke(browser, baseUrl) {
+  await browser.evaluate(`(() => {
     sessionStorage.removeItem("summit-spark-entry-mode");
     localStorage.removeItem("summit-spark-account-hint");
   })()`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+  const injected = await browser.addInitScript({
     source: `(() => {
       class Client {
         setEndpoint() { return this; }
@@ -2413,8 +2343,8 @@ async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "fresh entry immediate chooser");
-    const entry = await evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "fresh entry immediate chooser");
+    const entry = await browser.evaluate(`(() => {
       const gate = document.querySelector("#entryGate");
       const overlay = document.querySelector("#overlay");
       return {
@@ -2427,64 +2357,60 @@ async function runFreshEntryImmediateSmoke(cdp, baseUrl) {
     if (!entry.gateVisible || entry.checking || !entry.pending || entry.focused !== "guestEntryButton") {
       errors.push("fresh visitors should see the focused guest/email chooser immediately without waiting for account restore: " + JSON.stringify(entry));
     }
-    await evaluate(cdp, `document.querySelector("#accountEntryButton").focus()`);
-    await keyTap(cdp, "Enter", "Enter");
-    await waitUntil("Enter on email login opens the account panel without starting", () => evaluate(cdp, `
+    await browser.evaluate(`document.querySelector("#accountEntryButton").focus()`);
+    await keyTap(browser, "Enter", "Enter");
+    await waitUntil("Enter on email login opens the account panel without starting", () => browser.evaluate(`
       document.querySelector("#settingsPanel").classList.contains("account-focused")
         && !document.querySelector("#overlay").hidden
     `));
-    await keyTap(cdp, "Escape", "Escape");
-    await waitUntil("Escape returns to the entry chooser", () => evaluate(cdp, `
+    await keyTap(browser, "Escape", "Escape");
+    await waitUntil("Escape returns to the entry chooser", () => browser.evaluate(`
       document.querySelector("#settingsPanel").classList.contains("hidden")
         && !document.querySelector("#entryGate").classList.contains("hidden")
     `));
-    const preStartContext = await evaluate(cdp, `(() => {
+    const preStartContext = await browser.evaluate(`(() => {
       const canvas = document.querySelector("#game");
       canvas.dispatchEvent(new Event("contextlost", { cancelable: true }));
       window.dispatchEvent(new Event("resize"));
       canvas.dispatchEvent(new Event("contextrestored"));
       return document.querySelector("#gameStatus")?.textContent || "";
     })()`);
-    await evaluate(cdp, `document.querySelector("#guestEntryButton").focus()`);
-    await keyTap(cdp, "Space", " ");
-    if (await evaluate(cdp, `document.querySelector("#overlay").hidden`)) {
+    await browser.evaluate(`document.querySelector("#guestEntryButton").focus()`);
+    await keyTap(browser, "Space", " ");
+    if (await browser.evaluate(`document.querySelector("#overlay").hidden`)) {
       errors.push("Space on the guest entry should choose guest without skipping the launch menu");
     }
-    await waitUntil("guest entry after pre-start context restore", () => evaluate(cdp, `document.querySelector("#entryGate")?.classList.contains("hidden")`));
-    await clickSelector(cdp, "#startButton");
-    await waitUntil("start after pre-start context restore", () => evaluate(cdp, `document.querySelector("#overlay")?.classList.contains("hidden")`));
-    await enableDebugPanel(cdp);
-    const preStartBeforeMove = await debugPosition(cdp);
-    await keyHold(cdp, "KeyD", "D", 90);
-    const preStartAfterMove = await debugPosition(cdp);
+    await waitUntil("guest entry after pre-start context restore", () => browser.evaluate(`document.querySelector("#entryGate")?.classList.contains("hidden")`));
+    await clickSelector(browser, "#startButton");
+    await waitUntil("start after pre-start context restore", () => browser.evaluate(`document.querySelector("#overlay")?.classList.contains("hidden")`));
+    await enableDebugPanel(browser);
+    const preStartBeforeMove = await debugPosition(browser);
+    await keyHold(browser, "KeyD", "D", 90);
+    const preStartAfterMove = await debugPosition(browser);
     if (!/画面已恢复/.test(preStartContext) || preStartAfterMove.x <= preStartBeforeMove.x) {
       errors.push("a context loss before gameplay should restore cleanly before the first start: " + JSON.stringify({ preStartContext, preStartBeforeMove, preStartAfterMove }));
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
+    browser.removeInitScript(injected);
   }
 }
 
-async function runCloudSdkRetrySmoke(cdp, baseUrl) {
-  await evaluate(cdp, `(() => {
+async function runCloudSdkRetrySmoke(browser, baseUrl) {
+  await browser.evaluate(`(() => {
     sessionStorage.removeItem("summit-spark-entry-mode");
     localStorage.removeItem("summit-spark-account-hint");
   })()`);
-  await cdp.send("Network.enable");
-  await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
-  await cdp.send("Network.setBlockedURLs", { urls: ["*vendor/appwrite-26.2.0.js*"] });
+  browser.blockAsset("/vendor/appwrite-26.2.0.js");
   try {
-    await navigateApp(cdp, baseUrl, "blocked cloud SDK");
-    const idle = await waitUntil("guest entry keeps the cloud SDK lazy", () => evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "blocked cloud SDK");
+    const idle = await waitUntil("guest entry keeps the cloud SDK lazy", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       return /打开账号页时再连接/.test(status) && !document.querySelector("#appwriteSdk")
         ? { status, entryVisible: !document.querySelector("#entryGate")?.classList.contains("hidden") }
         : null;
     })()`), 3000);
-    await clickSelector(cdp, "#accountEntryButton");
-    const failed = await waitUntil("blocked cloud SDK exposes retry state", () => evaluate(cdp, `(() => {
+    await clickSelector(browser, "#accountEntryButton");
+    const failed = await waitUntil("blocked cloud SDK exposes retry state", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       return /账号页重试/.test(status) && !document.querySelector("#appwriteSdk")
         ? {
@@ -2493,13 +2419,13 @@ async function runCloudSdkRetrySmoke(cdp, baseUrl) {
           }
         : null;
     })()`), 5000);
-    await cdp.send("Network.setBlockedURLs", { urls: [] });
-    await evaluate(cdp, `(() => {
+    browser.unblockAssets();
+    await browser.evaluate(`(() => {
       const panel = document.querySelector("#settingsPanel");
       if (panel && !panel.classList.contains("hidden")) document.querySelector("#settingsCloseButton")?.click();
       document.querySelector("#accountEntryButton")?.click();
     })()`);
-    const recovered = await waitUntil("account drawer retries cloud SDK without refresh", () => evaluate(cdp, `(() => {
+    const recovered = await waitUntil("account drawer retries cloud SDK without refresh", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       const panelOpen = !document.querySelector("#settingsPanel")?.classList.contains("hidden");
       const accountOpen = document.querySelector(".settings-group-account")?.open || false;
@@ -2516,21 +2442,20 @@ async function runCloudSdkRetrySmoke(cdp, baseUrl) {
       errors.push("guest cloud loading should stay lazy and a transient SDK failure should retry from Account without a page refresh: " + JSON.stringify({ idle, failed, recovered }));
     }
   } finally {
-    await cdp.send("Network.setBlockedURLs", { urls: [] });
-    await cdp.send("Network.setCacheDisabled", { cacheDisabled: false });
-    await evaluate(cdp, `(() => {
+    browser.unblockAssets();
+    await browser.evaluate(`(() => {
       sessionStorage.removeItem("summit-spark-entry-mode");
       localStorage.removeItem("summit-spark-account-hint");
     })()`);
   }
 }
 
-async function runExpiredAccountHintSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `(() => {
+async function runExpiredAccountHintSmoke(browser, baseUrl) {
+  await browser.evaluate(`(() => {
     sessionStorage.removeItem("summit-spark-entry-mode");
     localStorage.setItem("summit-spark-account-hint", "1");
   })()`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+  const injected = await browser.addInitScript({
     source: `(() => {
       class Client {
         setEndpoint() { return this; }
@@ -2544,8 +2469,8 @@ async function runExpiredAccountHintSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "expired account hint");
-    const expired = await waitUntil("expired account hint returns to chooser", () => evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "expired account hint");
+    const expired = await waitUntil("expired account hint returns to chooser", () => browser.evaluate(`(() => {
       const gate = document.querySelector("#entryGate");
       const overlay = document.querySelector("#overlay");
       if (!gate || gate.classList.contains("hidden") || overlay?.classList.contains("entry-checking")) return null;
@@ -2557,22 +2482,20 @@ async function runExpiredAccountHintSmoke(cdp, baseUrl) {
       errors.push("an expired account hint should be cleared and return focus to the chooser: " + JSON.stringify(expired));
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `localStorage.removeItem("summit-spark-account-hint")`);
+    browser.removeInitScript(injected);
+    await browser.evaluate(`localStorage.removeItem("summit-spark-account-hint")`);
   }
 }
 
-async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
-  const originalFlow = await evaluate(cdp, `(() => {
+async function runAuthenticatedRefreshSmoke(browser, baseUrl) {
+  const originalFlow = await browser.evaluate(`(() => {
     sessionStorage.removeItem("summit-spark-entry-mode");
     localStorage.setItem("summit-spark-account-hint", "1");
     const flow = localStorage.getItem("summit-spark-best-flow");
     localStorage.setItem("summit-spark-best-flow", "77");
     return flow;
   })()`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+  const injected = await browser.addInitScript({
     source: `(() => {
       class Client {
         setEndpoint() { return this; }
@@ -2602,15 +2525,15 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "authenticated refresh seed");
-    await waitUntil("authenticated session restored", () => evaluate(cdp, `(() => (
+    await navigateApp(browser, baseUrl, "authenticated refresh seed");
+    await waitUntil("authenticated session restored", () => browser.evaluate(`(() => (
       document.querySelector("#entryGate")?.classList.contains("hidden")
       && !document.querySelector("#startPanel")?.classList.contains("entry-pending")
       && document.querySelector("#accountEmailLabel")?.textContent === "signed-in@example.com"
     ))()`), 7000);
-    await cdp.send("Page.reload", { ignoreCache: true });
-    await waitForAppReady(cdp);
-    const refreshed = await waitUntil("authenticated refresh remains past entry chooser", () => evaluate(cdp, `(() => {
+    await browser.reload();
+    await waitForAppReady(browser);
+    const refreshed = await waitUntil("authenticated refresh remains past entry chooser", () => browser.evaluate(`(() => {
       const gate = document.querySelector("#entryGate");
       const start = document.querySelector("#startPanel");
       const overlay = document.querySelector("#overlay");
@@ -2625,7 +2548,7 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
     if (!refreshed.gateHidden || !refreshed.startReady || refreshed.email !== "signed-in@example.com") {
       errors.push("authenticated refresh should bypass the guest/login chooser: " + JSON.stringify(refreshed));
     }
-    const failedInspectionPermissions = await waitUntil("failed cloud inspection locks replacement actions", () => evaluate(cdp, `(() => {
+    const failedInspectionPermissions = await waitUntil("failed cloud inspection locks replacement actions", () => browser.evaluate(`(() => {
       const summary = document.querySelector("#accountSummary")?.textContent || "";
       const cloud = document.querySelector("#cloudSyncStatus")?.textContent || "";
       const upload = document.querySelector("#cloudUploadButton");
@@ -2645,10 +2568,10 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
       || failedInspectionPermissions.logoutDisabled) {
       errors.push("failed cloud inspection must keep both replacement actions locked while preserving logout: " + JSON.stringify(failedInspectionPermissions));
     }
-    await clickSelector(cdp, "#startSettingsButton");
-    await clickSelector(cdp, ".settings-group-account > summary");
-    await clickSelector(cdp, "#cloudRetryButton");
-    await waitUntil("a stalled cloud read offers another retry while keeping save choices locked", () => evaluate(cdp, `(() => {
+    await clickSelector(browser, "#startSettingsButton");
+    await clickSelector(browser, ".settings-group-account > summary");
+    await clickSelector(browser, "#cloudRetryButton");
+    await waitUntil("a stalled cloud read offers another retry while keeping save choices locked", () => browser.evaluate(`(() => {
       const retry = document.querySelector("#cloudRetryButton");
       return window.__summitInspectionReads === 2
         && !retry.hidden && !retry.disabled
@@ -2656,8 +2579,8 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
         && document.querySelector("#cloudUploadButton").disabled
         && document.querySelector("#cloudDownloadButton").disabled;
     })()`));
-    await clickSelector(cdp, "#cloudRetryButton");
-    await waitUntil("cloud retry recovers choices with both saves available and local progress retained", () => evaluate(cdp, `(() => {
+    await clickSelector(browser, "#cloudRetryButton");
+    await waitUntil("cloud retry recovers choices with both saves available and local progress retained", () => browser.evaluate(`(() => {
       const retry = document.querySelector("#cloudRetryButton");
       return window.__summitInspectionReads === 3 && retry.hidden
         && !document.querySelector("#cloudComparison").hidden
@@ -2665,18 +2588,16 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
         && !document.querySelector("#cloudDownloadButton").disabled
         && localStorage.getItem("summit-spark-best-flow") === "77";
     })()`));
-    await evaluate(cdp, `window.__summitLateInspection({ archive: "invalid late response" })`);
+    await browser.evaluate(`window.__summitLateInspection({ archive: "invalid late response" })`);
     await sleep(100);
-    if (!await evaluate(cdp, `!document.querySelector("#cloudComparison").hidden && !document.querySelector("#cloudDownloadButton").disabled`)) {
+    if (!await browser.evaluate(`!document.querySelector("#cloudComparison").hidden && !document.querySelector("#cloudDownloadButton").disabled`)) {
       errors.push("cloud read results arriving after timeout must not replace the recovered comparison");
     }
-    await clickSelector(cdp, "#settingsClose");
+    await clickSelector(browser, "#settingsClose");
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
-    await evaluate(cdp, `(() => {
+    browser.removeInitScript(injected);
+    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
+    await browser.evaluate(`(() => {
       localStorage.removeItem("summit-spark-account-hint");
       const flow = ${JSON.stringify(originalFlow)};
       if (flow === null) localStorage.removeItem("summit-spark-best-flow");
@@ -2685,12 +2606,12 @@ async function runAuthenticatedRefreshSmoke(cdp, baseUrl) {
   }
 }
 
-async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `(() => {
+async function runAccountRestoreTimeoutSmoke(browser, baseUrl) {
+  await browser.evaluate(`(() => {
     sessionStorage.removeItem("summit-spark-entry-mode");
     localStorage.setItem("summit-spark-account-hint", "1");
   })()`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+  const injected = await browser.addInitScript({
     source: `(() => {
       class Client {
         setEndpoint() { return this; }
@@ -2706,8 +2627,8 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "stalled account restore");
-    const recovered = await waitUntil("stalled account restore returns to chooser", () => evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "stalled account restore");
+    const recovered = await waitUntil("stalled account restore returns to chooser", () => browser.evaluate(`(() => {
       const gate = document.querySelector("#entryGate");
       const start = document.querySelector("#startPanel");
       const overlay = document.querySelector("#overlay");
@@ -2723,12 +2644,11 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
     if (!recovered.gateVisible || !recovered.startPending || !/云端连接超时/.test(recovered.status) || recovered.hint !== "1") {
       errors.push("stalled account restore should recover to the guest/login chooser with a clear message: " + JSON.stringify(recovered));
     }
-    await clickSelector(cdp, "#accountEntryButton");
-    await waitUntil("account drawer opens after restore timeout", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
-    await evaluate(cdp, `document.querySelector("#accountEmail").value = "pending@example.com"`);
-    await clickSelector(cdp, "#accountEmail");
-    await keyTap(cdp, "Enter", "Enter");
-    const busyState = await waitUntil("account form enters unified busy state", () => evaluate(cdp, `(() => {
+    await clickSelector(browser, "#accountEntryButton");
+    await waitUntil("account drawer opens after restore timeout", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
+    await browser.evaluate(`document.querySelector("#accountEmail").value = "pending@example.com"`);
+    await clickSelector(browser, "#accountSendCode");
+    const busyState = await waitUntil("account form enters unified busy state", () => browser.evaluate(`(() => {
       const group = document.querySelector(".settings-group-account");
       if (group?.getAttribute("aria-busy") !== "true") return null;
       const controls = [
@@ -2742,16 +2662,14 @@ async function runAccountRestoreTimeoutSmoke(cdp, baseUrl) {
     })()`));
     if (!busyState.allDisabled) errors.push("authentication tabs, fields and actions should lock together while a request is pending");
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
-    await evaluate(cdp, `localStorage.removeItem("summit-spark-account-hint")`);
+    browser.removeInitScript(injected);
+    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
+    await browser.evaluate(`localStorage.removeItem("summit-spark-account-hint")`);
   }
 }
 
-async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+async function runRestrictedSessionStorageAuthSmoke(browser, baseUrl) {
+  const injected = await browser.addInitScript({
     source: `(() => {
       const storageError = () => { throw new DOMException("Session storage blocked", "SecurityError"); };
       const originalGetItem = Storage.prototype.getItem;
@@ -2783,11 +2701,14 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
         async createEmailToken(payload) {
           window.__summitRestrictedAuth.sent += 1;
           window.__summitRestrictedAuth.email = payload.email;
+          // Keep the mocked request pending while the repeated action arrives.
+          await new Promise(resolve => setTimeout(resolve, 150));
           return { userId: "restricted-user", phrase: "MIST-PEAK" };
         }
         async createSession(payload) {
           window.__summitRestrictedAuth.sessions += 1;
           window.__summitRestrictedAuth.sessionPayload = payload;
+          await new Promise(resolve => setTimeout(resolve, 150));
           return {};
         }
       }
@@ -2812,51 +2733,60 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "restricted session storage auth");
-    await waitUntil("blocked session storage falls back to entry chooser", () => evaluate(cdp, `!document.querySelector("#entryGate")?.classList.contains("hidden")`), 5000);
-    await clickSelector(cdp, "#accountEntryButton");
-    await waitUntil("restricted storage account drawer opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
-    await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
-    await evaluate(cdp, `document.querySelector("#accountSendCode").click(); document.querySelector("#accountSendCode").click()`);
-    const sent = await waitUntil("OTP send remains successful when session storage is blocked", () => evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "restricted session storage auth");
+    await waitUntil("blocked session storage falls back to entry chooser", () => browser.evaluate(`!document.querySelector("#entryGate")?.classList.contains("hidden")`), 5000);
+    await clickSelector(browser, "#accountEntryButton");
+    await waitUntil("restricted storage account drawer opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
+    await browser.evaluate(`document.querySelector("#accountEmail").value = "restricted@example.com"`);
+    await browser.evaluate(`(() => {
+      for (let click = 0; click < 2; click++) document.querySelector("#accountSendCode").click();
+    })()`);
+    const sent = await waitUntil("OTP send remains successful when session storage is blocked", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       return window.__summitRestrictedAuth?.sent >= 1 && /验证码已发送/.test(status)
         ? { status, sent: window.__summitRestrictedAuth.sent }
         : null;
     })()`), 5000);
+    if (!await browser.evaluate('document.activeElement === document.querySelector("#accountCode")')) {
+      throw new Error("The issued OTP should be ready to type into the enabled code field");
+    }
     if (sent.sent !== 1) throw new Error("Rapid OTP actions issued " + sent.sent + " requests; expected one");
-    await evaluate(cdp, `(() => {
+    await browser.evaluate(`(() => {
       const email = document.querySelector("#accountEmail");
       email.value = "changed@example.com";
       email.dispatchEvent(new Event("input", { bubbles: true }));
     })()`);
-    const invalidated = await waitUntil("changing OTP email invalidates the issued token", () => evaluate(cdp, `(() => {
+    const invalidated = await waitUntil("changing OTP email invalidates the issued token", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       const code = document.querySelector("#accountCode")?.value || "";
       return /邮箱已更改/.test(status) && !code
         ? { status, code, sessions: window.__summitRestrictedAuth?.sessions || 0 }
         : null;
     })()`));
-    await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
-    await clickSelector(cdp, "#accountSendCode");
-    await waitUntil("fresh OTP issued after email change", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 2`));
-    await evaluate(cdp, `(() => {
+    await browser.evaluate(`document.querySelector("#accountEmail").value = "restricted@example.com"`);
+    await clickSelector(browser, "#accountSendCode");
+    await waitUntil("fresh OTP issued after email change", () => browser.evaluate(`window.__summitRestrictedAuth?.sent === 2
+      && /验证码已发送/.test(document.querySelector('#accountStatus')?.textContent || '')`));
+    await browser.evaluate(`(() => {
       document.querySelector("#accountEmail").value = "autofill-change@example.com";
       document.querySelector("#accountCode").value = "123456";
     })()`);
-    await clickSelector(cdp, "#accountSubmit");
-    const guardedMismatch = await waitUntil("OTP submit rejects an email changed without an input event", () => evaluate(cdp, `(() => {
+    await clickSelector(browser, "#accountSubmit");
+    const guardedMismatch = await waitUntil("OTP submit rejects an email changed without an input event", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       return /邮箱已更改/.test(status)
         ? { status, sessions: window.__summitRestrictedAuth?.sessions || 0 }
         : null;
     })()`));
-    await evaluate(cdp, `document.querySelector("#accountEmail").value = "restricted@example.com"`);
-    await clickSelector(cdp, "#accountSendCode");
-    await waitUntil("third OTP issued after guarded mismatch", () => evaluate(cdp, `window.__summitRestrictedAuth?.sent === 3`));
-    await evaluate(cdp, `document.querySelector("#accountCode").value = "123456"`);
-    await evaluate(cdp, `document.querySelector("#accountSubmit").click(); document.querySelector("#accountSubmit").click()`);
-    const signedIn = await waitUntil("OTP login remains successful when session cleanup is blocked", () => evaluate(cdp, `(() => {
+    await browser.evaluate(`document.querySelector("#accountEmail").value = "restricted@example.com"`);
+    await clickSelector(browser, "#accountSendCode");
+    await waitUntil("third OTP issued after guarded mismatch", () => browser.evaluate(`window.__summitRestrictedAuth?.sent === 3
+      && /验证码已发送/.test(document.querySelector('#accountStatus')?.textContent || '')`));
+    await browser.evaluate(`document.querySelector("#accountCode").value = "123456"`);
+    await browser.evaluate(`(() => {
+      for (let click = 0; click < 2; click++) document.querySelector("#accountSubmit").click();
+    })()`);
+    const signedIn = await waitUntil("OTP login remains successful when session cleanup is blocked", () => browser.evaluate(`(() => {
       const mock = window.__summitRestrictedAuth;
       const email = document.querySelector("#accountEmailLabel")?.textContent || "";
       return mock?.sessions === 1 && email === "restricted@example.com"
@@ -2867,16 +2797,14 @@ async function runRestrictedSessionStorageAuthSmoke(cdp, baseUrl) {
       errors.push("session storage restrictions and email edits must not reuse or override OTP identity state: " + JSON.stringify({ sent, invalidated, guardedMismatch, signedIn }));
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await navigateApp(cdp, baseUrl, "restricted session storage cleanup");
+    browser.removeInitScript(injected);
+    await navigateApp(browser, baseUrl, "restricted session storage cleanup");
   }
 }
 
-async function runPasswordRecoverySmoke(cdp, baseUrl) {
-  await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+async function runPasswordRecoverySmoke(browser, baseUrl) {
+  await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
+  const injected = await browser.addInitScript({
     source: `(() => {
       class Client {
         setEndpoint() { return this; }
@@ -2897,10 +2825,10 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
   });
   try {
     const recoveryUrl = `${baseUrl}/?userId=recovery-user&secret=recovery-secret&keep=1`;
-    await cdp.send("Page.navigate", { url: recoveryUrl });
-    await waitUntil("password recovery navigation", () => evaluate(cdp, `location.pathname === "/" && location.search === "?keep=1"`), 7000);
-    await waitForAppReady(cdp);
-    const recoveryState = await waitUntil("password recovery opens focused account drawer", () => evaluate(cdp, `(() => {
+    await browser.navigate(recoveryUrl);
+    await waitUntil("password recovery navigation", () => browser.evaluate(`location.pathname === "/" && location.search === "?keep=1"`), 7000);
+    await waitForAppReady(browser);
+    const recoveryState = await waitUntil("password recovery opens focused account drawer", () => browser.evaluate(`(() => {
       const panel = document.querySelector("#settingsPanel");
       const password = document.querySelector("#accountPassword");
       if (!panel || panel.classList.contains("hidden") || !panel.classList.contains("account-focused")) return null;
@@ -2925,9 +2853,9 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
     if (recoveryState.search !== "?keep=1" || recoveryState.title !== "设置新密码" || recoveryState.closeLabel !== "关闭改密" || !recoveryState.groupOpen || !recoveryState.authTabsHidden || !recoveryState.emailHidden || !recoveryState.codeHidden || !recoveryState.noteHidden || !recoveryState.passwordVisible || recoveryState.passwordLabel !== "新密码" || !/输入新密码/.test(recoveryState.passwordPlaceholder) || recoveryState.submit !== "确认新密码" || !recoveryState.focused || !/改密链接已验证/.test(recoveryState.status)) {
       errors.push("recovery links should immediately hide secrets and open a focused, single-purpose password form: " + JSON.stringify(recoveryState));
     }
-    await evaluate(cdp, `document.querySelector("#accountPassword").value = "password123"`);
-    await clickSelector(cdp, "#accountSubmit");
-    const rejectedRecoveryUi = await waitUntil("password recovery explains dictionary rejection", () => evaluate(cdp, `(() => {
+    await browser.evaluate(`document.querySelector("#accountPassword").value = "password123"`);
+    await clickSelector(browser, "#accountSubmit");
+    const rejectedRecoveryUi = await waitUntil("password recovery explains dictionary rejection", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       return /过于常见/.test(status) ? {
         status,
@@ -2938,9 +2866,9 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
     if (!rejectedRecoveryUi.stillRecovering || !rejectedRecoveryUi.passwordVisible) {
       errors.push("a rejected weak password should keep the recovery form active with a precise explanation: " + JSON.stringify(rejectedRecoveryUi));
     }
-    await evaluate(cdp, `document.querySelector("#accountPassword").value = "updated-password"`);
-    await clickSelector(cdp, "#accountSubmit");
-    const updated = await waitUntil("password recovery completes", () => evaluate(cdp, `(() => {
+    await browser.evaluate(`document.querySelector("#accountPassword").value = "updated-password"`);
+    await clickSelector(browser, "#accountSubmit");
+    const updated = await waitUntil("password recovery completes", () => browser.evaluate(`(() => {
       const payload = window.__summitRecoveryUpdate;
       const status = document.querySelector("#accountStatus")?.textContent || "";
       if (!payload || !/密码已更新/.test(status)) return null;
@@ -2961,16 +2889,14 @@ async function runPasswordRecoverySmoke(cdp, baseUrl) {
       errors.push("completed recovery should use the captured token once and restore the regular login form");
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+    browser.removeInitScript(injected);
+    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
   }
 }
 
-async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+async function runCloudSyncExitGuardSmoke(browser, baseUrl) {
+  await browser.evaluate(`sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const injected = await browser.addInitScript({
     source: `(() => {
       window.__summitCloudMock = { upserts: 0, deletes: 0, failWrites: false, holdWrites: false, pendingWrite: null, pendingPassword: null };
       class Client {
@@ -3007,15 +2933,15 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "cloud sync exit guard");
-    const initialSync = await waitUntil("first cloud sync completes", () => evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "cloud sync exit guard");
+    const initialSync = await waitUntil("first cloud sync completes", () => browser.evaluate(`(() => {
       const mock = window.__summitCloudMock;
       const summary = document.querySelector("#accountSummary")?.textContent || "";
       return mock?.upserts >= 1 && summary === "已同步" ? { upserts: mock.upserts, summary } : null;
     })()`), 7000);
-    await clickSelector(cdp, "#startSettingsButton");
-    await openSettingsGroup(cdp, ".settings-group-account");
-    const accountLayout = await evaluate(cdp, `(() => {
+    await clickSelector(browser, "#startSettingsButton");
+    await openSettingsGroup(browser, ".settings-group-account");
+    const accountLayout = await browser.evaluate(`(() => {
       const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
       const body = document.querySelector(".settings-group-account .account-body").getBoundingClientRect();
       const head = document.querySelector(".account-user-head").getBoundingClientRect();
@@ -3044,19 +2970,19 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       || !accountLayout.saveButtonAligned) {
       errors.push("authenticated account disclosure should keep identity, sync actions and security fields on one contained grid: " + JSON.stringify(accountLayout));
     }
-    await clickSelector(cdp, "#settingsClose");
-    await evaluate(cdp, `(() => {
+    await clickSelector(browser, "#settingsClose");
+    await browser.evaluate(`(() => {
       const toggle = document.querySelector("#audioToggle");
       toggle.checked = !toggle.checked;
       toggle.dispatchEvent(new Event("change", { bubbles: true }));
       window.dispatchEvent(new Event("pagehide"));
     })()`);
-    const flushed = await waitUntil("pagehide flushes pending cloud save", () => evaluate(cdp, `(() => {
+    const flushed = await waitUntil("pagehide flushes pending cloud save", () => browser.evaluate(`(() => {
       const mock = window.__summitCloudMock;
       const summary = document.querySelector("#accountSummary")?.textContent || "";
       return mock?.upserts > ${initialSync.upserts} && summary === "已同步" ? { upserts: mock.upserts, summary } : null;
     })()`), 5000);
-    const slowUploadTarget = await evaluate(cdp, `(() => {
+    const slowUploadTarget = await browser.evaluate(`(() => {
       const mock = window.__summitCloudMock;
       mock.holdWrites = true;
       const calm = document.querySelector("#calmEffectsToggle");
@@ -3069,14 +2995,14 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
     if (slowUploadTarget.queuedSummary !== "待同步") {
       errors.push("a locally queued save should stop claiming it is already synced: " + JSON.stringify(slowUploadTarget));
     }
-    const heldUpload = await waitUntil("first slow cloud upload remains in flight", () => evaluate(cdp, `(() => {
+    const heldUpload = await waitUntil("first slow cloud upload remains in flight", () => browser.evaluate(`(() => {
       const mock = window.__summitCloudMock;
       const summary = document.querySelector("#accountSummary")?.textContent || "";
       return mock?.pendingWrite && summary === "同步中"
         ? { upserts: mock.upserts, summary }
         : null;
     })()`), 5000);
-    const queuedDuringUpload = await evaluate(cdp, `(() => {
+    const queuedDuringUpload = await browser.evaluate(`(() => {
       const lines = document.querySelector("#practiceLinesToggle");
       lines.checked = !lines.checked;
       lines.dispatchEvent(new Event("change", { bubbles: true }));
@@ -3090,14 +3016,14 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
     if (queuedDuringUpload.summary !== "待同步" || queuedDuringUpload.upserts !== heldUpload.upserts) {
       errors.push("new progress during an in-flight upload should stay visibly queued without a concurrent write: " + JSON.stringify({ heldUpload, queuedDuringUpload }));
     }
-    await evaluate(cdp, `(() => {
+    await browser.evaluate(`(() => {
       const mock = window.__summitCloudMock;
       const pending = mock.pendingWrite;
       mock.pendingWrite = null;
       mock.holdWrites = false;
       pending.resolve({ $updatedAt: new Date().toISOString() });
     })()`);
-    const followupUpload = await waitUntil("queued change receives a follow-up cloud upload", () => evaluate(cdp, `(() => {
+    const followupUpload = await waitUntil("queued change receives a follow-up cloud upload", () => browser.evaluate(`(() => {
       const mock = window.__summitCloudMock;
       if (!mock || mock.upserts <= ${heldUpload.upserts}) return null;
       const archive = JSON.parse(mock.lastPayload?.data?.archive || "{}");
@@ -3114,13 +3040,13 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       || followupUpload.practiceLines !== queuedDuringUpload.practiceLines) {
       errors.push("a local change queued during a slow upload must receive a second upload with the latest archive: " + JSON.stringify({ heldUpload, slowUploadTarget, queuedDuringUpload, followupUpload }));
     }
-    await clickSelector(cdp, "#startAccountButton");
-    await waitUntil("account drawer opens for password busy queue", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
-    await evaluate(cdp, `document.querySelector("#accountNewPassword").value = "queue-password-157"`);
-    await clickSelector(cdp, "#accountSetPassword");
-    await waitUntil("password update remains in flight", () => evaluate(cdp, `window.__summitCloudMock?.pendingPassword && document.querySelector(".settings-group-account")?.getAttribute("aria-busy") === "true"`));
-    await clickSelector(cdp, "#settingsClose");
-    const queuedSettings = await evaluate(cdp, `(() => {
+    await clickSelector(browser, "#startAccountButton");
+    await waitUntil("account drawer opens for password busy queue", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
+    await browser.evaluate(`document.querySelector("#accountNewPassword").value = "queue-password-157"`);
+    await clickSelector(browser, "#accountSetPassword");
+    await waitUntil("password update remains in flight", () => browser.evaluate(`window.__summitCloudMock?.pendingPassword && document.querySelector(".settings-group-account")?.getAttribute("aria-busy") === "true"`));
+    await clickSelector(browser, "#settingsClose");
+    const queuedSettings = await browser.evaluate(`(() => {
       const audio = document.querySelector("#audioToggle");
       const before = window.__summitCloudMock.upserts;
       audio.checked = !audio.checked;
@@ -3135,17 +3061,17 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       errors.push("local progress during password update should remain visibly queued: " + JSON.stringify(queuedSettings));
     }
     await sleep(120);
-    const stagedWriteCount = await evaluate(cdp, `window.__summitCloudMock?.upserts || 0`);
+    const stagedWriteCount = await browser.evaluate(`window.__summitCloudMock?.upserts || 0`);
     if (stagedWriteCount !== queuedSettings.before) {
       errors.push("password update and cloud save must not write concurrently: " + JSON.stringify({ queuedSettings, stagedWriteCount }));
     }
-    await evaluate(cdp, `(() => {
+    await browser.evaluate(`(() => {
       const mock = window.__summitCloudMock;
       const pending = mock.pendingPassword;
       mock.pendingPassword = null;
       pending.resolve({});
     })()`);
-    const resumedSync = await waitUntil("cloud sync resumes after password update", () => evaluate(cdp, `(() => {
+    const resumedSync = await waitUntil("cloud sync resumes after password update", () => browser.evaluate(`(() => {
       const mock = window.__summitCloudMock;
       if (!mock || mock.upserts <= ${queuedSettings.before}) return null;
       const archive = JSON.parse(mock.lastPayload?.data?.archive || "{}");
@@ -3158,7 +3084,7 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
     if (resumedSync.upserts <= queuedSettings.before || resumedSync.audioEnabled !== queuedSettings.audioEnabled) {
       errors.push("a local change made during password update must resume cloud sync after account busy clears: " + JSON.stringify({ queuedSettings, resumedSync }));
     }
-    await evaluate(cdp, `(() => {
+    await browser.evaluate(`(() => {
       const backend = window.__summitCloudBackend;
       const remote = JSON.parse(backend.committedRow.archive);
       remote.storage.profile.summitClears = 9;
@@ -3168,9 +3094,9 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       toggle.dispatchEvent(new Event("change", { bubbles: true }));
       window.dispatchEvent(new Event("pagehide"));
     })()`);
-    const accountAlreadyOpen = await evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account").open`);
-    if (!accountAlreadyOpen) await clickSelector(cdp, "#startAccountButton");
-    const conflict = await waitUntil("external device update pauses automatic sync", () => evaluate(cdp, `(() => {
+    const accountAlreadyOpen = await browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account").open`);
+    if (!accountAlreadyOpen) await clickSelector(browser, "#startAccountButton");
+    const conflict = await waitUntil("external device update pauses automatic sync", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       if (!/另一设备/.test(status)) return null;
       return {
@@ -3185,30 +3111,30 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       errors.push("external cloud update must preserve both saves and require a choice: " + JSON.stringify(conflict));
     }
     // Even an explicit upload must reject a version changed after it was shown.
-    await evaluate(cdp, `(() => {
+    await browser.evaluate(`(() => {
       const backend = window.__summitCloudBackend;
       const remote = JSON.parse(backend.committedRow.archive);
       remote.storage.profile.summitClears = 10;
       backend.setRemote({ archive: JSON.stringify(remote), $updatedAt: "2030-01-02T00:00:00.000Z" });
     })()`);
-    await clickSelector(cdp, "#cloudUploadButton");
-    await waitUntil("stale explicit choice is rejected", () => evaluate(cdp, `document.querySelector(".settings-group-account").getAttribute("aria-busy") === "false" && /另一设备/.test(document.querySelector("#accountStatus").textContent)`));
-    const preserved = await evaluate(cdp, `JSON.parse(window.__summitCloudBackend.committedRow.archive).storage.profile.summitClears`);
+    await clickSelector(browser, "#cloudUploadButton");
+    await waitUntil("stale explicit choice is rejected", () => browser.evaluate(`document.querySelector(".settings-group-account").getAttribute("aria-busy") === "false" && /另一设备/.test(document.querySelector("#accountStatus").textContent)`));
+    const preserved = await browser.evaluate(`JSON.parse(window.__summitCloudBackend.committedRow.archive).storage.profile.summitClears`);
     if (preserved !== 10) errors.push("explicit upload must not bypass the remote version guard");
-    await clickSelector(cdp, "#cloudUploadButton");
-    await waitUntil("fresh explicit choice resumes cloud sync", () => evaluate(cdp, `document.querySelector("#accountSummary").textContent === "已同步"`));
-    await clickSelector(cdp, "#settingsClose");
-    await waitUntil("conflict account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
-    await evaluate(cdp, `(() => {
+    await clickSelector(browser, "#cloudUploadButton");
+    await waitUntil("fresh explicit choice resumes cloud sync", () => browser.evaluate(`document.querySelector("#accountSummary").textContent === "已同步"`));
+    await clickSelector(browser, "#settingsClose");
+    await waitUntil("conflict account panel closes", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
+    await browser.evaluate(`(() => {
       const toggle = document.querySelector("#audioToggle");
       toggle.checked = !toggle.checked;
       toggle.dispatchEvent(new Event("change", { bubbles: true }));
       window.__summitCloudMock.failWrites = true;
     })()`);
-    await clickSelector(cdp, "#startAccountButton");
-    await waitUntil("account drawer opens for guarded logout", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
-    await clickSelector(cdp, "#accountLogout");
-    const guarded = await waitUntil("failed final sync prevents logout", () => evaluate(cdp, `(() => {
+    await clickSelector(browser, "#startAccountButton");
+    await waitUntil("account drawer opens for guarded logout", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector(".settings-group-account")?.open`));
+    await clickSelector(browser, "#accountLogout");
+    const guarded = await waitUntil("failed final sync prevents logout", () => browser.evaluate(`(() => {
       const status = document.querySelector("#accountStatus")?.textContent || "";
       if (!/账号仍保持登录/.test(status)) return null;
       return {
@@ -3223,15 +3149,13 @@ async function runCloudSyncExitGuardSmoke(cdp, baseUrl) {
       errors.push("pending progress should flush on pagehide and a failed final upload must keep the account signed in: " + JSON.stringify({ initialSync, flushed, guarded }));
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+    browser.removeInitScript(injected);
+    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
   }
 }
 
-async function runLargeCloudArchiveSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `(() => {
+async function runLargeCloudArchiveSmoke(browser, baseUrl) {
+  await browser.evaluate(`(() => {
     sessionStorage.setItem("summit-spark-entry-mode", "account");
     const paths = Array.from({ length: 10 }, (_, room) =>
       Array.from({ length: 420 }, (_, index) => ({
@@ -3245,7 +3169,7 @@ async function runLargeCloudArchiveSmoke(cdp, baseUrl) {
     );
     localStorage.setItem("summit-spark-room-paths", JSON.stringify(paths));
   })()`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+  const injected = await browser.addInitScript({
     source: `(() => {
       window.__summitLargeCloudMock = { upserts: 0, lastPayload: null };
       class Client {
@@ -3270,8 +3194,8 @@ async function runLargeCloudArchiveSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "large cloud archive");
-    const largeArchive = await waitUntil("large cloud archive uploads intact", () => evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "large cloud archive");
+    const largeArchive = await waitUntil("large cloud archive uploads intact", () => browser.evaluate(`(() => {
       const mock = window.__summitLargeCloudMock;
       const archiveText = mock?.lastPayload?.data?.archive || "";
       const summary = document.querySelector("#accountSummary")?.textContent || "";
@@ -3289,16 +3213,16 @@ async function runLargeCloudArchiveSmoke(cdp, baseUrl) {
         summary
       };
     })()`), 7000);
-    await clickSelector(cdp, "#startSettingsButton");
-    await openSettingsGroup(cdp, ".settings-group-feedback");
-    await evaluate(cdp, `(() => {
+    await clickSelector(browser, "#startSettingsButton");
+    await openSettingsGroup(browser, ".settings-group-feedback");
+    await browser.evaluate(`(() => {
       const input = document.querySelector("#saveImportText");
       input.value = "";
       input.focus();
     })()`);
-    const largeArchiveText = await evaluate(cdp, `window.__summitLargeArchiveText || ""`);
-    await cdp.send("Input.insertText", { text: largeArchiveText });
-    const realisticImport = await waitUntil("large archive accepts real text input", () => evaluate(cdp, `(() => {
+    const largeArchiveText = await browser.evaluate(`window.__summitLargeArchiveText || ""`);
+    await browser.insertText(largeArchiveText);
+    const realisticImport = await waitUntil("large archive accepts real text input", () => browser.evaluate(`(() => {
       const input = document.querySelector("#saveImportText");
       const preview = document.querySelector("#saveImportStatus");
       return input?.value.length === window.__summitLargeArchiveText?.length
@@ -3324,19 +3248,17 @@ async function runLargeCloudArchiveSmoke(cdp, baseUrl) {
       errors.push("a full ten-room route archive above the legacy 240k cap must upload and remain paste-importable: " + JSON.stringify({ largeArchive, realisticImport }));
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `(() => {
+    browser.removeInitScript(injected);
+    await browser.evaluate(`(() => {
       sessionStorage.removeItem("summit-spark-entry-mode");
       localStorage.removeItem("summit-spark-room-paths");
     })()`);
   }
 }
 
-async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+async function runCloudLogoutInspectionRaceSmoke(browser, baseUrl) {
+  await browser.evaluate(`sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const injected = await browser.addInitScript({
     source: `(() => {
       window.__summitCloudRace = { deletes: 0, resolveRow: null };
       class Client {
@@ -3358,8 +3280,8 @@ async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "cloud logout inspection race");
-    const pendingInspection = await waitUntil("cloud inspection remains pending after session restore", () => evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "cloud logout inspection race");
+    const pendingInspection = await waitUntil("cloud inspection remains pending after session restore", () => browser.evaluate(`(() => {
       const race = window.__summitCloudRace;
       const email = document.querySelector("#accountEmailLabel")?.textContent || "";
       const summary = document.querySelector("#accountSummary")?.textContent || "";
@@ -3380,10 +3302,10 @@ async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
     if (pendingInspection.summary !== "检查中" || !pendingInspection.uploadDisabled || !pendingInspection.downloadDisabled || pendingInspection.logoutDisabled) {
       errors.push("pending cloud inspection must report checking and lock destructive cloud actions while preserving logout: " + JSON.stringify(pendingInspection));
     }
-    await clickSelector(cdp, "#startAccountButton");
-    await waitUntil("account drawer opens during pending cloud inspection", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#accountUser")?.classList.contains("hidden") && document.activeElement === document.querySelector("#settingsClose")`));
-    await clickSelector(cdp, "#accountLogout");
-    const loggedOut = await waitUntil("logout completes before cloud inspection", () => evaluate(cdp, `(() => {
+    await clickSelector(browser, "#startAccountButton");
+    await waitUntil("account drawer opens during pending cloud inspection", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && !document.querySelector("#accountUser")?.classList.contains("hidden") && document.activeElement === document.querySelector("#settingsClose")`));
+    await clickSelector(browser, "#accountLogout");
+    const loggedOut = await waitUntil("logout completes before cloud inspection", () => browser.evaluate(`(() => {
       const race = window.__summitCloudRace;
       const summary = document.querySelector("#accountSummary")?.textContent || "";
       const cloud = document.querySelector("#cloudSyncStatus")?.textContent || "";
@@ -3392,9 +3314,9 @@ async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
         ? { summary, cloud, status, userHidden: document.querySelector("#accountUser")?.classList.contains("hidden") }
         : null;
     })()`), 5000);
-    await evaluate(cdp, `window.__summitCloudRace.resolveRow({ archive: "{}", $updatedAt: new Date().toISOString() })`);
+    await browser.evaluate(`window.__summitCloudRace.resolveRow({ archive: "{}", $updatedAt: new Date().toISOString() })`);
     await sleep(180);
-    const afterLateInspection = await evaluate(cdp, `({
+    const afterLateInspection = await browser.evaluate(`({
       summary: document.querySelector("#accountSummary")?.textContent || "",
       cloud: document.querySelector("#cloudSyncStatus")?.textContent || "",
       status: document.querySelector("#accountStatus")?.textContent || "",
@@ -3410,16 +3332,14 @@ async function runCloudLogoutInspectionRaceSmoke(cdp, baseUrl) {
       errors.push("late cloud inspection after logout must not revive stale account state: " + JSON.stringify({ loggedOut, afterLateInspection }));
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+    browser.removeInitScript(injected);
+    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
   }
 }
 
-async function runCorruptCloudPermissionsSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+async function runCorruptCloudPermissionsSmoke(browser, baseUrl) {
+  await browser.evaluate(`sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+  const injected = await browser.addInitScript({
     source: `(() => {
       class Client {
         setEndpoint() { return this; }
@@ -3437,8 +3357,8 @@ async function runCorruptCloudPermissionsSmoke(cdp, baseUrl) {
     })();`
   });
   try {
-    await navigateApp(cdp, baseUrl, "corrupt cloud permissions");
-    const corruptPermissions = await waitUntil("corrupt cloud archive exposes only repair upload", () => evaluate(cdp, `(() => {
+    await navigateApp(browser, baseUrl, "corrupt cloud permissions");
+    const corruptPermissions = await waitUntil("corrupt cloud archive exposes only repair upload", () => browser.evaluate(`(() => {
       const summary = document.querySelector("#accountSummary")?.textContent || "";
       const cloud = document.querySelector("#cloudSyncStatus")?.textContent || "";
       const status = document.querySelector("#accountStatus")?.textContent || "";
@@ -3458,15 +3378,13 @@ async function runCorruptCloudPermissionsSmoke(cdp, baseUrl) {
       errors.push("corrupt cloud archive should allow explicit repair upload but block download: " + JSON.stringify(corruptPermissions));
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+    browser.removeInitScript(injected);
+    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
   }
 }
 
-async function runCloudConflictGuardSmoke(cdp, baseUrl) {
-  await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "account")`);
+async function runCloudConflictGuardSmoke(browser, baseUrl) {
+  await browser.evaluate(`sessionStorage.setItem("summit-spark-entry-mode", "account")`);
   const remoteArchive = {
     kind: "summit-spark-save",
     schemaVersion: 1,
@@ -3481,7 +3399,7 @@ async function runCloudConflictGuardSmoke(cdp, baseUrl) {
       bestFlow: 100
     }
   };
-  const injected = await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+  const injected = await browser.addInitScript({
     source: `(() => {
       class Client {
         setEndpoint() { return this; }
@@ -3520,9 +3438,9 @@ async function runCloudConflictGuardSmoke(cdp, baseUrl) {
   ];
   try {
     for (const conflictCase of cases) {
-      await evaluate(cdp, `(() => { localStorage.clear(); ${conflictCase.seed}; })()`);
-      await navigateApp(cdp, baseUrl, `cloud conflict ${conflictCase.name}`);
-      const guarded = await waitUntil(`cloud conflict preserves ${conflictCase.name}`, () => evaluate(cdp, `(() => {
+      await browser.evaluate(`(() => { localStorage.clear(); ${conflictCase.seed}; })()`);
+      await navigateApp(browser, baseUrl, `cloud conflict ${conflictCase.name}`);
+      const guarded = await waitUntil(`cloud conflict preserves ${conflictCase.name}`, () => browser.evaluate(`(() => {
         const status = document.querySelector("#accountStatus")?.textContent || "";
         if (!/请选择/.test(status)) return null;
         return {
@@ -3545,22 +3463,15 @@ async function runCloudConflictGuardSmoke(cdp, baseUrl) {
       }
     }
   } finally {
-    if (injected.identifier) {
-      await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
-    }
-    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
+    browser.removeInitScript(injected);
+    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
   }
 }
 
-async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await navigateApp(cdp, baseUrl, "practice recommendation seed");
-  await evaluate(cdp, `(() => {
+async function runPracticeRecommendationIntegrationSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "practice recommendation seed");
+  await browser.evaluate(`(() => {
     localStorage.clear();
     localStorage.setItem("summit-spark-room-bests", JSON.stringify([8.5, 12, 12, 13]));
     localStorage.setItem("summit-spark-room-focus", JSON.stringify({
@@ -3573,9 +3484,9 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
       ]
     }));
   })()`);
-  await navigateApp(cdp, baseUrl, "practice recommendation reload");
+  await navigateApp(browser, baseUrl, "practice recommendation reload");
 
-  const startRecommendation = await waitUntil("start resume exposes the Focus-led recommendation", () => evaluate(cdp, `(() => {
+  const startRecommendation = await waitUntil("start resume exposes the Focus-led recommendation", () => browser.evaluate(`(() => {
     const button = document.querySelector("#resumeTrainingButton");
     if (!button || button.classList.contains("hidden")) return null;
     return { text: button.textContent.trim(), ariaHidden: button.getAttribute("aria-hidden") };
@@ -3584,17 +3495,17 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
     errors.push("start resume should expose the shared Focus-led R3 Style recommendation: " + JSON.stringify(startRecommendation));
   }
 
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("recommendation practice panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  const next = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("recommendation practice panel opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  const next = await browser.evaluate(`(() => {
     const label = document.querySelector("#nextPracticeLabel");
     return { text: label.textContent, visible: label.getBoundingClientRect().height > 0 };
   })()`);
   if (!next.visible || next.text !== "下一项 · R3 Style") errors.push("collapsed Practice should advertise its next recommended drill");
-  await openSettingsGroup(cdp, ".settings-group-plan");
-  await openSettingsGroup(cdp, ".settings-group-training");
-  await openSettingsGroup(cdp, ".practice-subgroup-advanced");
-  const surfaces = await waitUntil("all recommendation surfaces render from the seeded evidence", () => evaluate(cdp, `(() => {
+  await openSettingsGroup(browser, ".settings-group-plan");
+  await openSettingsGroup(browser, ".settings-group-training");
+  await openSettingsGroup(browser, ".practice-subgroup-advanced");
+  const surfaces = await waitUntil("all recommendation surfaces render from the seeded evidence", () => browser.evaluate(`(() => {
     const queue = [...document.querySelectorAll("#practiceQueue [data-queue-room]")].map((card) => ({
       room: Number(card.getAttribute("data-queue-room")),
       mode: card.getAttribute("data-queue-mode")
@@ -3629,9 +3540,9 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
     errors.push("start, labeled three-room three-step plan, queue and challenge recommendations must share the same causal ten-room evidence: " + JSON.stringify({ ...surfaces, queueKey, planKey, challengeKey }));
   }
 
-  await clickSelector(cdp, "#settingsClose");
-  await clickSelector(cdp, "#resumeTrainingButton");
-  const launched = await waitUntil("shared recommendation launches the exact R3 Style Drill", () => evaluate(cdp, `(() => {
+  await clickSelector(browser, "#settingsClose");
+  await clickSelector(browser, "#resumeTrainingButton");
+  const launched = await waitUntil("shared recommendation launches the exact R3 Style Drill", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus")?.textContent || "";
     const room = document.querySelector("#roomCount")?.textContent || "";
     return /Style Drill R3/.test(status) && room.startsWith("R3/") && document.querySelector("#overlay").classList.contains("hidden")
@@ -3643,15 +3554,10 @@ async function runPracticeRecommendationIntegrationSmoke(cdp, baseUrl) {
   }
 }
 
-async function runResumeSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await navigateApp(cdp, baseUrl, "direct resume seed");
-  await evaluate(cdp, `(() => {
+async function runResumeSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "direct resume seed");
+  await browser.evaluate(`(() => {
     localStorage.clear();
     localStorage.setItem("summit-spark-settings", JSON.stringify({
       schemaVersion: 1,
@@ -3665,8 +3571,8 @@ async function runResumeSmoke(cdp, baseUrl) {
       rooms: [{ faults: 4, fall: 4, drills: 1, cleanWins: 0 }]
     }));
   })()`);
-  await navigateApp(cdp, baseUrl, "direct resume reload");
-  const startState = await evaluate(cdp, `({
+  await navigateApp(browser, baseUrl, "direct resume reload");
+  const startState = await browser.evaluate(`({
     resumeVisible: !!document.querySelector("#resumeTrainingButton") && !document.querySelector("#resumeTrainingButton").classList.contains("hidden"),
     resumeText: document.querySelector("#resumeTrainingButton")?.textContent || "",
     lowPerformance: document.querySelector(".stage").classList.contains("low-performance"),
@@ -3677,33 +3583,27 @@ async function runResumeSmoke(cdp, baseUrl) {
   if (!startState.resumeVisible || !/继续训练 · R/.test(startState.resumeText)) errors.push("start overlay should distinguish direct training resume from free play");
   if (!startState.lowPerformance || startState.touchSize !== "62px") errors.push("comfort settings did not apply from stored settings: " + JSON.stringify(startState));
   if (startState.settingsVersion !== 4 || startState.focusVersion !== 2) errors.push("stored settings/focus should migrate to current schema: " + JSON.stringify(startState));
-  await clickSelector(cdp, "#resumeTrainingButton");
-  await waitUntil("resume training starts drill", () => evaluate(cdp, `/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#overlay").classList.contains("hidden")`), 5000);
+  await clickSelector(browser, "#resumeTrainingButton");
+  await waitUntil("resume training starts drill", () => browser.evaluate(`/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#overlay").classList.contains("hidden")`), 5000);
 }
 
-async function runKeyboardSettingsSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-  await navigateApp(cdp, baseUrl, "keyboard settings");
-  await evaluate(cdp, `localStorage.clear()`);
-  await navigateApp(cdp, baseUrl, "keyboard settings clean");
+async function runKeyboardSettingsSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "keyboard settings");
+  await browser.evaluate(`localStorage.clear()`);
+  await navigateApp(browser, baseUrl, "keyboard settings clean");
 
-  await keyTap(cdp, "KeyO", "O");
-  await waitUntil("settings opens from keyboard O", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyO", "O");
+  await waitUntil("settings opens from keyboard O", () => browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const button = document.querySelector("#settingsButton");
     return !panel.classList.contains("hidden") && button.getAttribute("aria-expanded") === "true" && document.activeElement === document.querySelector("#settingsClose");
   })()`), 3500);
 
-  await openSettingsGroup(cdp, ".settings-group-feedback");
-  await clickSelector(cdp, "#feedbackNote");
-  await keyTap(cdp, "KeyO", "O");
-  const textEntryState = await waitUntil("feedback textarea keeps O input local", () => evaluate(cdp, `(() => {
+  await openSettingsGroup(browser, ".settings-group-feedback");
+  await clickSelector(browser, "#feedbackNote");
+  await keyTap(browser, "KeyO", "O");
+  const textEntryState = await waitUntil("feedback textarea keeps O input local", () => browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const note = document.querySelector("#feedbackNote");
     return {
@@ -3716,26 +3616,26 @@ async function runKeyboardSettingsSmoke(cdp, baseUrl) {
     errors.push("feedback textarea should keep O as text input instead of toggling settings: " + JSON.stringify(textEntryState));
   }
 
-  await keyTap(cdp, "Escape", "Escape");
-  await waitUntil("settings closes from keyboard Escape", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "Escape", "Escape");
+  await waitUntil("settings closes from keyboard Escape", () => browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const button = document.querySelector("#settingsButton");
     return panel.classList.contains("hidden") && button.getAttribute("aria-expanded") === "false" && document.activeElement === document.querySelector("#startButton");
   })()`), 3500);
 
-  await clickSelector(cdp, "#startSettingsButton");
-  await waitUntil("pointer-opened settings focuses close", () => evaluate(cdp, `document.activeElement === document.querySelector("#settingsClose")`), 3500);
-  await openSettingsGroup(cdp, ".settings-group-audio");
-  await clickSelector(cdp, "#audioTestButton");
-  await waitUntil("modal action keeps focus inside panel", () => evaluate(cdp, `document.querySelector("#settingsPanel").contains(document.activeElement)`), 3500);
-  await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#startSettingsButton");
+  await waitUntil("pointer-opened settings focuses close", () => browser.evaluate(`document.activeElement === document.querySelector("#settingsClose")`), 3500);
+  await openSettingsGroup(browser, ".settings-group-audio");
+  await clickSelector(browser, "#audioTestButton");
+  await waitUntil("modal action keeps focus inside panel", () => browser.evaluate(`document.querySelector("#settingsPanel").contains(document.activeElement)`), 3500);
+  await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const visible = [...panel.querySelectorAll("button, select, input, textarea, summary, [tabindex]")].filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
     visible[visible.length - 1]?.focus();
   })()`);
-  await keyTap(cdp, "Tab", "Tab");
+  await keyTap(browser, "Tab", "Tab");
   await sleep(120);
-  const focusWrapState = await evaluate(cdp, `(() => {
+  const focusWrapState = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const visible = [...panel.querySelectorAll("button, select, input, textarea, summary, [tabindex]")].filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
     const describe = (element) => element ? (element.id || element.className || element.tagName) : "none";
@@ -3748,67 +3648,62 @@ async function runKeyboardSettingsSmoke(cdp, baseUrl) {
     };
   })()`);
   if (focusWrapState.active !== "settingsClose") errors.push("modal Tab should wrap to the close button: " + JSON.stringify(focusWrapState));
-  await keyTap(cdp, "Escape", "Escape");
-  await waitUntil("pointer opener regains focus", () => evaluate(cdp, `document.activeElement === document.querySelector("#startSettingsButton")`), 3500);
+  await keyTap(browser, "Escape", "Escape");
+  await waitUntil("pointer opener regains focus", () => browser.evaluate(`document.activeElement === document.querySelector("#startSettingsButton")`), 3500);
 
-  await keyTap(cdp, "KeyO", "O");
-  await waitUntil("settings reopens from keyboard O", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
-  await keyTap(cdp, "KeyO", "O");
-  await waitUntil("settings toggles closed from keyboard O", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
-  await keyTap(cdp, "KeyP", "P");
-  await waitUntil("practice opens from keyboard P", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyO", "O");
+  await waitUntil("settings reopens from keyboard O", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
+  await keyTap(browser, "KeyO", "O");
+  await waitUntil("settings toggles closed from keyboard O", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
+  await keyTap(browser, "KeyP", "P");
+  await waitUntil("practice opens from keyboard P", () => browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const button = document.querySelector("#practiceButton");
     return !panel.classList.contains("hidden") && panel.classList.contains("mode-practice") && button.getAttribute("aria-expanded") === "true";
   })()`), 3500);
-  await keyTap(cdp, "KeyP", "P");
-  await waitUntil("practice toggles closed from keyboard P", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
-  await clickSelector(cdp, "#startSettingsButton");
-  await openSettingsGroup(cdp, ".settings-group-controls");
-  await clickSelector(cdp, '[data-preset-choice="classic"]');
-  await clickSelector(cdp, "#settingsClose");
-  await evaluate(cdp, `document.querySelector("#startButton").focus()`);
-  await keyTap(cdp, "Enter", "Enter");
-  await waitUntil("classic preset shows current keys with idle gamepad connected", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyP", "P");
+  await waitUntil("practice toggles closed from keyboard P", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`), 3500);
+  await clickSelector(browser, "#startSettingsButton");
+  await openSettingsGroup(browser, ".settings-group-controls");
+  await clickSelector(browser, '[data-preset-choice="classic"]');
+  await clickSelector(browser, "#settingsClose");
+  await browser.evaluate(`document.querySelector("#startButton").focus()`);
+  await keyTap(browser, "Enter", "Enter");
+  await waitUntil("classic preset shows current keys with idle gamepad connected", () => browser.evaluate(`(() => {
     const guide = document.querySelector("#openingGuide");
     const style = getComputedStyle(guide);
     return !guide.hidden
       && parseFloat(style.fontSize) >= 13
       && document.querySelector("#game").getAttribute("aria-describedby") === guide.id
-      && /C 跳跃 · X 冲刺 · Z 抓墙/.test(document.querySelector("#openingGuideControls").textContent)
+      && Array.from(document.querySelectorAll("#openingGuideControls kbd"), cap => cap.textContent).slice(1).join(" ") === "C X Z"
       && document.querySelector("#openingGuideRestart").textContent === "R 回到检查点 · T 重开本房";
   })()`));
   await sleep(3800);
-  const stillReading = await evaluate(cdp, `!document.querySelector("#openingGuide").hidden && document.querySelector("#runTime").textContent === "0:00.00"`);
+  const stillReading = await browser.evaluate(`!document.querySelector("#openingGuide").hidden && document.querySelector("#runTime").textContent === "0:00.00"`);
   if (!stillReading) errors.push("first-time players should be able to read the guide before starting the run clock");
 
-  await evaluate(cdp, `window.__summitMockPadState.axes[0] = 1`);
-  await waitUntil("first gamepad action updates the guide", () => evaluate(cdp, `/左摇杆移动/.test(document.querySelector("#openingGuideControls").textContent)`));
-  await evaluate(cdp, `window.__summitMockPadState.axes[0] = 0`);
-  await keyTap(cdp, "KeyC", "c");
-  await waitUntil("keyboard action restores the classic guide", () => evaluate(cdp, `/C 跳跃/.test(document.querySelector("#openingGuideControls").textContent)`));
-  await waitUntil("moving removes the opening guide and canvas description", () => evaluate(cdp, `
+  await browser.evaluate(`window.__summitMockPadState.axes[0] = 1`);
+  await waitUntil("first gamepad action updates the guide", () => browser.evaluate(`document.querySelector("#openingGuideControls kbd").textContent === "左摇杆"`));
+  await browser.evaluate(`window.__summitMockPadState.axes[0] = 0`);
+  await keyTap(browser, "KeyC", "c");
+  await waitUntil("keyboard action restores the classic guide", () => browser.evaluate(`/C 跳跃/.test(document.querySelector("#openingGuideControls").textContent)`));
+  await waitUntil("moving removes the opening guide and canvas description", () => browser.evaluate(`
     document.querySelector("#openingGuide").hidden && !document.querySelector("#game").hasAttribute("aria-describedby")
   `), 6000);
 
 }
 
-async function runAssistModeSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await navigateApp(cdp, baseUrl, "assist mode");
-  await evaluate(cdp, `(() => {
+async function runAssistModeSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "assist mode");
+  await browser.evaluate(`(() => {
     localStorage.clear();
     localStorage.setItem("summit-spark-best-flow", "1");
   })()`);
-  await navigateApp(cdp, baseUrl, "assist mode clean");
-  await clickSelector(cdp, "#startSettingsButton");
-  await openSettingsGroup(cdp, ".settings-group-display");
-  const enabled = await evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "assist mode clean");
+  await clickSelector(browser, "#startSettingsButton");
+  await openSettingsGroup(browser, ".settings-group-display");
+  const enabled = await browser.evaluate(`(() => {
     const select = document.querySelector("#assistMode");
     select.value = "gentle";
     select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -3824,13 +3719,13 @@ async function runAssistModeSmoke(cdp, baseUrl) {
   if (enabled.value !== "gentle" || enabled.stored !== "gentle" || enabled.version !== 4 || !enabled.stageClass || !/不计纪录/.test(enabled.status)) {
     errors.push("gentle assist should persist, expose its active state, and explain record isolation: " + JSON.stringify(enabled));
   }
-  await clickSelector(cdp, "#settingsClose");
-  await clickSelector(cdp, "#startButton");
-  const focusBefore = await evaluate(cdp, `localStorage.getItem("summit-spark-room-focus")`);
-  await keyTap(cdp, "KeyX", "x");
-  await keyTap(cdp, "KeyR", "r");
+  await clickSelector(browser, "#settingsClose");
+  await clickSelector(browser, "#startButton");
+  const focusBefore = await browser.evaluate(`localStorage.getItem("summit-spark-room-focus")`);
+  await keyTap(browser, "KeyX", "x");
+  await keyTap(browser, "KeyR", "r");
   await sleep(220);
-  const isolated = await evaluate(cdp, `({
+  const isolated = await browser.evaluate(`({
     bestFlow: localStorage.getItem("summit-spark-best-flow"),
     roomFocus: localStorage.getItem("summit-spark-room-focus"),
     assistMode: JSON.parse(localStorage.getItem("summit-spark-settings") || "{}").assistMode,
@@ -3841,34 +3736,28 @@ async function runAssistModeSmoke(cdp, baseUrl) {
   }
 }
 
-async function runTrainingInterruptionSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-  await navigateApp(cdp, baseUrl, "route interruption seed");
-  await evaluate(cdp, `localStorage.clear()`);
-  await navigateApp(cdp, baseUrl, "route interruption clean");
+async function runTrainingInterruptionSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "route interruption seed");
+  await browser.evaluate(`localStorage.clear()`);
+  await navigateApp(browser, baseUrl, "route interruption clean");
 
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("route interruption practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-training");
-  await openSettingsGroup(cdp, ".practice-subgroup-route");
-  await clickSelector(cdp, "[data-route-contract]");
-  await waitUntil("route contract starts before interruption", () => evaluate(cdp, `/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent)`), 5000);
-  await clickSelector(cdp, "#practiceButton");
-  await waitUntil("practice open during route contract", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-room");
-  await clickSelector(cdp, "#drillCleanButton");
-  await waitUntil("plain drill interrupts route contract", () => evaluate(cdp, `/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#settingsPanel").classList.contains("hidden")`), 5000);
-  await clickSelector(cdp, "#practiceButton");
-  await waitUntil("practice reopened after route interruption", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-training");
-  await openSettingsGroup(cdp, ".practice-subgroup-route");
-  const routeInterrupted = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("route interruption practice open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-training");
+  await openSettingsGroup(browser, ".practice-subgroup-route");
+  await clickSelector(browser, "[data-route-contract]");
+  await waitUntil("route contract starts before interruption", () => browser.evaluate(`/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent)`), 5000);
+  await clickSelector(browser, "#practiceButton");
+  await waitUntil("practice open during route contract", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-room");
+  await clickSelector(browser, "#drillCleanButton");
+  await waitUntil("plain drill interrupts route contract", () => browser.evaluate(`/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#settingsPanel").classList.contains("hidden")`), 5000);
+  await clickSelector(browser, "#practiceButton");
+  await waitUntil("practice reopened after route interruption", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-training");
+  await openSettingsGroup(browser, ".practice-subgroup-route");
+  const routeInterrupted = await browser.evaluate(`(() => {
     const card = document.querySelector(".route-contract-card.interrupted");
     const badge = document.querySelector(".route-resume-badge");
     return {
@@ -3881,26 +3770,26 @@ async function runTrainingInterruptionSmoke(cdp, baseUrl) {
   if (!routeInterrupted.interrupted || !routeInterrupted.resume || !/继续上次/.test(routeInterrupted.badgeText)) {
     errors.push("route contract interruption should show an explicit resume card: " + JSON.stringify(routeInterrupted));
   }
-  await clickSelector(cdp, "[data-route-resume]");
-  await waitUntil("route contract resumes from interrupted card", () => evaluate(cdp, `/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#settingsPanel").classList.contains("hidden")`), 5000);
+  await clickSelector(browser, "[data-route-resume]");
+  await waitUntil("route contract resumes from interrupted card", () => browser.evaluate(`/航线|稳定航线|节奏航线|高手航线/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#settingsPanel").classList.contains("hidden")`), 5000);
 
-  await navigateApp(cdp, baseUrl, "feel interruption seed");
-  await evaluate(cdp, `localStorage.clear()`);
-  await navigateApp(cdp, baseUrl, "feel interruption clean");
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("feel interruption practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-training");
-  await openSettingsGroup(cdp, ".practice-subgroup-feel");
-  await clickSelector(cdp, "[data-feel-fixture]");
-  await waitUntil("feel fixture starts before interruption", () => evaluate(cdp, `/手感校准/.test(document.querySelector("#gameStatus").textContent)`), 5000);
-  await clickSelector(cdp, "#practiceButton");
-  await waitUntil("practice open during feel fixture", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-room");
-  await clickSelector(cdp, "#drillPaceButton");
-  await waitUntil("plain drill interrupts feel fixture", () => evaluate(cdp, `/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#settingsPanel").classList.contains("hidden")`), 5000);
-  await clickSelector(cdp, "#practiceButton");
-  await waitUntil("practice reopened after feel interruption", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  const feelInterrupted = await evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "feel interruption seed");
+  await browser.evaluate(`localStorage.clear()`);
+  await navigateApp(browser, baseUrl, "feel interruption clean");
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("feel interruption practice open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-training");
+  await openSettingsGroup(browser, ".practice-subgroup-feel");
+  await clickSelector(browser, "[data-feel-fixture]");
+  await waitUntil("feel fixture starts before interruption", () => browser.evaluate(`/手感校准/.test(document.querySelector("#gameStatus").textContent)`), 5000);
+  await clickSelector(browser, "#practiceButton");
+  await waitUntil("practice open during feel fixture", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-room");
+  await clickSelector(browser, "#drillPaceButton");
+  await waitUntil("plain drill interrupts feel fixture", () => browser.evaluate(`/Drill/.test(document.querySelector("#gameStatus").textContent) && document.querySelector("#settingsPanel").classList.contains("hidden")`), 5000);
+  await clickSelector(browser, "#practiceButton");
+  await waitUntil("practice reopened after feel interruption", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  const feelInterrupted = await browser.evaluate(`(() => {
     const card = document.querySelector(".feel-card.interrupted");
     const head = document.querySelector(".feel-lab-head em");
     return {
@@ -3914,22 +3803,16 @@ async function runTrainingInterruptionSmoke(cdp, baseUrl) {
   }
 }
 
-async function runSaveArchiveSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-  await navigateApp(cdp, baseUrl, "save archive clean");
-  await evaluate(cdp, `localStorage.clear()`);
-  await navigateApp(cdp, baseUrl, "save archive ready");
-  await clickSelector(cdp, "#startSettingsButton");
-  await waitUntil("save archive settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
-  await openSettingsGroup(cdp, ".settings-group-feedback");
-  await clickSelector(cdp, "#saveExportButton");
-  const exported = await waitUntil("save archive export", () => evaluate(cdp, `(() => {
+async function runSaveArchiveSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "save archive clean");
+  await browser.evaluate(`localStorage.clear()`);
+  await navigateApp(browser, baseUrl, "save archive ready");
+  await clickSelector(browser, "#startSettingsButton");
+  await waitUntil("save archive settings open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  await openSettingsGroup(browser, ".settings-group-feedback");
+  await clickSelector(browser, "#saveExportButton");
+  const exported = await waitUntil("save archive export", () => browser.evaluate(`(() => {
     const archive = window.__summitLastSaveArchive;
     if (!archive) return null;
     return {
@@ -3948,20 +3831,20 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
   if (exported.kind !== "summit-spark-save" || exported.schemaVersion !== 1 || !exported.hasSettings || !exported.hasProfile || !exported.hasRoomFocus || exported.importLength < 120 || !exported.previewValid || !/可导入/.test(exported.importPreview)) {
     errors.push("save archive export did not create a usable local archive: " + JSON.stringify(exported));
   }
-  await waitUntil("save archive export status", () => evaluate(cdp, `/存档/.test(document.querySelector("#gameStatus")?.textContent || "")`), 5000);
-  await evaluate(cdp, `(() => {
+  await waitUntil("save archive export status", () => browser.evaluate(`/存档/.test(document.querySelector("#gameStatus")?.textContent || "")`), 5000);
+  await browser.evaluate(`(() => {
     const input = document.querySelector("#saveImportText");
     input.value = "{bad json";
     input.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
-  const invalidPreview = await evaluate(cdp, `(() => ({
+  const invalidPreview = await browser.evaluate(`(() => ({
     text: document.querySelector("#saveImportStatus")?.textContent || "",
     error: document.querySelector("#saveImportStatus")?.classList.contains("error") || false
   }))()`);
   if (!invalidPreview.error || !/JSON/.test(invalidPreview.text)) errors.push("invalid save JSON should show import preview error: " + JSON.stringify(invalidPreview));
-  await clickSelector(cdp, "#saveImportButton");
+  await clickSelector(browser, "#saveImportButton");
   await sleep(360);
-  const invalidImport = await evaluate(cdp, `(() => ({
+  const invalidImport = await browser.evaluate(`(() => ({
     ready: document.documentElement.classList.contains("app-ready"),
     status: document.querySelector("#gameStatus")?.textContent || "",
     text: document.querySelector("#saveImportStatus")?.textContent || "",
@@ -3970,12 +3853,12 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
   if (!invalidImport.ready || !invalidImport.stillOpen || !/导入失败/.test(invalidImport.status) || !/JSON/.test(invalidImport.text)) {
     errors.push("invalid save import should fail in place without reload: " + JSON.stringify(invalidImport));
   }
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const input = document.querySelector("#saveImportText");
     input.value = JSON.stringify({ kind: "other-save", storage: {} });
     input.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
-  const wrongKindPreview = await evaluate(cdp, `(() => ({
+  const wrongKindPreview = await browser.evaluate(`(() => ({
     text: document.querySelector("#saveImportStatus")?.textContent || "",
     error: document.querySelector("#saveImportStatus")?.classList.contains("error") || false
   }))()`);
@@ -4008,7 +3891,7 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
       bestFlow: 999
     }
   };
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const keys = [
       "summit-spark-save-backup",
       "summit-spark-settings",
@@ -4034,9 +3917,9 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     input.value = ${JSON.stringify(JSON.stringify(importArchive))};
     input.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
-  await clickSelector(cdp, "#saveImportButton");
+  await clickSelector(browser, "#saveImportButton");
   await sleep(360);
-  const atomicFailure = await evaluate(cdp, `(() => {
+  const atomicFailure = await browser.evaluate(`(() => {
     Storage.prototype.setItem = window.__summitAtomicOriginalSetItem;
     const before = window.__summitAtomicBefore || {};
     const after = Object.fromEntries(Object.keys(before).map((key) => [key, localStorage.getItem(key)]));
@@ -4053,22 +3936,22 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
   if (!atomicFailure.rolledBack || !atomicFailure.importError || !atomicFailure.stillOpen || !/导入失败/.test(atomicFailure.status) || !/不可写/.test(atomicFailure.importStatus)) {
     errors.push("a partial save write must roll every imported key and the previous backup back before reporting failure: " + JSON.stringify(atomicFailure));
   }
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const input = document.querySelector("#saveImportText");
     input.value = ${JSON.stringify(JSON.stringify(importArchive))};
     input.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
-  const validPreview = await evaluate(cdp, `(() => ({
+  const validPreview = await browser.evaluate(`(() => ({
     text: document.querySelector("#saveImportStatus")?.textContent || "",
     valid: document.querySelector("#saveImportStatus")?.classList.contains("valid") || false
   }))()`);
   if (!validPreview.valid || !/browser-smoke/.test(validPreview.text) || !/触控 62px/.test(validPreview.text)) {
     errors.push("valid save archive should show a useful import preview: " + JSON.stringify(validPreview));
   }
-  await clickSelector(cdp, "#saveImportButton");
+  await clickSelector(browser, "#saveImportButton");
   await sleep(980);
-  await waitForAppReady(cdp);
-  const imported = await evaluate(cdp, `(() => {
+  await waitForAppReady(browser);
+  const imported = await browser.evaluate(`(() => {
     const settings = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     const profile = JSON.parse(localStorage.getItem("summit-spark-profile") || "{}");
     const focus = JSON.parse(localStorage.getItem("summit-spark-room-focus") || "{}");
@@ -4120,12 +4003,12 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     || imported.stageTouchSize !== "62px") {
     errors.push("save archive import did not normalize and apply storage: " + JSON.stringify(imported));
   }
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("Practice opens for full-route Flow evidence", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  await openSettingsGroup(cdp, ".settings-group-training");
-  await openSettingsGroup(cdp, ".practice-subgroup-profile");
-  await openSettingsGroup(cdp, ".practice-subgroup-advanced");
-  const fullRouteFlowEvidence = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("Practice opens for full-route Flow evidence", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  await openSettingsGroup(browser, ".settings-group-training");
+  await openSettingsGroup(browser, ".practice-subgroup-profile");
+  await openSettingsGroup(browser, ".practice-subgroup-advanced");
+  const fullRouteFlowEvidence = await browser.evaluate(`(() => {
     const card = document.querySelector(".challenge-card.flow");
     const lumenCard = document.querySelector(".challenge-card.lumens");
     const profile = document.querySelector("#profileSummary");
@@ -4150,20 +4033,20 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
     || /999/.test(fullRouteFlowEvidence.profileText)) {
     errors.push("Practice Flow best must not complete or replace the full-route Flow challenge/profile evidence: " + JSON.stringify(fullRouteFlowEvidence));
   }
-  await clickSelector(cdp, "#settingsClose");
-  await waitUntil("Practice closes after full-route Flow evidence check", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  await clickSelector(cdp, "#startSettingsButton");
-  await waitUntil("settings opens for backup restore", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
-  await openSettingsGroup(cdp, ".settings-group-feedback");
-  const restoreReady = await evaluate(cdp, `(() => ({
+  await clickSelector(browser, "#settingsClose");
+  await waitUntil("Practice closes after full-route Flow evidence check", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await clickSelector(browser, "#startSettingsButton");
+  await waitUntil("settings opens for backup restore", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  await openSettingsGroup(browser, ".settings-group-feedback");
+  const restoreReady = await browser.evaluate(`(() => ({
     disabled: document.querySelector("#saveRestoreButton")?.disabled || false,
     backupText: document.querySelector("#saveBackupStatus")?.textContent || ""
   }))()`);
   if (restoreReady.disabled || !/可恢复/.test(restoreReady.backupText)) errors.push("save backup restore should be available after import: " + JSON.stringify(restoreReady));
-  await clickSelector(cdp, "#saveRestoreButton");
+  await clickSelector(browser, "#saveRestoreButton");
   await sleep(980);
-  await waitForAppReady(cdp);
-  const restored = await evaluate(cdp, `(() => {
+  await waitForAppReady(browser);
+  const restored = await browser.evaluate(`(() => {
     const settings = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     const profile = JSON.parse(localStorage.getItem("summit-spark-profile") || "{}");
     const backup = JSON.parse(localStorage.getItem("summit-spark-save-backup") || "{}");
@@ -4182,18 +4065,12 @@ async function runSaveArchiveSmoke(cdp, baseUrl) {
   }
 }
 
-async function runVisualRegressionSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 360,
-    height: 640,
-    deviceScaleFactor: 1,
-    mobile: true
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
-  await navigateApp(cdp, baseUrl, "mobile visual");
-  await clickSelector(cdp, "#startSettingsButton");
-  await waitUntil("visual settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
-  const visual = await evaluate(cdp, `(() => {
+async function runVisualRegressionSmoke(browser, baseUrl) {
+  await browser.setViewport(360, 640, { mobile: true });
+  await navigateApp(browser, baseUrl, "mobile visual");
+  await clickSelector(browser, "#startSettingsButton");
+  await waitUntil("visual settings open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  const visual = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const rect = panel.getBoundingClientRect();
     const controls = [...panel.querySelectorAll("button, select, textarea, output")].filter((el) => {
@@ -4229,24 +4106,18 @@ async function runVisualRegressionSmoke(cdp, baseUrl) {
   }
 }
 
-async function runCanvasDensitySmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 960,
-    height: 640,
-    deviceScaleFactor: 2,
-    mobile: false
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-  await navigateApp(cdp, baseUrl, "high-DPI canvas");
-  await evaluate(cdp, `(() => {
+async function runCanvasDensitySmoke(browser, baseUrl) {
+  await browser.setViewport(960, 640, { pixelRatio: 2 });
+  await navigateApp(browser, baseUrl, "high-DPI canvas");
+  await browser.evaluate(`(() => {
     const saved = JSON.parse(localStorage.getItem("summit-spark-settings") || "{}");
     saved.lowPerformance = false;
     localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
     location.reload();
   })()`);
-  await waitForAppReady(cdp);
+  await waitForAppReady(browser);
 
-  const normal = await evaluate(cdp, `(() => {
+  const normal = await browser.evaluate(`(() => {
     const canvas = document.querySelector("#game");
     const rect = canvas.getBoundingClientRect();
     return {
@@ -4263,11 +4134,11 @@ async function runCanvasDensitySmoke(cdp, baseUrl) {
     errors.push("normal high-DPI canvas should cover its physical display size without exceeding the 2.6x buffer cap: " + JSON.stringify(normal));
   }
 
-  await clickSelector(cdp, "#startSettingsButton");
-  await waitUntil("high-DPI settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  await openSettingsGroup(cdp, ".settings-group-display");
-  await clickSelector(cdp, "#lowPerformanceToggle");
-  const reduced = await waitUntil("low-performance canvas buffer", () => evaluate(cdp, `(() => {
+  await clickSelector(browser, "#startSettingsButton");
+  await waitUntil("high-DPI settings open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await openSettingsGroup(browser, ".settings-group-display");
+  await clickSelector(browser, "#lowPerformanceToggle");
+  const reduced = await waitUntil("low-performance canvas buffer", () => browser.evaluate(`(() => {
     const canvas = document.querySelector("#game");
     const state = {
       width: canvas.width,
@@ -4294,8 +4165,8 @@ async function runCanvasDensitySmoke(cdp, baseUrl) {
     errors.push("low-performance mode should remove per-frame canvas filters and backdrop blurs: " + JSON.stringify(reduced));
   }
 
-  await clickSelector(cdp, "#lowPerformanceToggle");
-  const restored = await waitUntil("restored high-DPI canvas buffer", () => evaluate(cdp, `(() => {
+  await clickSelector(browser, "#lowPerformanceToggle");
+  const restored = await waitUntil("restored high-DPI canvas buffer", () => browser.evaluate(`(() => {
     const canvas = document.querySelector("#game");
     return canvas.width === ${normal.width} && canvas.height === ${normal.height}
       ? { width: canvas.width, height: canvas.height, enabled: document.querySelector("#lowPerformanceToggle").checked }
@@ -4304,26 +4175,21 @@ async function runCanvasDensitySmoke(cdp, baseUrl) {
   if (restored.enabled) errors.push("normal high-DPI canvas should be restored after disabling low-performance mode");
 }
 
-async function runRestartSoakSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await navigateApp(cdp, baseUrl, "restart soak");
-  const entryPending = await evaluate(cdp, `!document.querySelector("#entryGate")?.classList.contains("hidden")`);
+async function runRestartSoakSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "restart soak");
+  const entryPending = await browser.evaluate(`!document.querySelector("#entryGate")?.classList.contains("hidden")`);
   if (entryPending) {
-    await clickSelector(cdp, "#guestEntryButton");
-    await waitUntil("restart soak guest entry", () => evaluate(cdp, `document.querySelector("#entryGate").classList.contains("hidden")`));
+    await clickSelector(browser, "#guestEntryButton");
+    await waitUntil("restart soak guest entry", () => browser.evaluate(`document.querySelector("#entryGate").classList.contains("hidden")`));
   }
-  await clickSelector(cdp, "#startButton");
-  await waitUntil("restart soak game start", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
-  await enableDebugPanel(cdp);
-  let last = await debugPosition(cdp);
+  await clickSelector(browser, "#startButton");
+  await waitUntil("restart soak game start", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden")`));
+  await enableDebugPanel(browser);
+  let last = await debugPosition(browser);
   for (let attempt = 0; attempt < 16; attempt += 1) {
-    await keyTap(cdp, "KeyR", "R");
-    const state = await waitUntil(`restart soak ${attempt + 1}`, () => evaluate(cdp, `(() => {
+    await keyTap(browser, "KeyR", "R");
+    const state = await waitUntil(`restart soak ${attempt + 1}`, () => browser.evaluate(`(() => {
       const status = document.querySelector("#gameStatus")?.textContent || "";
       const text = document.querySelector("#debugPanel")?.textContent || "";
       const dead = text.match(/dead ([\\d.]+)/);
@@ -4332,21 +4198,21 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
         ? { status, text }
         : null;
     })()`), 3000, 40);
-    const current = await debugPosition(cdp);
+    const current = await debugPosition(browser);
     if (!Number.isFinite(current.x) || !Number.isFinite(current.y)) {
       errors.push("repeated quick retries should retain finite player coordinates: " + JSON.stringify({ attempt, state, current }));
       break;
     }
-    await keyHold(cdp, "KeyD", "D", 90);
-    const moved = await debugPosition(cdp);
+    await keyHold(browser, "KeyD", "D", 90);
+    const moved = await debugPosition(browser);
     if (moved.x - current.x < 1) {
       errors.push("player should accept movement immediately after repeated retry: " + JSON.stringify({ attempt, current, moved }));
       break;
     }
     last = moved;
   }
-  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "corruptMotion" }))`);
-  const selfHealed = await waitUntil("non-finite runtime state self-heals", () => evaluate(cdp, `(() => {
+  await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "corruptMotion" }))`);
+  const selfHealed = await waitUntil("non-finite runtime state self-heals", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus")?.textContent || "";
     const text = document.querySelector("#debugPanel")?.textContent || "";
     const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
@@ -4363,15 +4229,15 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
       ? { x: Number(position[1]), y: Number(position[2]), status, text }
       : null;
   })()`), 3000, 30);
-  await keyHold(cdp, "KeyD", "D", 90);
-  const afterSelfHealMove = await debugPosition(cdp);
+  await keyHold(browser, "KeyD", "D", 90);
+  const afterSelfHealMove = await debugPosition(browser);
   if (afterSelfHealMove.x - selfHealed.x < 1) {
     errors.push("a self-healed runtime should accept movement immediately: " + JSON.stringify({ selfHealed, afterSelfHealMove }));
   }
-  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "corruptStructure" }))`);
+  await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "corruptStructure" }))`);
   let structureHealed;
   try {
-    structureHealed = await waitUntil("damaged runtime collections self-heal", () => evaluate(cdp, `(() => {
+    structureHealed = await waitUntil("damaged runtime collections self-heal", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus")?.textContent || "";
     const text = document.querySelector("#debugPanel")?.textContent || "";
     const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
@@ -4385,24 +4251,24 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
       ? { x: Number(position[1]), y: Number(position[2]), status, text }
       : null;
     })()`), 3000, 30);
-    await keyHold(cdp, "KeyD", "D", 90);
-    const afterStructureHealMove = await debugPosition(cdp);
+    await keyHold(browser, "KeyD", "D", 90);
+    const afterStructureHealMove = await debugPosition(browser);
     if (afterStructureHealMove.x - structureHealed.x < 1) {
       errors.push("a structurally self-healed runtime should accept movement immediately: " + JSON.stringify({ structureHealed, afterStructureHealMove }));
     }
   } catch (error) {
-    const probe = await debugPosition(cdp);
-    const runtimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
+    const probe = await debugPosition(browser);
+    const runtimeErrors = await browser.evaluate(`window.__summitSmokeRuntimeErrors || []`);
     errors.push(`damaged runtime collections probe failed: ${error.message}: ${JSON.stringify({ probe, runtimeErrors })}`);
   }
-  await evaluate(cdp, `window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "throwFrame" }))`);
-  const frameBoundary = await waitUntil("thrown frame boundary remains recoverable", () => evaluate(cdp, `(() => {
+  await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "throwFrame" }))`);
+  const frameBoundary = await waitUntil("thrown frame boundary remains recoverable", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus")?.textContent || "";
     const text = document.querySelector("#debugPanel")?.textContent || "";
     return /运行状态异常/.test(status) && /faults 1/.test(text) ? { status, text } : null;
   })()`), 3000, 30);
-  await keyTap(cdp, "KeyR", "R");
-  const afterFrameBoundary = await waitUntil("retry after thrown frame boundary", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyR", "R");
+  const afterFrameBoundary = await waitUntil("retry after thrown frame boundary", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus")?.textContent || "";
     const text = document.querySelector("#debugPanel")?.textContent || "";
     const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
@@ -4411,12 +4277,12 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
       ? { status, x: Number(position[1]), y: Number(position[2]), text }
       : null;
   })()`), 3000, 30);
-  await keyHold(cdp, "KeyD", "D", 90);
-  const afterFrameBoundaryMove = await debugPosition(cdp);
+  await keyHold(browser, "KeyD", "D", 90);
+  const afterFrameBoundaryMove = await debugPosition(browser);
   if (afterFrameBoundaryMove.x - afterFrameBoundary.x < 1) {
     errors.push("retry after a thrown frame should restore movement: " + JSON.stringify({ frameBoundary, afterFrameBoundary, afterFrameBoundaryMove }));
   }
-  const contextLoss = await evaluate(cdp, `(() => {
+  const contextLoss = await browser.evaluate(`(() => {
     const canvas = document.querySelector("#game");
     const event = new Event("contextlost", { cancelable: true });
     canvas.dispatchEvent(event);
@@ -4430,36 +4296,30 @@ async function runRestartSoakSmoke(cdp, baseUrl) {
     errors.push("canvas context loss should pause visibly and opt into browser restoration: " + JSON.stringify(contextLoss));
   }
   await sleep(100);
-  const contextRestored = await evaluate(cdp, `(() => {
+  const contextRestored = await browser.evaluate(`(() => {
     const canvas = document.querySelector("#game");
     canvas.dispatchEvent(new Event("contextrestored"));
     return document.querySelector("#gameStatus")?.textContent || "";
   })()`);
-  const afterContextRestore = await waitUntil("canvas context restoration", () => evaluate(cdp, `(() => {
+  const afterContextRestore = await waitUntil("canvas context restoration", () => browser.evaluate(`(() => {
     const status = document.querySelector("#gameStatus")?.textContent || "";
     const debug = document.querySelector("#debugPanel")?.textContent || "";
     return /画面已恢复/.test(status) && /canvas 1/.test(debug) ? { status, debug } : null;
   })()`), 3000, 30);
-  await keyHold(cdp, "KeyD", "D", 90);
-  const afterContextRestoreMove = await debugPosition(cdp);
+  await keyHold(browser, "KeyD", "D", 90);
+  const afterContextRestoreMove = await debugPosition(browser);
   if (afterContextRestoreMove.x <= afterFrameBoundaryMove.x) {
     errors.push("movement should resume after canvas context restoration: " + JSON.stringify({ contextRestored, afterContextRestore, afterContextRestoreMove }));
   }
-  const runtimeErrors = await evaluate(cdp, `window.__summitSmokeRuntimeErrors || []`);
+  const runtimeErrors = await browser.evaluate(`window.__summitSmokeRuntimeErrors || []`);
   if (runtimeErrors.length) errors.push("restart soak should not emit runtime errors: " + JSON.stringify(runtimeErrors));
   if (!Number.isFinite(last.x) || !Number.isFinite(last.y)) errors.push("restart soak should finish with a finite debug position: " + JSON.stringify(last));
 }
 
-async function runMobileSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 390,
-    height: 844,
-    deviceScaleFactor: 1,
-    mobile: true
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
-  await navigateApp(cdp, baseUrl, "mobile portrait");
-  const mobileStartContext = await evaluate(cdp, `(() => {
+async function runMobileSmoke(browser, baseUrl) {
+  await browser.setViewport(390, 844, { mobile: true });
+  await navigateApp(browser, baseUrl, "mobile portrait");
+  const mobileStartContext = await browser.evaluate(`(() => {
     const resume = document.querySelector("#resumeTrainingButton");
     const resumeVisible = !!resume && !resume.classList.contains("hidden");
     const resumeText = resume?.textContent.trim() || "";
@@ -4500,9 +4360,9 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!mobileStartContext.startTouchSafe) errors.push("mobile start actions should retain 44px hit targets: " + JSON.stringify(mobileStartContext));
   if (!mobileStartContext.accountEntryReadable) errors.push("mobile cloud-login entry should remain full-width, readable and touch-safe: " + JSON.stringify(mobileStartContext));
   if (!mobileStartContext.briefHiddenDuringMenu) errors.push("mobile menus should not repeat the background room brief: " + JSON.stringify(mobileStartContext));
-  await clickSelector(cdp, "#startAccountButton");
-  await waitUntil("mobile account panel opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("account-focused")`));
-  const mobileAccountTouchSafe = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#startAccountButton");
+  await waitUntil("mobile account panel opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("account-focused")`));
+  const mobileAccountTouchSafe = await browser.evaluate(`(() => {
     const controls = [...document.querySelectorAll(".settings-group-account button, .settings-group-account input")].filter((control) => {
       const rect = control.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
@@ -4510,7 +4370,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     return controls.length >= 6 && controls.every((control) => control.getBoundingClientRect().height >= 44);
   })()`);
   if (!mobileAccountTouchSafe) errors.push("mobile account inputs and actions should retain 44px touch targets");
-  const accountDesign = await evaluate(cdp, `(() => {
+  const accountDesign = await browser.evaluate(`(() => {
     const panel = document.querySelector('#settingsPanel').getBoundingClientRect();
     const status = document.querySelector('#accountStatus');
     const statusRect = status.getBoundingClientRect();
@@ -4530,7 +4390,7 @@ async function runMobileSmoke(cdp, baseUrl) {
     || accountDesign.colors.error === accountDesign.colors.normal) {
     errors.push('account card should fit its content and retain semantic error/success colors: ' + JSON.stringify(accountDesign));
   }
-  const accountSemantics = await evaluate(cdp, `(() => {
+  const accountSemantics = await browser.evaluate(`(() => {
     const group = document.querySelector("#accountAuthTabs");
     const code = document.querySelector('[data-auth-mode="code"]');
     const password = document.querySelector('[data-auth-mode="password"]');
@@ -4572,8 +4432,8 @@ async function runMobileSmoke(cdp, baseUrl) {
   ) {
     errors.push("account login mode should expose segmented-button semantics and autofill-ready described fields: " + JSON.stringify(accountSemantics));
   }
-  await clickSelector(cdp, '[data-auth-mode="password"]');
-  const signInTabLayout = await evaluate(cdp, `(() => {
+  await clickSelector(browser, '[data-auth-mode="password"]');
+  const signInTabLayout = await browser.evaluate(`(() => {
     const tab = document.querySelector('[data-auth-mode="password"]');
     const code = document.querySelector('[data-auth-mode="code"]');
     const recovery = document.querySelector("#accountRecovery");
@@ -4642,11 +4502,11 @@ async function runMobileSmoke(cdp, baseUrl) {
   ) {
     errors.push("mobile password tab and recovery action should keep a refined visible focus ring and safe touch target: " + JSON.stringify(signInTabLayout));
   }
-  await clickSelector(cdp, "#settingsClose");
-  await waitUntil("mobile account panel closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  await tapSelector(cdp, "#startSettingsButton");
-  await waitUntil("mobile collapsed settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
-  const collapsedSettingsFit = await evaluate(cdp, `(() => {
+  await clickSelector(browser, "#settingsClose");
+  await waitUntil("mobile account panel closes", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await tapSelector(browser, "#startSettingsButton");
+  await waitUntil("mobile collapsed settings open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  const collapsedSettingsFit = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const groups = [...document.querySelectorAll(".settings-group.settings-only")].filter((group) => group.getBoundingClientRect().height > 0);
     const last = groups[groups.length - 1]?.getBoundingClientRect();
@@ -4661,18 +4521,18 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!collapsedSettingsFit.allCollapsed || !collapsedSettingsFit.bounded || collapsedSettingsFit.emptyTail > 28 || collapsedSettingsFit.panelHeight > collapsedSettingsFit.viewportHeight * 0.68) {
     errors.push("collapsed mobile Settings should fit its five-item list instead of leaving a large empty lower sheet: " + JSON.stringify(collapsedSettingsFit));
   }
-  const mobileBackdropPoint = await evaluate(cdp, `(() => {
+  const mobileBackdropPoint = await browser.evaluate(`(() => {
     const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
     return {
       x: Math.max(1, Math.floor(rect.left / 2)),
       y: Math.max(1, Math.min(innerHeight - 1, Math.round(rect.top + rect.height / 2)))
     };
   })()`);
-  await tapPoint(cdp, mobileBackdropPoint.x, mobileBackdropPoint.y);
-  await waitUntil("mobile exposed backdrop tap dismisses without click-through", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#startSettingsButton") && !document.querySelector("#overlay").classList.contains("hidden")`));
-  await clickSelector(cdp, "#openTrainingButton");
-  await waitUntil("mobile practice open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  const collapsedPracticeFit = await evaluate(cdp, `(() => {
+  await tapPoint(browser, mobileBackdropPoint.x, mobileBackdropPoint.y);
+  await waitUntil("mobile exposed backdrop tap dismisses without click-through", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden") && document.activeElement === document.querySelector("#startSettingsButton") && !document.querySelector("#overlay").classList.contains("hidden")`));
+  await clickSelector(browser, "#openTrainingButton");
+  await waitUntil("mobile practice open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  const collapsedPracticeFit = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
     const groups = [...document.querySelectorAll(".settings-group.practice-only")].filter((group) => group.getBoundingClientRect().height > 0);
@@ -4689,13 +4549,13 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!collapsedPracticeFit.allCollapsed || !collapsedPracticeFit.dockVisible || !collapsedPracticeFit.bounded || collapsedPracticeFit.emptyTail > 28 || collapsedPracticeFit.panelHeight > collapsedPracticeFit.viewportHeight * 0.56) {
     errors.push("collapsed mobile Practice should fit its collapsed choices and launch action instead of leaving an empty full-height workspace: " + JSON.stringify(collapsedPracticeFit));
   }
-  const roomGroupOpen = await evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`);
+  const roomGroupOpen = await browser.evaluate(`document.querySelector(".settings-group-room")?.open || false`);
   if (!roomGroupOpen) {
-    await tapSelector(cdp, ".settings-group-room summary");
-    await waitUntil("mobile room settings open", () => evaluate(cdp, `document.querySelector(".settings-group-room")?.open || false`));
+    await tapSelector(browser, ".settings-group-room summary");
+    await waitUntil("mobile room settings open", () => browser.evaluate(`document.querySelector(".settings-group-room")?.open || false`));
   }
-  await openSettingsGroup(cdp, ".settings-group-training");
-  const mobile = await evaluate(cdp, `(() => {
+  await openSettingsGroup(browser, ".settings-group-training");
+  const mobile = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const feel = getComputedStyle(document.querySelector("#feelLab")).gridTemplateColumns.split(" ").filter(Boolean).length;
     const cards = [...document.querySelectorAll(".feel-card, .route-contract-card")].slice(0, 6).map((el) => {
@@ -4740,18 +4600,18 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!mobile.roomSelectConcise) errors.push("mobile room selector should keep a concise selection label while details stay in the room brief: " + JSON.stringify(mobile));
   if (!mobile.roomItemsFit) errors.push("mobile room settings should not overflow horizontally: " + JSON.stringify(mobile.roomItems));
   if (!mobile.coarsePointer) errors.push("mobile smoke should emulate a coarse pointer");
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const close = document.querySelector("#settingsClose");
     window.__mobileCloseProbe = { click: 0, pointerup: 0, touchend: 0 };
     close?.addEventListener("click", () => { window.__mobileCloseProbe.click += 1; }, { once: true });
     close?.addEventListener("pointerup", () => { window.__mobileCloseProbe.pointerup += 1; }, { once: true });
     close?.addEventListener("touchend", () => { window.__mobileCloseProbe.touchend += 1; }, { once: true });
   })()`);
-  await tapSelector(cdp, "#settingsClose");
+  await tapSelector(browser, "#settingsClose");
   try {
-    await waitUntil("mobile settings closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
+    await waitUntil("mobile settings closes", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
   } catch (error) {
-    const closeState = await evaluate(cdp, `(() => {
+    const closeState = await browser.evaluate(`(() => {
       const panel = document.querySelector("#settingsPanel");
       const close = document.querySelector("#settingsClose");
       const rect = close?.getBoundingClientRect();
@@ -4782,11 +4642,9 @@ async function runMobileSmoke(cdp, baseUrl) {
     })()`);
     throw new Error(error.message + ": " + JSON.stringify(closeState));
   }
-  await tapSelector(cdp, "#startButton");
-  await waitUntil("mobile game starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
-  await cdp.send("Page.bringToFront");
-  await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
-  const touchUi = await evaluate(cdp, `(() => {
+  await tapSelector(browser, "#startButton");
+  await waitUntil("mobile game starts", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden")`));
+  const touchUi = await browser.evaluate(`(() => {
     const touch = document.querySelector(".touch");
     const direction = document.querySelector(".touch-directions");
     const action = document.querySelector(".touch-actions");
@@ -4842,9 +4700,9 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!touchUi.visible || !touchUi.directionGrid || !touchUi.actionGrid || touchUi.touchContrast < 4.5 || !touchUi.allButtonsLarge || !touchUi.recallContextual || !touchUi.hudActionsTouchSafe || !touchUi.detachedFromPlayfield || touchUi.playfieldGap < 12 || touchUi.playfieldGap > 28 || !touchUi.portraitBriefVisible || !touchUi.portraitBriefAbove || touchUi.portraitBriefGap < 8 || touchUi.portraitBriefGap > 20 || !touchUi.portraitAtmosphere || !/R1.*起势山门/.test(touchUi.portraitBriefText) || !touchUi.controlHintRemoved || touchUi.stageTop > 380 || !touchUi.retryLabels[0].includes("回到检查点") || !touchUi.retryLabels[1].includes("回到房间起点")) {
     errors.push("touch controls should use visible direction/action grids with safe hit targets away from the portrait playfield: " + JSON.stringify(touchUi));
   }
-  await tapSelector(cdp, "#settingsButton");
-  await waitUntil("active portrait settings opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  const activePortraitPanel = await evaluate(cdp, `(() => {
+  await tapSelector(browser, "#settingsButton");
+  await waitUntil("active portrait settings opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  const activePortraitPanel = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const close = document.querySelector("#settingsClose");
     const rect = panel?.getBoundingClientRect();
@@ -4875,13 +4733,13 @@ async function runMobileSmoke(cdp, baseUrl) {
       errors.push("active portrait settings should stay fixed to the viewport and keep its close action reachable: " + JSON.stringify(activePortraitPanel));
     }
   }
-  await tapSelector(cdp, "#settingsClose");
-  await waitUntil("active portrait settings closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  await tapSelector(cdp, '[data-touch-command="retry"]');
-  await waitUntil("portrait touch quick retry responds", () => evaluate(cdp, `/快速重开/.test(document.querySelector("#gameStatus")?.textContent || "")`));
-  await tapSelector(cdp, '[data-touch-command="roomRestart"]');
-  await waitUntil("portrait touch room restart responds", () => evaluate(cdp, `/房间重开/.test(document.querySelector("#gameStatus")?.textContent || "")`));
-  const largeTouchUi = await evaluate(cdp, `(() => {
+  await tapSelector(browser, "#settingsClose");
+  await waitUntil("active portrait settings closes", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await tapSelector(browser, '[data-touch-command="retry"]');
+  await waitUntil("portrait touch quick retry responds", () => browser.evaluate(`/快速重开/.test(document.querySelector("#gameStatus")?.textContent || "")`));
+  await tapSelector(browser, '[data-touch-command="roomRestart"]');
+  await waitUntil("portrait touch room restart responds", () => browser.evaluate(`/房间重开/.test(document.querySelector("#gameStatus")?.textContent || "")`));
+  const largeTouchUi = await browser.evaluate(`(() => {
     const shell = document.querySelector(".shell");
     const previousSize = shell.style.getPropertyValue("--touch-size");
     shell.style.setProperty("--touch-size", "64px");
@@ -4916,10 +4774,10 @@ async function runMobileSmoke(cdp, baseUrl) {
     errors.push("64px portrait touch setting should adapt within the phone width and keep Jump/Dash reachable: " + JSON.stringify(largeTouchUi));
   }
 
-  await enableDebugPanel(cdp);
-  const touchReleaseStart = await debugPosition(cdp);
-  const touchRightTarget = await targetPoint(cdp, '[data-touch="right"]');
-  await evaluate(cdp, `(() => {
+  await enableDebugPanel(browser);
+  const touchReleaseStart = await debugPosition(browser);
+  const touchRightTarget = await targetPoint(browser, '[data-touch="right"]');
+  await browser.evaluate(`(() => {
     const button = document.querySelector('[data-touch="right"]');
     window.__touchPointerProbe = null;
     button?.addEventListener("pointerdown", (event) => {
@@ -4934,11 +4792,11 @@ async function runMobileSmoke(cdp, baseUrl) {
     radiusY: 2,
     force: 1
   };
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [heldTouchPoint] });
+  await browser.touchDown(heldTouchPoint);
   await sleep(180);
-  const touchReleaseHeld = await debugPosition(cdp);
-  const touchPointerId = await evaluate(cdp, "window.__touchPointerProbe");
-  await evaluate(cdp, `(function(pointerId) {
+  const touchReleaseHeld = await debugPosition(browser);
+  const touchPointerId = await browser.evaluate("window.__touchPointerProbe");
+  await browser.evaluate(`(function(pointerId) {
     document.querySelector('[data-touch="right"]').dispatchEvent(new PointerEvent("lostpointercapture", {
       bubbles: true,
       cancelable: true,
@@ -4947,12 +4805,12 @@ async function runMobileSmoke(cdp, baseUrl) {
     }));
   })(${Number.isFinite(touchPointerId) ? touchPointerId : 7})`);
   await sleep(260);
-  const touchReleaseLost = await debugPosition(cdp);
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  const touchReleaseLost = await debugPosition(browser);
+  await browser.touchUp();
   if (touchReleaseHeld.x - touchReleaseStart.x < 1 || touchReleaseLost.x - touchReleaseHeld.x > 8) {
     errors.push("lost touch pointer capture should release movement without waiting for pointerup: " + JSON.stringify({ touchReleaseStart, touchReleaseHeld, touchReleaseLost }));
   }
-  const multiTouchRelease = await evaluate(cdp, `(() => {
+  const multiTouchRelease = await browser.evaluate(`(() => {
     const button = document.querySelector('[data-touch="right"]');
     if (!button) return { supported: false };
     const dispatch = (type, pointerId) => button.dispatchEvent(new PointerEvent(type, {
@@ -4973,9 +4831,9 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (!multiTouchRelease.supported || !multiTouchRelease.heldAfterSecondDown || !multiTouchRelease.heldAfterSecondRelease || !multiTouchRelease.releasedAfterFirstRelease) {
     errors.push("multi-touch release should be owned by the first pointer that pressed a touch action: " + JSON.stringify(multiTouchRelease));
   }
-  await keyTap(cdp, "Digit9", "9");
-  await waitUntil("mobile debug jump reaches Echo room", () => evaluate(cdp, `/R9\\/10/.test(document.querySelector("#roomCount").textContent)`));
-  const echoRecallReady = await waitUntil("touch Echo recall becomes available in the safe entry pocket", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "Digit9", "9");
+  await waitUntil("mobile debug jump reaches Echo room", () => browser.evaluate(`/R9\\/10/.test(document.querySelector("#roomCount").textContent)`));
+  const echoRecallReady = await waitUntil("touch Echo recall becomes available in the safe entry pocket", () => browser.evaluate(`(() => {
     const button = document.querySelector('[data-touch="recall"]');
     const debug = document.querySelector("#debugPanel").textContent;
     const rect = button.getBoundingClientRect();
@@ -4991,10 +4849,10 @@ async function runMobileSmoke(cdp, baseUrl) {
         }
       : null;
   })()`), 3500);
-  await windowKeyHold(cdp, "KeyA", "a", 220);
-  const beforeTouchRecall = await debugPosition(cdp);
-  await tapSelector(cdp, '[data-touch="recall"]');
-  const afterTouchRecall = await waitUntil("touch Echo recall returns to the active anchor", () => evaluate(cdp, `(() => {
+  await windowKeyHold(browser, "KeyA", "a", 220);
+  const beforeTouchRecall = await debugPosition(browser);
+  await tapSelector(browser, '[data-touch="recall"]');
+  const afterTouchRecall = await waitUntil("touch Echo recall returns to the active anchor", () => browser.evaluate(`(() => {
     const match = document.querySelector("#debugPanel").textContent.match(/pos ([\\d.-]+), ([\\d.-]+)/);
     const button = document.querySelector('[data-touch="recall"]');
     const debug = document.querySelector("#debugPanel").textContent;
@@ -5009,9 +4867,9 @@ async function runMobileSmoke(cdp, baseUrl) {
     || afterTouchRecall.label !== "召回冷却中" || afterTouchRecall.active || afterTouchRecall.recallReady || !/回声召回.*恢复/.test(afterTouchRecall.status)) {
     errors.push("R9 should expose contextual Echo recall from its safe pocket, load the recovered 18-crumble route, and enter cooldown after a real touch recall: " + JSON.stringify({ echoRecallReady, beforeTouchRecall, afterTouchRecall }));
   }
-  await keyTap(cdp, "Digit0", "0");
-  await waitUntil("mobile debug jump reaches finale room", () => evaluate(cdp, `/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
-  const finaleEchoReady = await waitUntil("R10 reuses Echo beside its entry checkpoint", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "Digit0", "0");
+  await waitUntil("mobile debug jump reaches finale room", () => browser.evaluate(`/R10\\/10/.test(document.querySelector("#roomCount").textContent)`));
+  const finaleEchoReady = await waitUntil("R10 reuses Echo beside its entry checkpoint", () => browser.evaluate(`(() => {
     const button = document.querySelector('[data-touch="recall"]');
     const debug = document.querySelector("#debugPanel").textContent;
     return !button.hidden && !button.disabled && /anchor 1/.test(debug)
@@ -5021,17 +4879,12 @@ async function runMobileSmoke(cdp, baseUrl) {
   if (finaleEchoReady.label !== "召回到回声锚点" || !/回声锚点已激活/.test(finaleEchoReady.status)) {
     errors.push("R10 should reactivate Echo from its stable entry pocket before the finale route: " + JSON.stringify(finaleEchoReady));
   }
-  await keyTap(cdp, "Digit1", "1");
-  await keyTap(cdp, "F3", "F3");
+  await keyTap(browser, "Digit1", "1");
+  await keyTap(browser, "F3", "F3");
 
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 320,
-    height: 480,
-    deviceScaleFactor: 1,
-    mobile: true
-  });
+  await browser.setViewport(320, 480, { mobile: true });
   await sleep(100);
-  const shortPortrait = await evaluate(cdp, `(() => {
+  const shortPortrait = await browser.evaluate(`(() => {
     const brief = document.querySelector("#portraitBrief").getBoundingClientRect();
     const hud = document.querySelector(".hud").getBoundingClientRect();
     const stage = document.querySelector(".stage");
@@ -5074,22 +4927,14 @@ async function runMobileSmoke(cdp, baseUrl) {
   }
 }
 
-async function runMobileSafeAreaSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 390,
-    height: 700,
-    deviceScaleFactor: 3,
-    mobile: true
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
-  await cdp.send("Emulation.setSafeAreaInsetsOverride", {
-    insets: { top: 47, right: 0, bottom: 34, left: 0 }
-  });
+async function runMobileSafeAreaSmoke(browser, baseUrl) {
+  await browser.setViewport(390, 700, { mobile: true, pixelRatio: 3 });
+  browser.setSafeAreaFixture({ top: 47, right: 0, bottom: 34, left: 0 });
   try {
-    await evaluate(cdp, `sessionStorage.removeItem("summit-spark-entry-mode")`);
-    await navigateApp(cdp, baseUrl, "mobile safe-area entry");
-    await waitUntil("safe-area entry chooser", () => evaluate(cdp, `!document.querySelector("#entryGate")?.classList.contains("hidden")`), 7000);
-    const entry = await evaluate(cdp, `(() => {
+    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
+    await navigateApp(browser, baseUrl, "mobile safe-area entry");
+    await waitUntil("safe-area entry chooser", () => browser.evaluate(`!document.querySelector("#entryGate")?.classList.contains("hidden")`), 7000);
+    const entry = await browser.evaluate(`(() => {
       const gate = document.querySelector("#entryGate").getBoundingClientRect();
       const viewport = document.querySelector('meta[name="viewport"]')?.content || "";
       return {
@@ -5107,14 +4952,9 @@ async function runMobileSafeAreaSmoke(cdp, baseUrl) {
       errors.push("mobile entry must negotiate keyboard resizing and remain inside notched-device safe areas: " + JSON.stringify(entry));
     }
 
-    await cdp.send("Emulation.setDeviceMetricsOverride", {
-      width: 320,
-      height: 568,
-      deviceScaleFactor: 2,
-      mobile: true
-    });
+    await browser.setViewport(320, 568, { mobile: true, pixelRatio: 2 });
     await sleep(120);
-    const narrowEntry = await evaluate(cdp, `(() => {
+    const narrowEntry = await browser.evaluate(`(() => {
       const gate = document.querySelector("#entryGate").getBoundingClientRect();
       const buttons = [...document.querySelectorAll("#entryGate button")].map((button) => button.getBoundingClientRect());
       const brief = getComputedStyle(document.querySelector("#portraitBrief"));
@@ -5130,25 +4970,15 @@ async function runMobileSafeAreaSmoke(cdp, baseUrl) {
       errors.push("320px first-run entry should stay focused, touch-safe and free of background room coaching: " + JSON.stringify(narrowEntry));
     }
 
-    await cdp.send("Emulation.setDeviceMetricsOverride", {
-      width: 390,
-      height: 700,
-      deviceScaleFactor: 3,
-      mobile: true
-    });
+    await browser.setViewport(390, 700, { mobile: true, pixelRatio: 3 });
     await sleep(120);
-    await clickSelector(cdp, "#accountEntryButton");
-    await waitUntil("safe-area account drawer opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel")?.classList.contains("hidden") && document.querySelector("#settingsPanel")?.classList.contains("account-focused")`));
-    await cdp.send("Emulation.setDeviceMetricsOverride", {
-      width: 390,
-      height: 420,
-      deviceScaleFactor: 3,
-      mobile: true
-    });
+    await clickSelector(browser, "#accountEntryButton");
+    await waitUntil("safe-area account drawer opens", () => browser.evaluate(`!document.querySelector("#settingsPanel")?.classList.contains("hidden") && document.querySelector("#settingsPanel")?.classList.contains("account-focused")`));
+    await browser.setViewport(390, 420, { mobile: true, pixelRatio: 3 });
     await sleep(180);
-    await evaluate(cdp, `document.querySelector("#accountEmail")?.focus({ preventScroll: false })`);
+    await browser.evaluate(`document.querySelector("#accountEmail")?.focus({ preventScroll: false })`);
     await sleep(180);
-    const keyboard = await evaluate(cdp, `(() => {
+    const keyboard = await browser.evaluate(`(() => {
       const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
       const body = document.querySelector("#settingsPanel .settings-body");
       const field = document.querySelector("#accountEmail").getBoundingClientRect();
@@ -5165,29 +4995,21 @@ async function runMobileSafeAreaSmoke(cdp, baseUrl) {
       errors.push("account drawer must remain bounded and its focused field reachable after a mobile keyboard resize: " + JSON.stringify(keyboard));
     }
   } finally {
-    await cdp.send("Emulation.setSafeAreaInsetsOverride", {
-      insets: { top: 0, right: 0, bottom: 0, left: 0 }
-    });
-    await evaluate(cdp, `sessionStorage.setItem("summit-spark-entry-mode", "guest")`);
+    browser.setSafeAreaFixture(undefined);
+    await browser.evaluate(`sessionStorage.setItem("summit-spark-entry-mode", "guest")`);
   }
 }
 
-async function runMobileLandscapeSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 700,
-    height: 390,
-    deviceScaleFactor: 1,
-    mobile: true
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
-  await navigateApp(cdp, baseUrl, "mobile landscape");
-  await tapSelector(cdp, "#startSettingsButton");
-  await waitUntil("mobile landscape settings open", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
-  await openSettingsGroup(cdp, ".settings-group-audio");
-  const landscapeAudioTouchSafe = await evaluate(cdp, `document.querySelector("#audioTestButton").getBoundingClientRect().height >= 44`);
-  await openSettingsGroup(cdp, ".settings-group-feedback");
-  const landscapeFeedbackTouchSafe = await evaluate(cdp, ` [...document.querySelectorAll(".settings-group-feedback button")].filter((button) => button.getBoundingClientRect().height > 0).every((button) => button.getBoundingClientRect().height >= 44 && button.getBoundingClientRect().width >= 44)`);
-  const landscape = await evaluate(cdp, `(() => {
+async function runMobileLandscapeSmoke(browser, baseUrl) {
+  await browser.setViewport(700, 390, { mobile: true });
+  await navigateApp(browser, baseUrl, "mobile landscape");
+  await tapSelector(browser, "#startSettingsButton");
+  await waitUntil("mobile landscape settings open", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-settings")`));
+  await openSettingsGroup(browser, ".settings-group-audio");
+  const landscapeAudioTouchSafe = await browser.evaluate(`document.querySelector("#audioTestButton").getBoundingClientRect().height >= 44`);
+  await openSettingsGroup(browser, ".settings-group-feedback");
+  const landscapeFeedbackTouchSafe = await browser.evaluate(` [...document.querySelectorAll(".settings-group-feedback button")].filter((button) => button.getBoundingClientRect().height > 0).every((button) => button.getBoundingClientRect().height >= 44 && button.getBoundingClientRect().width >= 44)`);
+  const landscape = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const close = document.querySelector("#settingsClose").getBoundingClientRect();
     const selects = [...document.querySelectorAll(".settings-group-controls select")].filter((el) => el.getBoundingClientRect().height > 0);
@@ -5205,10 +5027,10 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (!landscape.deadzone || !landscape.touchSize) errors.push("mobile landscape should keep control accessibility settings visible");
   if (!landscape.controlsTouchSafe) errors.push("mobile landscape settings controls should retain 44px hit targets: " + JSON.stringify(landscape));
   if (!landscapeAudioTouchSafe || !landscapeFeedbackTouchSafe) errors.push("mobile landscape audio and feedback/save buttons should retain 44px hit targets");
-  await tapSelector(cdp, "#settingsClose");
-  await tapSelector(cdp, "#startButton");
-  await waitUntil("mobile landscape game starts", () => evaluate(cdp, `document.querySelector("#overlay").classList.contains("hidden")`));
-  const landscapeTouch = await evaluate(cdp, `(() => {
+  await tapSelector(browser, "#settingsClose");
+  await tapSelector(browser, "#startButton");
+  await waitUntil("mobile landscape game starts", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden")`));
+  const landscapeTouch = await browser.evaluate(`(() => {
     const touch = document.querySelector("#touchControls");
     const buttons = [...touch.querySelectorAll("button")].filter((button) => {
       const rect = button.getBoundingClientRect();
@@ -5231,16 +5053,11 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (!landscapeTouch.visible || !landscapeTouch.openingGuideHidden || landscapeTouch.buttonCount !== 9 || landscapeTouch.commandCount !== 2 || !landscapeTouch.allLarge || landscapeTouch.backgroundAlpha > 0.34 || !/blur\(4px\)/.test(landscapeTouch.backdrop)) {
     errors.push("mobile landscape touch controls should remain usable without obscuring terrain: " + JSON.stringify(landscapeTouch));
   }
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 568,
-    height: 320,
-    deviceScaleFactor: 1,
-    mobile: true
-  });
+  await browser.setViewport(568, 320, { mobile: true });
   await sleep(100);
-  await tapSelector(cdp, "#practiceButton");
-  await waitUntil("short landscape practice opens", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
-  const shortLandscapePractice = await evaluate(cdp, `(() => {
+  await tapSelector(browser, "#practiceButton");
+  await waitUntil("short landscape practice opens", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#settingsPanel").classList.contains("mode-practice")`));
+  const shortLandscapePractice = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel").getBoundingClientRect();
     const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
     const launch = document.querySelector("#focusRoomButton").getBoundingClientRect();
@@ -5256,9 +5073,9 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (!shortLandscapePractice.panelFits || !shortLandscapePractice.dockFits || !shortLandscapePractice.actionTouchSafe || !shortLandscapePractice.resetNestedInAdvanced) {
     errors.push("568x320 touch landscape should keep one 44px launch action visible while reset stays under Advanced: " + JSON.stringify(shortLandscapePractice));
   }
-  await tapSelector(cdp, "#settingsClose");
-  await waitUntil("short landscape practice closes", () => evaluate(cdp, `document.querySelector("#settingsPanel").classList.contains("hidden")`));
-  await evaluate(cdp, `(() => {
+  await tapSelector(browser, "#settingsClose");
+  await waitUntil("short landscape practice closes", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
+  await browser.evaluate(`(() => {
     const overlay = document.querySelector("#overlay");
     overlay.classList.add("finish-overlay");
     overlay.classList.remove("hidden");
@@ -5277,7 +5094,7 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
     document.querySelector("#finishTitle").focus({ preventScroll: true });
     overlay.scrollTop = 0;
   })()`);
-  const initialReviewDisclosure = await evaluate(cdp, `(() => {
+  const initialReviewDisclosure = await browser.evaluate(`(() => {
     const details = document.querySelector(".review-more");
     const summary = details?.querySelector(":scope > summary");
     const chevron = summary?.querySelector(".review-more-chevron");
@@ -5291,26 +5108,26 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (initialReviewDisclosure.count !== 2 || initialReviewDisclosure.expanded !== "false" || initialReviewDisclosure.chevronHidden !== "true" || initialReviewDisclosure.generatedContent !== "none") {
     errors.push("finish review disclosures should start collapsed without generated accessible symbols: " + JSON.stringify(initialReviewDisclosure));
   }
-  await evaluate(cdp, `document.querySelector(".review-more").open = true`);
+  await browser.evaluate(`document.querySelector(".review-more").open = true`);
   await sleep(120);
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const overlay = document.querySelector("#overlay");
     const focusable = [...overlay.querySelectorAll("button, select, input, textarea, summary, [tabindex]")]
       .filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
     focusable[focusable.length - 1]?.focus();
   })()`);
-  await keyTap(cdp, "Tab", "Tab");
+  await keyTap(browser, "Tab", "Tab");
   await sleep(80);
-  const finishForwardWrap = await evaluate(cdp, `(() => {
+  const finishForwardWrap = await browser.evaluate(`(() => {
     const overlay = document.querySelector("#overlay");
     const focusable = [...overlay.querySelectorAll("button, select, input, textarea, summary, [tabindex]")]
       .filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
     return document.activeElement === focusable[0] && overlay.contains(document.activeElement);
   })()`);
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", code: "Tab", key: "Tab", windowsVirtualKeyCode: 9, modifiers: 8 });
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", code: "Tab", key: "Tab", windowsVirtualKeyCode: 9, modifiers: 8 });
+  await browser.keyDown("Tab", "Tab", true);
+  await browser.keyUp("Tab", "Tab", true);
   await sleep(80);
-  const finishBackwardWrap = await evaluate(cdp, `(() => {
+  const finishBackwardWrap = await browser.evaluate(`(() => {
     const overlay = document.querySelector("#overlay");
     const focusable = [...overlay.querySelectorAll("button, select, input, textarea, summary, [tabindex]")]
       .filter((element) => element.getClientRects().length > 0 && !element.disabled && element.getAttribute("tabindex") !== "-1" && element.getAttribute("aria-hidden") !== "true");
@@ -5319,11 +5136,11 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (!finishForwardWrap || !finishBackwardWrap) {
     errors.push("finish dialog should trap forward and backward Tab focus inside its modal surface");
   }
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     document.querySelector("#finishTitle")?.focus({ preventScroll: true });
     document.querySelector("#overlay").scrollTop = 0;
   })()`);
-  const review = await evaluate(cdp, `(() => {
+  const review = await browser.evaluate(`(() => {
     const overlay = document.querySelector("#overlay");
     const articles = [...document.querySelectorAll(".review-grid article")].map((el) => {
       const rect = el.getBoundingClientRect();
@@ -5373,10 +5190,10 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (!review.disclosure.open || review.disclosure.expanded !== "true" || review.disclosure.generatedContent !== "none" || review.disclosure.chevronHidden !== "true" || review.disclosure.transform === "none") {
     errors.push("finish review disclosures should synchronize expanded state while keeping their rotating chevron decorative: " + JSON.stringify(review.disclosure));
   }
-  await keyTap(cdp, "KeyO", "o");
-  await waitUntil("settings opens above finish review", () => evaluate(cdp, `!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#overlay").hasAttribute("inert")`));
-  await evaluate(cdp, `document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }))`);
-  const finishOutsideReturn = await waitUntil("outside settings dismissal restores finish focus", () => evaluate(cdp, `(() => {
+  await keyTap(browser, "KeyO", "o");
+  await waitUntil("settings opens above finish review", () => browser.evaluate(`!document.querySelector("#settingsPanel").classList.contains("hidden") && document.querySelector("#overlay").hasAttribute("inert")`));
+  await browser.evaluate(`document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }))`);
+  const finishOutsideReturn = await waitUntil("outside settings dismissal restores finish focus", () => browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const title = document.querySelector("#finishTitle");
     return panel.classList.contains("hidden") && document.activeElement === title ? {
@@ -5387,8 +5204,8 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   if (finishOutsideReturn.active !== "finishTitle" || finishOutsideReturn.overlayInert) {
     errors.push("outside settings dismissal above the finish review should restore focus to the visible modal title: " + JSON.stringify(finishOutsideReturn));
   }
-  await tapSelector(cdp, "#restartButton");
-  const restartedLifecycle = await waitUntil("finish restart lifecycle cleanup", () => evaluate(cdp, `(() => {
+  await tapSelector(browser, "#restartButton");
+  const restartedLifecycle = await waitUntil("finish restart lifecycle cleanup", () => browser.evaluate(`(() => {
     const overlay = document.querySelector("#overlay");
     const canvas = document.querySelector("#game");
     const clean = overlay.classList.contains("hidden")
@@ -5417,28 +5234,22 @@ async function runMobileLandscapeSmoke(cdp, baseUrl) {
   }
 }
 
-async function runGamepadSmoke(cdp, baseUrl) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 1280,
-    height: 720,
-    deviceScaleFactor: 1,
-    mobile: false
-  });
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-  await navigateApp(cdp, baseUrl, "gamepad seed");
-  await evaluate(cdp, `(() => {
+async function runGamepadSmoke(browser, baseUrl) {
+  await browser.setViewport(1280, 720);
+  await navigateApp(browser, baseUrl, "gamepad seed");
+  await browser.evaluate(`(() => {
     sessionStorage.removeItem("summit-spark-entry-mode");
     localStorage.removeItem("summit-spark-account-hint");
     localStorage.setItem("summit-spark-settings", JSON.stringify({ gamepadDeadzone: 0.4, audioEnabled: false }));
   })()`);
-  await navigateApp(cdp, baseUrl, "gamepad clean");
-  const holdPadJump = (pressed) => evaluate(cdp, `(() => {
+  await navigateApp(browser, baseUrl, "gamepad clean");
+  const holdPadJump = (pressed) => browser.evaluate(`(() => {
     const button = window.__summitMockPadState.buttons[0];
     button.pressed = ${pressed};
     button.value = ${pressed ? 1 : 0};
   })()`);
   await holdPadJump(true);
-  await waitUntil("first gamepad press chooses guest and leaves the launch menu visible", () => evaluate(cdp, `
+  await waitUntil("first gamepad press chooses guest and leaves the launch menu visible", () => browser.evaluate(`
     document.querySelector("#entryGate").classList.contains("hidden")
       && !document.querySelector("#startPanel").classList.contains("entry-pending")
       && !document.querySelector("#overlay").hidden
@@ -5446,93 +5257,35 @@ async function runGamepadSmoke(cdp, baseUrl) {
   await holdPadJump(false);
   await sleep(100);
   await holdPadJump(true);
-  await waitUntil("second gamepad press starts the game", () => evaluate(cdp, `document.querySelector("#overlay").hidden`), 5000);
+  await waitUntil("second gamepad press starts the game", () => browser.evaluate(`document.querySelector("#overlay").hidden`), 5000);
   await holdPadJump(false);
-  const gamepadErrorsBeforeThrow = await evaluate(cdp, `window.__earlyRuntimeErrors?.length || window.__summitEarlyRuntimeErrors?.length || 0`);
-  await evaluate(cdp, `window.__summitMockPadState.throw = true`);
+  const gamepadErrorsBeforeThrow = await browser.evaluate(`window.__earlyRuntimeErrors?.length || window.__summitEarlyRuntimeErrors?.length || 0`);
+  await browser.evaluate(`window.__summitMockPadState.throw = true`);
   await sleep(220);
-  await evaluate(cdp, `window.__summitMockPadState.throw = false`);
-  const gamepadErrorsAfterThrow = await evaluate(cdp, `window.__earlyRuntimeErrors?.length || window.__summitEarlyRuntimeErrors?.length || 0`);
+  await browser.evaluate(`window.__summitMockPadState.throw = false`);
+  const gamepadErrorsAfterThrow = await browser.evaluate(`window.__earlyRuntimeErrors?.length || window.__summitEarlyRuntimeErrors?.length || 0`);
   if (gamepadErrorsAfterThrow !== gamepadErrorsBeforeThrow) errors.push("a transient getGamepads exception should be treated as disconnected instead of an unhandled runtime error");
-  await enableDebugPanel(cdp);
-  const beforeAxis = await debugPosition(cdp);
-  await evaluate(cdp, `window.__summitMockPadState.axes[0] = 0.34`);
+  await enableDebugPanel(browser);
+  const beforeAxis = await debugPosition(browser);
+  await browser.evaluate(`window.__summitMockPadState.axes[0] = 0.34`);
   await sleep(480);
-  const blocked = await debugPosition(cdp);
+  const blocked = await debugPosition(browser);
   if (blocked.x - beforeAxis.x > 4) errors.push("gamepad deadzone 0.40 should block 0.34 axis drift");
-  const padStatus = await evaluate(cdp, `document.querySelector("#gamepadStatus")?.textContent || ""`);
+  const padStatus = await browser.evaluate(`document.querySelector("#gamepadStatus")?.textContent || ""`);
   if (!/轴 0\.34/.test(padStatus) || !/接近死区/.test(padStatus)) errors.push("gamepad status should expose axis magnitude and drift risk: " + padStatus);
-  await evaluate(cdp, `(() => {
+  await browser.evaluate(`(() => {
     const slider = document.querySelector("#gamepadDeadzoneSlider");
     slider.value = "0.16";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
   await sleep(640);
-  const moved = await debugPosition(cdp);
+  const moved = await debugPosition(browser);
   if (moved.x - blocked.x < 8) errors.push("gamepad mock did not move player after lowering deadzone");
   if (!/pad dz 0\.16/.test(moved.text)) errors.push("debug panel did not report updated gamepad deadzone");
 }
 
-async function waitForDebuggingPort(port, child) {
-  const start = Date.now();
-  let last = "";
-  while (Date.now() - start < 20000) {
-    if (child.exitCode !== null) break;
-    try {
-      return await requestJson(`http://127.0.0.1:${port}/json/version`);
-    } catch (error) {
-      last = error.message;
-      await new Promise((resolve) => setTimeout(resolve, 120));
-    }
-  }
-  throw new Error("Chrome debugging port did not open: " + last);
-}
-
-async function main() {
-  const browserPath = findBrowser();
-  if (!browserPath) {
-    throw new Error("No Chrome/Edge executable found. Set BROWSER_EXECUTABLE_PATH to run browser smoke.");
-  }
-
-  const serverPort = await findFreePort();
-  const debugPort = await findFreePort();
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "summit-spark-browser-"));
-  const baseUrl = "http://127.0.0.1:" + serverPort;
-  const server = childProcess.spawn(process.execPath, ["game-server.js"], {
-    cwd: root,
-    env: { ...process.env, PORT: String(serverPort) },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-  const browser = childProcess.spawn(browserPath, [
-    "--headless=new",
-    ...(process.platform === "win32" ? ["--no-sandbox"] : []),
-    "--disable-breakpad",
-    "--disable-crash-reporter",
-    "--disable-gpu",
-    "--disable-background-networking",
-    "--disable-extensions",
-    "--mute-audio",
-    "--noerrdialogs",
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--remote-debugging-port=" + debugPort,
-    "--user-data-dir=" + userDataDir,
-    "about:blank"
-  ], { stdio: ["ignore", "pipe", "pipe"] });
-  let cdp = null;
-
-  try {
-    await waitUntil("local server", () => requestText(baseUrl + "/").then(Boolean), 7000);
-    await waitForDebuggingPort(debugPort, browser);
-    const target = await requestJson(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(baseUrl + "/")}`, "PUT");
-    cdp = new CdpClient(target.webSocketDebuggerUrl);
-    await cdp.ready();
-    await cdp.send("Page.enable");
-    await cdp.send("Runtime.enable");
-    await cdp.send("Page.bringToFront");
-    await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
-    await cdp.send("Input.setIgnoreInputEvents", { ignore: false });
-    await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+async function installRuntimeFixture(browser) {
+  await browser.addInitScript({
       source: `(() => {
         window.__summitEarlyRuntimeErrors = [];
         window.addEventListener("error", (event) => {
@@ -5549,63 +5302,220 @@ async function main() {
         });
       })();`
     });
-
-    await runBootFailureSmoke(cdp, baseUrl);
-    await runDesktopSmoke(cdp, baseUrl);
-    await runMenuScaleSmoke(cdp, baseUrl);
-    await runBackwardTransitionSmoke(cdp, baseUrl);
-    await runChapterTransitionInputSmoke(cdp, baseUrl);
-    await runMountainGateLandmarkSmoke(cdp, baseUrl);
-    await runOldPeakRelicSmoke(cdp, baseUrl);
-    await runWindGorgeCrumbleRippleSmoke(cdp, baseUrl);
-    await runSpringApexSmoke(cdp, baseUrl);
-    await runGroundRechargeSmoke(cdp, baseUrl);
-    await runKeyboardSettingsSmoke(cdp, baseUrl);
-    await runAssistModeSmoke(cdp, baseUrl);
-    await runPracticeRecommendationIntegrationSmoke(cdp, baseUrl);
-    await runResumeSmoke(cdp, baseUrl);
-    await runTrainingInterruptionSmoke(cdp, baseUrl);
-    errors.push(...await checkStorageRecovery(
-      (readPage) => evaluate(cdp, `(${readPage})()`),
-      () => navigateApp(cdp, baseUrl, "save archive seed")
-    ));
-    await runSaveArchiveSmoke(cdp, baseUrl);
-    await runCanvasDensitySmoke(cdp, baseUrl);
-    await runVisualRegressionSmoke(cdp, baseUrl);
-    await runRestartSoakSmoke(cdp, baseUrl);
-    await runMobileSmoke(cdp, baseUrl);
-    await runMobileSafeAreaSmoke(cdp, baseUrl);
-    await runMobileLandscapeSmoke(cdp, baseUrl);
-    await runGamepadSmoke(cdp, baseUrl);
-    await runFreshEntryImmediateSmoke(cdp, baseUrl);
-    await runCloudSdkRetrySmoke(cdp, baseUrl);
-    await runExpiredAccountHintSmoke(cdp, baseUrl);
-    await runAuthenticatedRefreshSmoke(cdp, baseUrl);
-    await runAccountRestoreTimeoutSmoke(cdp, baseUrl);
-    await runRestrictedSessionStorageAuthSmoke(cdp, baseUrl);
-    await runPasswordRecoverySmoke(cdp, baseUrl);
-    await runCloudSyncExitGuardSmoke(cdp, baseUrl);
-    await runLargeCloudArchiveSmoke(cdp, baseUrl);
-    await runCloudLogoutInspectionRaceSmoke(cdp, baseUrl);
-    await runCorruptCloudPermissionsSmoke(cdp, baseUrl);
-    await runCloudConflictGuardSmoke(cdp, baseUrl);
-  } finally {
-    if (cdp) cdp.close();
-    await killProcess(browser);
-    await killProcess(server);
-    removeTempDir(userDataDir);
-  }
-
-  if (errors.length > 0) {
-    console.error("Browser smoke failed:");
-    for (const error of errors) console.error("- " + error);
-    process.exit(1);
-  }
-  console.log("Backward room/act transition, Clean re-arm and banked-Lumen preservation regression passed.");
-  console.log("Browser smoke passed: desktop interactions, respawn focus recovery, finite/structural runtime self-healing and 16-cycle restart soak, R1 Spark gate-step wake/retry and R2 canonical collision-free respawn plus Relay-bridge wake/cooldown/retry lifecycle, dormant R4 Old Peak Relay relic baseline, R5 Relay relic activation/cooldown/retry lifecycle, R8 five-tile Wind Gorge crumble ripple and retry reset, R10 ordinary-speed spring-apex recognition and retry reset, one-shot hair-independent ground dash recharge, exact-field R7 updraft wake entry/exit, local R9 Echo memory ready/cooldown lifecycle, zero-Lumen Star Summit constellation baseline, bounded chapter-transition inputs with stale expiry and late acceptance, bounded late-input automatic respawn with stale/manual clearing, current-run Lumen finish/report closure and mobile wrapping, restart-symmetric non-blocking first-act framing with immediate entry, full-route Flow evidence isolation, causal Focus import repair, shared start/plan/queue/challenge practice recommendations, partial-summit total-record isolation, value-aware R3 refill with no passive Flow, authored six-relay/three-spring R6 brief, full-route R3 and grounded R7 Practice entries, recovered 18-crumble R9 Echo route, summit reveal final-act evidence/fallback, current-run act evidence and bounded run-report export, settings and finish-review disclosure semantics, finish-modal focus trap and restart lifecycle, 4.5:1 small-text contrast, account form semantics, custom-binding platform preservation, gentle-assist persistence and Flow-record isolation, retryable cloud SDK, expired account hint, authenticated refresh, stalled-session, email-bound restricted-storage OTP, password-recovery, full-size cloud archive, full-field cloud conflict, guarded cloud-exit and stale-inspection isolation, keyboard settings, diagnostics/template snapshot, canvas/movement, direct resume, Route/Feel interruption resume, storage recovery, atomic save rollback, save import/export with preview, invalid import guard, high-DPI canvas density switching, low-performance compositor budget, mobile visual guard, notched safe-area and keyboard-resize fit, mobile portrait/landscape, gamepad deadzone.");
 }
 
-main().catch((error) => {
+async function checkNativeSafeArea(browser, url) {
+  await navigateApp(browser, url, "native iOS safe-area entry");
+  const entry = await browser.evaluate(`(() => {
+    const gate = document.querySelector("#entryGate");
+    const insets = document.createElement("div");
+    insets.style.padding = "env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
+    document.body.append(insets);
+    const style = getComputedStyle(insets);
+    const safeArea = Object.fromEntries(["Top", "Right", "Bottom", "Left"].map(side =>
+      [side.toLowerCase(), parseFloat(style["padding" + side])]));
+    insets.remove();
+    const rect = gate.getBoundingClientRect();
+    return {
+      safariVersion: navigator.userAgent,
+      touchCount: navigator.maxTouchPoints,
+      safeArea,
+      viewport: document.querySelector('meta[name="viewport"]').content,
+      fits: rect.top >= safeArea.top - 1 && rect.right <= innerWidth - safeArea.right + 1
+        && rect.bottom <= innerHeight - safeArea.bottom + 1 && rect.left >= safeArea.left - 1,
+      actionSizes: [...gate.querySelectorAll("button")].map(button => button.getBoundingClientRect().height),
+      briefHidden: getComputedStyle(document.querySelector("#portraitBrief")).visibility === "hidden",
+      guestFocused: document.activeElement === document.querySelector("#guestEntryButton")
+    };
+  })()`);
+  if (!entry.touchCount || !Object.values(entry.safeArea).every(Number.isFinite) || !entry.fits
+    || !entry.briefHidden || !entry.guestFocused || entry.actionSizes.length !== 2
+    || entry.actionSizes.some(height => height < 44) || !entry.viewport.includes("viewport-fit=cover")
+    || !entry.viewport.includes("interactive-widget=resizes-content")) {
+    throw new Error("Native iOS entry safe-area regression: " + JSON.stringify(entry));
+  }
+
+  // The Safari toolbar can already cover the device's notch. Retain the
+  // non-zero inset regression by exercising fixed insets in the fixture CSS.
+  const notch = { top: 47, right: 0, bottom: 34, left: 0 };
+  browser.setSafeAreaFixture(notch);
+  try {
+    await navigateApp(browser, url, "native Safari fixed notch layout");
+    const layout = await browser.evaluate(`(() => {
+      const gate = document.querySelector("#entryGate").getBoundingClientRect();
+      return {
+        top: gate.top,
+        roomBelow: innerHeight - gate.bottom,
+        actionsFit: [...document.querySelectorAll("#entryGate button")].every(button => {
+          const rect = button.getBoundingClientRect();
+          return rect.width >= 44 && rect.height >= 44;
+        })
+      };
+    })()`);
+    if (layout.top < notch.top || layout.roomBelow < notch.bottom || !layout.actionsFit) {
+      throw new Error("Safari fixed notch layout regression: " + JSON.stringify(layout));
+    }
+  } finally {
+    browser.setSafeAreaFixture(undefined);
+  }
+  await navigateApp(browser, url, "native iOS keyboard entry");
+  const originalHeight = await browser.evaluate("visualViewport.height");
+  await browser.evaluate(`(() => {
+    window.__entryTapTrace = [];
+    for (const type of ["pointerdown", "pointerup", "touchend", "click", "focusin"]) {
+      document.addEventListener(type, event => {
+        const target = event.target;
+        window.__entryTapTrace.push([type, target.closest?.("button")?.id || target.id || target.tagName]);
+      }, true);
+    }
+  })()`);
+  await targetPoint(browser, "#accountEntryButton");
+  await browser.tap("#accountEntryButton");
+  try {
+    await waitUntil("account drawer opens on iOS", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("account-focused")`));
+  } catch (error) {
+    const trace = await browser.evaluate(`({events:window.__entryTapTrace, panel:document.querySelector("#settingsPanel").className, status:document.querySelector("#gameStatus").textContent})`);
+    throw new Error(error.message + ": " + JSON.stringify(trace));
+  }
+  await targetPoint(browser, "#accountEmail");
+  await browser.tap("#accountEmail");
+  await waitUntil("system keyboard reduces the visible viewport", () => browser.evaluate(`visualViewport.height < ${originalHeight - 80}`), 10000);
+  const account = await browser.evaluate(`(() => {
+    const viewport = visualViewport;
+    const panel = document.querySelector("#settingsPanel");
+    const field = document.querySelector("#accountEmail");
+    const box = field.getBoundingClientRect();
+    return {
+      focused: document.activeElement === field,
+      accountScrolls: ["auto", "scroll"].includes(getComputedStyle(panel.querySelector(".settings-body")).overflowY),
+      fieldVisible: box.top >= viewport.offsetTop - 1 && box.bottom <= viewport.offsetTop + viewport.height + 1
+    };
+  })()`);
+  if (!account.focused || !account.accountScrolls || !account.fieldVisible) {
+    throw new Error("Native iOS keyboard regression: " + JSON.stringify(account));
+  }
+  console.log("Safari passed notched safe-area and system keyboard checks");
+}
+
+async function runNativeSafari({ motionOnly = false, mobile = false, extended = false } = {}) {
+  const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
+  const port = await findFreePort();
+  const upstream = "http://127.0.0.1:" + port;
+  const server = childProcess.spawn(process.execPath, ["game-server.js"], {
+    cwd: root,
+    env: { ...process.env, PORT: String(port) },
+    stdio: "inherit"
+  });
+  let fixture;
+  let browser;
+  try {
+    await waitUntil("local server", () => requestText(upstream + "/").then(Boolean), 45_000);
+    fixture = await startFixture(upstream);
+    const deviceUDID = mobile ? process.env.SAFARI_IOS_UDID : undefined;
+    if (mobile && !deviceUDID) throw new Error("SAFARI_IOS_UDID is required");
+    browser = await launchSafari(fixture, deviceUDID);
+    const { url } = fixture;
+    await installRuntimeFixture(browser);
+
+    if (mobile) {
+      await checkNativeSafeArea(browser, url);
+      return;
+    }
+    if (motionOnly) {
+      await navigateApp(browser, url, "Safari reduced motion");
+      await checkReducedMotion(browser);
+      if (errors.length) throw new Error(errors.join("\n- "));
+      console.log("Safari passed system reduced-motion preference and canvas transitions");
+      return;
+    }
+
+    const scenarioGroups = [
+      [ // Gameplay and save imports
+        runRetryAndTouchAimSmoke,
+        runBootFailureSmoke,
+        ...(extended ? [runDesktopSmoke] : []),
+        runMenuScaleSmoke,
+        runBackwardTransitionSmoke,
+        ...(extended ? [runChapterTransitionInputSmoke] : []),
+        ...(extended ? [runMountainGateLandmarkSmoke] : []),
+        ...(extended ? [runOldPeakRelicSmoke] : []),
+        runWindGorgeCrumbleRippleSmoke,
+        ...(extended ? [runSpringApexSmoke] : []),
+        runGroundRechargeSmoke,
+        ...(extended ? [runKeyboardSettingsSmoke] : []),
+        runAssistModeSmoke,
+        runPracticeRecommendationIntegrationSmoke,
+        runResumeSmoke,
+        runTrainingInterruptionSmoke,
+        async function storageRecovery(browser, url) {
+          errors.push(...await checkStorageRecovery(
+            readPage => browser.evaluate(`(${readPage})()`),
+            () => navigateApp(browser, url, "save archive seed")
+          ));
+        },
+        runSaveArchiveSmoke,
+        ...(extended ? [runRestartSoakSmoke] : [])
+      ],
+      [ // Controller entry and account restoration
+        runGamepadSmoke,
+        ...(extended ? [runFreshEntryImmediateSmoke] : []),
+        runCloudSdkRetrySmoke,
+        runExpiredAccountHintSmoke,
+        runAuthenticatedRefreshSmoke,
+        runAccountRestoreTimeoutSmoke
+      ],
+      [ // Authentication and password recovery
+        runRestrictedSessionStorageAuthSmoke,
+        runPasswordRecoverySmoke
+      ],
+      [ // Cloud storage and conflicts
+        runCloudSyncExitGuardSmoke,
+        runLargeCloudArchiveSmoke,
+        runCloudLogoutInspectionRaceSmoke,
+        runCorruptCloudPermissionsSmoke,
+        runCloudConflictGuardSmoke
+      ],
+    ];
+    for (const [index, scenarios] of scenarioGroups.entries()) {
+      if (index > 0) {
+        await browser.close();
+        browser = undefined;
+        browser = await launchSafari(fixture);
+        // Storage fixtures need the app origin before preparing their first navigation.
+        await navigateApp(browser, url, "fresh Safari session");
+      }
+      for (const scenario of scenarios) {
+        const errorCount = errors.length;
+        try {
+          await scenario(browser, url);
+          if (errors.length === errorCount) console.log("Safari passed " + scenario.name);
+        } catch (error) {
+          errors.push(scenario.name + ": " + error.message);
+        }
+      }
+    }
+  } finally {
+    try {
+      await browser?.close();
+    } finally {
+      try { await fixture?.close(); } finally { await killProcess(server); }
+    }
+  }
+  if (errors.length) throw new Error(errors.join("\n- "));
+}
+
+const mode = process.argv[2];
+const modes = [undefined, "--native-safari", "--native-safari-reduced-motion", "--native-safari-ios", "--extended"];
+if (!modes.includes(mode) || process.argv.length > 3) {
+  console.error("Usage: node tools/check-browser-smoke.js [--extended|--native-safari-ios|--native-safari-reduced-motion]");
+  process.exit(1);
+}
+const run = () => runNativeSafari({
+  motionOnly: mode === "--native-safari-reduced-motion",
+  mobile: mode === "--native-safari-ios",
+  extended: mode === "--native-safari" || mode === "--extended"
+});
+run().catch((error) => {
   console.error("Browser smoke failed:");
   console.error("- " + error.message);
   process.exit(1);

@@ -55,7 +55,7 @@ body:
     id: device
     attributes:
       label: Device / browser / input
-      placeholder: Chrome desktop keyboard, Android touch, Edge gamepad...
+      placeholder: macOS Safari with keyboard, iPhone Safari with touch...
   - type: textarea
     id: diagnostics
     attributes:

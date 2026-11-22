@@ -68,7 +68,7 @@ canvas:focus {
   outline: none;
 }
 
-.stage.settings-open canvas {
+.stage.settings-open > #game {
   filter: saturate(0.74) brightness(0.78);
 }
 
@@ -282,9 +282,27 @@ canvas:focus {
   display: none;
 }
 
-.opening-guide strong {
-  font-size: 14px;
+.opening-guide strong { font-size: 14px; }
+.opening-guide strong span { margin-inline-start: 8px; color: #416169; font-weight: 500; }
+#openingGuideControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 5px 0;
 }
+#openingGuideControls > span { white-space: nowrap; }
+#openingGuideControls kbd {
+  display: inline-block;
+  padding: 2px 5px;
+  border: 1px solid #b4c6c2;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #f7faf5;
+  font: 650 12px/1.3 system-ui, sans-serif;
+}
+#openingGuideRestart { color: #45616b; }
 
 .game-tip {
   --tip-progress: 100%;
@@ -632,7 +650,7 @@ canvas:focus {
   display: none;
 }
 
-.settings-group summary::after {
+.settings-group > summary::after {
   width: 18px;
   height: 18px;
   display: grid;
@@ -644,7 +662,7 @@ canvas:focus {
   content: "+";
 }
 
-.settings-group[open] summary {
+.settings-group[open] > summary {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.035);
 }
@@ -2021,7 +2039,7 @@ canvas:focus {
 
 .overlay.finish-overlay {
   place-items: end start;
-  align-content: end;
+  align-content: safe end;
   padding: clamp(18px, 3vw, 34px);
 }
 
@@ -2192,8 +2210,16 @@ canvas:focus {
   font-weight: 650;
 }
 
-.finish-summary > .review-actions {
-  justify-content: flex-start;
+.finish-summary .review-card.primary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+}
+.finish-summary .primary-review {
+  min-width: 74px;
+  padding-inline: 12px;
+  border-radius: 8px;
 }
 
 .finish-sheet > #restartButton {
@@ -2433,7 +2459,7 @@ canvas:focus {
   background: rgba(247, 198, 93, 0.22);
 }
 
-.primary {
+:where(button).primary {
   min-width: 124px;
   height: 46px;
   border: 1px solid rgba(255, 255, 255, 0.34);
@@ -2446,7 +2472,7 @@ canvas:focus {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
 }
 
-.primary:focus-visible,
+:where(button).primary:focus-visible,
 .secondary-start:focus-visible,
 .touch button:focus-visible {
   outline: 3px solid rgba(118, 215, 255, 0.9);
@@ -2827,7 +2853,7 @@ canvas:focus {
     font-size: clamp(34px, 13vw, 54px);
   }
 
-  .overlay:not(.hidden) .primary,
+  .overlay:not(.hidden) :where(button).primary,
   .overlay:not(.hidden) .secondary-start {
     height: 40px;
   }
@@ -2851,7 +2877,7 @@ canvas:focus {
   }
 }
 
-/* P93: honor the operating system's reduced-motion preference for UI chrome.
+/* P93: honor the operating system's reduced-motion preference for interface transitions.
    Canvas rendering separately freezes nonessential ambient drift while keeping
    gameplay movement, hazards and action confirmation intact. */
 @media (prefers-reduced-motion: reduce) {
@@ -3156,7 +3182,7 @@ body {
 .focus-button,
 .variant-button,
 .secondary-start,
-.primary,
+:where(button).primary,
 .review-button,
 .touch button {
   font-weight: 600;
@@ -3210,7 +3236,7 @@ body {
   grid-column: 1 / -1;
 }
 
-.primary,
+:where(button).primary,
 .secondary-start {
   width: 100%;
   min-width: 0;
@@ -3428,10 +3454,28 @@ output {
   gap: 8px;
 }
 
+#touchAimHelp {
+  margin: 0 0 6px;
+  color: #365761;
+  font-size: 13px;
+  line-height: 1.5;
+}
 .touch-directions [data-touch="up"] { grid-area: up; }
 .touch-directions [data-touch="left"] { grid-area: left; }
 .touch-directions [data-touch="down"] { grid-area: down; }
 .touch-directions [data-touch="right"] { grid-area: right; }
+.touch-directions button[data-slide-aim] { position: relative; color: transparent !important; }
+.touch-directions button[data-slide-aim]::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff2c9;
+}
+[data-touch="left"][data-slide-aim="up"]::after { content: "↖"; }
+[data-touch="left"][data-slide-aim="down"]::after { content: "↙"; }
+[data-touch="right"][data-slide-aim="up"]::after { content: "↗"; }
+[data-touch="right"][data-slide-aim="down"]::after { content: "↘"; }
 
 .touch-actions {
   display: grid;
@@ -3760,7 +3804,7 @@ body {
 .ledger-row:focus-visible,
 .roadmap-row:focus-visible,
 .review-button:focus-visible,
-.primary:focus-visible,
+:where(button).primary:focus-visible,
 .secondary-start:focus-visible,
 .touch button:focus-visible {
   outline: 3px solid rgba(232, 196, 106, 0.9);
@@ -3791,7 +3835,7 @@ body {
   box-shadow: none;
 }
 
-.settings-group summary::after {
+.settings-group > summary::after {
   width: 20px;
   height: 20px;
   background: transparent;
@@ -3803,7 +3847,7 @@ body {
   transition: transform 140ms ease;
 }
 
-.settings-group[open] summary::after {
+.settings-group[open] > summary::after {
   content: "›";
   transform: rotate(90deg);
 }
@@ -3943,7 +3987,7 @@ body {
   text-shadow: 0 12px 34px rgba(0, 0, 0, 0.46);
 }
 
-.primary {
+:where(button).primary {
   border-color: rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   background: linear-gradient(180deg, #f5d873, #d98255);
@@ -4102,7 +4146,7 @@ body {
   text-shadow: 0 3px 0 rgba(11, 18, 31, 0.76), 0 14px 34px rgba(0, 0, 0, 0.4);
 }
 
-.primary {
+:where(button).primary {
   border-color: rgba(255, 239, 196, 0.3);
   background: #e8b75f;
   color: #1a2230;
@@ -4110,7 +4154,7 @@ body {
   transition: transform 100ms ease, background 100ms ease, box-shadow 100ms ease;
 }
 
-.primary:active {
+:where(button).primary:active {
   transform: translateY(2px);
   box-shadow: 0 2px 0 #a85f4e;
 }
@@ -4234,7 +4278,7 @@ body {
   content: "";
 }
 
-.settings-group summary::after {
+.settings-group > summary::after {
   color: rgba(45, 69, 79, 0.55);
 }
 
@@ -4502,7 +4546,7 @@ body {
   }
 
   .portrait-brief span {
-    color: #8a6a2e;
+    color: #705428;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -4548,6 +4592,7 @@ body {
     isolation: isolate;
     overflow: hidden;
     background:
+      url("assets/trail-contours.svg") top left / max(440px, 100%) auto no-repeat,
       radial-gradient(circle at 50% 38%, rgba(255, 250, 222, 0.34), transparent 34%),
       linear-gradient(180deg, var(--portrait-page-top), var(--portrait-page-mid) 52%, var(--portrait-page-low));
   }
@@ -4582,8 +4627,8 @@ body {
     z-index: 0;
     background: linear-gradient(180deg, var(--portrait-ridge-top), var(--portrait-ridge-low));
     clip-path: polygon(
-      0 57%, 10% 42%, 20% 53%, 34% 28%, 48% 55%,
-      63% 36%, 76% 58%, 91% 32%, 100% 47%, 100% 100%, 0 100%
+      0 50%, 7% 46%, 13% 47%, 24% 38%, 28% 39%, 35% 33%, 40% 37%, 45% 36%,
+      58% 47%, 63% 46%, 72% 39%, 78% 40%, 88% 31%, 95% 35%, 100% 33%, 100% 100%, 0 100%
     );
     content: "";
     pointer-events: none;
@@ -4858,8 +4903,10 @@ body {
     linear-gradient(145deg, #c8d9da 0%, #aebfc5 50%, #cdbfb3 100%);
 }
 
-.shell {
-  background: radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.2), transparent 60%);
+@media (min-width: 761px), (orientation: landscape) {
+  .shell {
+    background: url("assets/trail-contours.svg") top left / clamp(560px, 60vw, 1040px) auto repeat;
+  }
 }
 
 .stage {
@@ -4887,14 +4934,14 @@ body {
     0 10px 26px rgba(25, 41, 53, 0.32);
 }
 
-.primary {
+:where(button).primary {
   border-color: rgba(255, 242, 198, 0.52);
   background: linear-gradient(180deg, #f0c96f, #dfad54);
   color: #263744;
   box-shadow: 0 4px 0 #a86151, 0 10px 24px rgba(41, 58, 65, 0.18);
 }
 
-.primary:hover {
+:where(button).primary:hover {
   background: linear-gradient(180deg, #f6d583, #e8ba60);
 }
 
@@ -5186,14 +5233,14 @@ body {
   color: inherit;
 }
 
-.settings-group[open] summary {
+.settings-group[open] > summary {
   border-bottom-color: var(--panel-line);
   background: rgba(133, 178, 190, 0.065);
   box-shadow: 3px 0 0 rgba(143, 191, 206, 0.7) inset;
   color: var(--panel-text);
 }
 
-.settings-panel.mode-practice .settings-group[open] summary {
+.settings-panel.mode-practice .settings-group[open] > summary {
   border-bottom-color: var(--panel-line);
   box-shadow: 3px 0 0 rgba(143, 191, 206, 0.72) inset;
 }
@@ -5747,8 +5794,8 @@ textarea {
   font-weight: 600;
 }
 
-.settings-group[open] summary,
-.settings-panel.mode-practice .settings-group[open] summary {
+.settings-group[open] > summary,
+.settings-panel.mode-practice .settings-group[open] > summary {
   border-bottom: 1px solid var(--panel-line);
   background: rgba(255, 255, 255, 0.46);
   box-shadow: 3px 0 0 var(--panel-accent) inset;
@@ -6410,8 +6457,24 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .game-tip em {
-    display: none;
+  .stage .game-tip {
+    top: 54px;
+    bottom: auto;
+    display: grid;
+    width: max-content;
+    max-width: calc(100% - 28px);
+    min-height: 0;
+    gap: 2px;
+    padding: 7px 12px 11px;
+    text-align: left;
+  }
+  .stage .game-tip em {
+    display: block;
+    padding: 0;
+    border: 0;
+    font-size: 12px;
+    white-space: normal;
+    color: #e1eae8;
   }
 }
 
@@ -6462,6 +6525,12 @@ textarea {
 .game-tip i::after {
   background: linear-gradient(90deg, #83b8aa, #b7cba7);
 }
+
+.game-tip.lumen {
+  border-color: rgba(240, 200, 116, 0.5);
+}
+.game-tip.lumen strong { color: #ffe5a0; }
+.game-tip.lumen i::after { background: #dcb571; }
 
 .control-profile-note {
   display: grid;
@@ -6760,8 +6829,8 @@ textarea,
   white-space: nowrap;
 }
 
-.settings-group summary::after,
-.settings-group[open] summary::after {
+.settings-group > summary::after,
+.settings-group[open] > summary::after {
   display: none;
   content: none;
   transform: none;
@@ -6777,12 +6846,12 @@ textarea,
   transition: transform 150ms ease;
 }
 
-.settings-group[open] summary > .settings-group-chevron {
+.settings-group[open] > summary > .settings-group-chevron {
   transform: rotate(90deg);
 }
 
-.settings-group[open] summary,
-.settings-panel.mode-practice .settings-group[open] summary {
+.settings-group[open] > summary,
+.settings-panel.mode-practice .settings-group[open] > summary {
   background: rgba(248, 251, 249, 0.38);
 }
 
@@ -7065,7 +7134,7 @@ textarea,
 }
 
 /* P144: let notched phones expose their real safe-area insets and keep modal
-   interaction inside the visual viewport when browser chrome or a keyboard
+   interaction inside the visual viewport when browser toolbars or a keyboard
    reduces its height. */
 @media (max-width: 760px) {
   .overlay:not(.hidden) {
@@ -7293,11 +7362,12 @@ textarea,
 }
 
 .stage .mark {
-  width: 15px;
-  height: 15px;
-  border-radius: 4px;
-  background: linear-gradient(135deg, #e9d878, #7ea88e);
-  box-shadow: 0 0 0 3px rgba(229, 206, 115, 0.08), 0 0 12px rgba(229, 206, 115, 0.24);
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: #193b4a url("assets/trail-mark.svg") center / cover;
+  box-shadow: none;
+  transform: none;
 }
 
 .stage .meters {
@@ -7308,12 +7378,31 @@ textarea,
 .stage .dash-meter,
 .stage .stamina-meter {
   width: 68px;
-  height: 9px;
+  height: 16px;
+  padding: 3px 2px 3px 16px;
   border-color: rgba(226, 239, 235, 0.22);
   background: rgba(8, 24, 37, 0.38);
 }
 
+.stage .dash-meter::after,
+.stage .stamina-meter::after {
+  inset: 0 auto 0 0;
+  width: 15px;
+  font-size: 10px;
+}
+.stage .dash-meter::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: calc(50% + 6px);
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  background: #314a55;
+}
+
 .stage .counter {
+  font-variant-numeric: tabular-nums;
   min-width: 52px;
   padding: 5px 7px;
   border-color: rgba(225, 238, 234, 0.13);
@@ -7331,8 +7420,31 @@ textarea,
   font-weight: 720;
 }
 
+.stage #lumenCount::before,
+.terrain-lumen-key::before {
+  content: "✦";
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  margin-right: 0.18em;
+  vertical-align: -0.2em;
+  line-height: 1.25;
+}
+
+.lumen-art-ready #lumenCount::before,
+.lumen-art-ready .terrain-lumen-key::before {
+  content: "";
+  background: url("assets/lumens.png") var(--lumen-position, 0% 0%) / 200% 200% no-repeat;
+}
+.shell[data-portrait-chapter="old-peak"] #lumenCount,
+.room-terrain[data-lumen-chapter="1"] { --lumen-position: 100% 0%; }
+.shell[data-portrait-chapter="wind"] #lumenCount,
+.room-terrain[data-lumen-chapter="2"] { --lumen-position: 0% 100%; }
+.shell[data-portrait-chapter="summit"] #lumenCount,
+.room-terrain[data-lumen-chapter="3"] { --lumen-position: 100% 100%; }
+
 .stage #roomCount {
-  color: rgba(220, 232, 230, 0.72);
+  color: #d7e4e0;
 }
 
 .stage #runTime {
@@ -7437,6 +7549,11 @@ textarea,
   background-color: #dce7e4;
 }
 
+.stage .settings-panel { color-scheme: light; }
+.stage .settings-panel :is(button, summary, select, input, textarea):focus-visible {
+  outline: 2px solid #346879;
+  outline-offset: -2px;
+}
 .stage .settings-panel.mode-settings {
   width: min(440px, calc(100% - 32px));
 }
@@ -7560,6 +7677,69 @@ textarea,
   background: rgba(252, 253, 249, 0.7);
 }
 
+.room-terrain {
+  margin-block: 4px 10px;
+  border-block: 1px solid #bdceca;
+}
+.stage .settings-panel .room-terrain > summary,
+.stage .settings-panel .room-history > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #365761;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.room-history > summary::-webkit-details-marker,
+.room-terrain > summary::-webkit-details-marker { display: none; }
+.stage .settings-panel .room-terrain > summary::after,
+.stage .settings-panel .room-history > summary::after {
+  content: "";
+  display: block;
+  width: 7px;
+  height: 7px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+  margin-inline-end: 5px;
+}
+.stage .settings-panel .room-terrain[open] > summary::after,
+.stage .settings-panel .room-history[open] > summary::after { transform: rotate(225deg); }
+.room-history { border-top: 1px solid #c4d3ce; }
+.stage .room-history .room-brief-stats { padding: 0 4px 8px; border: 0; }
+.room-terrain figure {
+  margin: 0 0 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: linear-gradient(#203b4d, #2f4c59);
+}
+.room-terrain #roomTerrainMap {
+  width: 100%;
+  height: auto;
+  max-height: 160px;
+  object-fit: contain;
+}
+.room-terrain figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.stage .room-terrain figcaption span { color: #d6f3ef; }
+.stage .room-terrain figcaption span:nth-child(2) { color: #f0cb76; }
+.stage .room-terrain figcaption span:nth-child(3) { color: #ec9d86; }
+.stage .room-terrain #terrainCampKey { color: #9de2bd; }
+.stage .room-terrain #terrainExitKey { color: #ffe2a2; }
+
 .stage .room-brief-head strong {
   font-size: 14.5px;
   font-weight: 750;
@@ -7568,23 +7748,23 @@ textarea,
 .stage .room-brief-head em,
 .stage .room-brief-stats,
 .stage .room-brief-focus small {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .stage .room-brief-focus b {
-  color: #7d602b;
-  font-size: 10.5px;
+  color: #755b27;
+  font-size: 12px;
 }
 
 .stage .room-brief-focus em {
   color: #304a54;
-  font-size: 12.5px;
+  font-size: 15px;
   font-weight: 680;
   line-height: 1.4;
 }
 
 .stage .room-route-grid {
-  gap: 8px;
+  gap: 6px;
 }
 
 .stage .room-route {
@@ -7596,12 +7776,12 @@ textarea,
 }
 
 .stage .room-route b {
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .stage .room-route em {
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .stage .drill-variants {
@@ -7625,10 +7805,19 @@ textarea,
 }
 
 .stage .practice-launch-dock {
+  grid-template-columns: minmax(0, 1fr) minmax(8em, auto);
+  gap: 12px;
   padding: 11px 13px 13px;
   border-top-color: rgba(54, 83, 92, 0.14);
   background: rgba(224, 233, 229, 0.92);
   box-shadow: 0 -10px 24px rgba(40, 66, 73, 0.06);
+}
+
+#practiceLaunchTarget {
+  color: #405962;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .stage .practice-launch-dock .focus-button {
@@ -7657,13 +7846,70 @@ textarea,
 }
 
 .stage .finish-stats > span,
-.stage .finish-progress > span,
 .stage .finish-sheet .review-card,
 .stage .review-more {
   border-color: rgba(225, 237, 232, 0.12);
   background: rgba(229, 238, 232, 0.055);
 }
 
+.stage .finish-stats {
+  gap: 0;
+  padding: 10px 0;
+  border-block: 1px solid rgba(209, 226, 223, 0.2);
+}
+.stage .finish-stats > span {
+  padding: 2px 10px;
+  background: transparent;
+}
+.stage .finish-stats > span:first-child { padding-left: 0; }
+.stage .finish-stats em, .stage .finish-progress em {
+  color: #b7c9cc;
+  font-size: 12px;
+}
+.stage .finish-stats strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+}
+.stage .finish-stats > span:first-child strong { color: #f4dd9e; }
+.stage .finish-summary > .finish-line { color: #e0d2a6; font-size: 12px; }
+.stage .finish-summary .review-card.primary {
+  text-align: left;
+  border-inline-start: 3px solid #c4a15e;
+  padding: 10px 12px;
+}
+.stage .finish-summary .review-advice {
+  max-width: none;
+  color: #d0dcdb;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.stage .finish-sheet .review-button,
+.stage .finish-sheet > #restartButton { min-height: 44px; }
+.stage .finish-progress > span { padding: 2px 0; background: transparent; }
+@media (min-width: 540px) and (max-height: 520px) and (orientation: landscape) {
+  .stage .finish-overlay { padding: 8px 14px; }
+  .finish-overlay .finish-sheet { width: min(710px, 100%); gap: 6px; padding: 12px 16px; }
+  .finish-sheet .finish-top { grid-template-columns: minmax(96px, 0.45fr) minmax(0, 1.55fr); gap: 14px; }
+  .finish-top .finish-hero {
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 6px;
+    border-bottom: 0;
+    border-right: 1px solid rgba(209, 226, 223, 0.2);
+  }
+  .stage .finish-stats { padding-block: 5px; }
+  .finish-sheet .finish-summary { gap: 5px; }
+}
+@media (max-width: 430px) {
+  .stage .finish-stats {
+    grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
+  }
+  .stage .finish-stats > span + span {
+    border-left: 1px solid rgba(209, 226, 223, 0.2);
+    padding-inline: 8px 2px;
+  }
+  .stage .finish-stats strong { font-size: 16px; }
+}
 .stage .review-more summary {
   min-height: 44px;
   border-radius: 10px;
@@ -7831,9 +8077,27 @@ textarea,
     transform: translateX(-50%);
   }
 
-  .portrait-brief {
+  .portrait-brief,
+  #portraitGuideDock:has(.opening-guide:not([hidden])) {
     top: auto;
     bottom: calc(var(--portrait-stage-bottom) + var(--portrait-stage-height) + 14px);
+  }
+  #portraitGuideDock:has(.opening-guide:not([hidden])) {
+    position: fixed;
+    left: 50%;
+    z-index: 3;
+    width: min(420px, calc(100% - 24px));
+    transform: translate(-50%, calc(-1 * var(--portrait-lift, 0px)));
+    pointer-events: none;
+  }
+  #portraitGuideDock .opening-guide {
+    position: static;
+    width: 100%;
+    max-width: none;
+    transform: none;
+  }
+  #portraitGuideDock:has(.opening-guide:not([hidden])) ~ .portrait-brief {
+    visibility: hidden;
   }
 
   .stage:has(.overlay:not(.hidden)) ~ .portrait-brief {
@@ -7841,14 +8105,34 @@ textarea,
     opacity: 0;
   }
 
-  .stage:has(#overlay:not(.hidden) .start-panel) {
-    border-color: transparent;
-    background: transparent;
+  .stage:has(> .overlay:not(.hidden)) {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    margin: 0;
+    max-width: none;
+    aspect-ratio: auto;
+    transform: none;
+    border: 0;
+    border-radius: 0;
     box-shadow: none;
   }
 
-  .stage:has(#overlay:not(.hidden) .start-panel) #game {
-    opacity: 0;
+  .stage:has(> .overlay:not(.hidden)) > #game {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 75% center;
+  }
+
+  .stage .overlay.finish-overlay {
+    align-content: safe center;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+
+  .stage.settings-open:has(#overlay:not(.hidden) .start-panel)::after {
+    content: none;
   }
 }
 
@@ -7891,14 +8175,33 @@ textarea,
   --launch-ink: #29414b;
 }
 
-/* A feathered local scrim separates the title from moving platforms without
-   changing the page surround, canvas palette or world rendering. */
-.overlay:not(.hidden):not(.finish-overlay) {
+/* Keep the route out of the entry screen. The live canvas remains underneath
+   as an immediate fallback while the illustrated pass loads. */
+.stage .overlay:not(.hidden):not(.finish-overlay) {
+  --title-position: 50%;
   background:
-    radial-gradient(ellipse 42% 48% at 50% 48%, rgba(19, 36, 48, 0.64), rgba(19, 36, 48, 0.24) 60%, transparent 100%),
-    linear-gradient(180deg, rgba(22, 39, 54, 0.04), rgba(22, 34, 47, 0.16));
+    radial-gradient(ellipse 46% 65% at var(--title-position) 53%, rgba(10, 33, 45, 0.50), transparent 100%),
+    linear-gradient(180deg, rgba(10, 32, 43, 0.04), rgba(10, 31, 43, 0.16)),
+    url("assets/moonlit-pass.jpg") 50% 50% / cover no-repeat;
+}
+@media (min-width: 900px) {
+  .stage .overlay:not(.finish-overlay) .launch-surface {
+    justify-self: start;
+    margin-inline-start: 12cqw;
+  }
+  .stage .overlay:not(.hidden):not(.finish-overlay) { --title-position: 32%; }
+}
+@media (max-width: 760px) and (orientation: portrait) {
+  .stage .overlay:not(.hidden):not(.finish-overlay) {
+    background-position: center, center, 76% center;
+  }
 }
 
+@media (max-width: 760px) and (min-height: 640px) and (orientation: portrait) {
+  .stage .overlay:not(.hidden):not(.finish-overlay) {
+    padding-top: max(17dvh, env(safe-area-inset-top));
+  }
+}
 .stage .overlay .launch-surface {
   display: grid;
   justify-items: center;
@@ -7928,9 +8231,10 @@ textarea,
   min-width: 0;
   margin: 0 0 12px;
   color: #fff0bd;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
   font-size: clamp(48px, 5.4cqw, 76px);
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: 0.025em;
   line-height: 1.12;
   text-shadow: 0 2px 0 #293f50, 0 10px 28px rgba(15, 30, 41, 0.28);
 }
@@ -7986,6 +8290,29 @@ textarea,
 .stage .launch-surface #startButton:hover,
 .stage .launch-surface .entry-option.guest:hover {
   background: linear-gradient(180deg, #f5dfa4, #edca7c);
+}
+.stage .launch-surface #startButton { position: relative; padding-inline: 32px; }
+.stage .launch-surface #startButton::after {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  width: 7px;
+  height: 7px;
+  border: solid #615137;
+  border-width: 1.5px 1.5px 0 0;
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
+}
+.stage .launch-surface #startAccountButton {
+  border-color: #819ba2;
+  background: rgba(29, 58, 70, 0.88);
+  color: #e3eeea;
+}
+.stage .launch-surface #startAccountButton:hover { background: #345b65; }
+.stage .launch-surface #startAccountButton:focus-visible { outline-color: #e9dbac; }
+.stage .launch-surface button[class]:active {
+  filter: brightness(0.95);
+  box-shadow: 0 1px 1px rgba(15, 33, 43, 0.23) inset;
 }
 .stage .launch-surface .entry-option {
   display: grid;
@@ -8052,6 +8379,24 @@ textarea,
   background: transparent;
   box-shadow: none;
 }
+.stage .settings-head #pauseRoom:not([hidden]) {
+  display: block;
+  margin-top: 3px;
+  color: #49636b;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.stage .settings-panel.mode-settings:not(.account-focused) .settings-head:has(.resume-run) { padding-right: 112px; }
+.stage .settings-panel.mode-settings:not(.account-focused) .settings-head .resume-run {
+  width: auto;
+  min-width: 88px;
+  padding-inline: 14px;
+  background: #365b63;
+  color: #f7faf5;
+  font-size: 14px;
+  font-weight: 650;
+}
 .stage .settings-panel.mode-settings:not(.account-focused) .settings-body {
   padding: 10px 14px 14px;
   scrollbar-gutter: auto;
@@ -8117,7 +8462,8 @@ textarea,
   width: 100%;
   min-width: 0;
   margin: 0;
-  accent-color: #527d83;
+  color-scheme: light;
+  accent-color: #426f78;
 }
 .stage .settings-panel .control-row .range-value {
   justify-self: end;
@@ -8252,13 +8598,17 @@ textarea,
   .stage .settings-panel.mode-settings:not(.account-focused) .settings-head { padding-left: 22px; }
   .stage .settings-panel.mode-settings:not(.account-focused) .settings-body { padding: 8px 10px 12px; }
   .stage .settings-panel.mode-settings:not(.account-focused) .settings-group > summary { min-height: 48px; padding-block: 11px; }
-  .stage .settings-panel.account-focused { width: auto; }
   .stage .settings-panel.account-focused,
   .stage:has(.overlay:not(.hidden)) .settings-panel.account-focused {
+    max-width: 430px;
+    width: auto;
+    margin-inline: auto;
     bottom: auto;
     max-height: calc(100dvh - max(58px, calc(env(safe-area-inset-top, 0px) + 8px)) - max(12px, env(safe-area-inset-bottom, 0px)));
   }
   .stage .settings-panel.account-focused .settings-head { padding-left: 20px; }
+  .stage .settings-panel.mode-settings .account-field input,
+  .stage .settings-panel.mode-settings .password-reset input { font-size: 16px; }
   .stage .settings-panel.account-focused .settings-body { padding: 18px 20px 22px; }
 }
 @media (max-width: 350px) {
@@ -8273,6 +8623,24 @@ textarea,
   .stage .entry-gate .entry-prompt { margin: 0; }
   .stage .launch-surface .entry-options { width: min(420px, 100%); grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stage .launch-surface .entry-option { min-height: 78px; padding: 10px; }
+  .stage .overlay:not(.finish-overlay) {
+    align-content: safe center;
+    padding-block: max(4px, env(safe-area-inset-top, 0px)) max(4px, env(safe-area-inset-bottom, 0px));
+  }
+  .stage .launch-surface .start-actions {
+    width: min(380px, 100%);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .stage .start-actions > .account-entry { grid-column: auto; }
+  .stage .launch-surface .start-actions > .secondary-start,
+  .stage .launch-surface .start-actions > .account-entry { padding-inline: 6px; }
+  .stage .settings-panel.account-focused .settings-head {
+    min-height: 52px;
+    padding-block: 12px;
+  }
+  .stage .settings-panel.account-focused .settings-head .mini-button { top: 4px; }
+  .stage .settings-panel.account-focused .settings-body { padding-block: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .stage .launch-surface button[class] { transition: none; }
@@ -8311,6 +8679,8 @@ textarea,
 }
 .cloud-comparison-grid span { white-space: pre-line; }
 .cloud-comparison p { margin: 0; }
+.settings-group-room[open] #selectedRoomLabel { display: none; }
+.settings-group-room #selectedRoomLabel,
 .settings-group-plan #nextPracticeLabel {
   color: #415f67;
   font-size: 11px;
@@ -8318,10 +8688,9 @@ textarea,
   margin-inline-start: 5px;
 }
 
-/* P277: a collapsed portrait Practice sheet should fit its two choices and
-   launch action. Opening either disclosure restores the full-height workspace. */
+/* Only visible Practice disclosures should expand the portrait sheet. */
 @media (max-width: 760px) and (orientation: portrait) {
-  .settings-panel.mode-practice:not(:has(.settings-group[open])) {
+  .settings-panel.mode-practice:not(:has(.settings-group.practice-only[open])) {
     bottom: auto;
     max-height: calc(
       100dvh
@@ -8330,7 +8699,7 @@ textarea,
     );
   }
 
-  .settings-panel.mode-practice:not(:has(.settings-group[open])) .settings-body {
+  .settings-panel.mode-practice:not(:has(.settings-group.practice-only[open])) .settings-body {
     flex: 0 1 auto;
     scrollbar-gutter: auto;
   }
@@ -8356,8 +8725,15 @@ textarea,
   color: rgba(248, 247, 239, 0.76);
   font-size: 12px;
   font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 2px;
+  line-height: 1.15;
 }
-
+.touch-system button span { font-size: 10px; font-weight: 500; }
 .profile-reward-note {
   display: block;
   padding: 0 2px;
@@ -8385,7 +8761,16 @@ textarea,
   }
 
   .touch .touch-system button {
-    background: #4c5e65;
-    color: #f6faf7;
+    border-color: #7d9192;
+    background: #d7e1dc;
+    color: #384e58;
+  }
+  .touch .touch-actions [data-touch="dash"] {
+    border-color: #c9a553;
+    background: #e6c781;
+    color: #313f41;
+  }
+  .touch button:is(:active, .active) {
+    box-shadow: inset 0 0 0 2px currentColor;
   }
 }

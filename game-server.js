@@ -22,18 +22,26 @@ const csp = [
   "worker-src 'none'"
 ].join("; ");
 const types = {
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8"
 };
 const publicFiles = new Map([
+  ["/assets/lumens.png", path.join("public", "assets", "lumens.png")],
+  ["/assets/moonlit-pass.jpg", path.join("public", "assets", "moonlit-pass.jpg")],
+  ["/assets/trail-contours.svg", path.join("public", "assets", "trail-contours.svg")],
+  ["/assets/trail-mark.svg", path.join("public", "assets", "trail-mark.svg")],
   ["/index.html", path.join("public", "index.html")],
   ["/summit-spark.css", path.join("public", "summit-spark.css")],
   ["/summit-spark.js", path.join("public", "summit-spark.js")],
   ["/modules/core/format.mjs", path.join("public", "modules", "core", "format.mjs")],
   ["/modules/core/math.mjs", path.join("public", "modules", "core", "math.mjs")],
   ["/modules/game/room-data.mjs", path.join("public", "modules", "game", "room-data.mjs")],
+  ["/modules/game/terrain-art.mjs", path.join("public", "modules", "game", "terrain-art.mjs")],
   ["/modules/game/world-model.mjs", path.join("public", "modules", "game", "world-model.mjs")],
   ["/modules/game/effect-budget.mjs", path.join("public", "modules", "game", "effect-budget.mjs")],
   ["/modules/game/landmark-progress.mjs", path.join("public", "modules", "game", "landmark-progress.mjs")],
@@ -48,6 +56,14 @@ const publicFiles = new Map([
   ["/vendor/appwrite-26.2.0.js", path.join("public", "vendor", "appwrite-26.2.0.js")],
   ["/vendor/APPWRITE-LICENSE", path.join("public", "vendor", "APPWRITE-LICENSE")]
 ]);
+for (const room of ["gate", "bridge", "springs", "ruins", "switchback", "pass", "wind", "gallery", "echo", "summit"]) {
+  const file = `${room}.jpg`;
+  publicFiles.set(`/assets/rooms/${file}`, path.join("public", "assets", "rooms", file));
+}
+for (const material of ["moss", "sandstone", "basalt", "glacier"]) {
+  const file = `${material}.jpg`;
+  publicFiles.set(`/assets/terrain/${file}`, path.join("public", "assets", "terrain", file));
+}
 const securityHeaders = {
   "cache-control": "no-store",
   "content-security-policy": csp,

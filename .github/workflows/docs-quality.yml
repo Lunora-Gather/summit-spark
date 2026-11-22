@@ -37,13 +37,9 @@ jobs:
       - name: Run default quality gate
         run: npm run check
 
-      - name: Run real-browser gate
-        run: npm run browser-smoke
-        timeout-minutes: 5
-
   safari:
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -53,3 +49,55 @@ jobs:
       - run: npm ci
       - run: sudo safaridriver --enable
       - run: npm run test:safari
+      - name: Select standard motion and full keyboard tab navigation
+        run: |
+          defaults write com.apple.universalaccess reduceMotion -bool false
+          defaults write -g AppleKeyboardUIMode -int 3
+          defaults write com.apple.Safari WebKitTabToLinksPreferenceKey -bool true
+      - name: Verify desktop and account regressions in native Safari
+        run: npm run browser-smoke
+
+  safari-reduced-motion:
+    name: Safari system reduced motion
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: sudo safaridriver --enable
+      - run: defaults write com.apple.universalaccess reduceMotion -bool true
+      - run: node tools/check-browser-smoke.js --native-safari-reduced-motion
+
+  safari-ios:
+    name: Native iOS Safari safe areas
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: sudo safaridriver --enable
+      - name: Boot a notched iPhone simulator
+        run: |
+          set -euo pipefail
+          udid="$(xcrun simctl list devices available -j | jq -er '[.devices | to_entries | sort_by(.key) | reverse | .[].value[] | select((.name | startswith("iPhone")) and (.name | contains("SE") | not))][0].udid')"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "SAFARI_IOS_UDID=$udid" >> "$GITHUB_ENV"
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          open -a Simulator --args -CurrentDeviceUDID "$udid"
+          xcrun simctl launch "$udid" com.apple.mobilesafari
+      - run: node tools/check-browser-smoke.js --native-safari-ios
+      - name: Report simulator state if Safari fails
+        if: failure()
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices booted
+          if [[ -n "${SAFARI_IOS_UDID:-}" ]]; then
+            xcrun simctl spawn "$SAFARI_IOS_UDID" launchctl list | awk '/com.apple.mobilesafari|webinspectord/'
+          fi

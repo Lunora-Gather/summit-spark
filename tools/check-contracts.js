@@ -506,24 +506,24 @@ if (!js.includes('closingPractice ? "练习面板已关闭" : "设置已关闭"'
 if (!js.includes("if (settingsVisible) {") || !js.includes("settingsPanel?.contains(document.activeElement)")) errors.push("game focus helper must not escape an open modal panel");
 if ((js.match(/player\.dashes = 1;/g) || []).length) errors.push("dash restoration must go through restoreDashCharge so lumen reserve is preserved");
 if (!js.includes("drawCooldownRing")) errors.push("mechanic cooldown ring helper is missing");
-if (!js.includes('ctx.strokeStyle = "rgba(247,245,240,0.78)"') || !js.includes("const streamSegments = settings.calmEffects ? 3 : 4") || !js.includes("ctx.moveTo(x - 6, arrowY + 4)") || js.includes("ctx.shadowBlur = settings.calmEffects ? 2 : 7") || !js.includes("settings.calmEffects ? 0.14 : 0.22")) errors.push("updrafts should use short non-glowing flow segments, one compact arrow, and restrained in-field particles");
-if ((js.match(/updraftFieldBounds\(updraft\)/g) || []).length < 3 || !js.includes("const bottom = fieldBounds.y + fieldBounds.h") || !js.includes("ctx.fillRect(fieldBounds.x, top, fieldBounds.w, bottom - top)") || !js.includes("ctx.globalAlpha = 0.26 + pulse * 0.08")) errors.push("updraft visuals and physics must share the same full-height field bounds with a readable static edge");
-if (!js.includes("field.addColorStop(0.5, `rgba(143,227,155,${0.145 + pulse * 0.075})`)") || !js.includes("ctx.globalAlpha = 0.26 + pulse * 0.08") || !js.includes("ctx.globalAlpha = 0.34 + pulse * 0.1") || !js.includes("ctx.globalAlpha = 0.4 + pulse * 0.1")) errors.push("updraft boundaries and direction arrows should remain readable at rest without adding glow, long trails, or extra particles");
+if (!js.includes('ctx.strokeStyle = "rgba(226, 236, 224, 0.82)"') || !js.includes("const streamSegments = settings.calmEffects ? 3 : 4") || !js.includes("ctx.moveTo(x - 6, arrowY + 4)") || js.includes("ctx.shadowBlur = settings.calmEffects ? 2 : 7") || !js.includes("settings.calmEffects ? 0.14 : 0.22")) errors.push("updrafts should use short non-glowing flow segments, one compact arrow, and restrained in-field particles");
+if ((js.match(/updraftFieldBounds\(updraft\)/g) || []).length < 3 || !js.includes("const bottom = fieldBounds.y + fieldBounds.h") || !js.includes("ctx.fillRect(fieldBounds.x, top, fieldBounds.w, bottom - top)") || !js.includes("ctx.globalAlpha = 0.48 + pulse * 0.08")) errors.push("updraft visuals and physics must share the same full-height field bounds with a readable static edge");
+if (!js.includes("field.addColorStop(0.5, `rgba(44,134,126,${0.19 + pulse * 0.075})`)") || !js.includes("ctx.globalAlpha = 0.48 + pulse * 0.08") || !js.includes("ctx.globalAlpha = 0.34 + pulse * 0.1") || !js.includes('ctx.strokeStyle = "#e5f2e6"')) errors.push("updraft boundaries and direction arrows should remain readable at rest without adding glow, long trails, or extra particles");
 if (!js.includes("ctx.lineTo(0, 11)") || !js.includes("ctx.arc(0, -6, 3.5")) errors.push("echo anchor should keep a distinct anchor silhouette instead of duplicating the relay diamond");
 if (!js.includes("active ? 0.78 + pulse * 0.12 : 0.64 + pulse * 0.1") || !js.includes('active ? palette.green : "rgba(143,227,155,0.78)"') || !js.includes("ctx.lineWidth = active ? 2.4 : 2.6")) errors.push("inactive echo anchors should remain readable against late-chapter backgrounds without adding extra rings, links, or motion");
 if (!js.includes("const coilTop = capY + 5") || !js.includes("const coilBottom = baseY + 1") || !js.includes("for (const offset of [9, 19])") || !js.includes('roundRect(ctx, spring.x + 3, baseY, spring.w - 6, 5, 2)') || js.includes('ctx.fillStyle = "#1c2e2f"')) errors.push("spring entities should read as compact cap-coil-base devices, including intentional midair relay springs, without changing their collision boxes");
-if (!js.includes("settings.calmEffects ? 2 : 8") || !js.includes("13 + pulse * 4") || !js.includes("20 + pulse * 3") || !js.includes("settings.calmEffects ? (active ? 3 : 0)")) errors.push("relay, prism, and echo-anchor idle states should prioritize distinct silhouettes over large persistent glow halos");
+if (!js.includes("ctx.arc(0, 0, radius, angle, angle + 1.55)") || !js.includes("ctx.scale(1 + pulse * 0.16, 1 + pulse * 0.16)") || !js.includes("settings.calmEffects ? (active ? 3 : 0)")) errors.push("relay, prism, and echo-anchor idle states should prioritize distinct silhouettes over large persistent glow halos");
 if (!js.includes("const poleX = checkpoint.x - 15") || !js.includes("burst(checkpoint.x, checkpoint.y + 8, palette.green, 4, 90)")) errors.push("checkpoints should use an offset flag and only emit activation feedback after a respawn change");
 if (indexHtml.includes("pause-badge") || indexHtml.includes('id="panelSubtitle"') || css.includes(".pause-badge") || css.includes(".panel-subtitle") || js.includes('getElementById("panelSubtitle")')) errors.push("settings header should avoid retaining duplicate modal state and category-description surfaces");
 if (indexHtml.includes('<div class="hud" aria-hidden="true">')) errors.push("settings button must not be hidden by hud aria-hidden");
 if (indexHtml.includes('<div class="meters" aria-hidden="true">')) errors.push("HUD counters should remain available to assistive tech");
 if (!indexHtml.includes('class="dash-meter" title="冲刺" data-meter-label="冲" role="progressbar" aria-label="冲刺储备" aria-valuemin="0" aria-valuemax="2"') || !indexHtml.includes('class="stamina-meter" title="体力" data-meter-label="体" role="progressbar" aria-label="攀墙体力" aria-valuemin="0" aria-valuemax="100"')) errors.push("critical HUD meters should expose standard localized progressbar semantics");
 if (!indexHtml.includes('data-meter-label="冲"') || !indexHtml.includes('data-meter-label="体"')) errors.push("compact HUD meters should remain semantically readable at gameplay scale");
-if (!js.includes('setElementText(lumenCount, `✦ ${found}/${totalLumens}`)') || !js.includes('setElementText(roomCount, `R${roomIndex + 1}/${maps.length}')) errors.push("HUD counters should expose restrained visual labels");
+if (!js.includes('setElementText(lumenCount, `${found}/${totalLumens}`)') || !js.includes('setElementText(roomCount, `R${roomIndex + 1}/${maps.length}')) errors.push("HUD counters should expose restrained visual labels");
 if (!indexHtml.includes('id="runTime" aria-label="总时间"')) errors.push("HUD counters need accessible labels");
 if (!indexHtml.includes('aria-controls="settingsPanel"')) errors.push("settings button must reference settings panel");
 if (!indexHtml.includes('aria-expanded="false"')) errors.push("settings button must expose collapsed state");
-if (!indexHtml.includes('aria-label="设置"') || !indexHtml.includes('aria-label="练习"')) errors.push("HUD should expose localized settings and practice labels");
+if (!/<button[^>]+id="settingsButton"[^>]+aria-label="暂停与设置"/.test(indexHtml) || !indexHtml.includes('aria-label="练习"')) errors.push("HUD should expose localized settings and practice labels");
 if (!indexHtml.includes('aria-live="polite"')) errors.push("game should expose live status text");
 if (!indexHtml.includes("settings-section-title")) errors.push("settings panel must group controls");
 if (!indexHtml.includes("settings-group-training") || !indexHtml.includes("settings-group-controls") || !indexHtml.includes("settings-group-audio") || !indexHtml.includes("settings-group-display") || !indexHtml.includes("settings-group-feedback")) errors.push("panel must use focused grouped disclosure sections");
@@ -640,7 +640,7 @@ if (!js.includes("const SAVE_ARCHIVE_MAX_CHARS = 1000000;")
   || !indexHtml.includes('id="saveImportText" maxlength="1000000"')
   || !browserSmoke.includes("runLargeCloudArchiveSmoke")
   || !browserSmoke.includes("largeArchive.inputMaxLength < largeArchive.chars")
-  || !browserSmoke.includes('cdp.send("Input.insertText", { text: largeArchiveText })')
+  || !browserSmoke.includes('browser.insertText(largeArchiveText)')
   || !browserSmoke.includes("a full ten-room route archive above the legacy 240k cap must upload and remain paste-importable")) errors.push("complete ten-room route archives must remain below a consistent 1MB cloud and real-input guard and round-trip through import");
 if (!js.includes('const preserved = settings.controlsPreset === "custom" ? "，自定义键位保持不变" : "";') || browserSmoke.includes("switching Mac and PC labels must preserve every custom binding until the explicit restore action") === false) errors.push("keyboard platform label changes must not destroy an existing custom binding profile");
 if (!js.includes('const ACCOUNT_OTP_EMAIL_SESSION_KEY = "summit-spark-otp-email";') || !js.includes("function clearAccountOtpState") || !js.includes("if (otpEmail !== email)") || !browserSmoke.includes("changing OTP email invalidates the issued token")) errors.push("an issued OTP identity must be bound to its normalized email and invalidated when that email changes");
@@ -661,7 +661,7 @@ if (!storageModule.includes("export function saveArchiveSyncKeyData(")
   || js.includes("archiveFingerprint(")
   || js.includes("Math.imul(hash, 16777619)")) errors.push("cloud equality and upload deduplication must use exact canonical save content instead of a collision-prone 32-bit fingerprint");
 if (!indexHtml.includes('id="accountAuthTabs" role="group" aria-label="登录方式"') || indexHtml.includes('role="tablist"') || indexHtml.includes('role="tab"') || !indexHtml.includes('data-auth-mode="code" aria-pressed="true"') || !indexHtml.includes('id="accountEmail" name="email"') || !indexHtml.includes('id="accountNewPassword" name="new-password" type="password" autocomplete="new-password" minlength="8" aria-label="新密码"') || !indexHtml.includes('id="accountOldPassword" name="old-password" type="password" autocomplete="current-password" aria-label="原密码（已有密码时填写）"') || !indexHtml.includes('aria-describedby="accountStatus"') || !js.includes('button.setAttribute("aria-pressed", String(active));') || js.includes('button.setAttribute("aria-selected", String(active));') || !browserSmoke.includes("account login mode should expose segmented-button semantics and autofill-ready described fields") || !browserSmoke.includes("accessibleName")) errors.push("account login choices and all five fields must expose unique real labels, autofill purposes and live status descriptions");
-if ((indexHtml.match(/class="settings-group-chevron" aria-hidden="true"/g) || []).length !== 8 || !indexHtml.includes('<summary aria-expanded="false">') || !css.includes(".settings-group summary > .settings-group-chevron") || !css.includes(".settings-group[open] summary::after") || !css.includes("content: none;") || !js.includes("function syncSettingsGroupDisclosure(group)") || !js.includes('setAttribute("aria-expanded", String(group.open))') || !browserSmoke.includes("settings disclosures should keep decorative chevrons out of accessible names and expose collapsed state")) errors.push("settings disclosures must expose synchronized expanded state while keeping every decorative chevron out of accessible names");
+if ((indexHtml.match(/class="settings-group-chevron" aria-hidden="true"/g) || []).length !== 8 || !indexHtml.includes('<summary aria-expanded="false">') || !css.includes(".settings-group summary > .settings-group-chevron") || !css.includes(".settings-group[open] > summary::after") || !css.includes("content: none;") || !js.includes("function syncSettingsGroupDisclosure(group)") || !js.includes('setAttribute("aria-expanded", String(group.open))') || !browserSmoke.includes("settings disclosures should keep decorative chevrons out of accessible names and expose collapsed state")) errors.push("settings disclosures must expose synchronized expanded state while keeping every decorative chevron out of accessible names");
 if ((js.match(/class="review-more-chevron" aria-hidden="true"/g) || []).length !== 2 || !js.includes("function syncReviewDisclosure(details)") || !js.includes('event.target.matches(".review-more")') || !css.includes(".review-more summary > .review-more-chevron") || !css.includes(".review-more[open] summary::after") || !browserSmoke.includes("finish review disclosures should synchronize expanded state while keeping their rotating chevron decorative")) errors.push("finish review disclosures must keep generated symbols out of accessible names and synchronize their expanded state");
 if (!js.includes("function finishDialogVisible()") || !js.includes("function trapFinishFocus(event)") || !js.includes('finishDialogVisible() && event.code === "Tab"') || !browserSmoke.includes("finish dialog should trap forward and backward Tab focus inside its modal surface")) errors.push("the modal summit review must trap forward and backward keyboard focus inside the finish overlay");
 if (!js.includes('overlay.classList.remove("finish-overlay")') || !js.includes('overlay.removeAttribute("aria-modal")') || !js.includes('overlay.removeAttribute("aria-labelledby")') || !js.includes('overlay.removeAttribute("role")') || !browserSmoke.includes("finish restart should clear modal semantics and return focus to the second run")) errors.push("restarting after the summit must fully retire finish-dialog semantics and restore gameplay focus");
@@ -724,7 +724,14 @@ if (!css.includes("review-roadmap")) errors.push("finish review roadmap styling 
 if (!css.includes("roadmap-row")) errors.push("finish review roadmap rows are missing");
 if (!css.includes("settings-body")) errors.push("settings panel should use the refined cockpit layout");
 if (!css.includes("settings-group")) errors.push("settings grouped disclosure styling is missing");
-if (!css.includes("P116: cool-mist depth with warm ascent accents") || !js.includes("const mountainPeaks = 8") || !js.includes("peakX - step * 0.17") || !js.includes("rgba(230, 240, 239, 0.9)")) errors.push("the visual system must preserve layered, camera-safe faceted mountain depth instead of reverting to a flat sawtooth backdrop");
+if (!js.includes("drawMountainLayer(0, atmosphere.back, atmosphere)")
+  || !js.includes("drawMountainLayer(1, atmosphere.midPeak, atmosphere)")
+  || !js.includes("drawMountainLayer(2, atmosphere.front, atmosphere)")
+  || !js.includes("const heights = profiles[chapter]")
+  || !js.includes("roomWorldWidth() * 0.22")
+  || !js.includes("ctx.fill(layer.faces)")) {
+  errors.push("chapter ridges need three faceted depth planes extending across the camera travel");
+}
 if (!css.includes("P117: quiet right-side tools and a cohesive mist-sheet panel") || !css.includes(".hud-actions {\n  gap: 7px;") || !css.includes("border-color: transparent;\n  background: none;\n  box-shadow: none;")) errors.push("practice/settings should retain unboxed HUD tools and the shared mist-sheet foundation");
 if (!css.includes("P118: remove repeated coaching and make the right sheet task-first")
   || !css.includes(".settings-panel,\n.settings-panel.mode-practice {\n  width: min(440px, calc(100% - 32px));")
@@ -817,7 +824,7 @@ if (!js.includes("drawActiveEchoMemory(anchor, time);")
   || js.includes("ctx.lineTo(player.x + player.w / 2, player.y + player.h / 2);")) {
   errors.push("Echo readiness must stay as a bounded local anchor memory instead of a persistent room-spanning tether");
 }
-if (!js.includes("drawSummitConstellation(time, atmosphere);")
+if (!js.includes("drawSummitConstellation(ambientTime, atmosphere);")
   || !js.includes("function drawSummitConstellation(time, atmosphere)")
   || !js.includes("collected.size / totalLumens")
   || !js.includes("const segmentProgress = progress * (stars.length - 1);")
@@ -925,7 +932,7 @@ if (indexHtml.includes('id="controlHint"')
   || css.includes(".game-tip.onboarding")
   || js.includes('getElementById("controlHint")')
   || js.includes("updateOnboardingCues")
-  || !js.includes('const GAME_TIP_CLASSES = ["death", "storage"]')
+  || !js.includes('const GAME_TIP_CLASSES = ["death", "storage", "lumen"]')
   || !js.includes("if (!GAME_TIP_CLASSES.includes(kind)) return;")
   || js.includes('"coach", GAME_TIP_TIME')
   || js.includes('gameTipVisible("onboarding")')) {
@@ -939,30 +946,7 @@ if (!css.includes('background: linear-gradient(180deg, rgba(68, 89, 98, 0.58), r
 if (!js.includes('const CANVAS_PANEL_BG = "rgba(211,224,216,0.74)"') || !js.includes('const CANVAS_PANEL_INK = "rgba(36,58,68,0.9)"') || !js.includes('const y = compact ? H - height - 18 : 68') || (js.match(/ctx\.fillStyle = "rgba\(7,12,20,0\.72\)"/g) || []).length > 1) errors.push("training canvas cards should use the shared light mist surface with dark text, and advanced input feedback must stay fixed away from the character rather than becoming head text");
 if (!css.includes("top: clamp(0px, calc((100dvh - 700px) * 0.3), 44px)") || !css.includes(".stage.settings-open ~ .portrait-brief")) errors.push("portrait brief should stay coupled to the playfield and hide behind settings");
 if (!indexHtml.includes('id="practiceLaunchDock"') || indexHtml.includes('class="practice-launch-copy"') || !css.includes(".settings-panel .settings-body") || !css.includes("scrollbar-gutter: stable") || !css.includes(".settings-panel.mode-practice .practice-launch-dock")) errors.push("practice should keep one selected-room launch action in a non-scrolling panel dock without duplicate summary copy");
-if (!js.includes("const cachedRockTiles = new Map()") || !js.includes("const cachedCrumbleTiles = new Map()") || !js.includes("function createTileSpriteSurface()") || !js.includes("function rockTileSprite(") || !js.includes("ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE)") || js.includes("ctx.createLinearGradient(x, y, x + TILE, y + TILE)")) errors.push("static rock/crumble tiles should use density-aware cached sprites while dynamic warning overlays remain live");
-if (!js.includes("function drawTerrainArchitecture(time)")
-  || !js.includes("function drawTerraceProfile(")
-  || !js.includes("function drawTerraceSupport(")
-  || !js.includes("function drawTerrainAccents(time)")
-  || !js.includes('const architecture = ROOM_LANDMARKS[roomIndex]?.kind || "gate-steps"')
-  || ![
-    "gate-steps",
-    "relay-bridge",
-    "mist-springs",
-    "triple-link",
-    "switchback",
-    "broken-gate",
-    "wind-notch",
-    "prism-hall",
-    "echo-rings",
-    "summit-mark"
-  ].every((kind) => js.includes(`architecture === "${kind}"`))
-  || !js.includes("drawTerrainArchitecture(time);\n    drawHazardFields(time);")
-  || !js.includes("drawTiles(time);\n    drawTerrainAccents(time);")
-  || !js.includes("const resolvedDetail = detailLevel > 0.5 ? 1 : 0.16")
-  || !js.includes("const detailed = (gx * 5 + gy * 3 + roomIndex) % 4 === 0")) {
-  errors.push("terrain should keep chapter materials while every room owns a distinct profile, support silhouette and run-level accent grammar");
-}
+if (!js.includes("ledgeSprites = new WeakMap()") || !js.includes("cached.image !== image") || !js.includes("ledgeSprites.set(run, cached)") || !js.includes("spikeSprites.clear()") || !js.includes("cachedCrumbleTiles.clear()")) errors.push("static terrain sprites must refresh for a newly decoded material or a changed canvas density");
 if (!js.includes("function drawObstacleArchitecture(time)")
   || !js.includes("function drawDashGateFrames(time)")
   || !js.includes("function drawPhaseRails(time)")
@@ -974,7 +958,6 @@ if (!js.includes("function drawObstacleArchitecture(time)")
   errors.push("late-room mechanisms should compose repeated tiles into coherent gates, phase rails and crumble bridges, with a readable midpoint camp");
 }
 if (!css.includes("1440px") || !css.includes("--shell-gap: clamp(6px, 1.4vmin, 16px)")) errors.push("the preferred desktop presentation should retain its bounded stage and atmospheric outer page frame");
-if (!js.includes('rockDark: "#30465b"') || !js.includes('rockLight: "#8298a8"') || !js.includes('spriteCtx.fillStyle = "#2b4054"') || js.includes('spriteCtx.fillStyle = "#101827"')) errors.push("ordinary platforms should use lifted blue-gray rock faces instead of near-black rectangular slabs");
 if (!js.includes('const shell = stage.closest(".shell")') || !js.includes('const chapterTone = target < 3 ? "gate"') || !js.includes("shell.dataset.portraitChapter = chapterTone") || !css.includes('.shell[data-portrait-chapter="old-peak"]') || !css.includes('.shell[data-portrait-chapter="wind"]') || !css.includes('.shell[data-portrait-chapter="summit"]') || !css.includes("--portrait-ridge-top") || !css.includes("clip-path: polygon(") || !css.includes("top: clamp(96px, calc(50dvh - 285px), 220px)")) errors.push("portrait play should extend a chapter-aware, static low-contrast atmosphere through the brief, stage and touch zones while using the upper safe field for its room brief");
 if (!css.includes("--portrait-touch-size: clamp(44px, calc(") || !css.includes('"recall grab"') || !css.includes('"jump dash"') || !browserSmoke.includes("largeTouchUi.withinViewport") || !browserSmoke.includes("commonActionsPaired")) errors.push("large portrait touch controls should adapt to narrow phone widths, keep Jump/Dash paired and reserve one contextual Echo action without clipping");
 if (!js.includes('window.matchMedia?.("(prefers-reduced-motion: reduce)")') || !js.includes('stage?.classList.toggle("reduced-motion", prefersReducedMotion)') || !js.includes("player.deadTimer > 0 || prefersReducedMotion") || !js.includes("!settings.lowPerformance && !prefersReducedMotion") || !css.includes("@media (prefers-reduced-motion: reduce)") || !browserSmoke.includes("reducedMotionState")) errors.push("system reduced-motion preference should freeze nonessential canvas ambience and collapse UI animation without hiding gameplay feedback");
@@ -982,7 +965,8 @@ if (js.includes('burst(player.x + player.w / 2, player.y + player.h, "#e9f7ff", 
 if (!js.includes("function drawSummitGoal(goal, time)") || !js.includes("drawSummitGoal(room.entities.goal, time)") || js.includes('drawDiamond(goal.x, goal.y + Math.sin(time * 4) * 5, 19')) errors.push("the summit goal should use a unique beacon silhouette instead of another collectible diamond");
 if (!js.includes("const moonTrack = [0.76, 0.58, 0.34, 0.2]") || !js.includes("const moonHeights = [88, 78, 98, 82]") || !js.includes("const chapterRoomOffset = ((roomIndex % 3) - 1) * 14") || !js.includes("const moonX = W * moonTrack[moonChapter] + chapterRoomOffset") || js.includes("const moonX = W - 110")) errors.push("the moon should migrate by chapter so right-edge exits and the summit goal retain an uncluttered focal area");
 if (!js.includes("function isPortraitViewport()") || !js.includes("window.visualViewport?.width || window.innerWidth") || !js.includes("viewportWidth <= 760 && viewportHeight > viewportWidth") || !js.includes("const playerVisualScale = isPortraitViewport() ? 1.38 : 1.09")) errors.push("portrait play should enlarge only the foot-anchored player rendering enough to survive full-room downscaling without changing collision geometry or adding locator effects");
-if (!js.includes("const relaySpin = motionTime * (settings.calmEffects ? 0.42 : 1.2)") || !js.includes("ctx.rotate(-relaySpin * 1.75)") || !js.includes("const prismSpin = motionTime * (settings.calmEffects ? 0.46 : 1.35)") || !js.includes("ctx.rotate(prismSpin * 1.78)") || (js.match(/else if \(!settings\.calmEffects \|\| pulse > 0\.04\)/g) || []).length < 2) errors.push("dense late-room relay and prism fields should slow idle rotation and hide secondary ready-state ornaments in calm mode while retaining cooldown and trigger feedback");
+if (!js.includes("paintLumenToken(ctx, chapter, lumen.x, y, 36)") || !js.includes("paintLumenToken(pen, chapterIndexForRoom(index)") || !js.includes("drawRefill(refill)") || js.includes("function drawDiamond(")) errors.push("the climb and terrain map should share chapter collectibles, with a distinct refill silhouette");
+if (!js.includes("ctx.rotate(motion * (settings.calmEffects ? 0.32 : 0.75))") || !js.includes("prefersReducedMotion || settings.calmEffects ? 0 : Math.sin(time * 1.3)") || !js.includes("1 - relay.timer / RELAY_RESET_TIME") || !js.includes("1 - prism.timer / PRISM_RESET_TIME")) errors.push("relay and prism motion should respect accessibility settings and retain visible cooldowns");
 if (js.includes("burst(player.x + player.w / 2, player.y + player.h / 2, palette.hot, 7, 210)") || !js.includes("const restartBurstCount = settings.calmEffects ? 7 : 12") || !js.includes('burst(player.x + player.w / 2, player.y + player.h / 2, "#f8fbff", restartBurstCount, 210)')) errors.push("manual retry should not stack a death burst under the respawn burst, and calm room restarts should use the same restrained confirmation budget");
 if (!indexHtml.includes('id="deathCount" aria-label="失误次数">失 0</div>') || !js.includes('label: "零失误登顶"') || !js.includes('goal: "完整通关且失误数为 0"') || !js.includes('setElementText(deathCountText, `失 ${deathCount}`)') || !(js + trainingModule).includes('`最佳失误 ${') || !js.includes('<em>最佳失误</em>') || js.includes('deathCountText.textContent = `D ${deathCount}`') || js.includes('label: "零死亡登顶"')) errors.push("the visible counter and no-retry challenge should use the accurate mistake semantic while internal death save keys remain compatible");
 if (!js.includes('setGameStatus(`快速重开 · R${roomIndex + 1}`)') || !js.includes('setGameStatus(`房间重开 · R${roomIndex + 1}`)') || !js.includes('setGameStatus(`${deathReasonLabel(deathReason)} · R${roomIndex + 1}，自动复位`)')) errors.push("death and retry actions should replace stale panel status with quiet current feedback");

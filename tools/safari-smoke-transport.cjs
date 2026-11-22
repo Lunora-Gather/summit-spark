@@ -93,8 +93,10 @@ async function launchSafari(fixture, deviceUDID) {
   const service = new safari.ServiceBuilder("/usr/bin/safaridriver").build();
   let driver;
   try {
+    // A freshly booted iPhone simulator can keep SafariDriver busy discovering devices.
+    const address = await service.start(deviceUDID ? 120_000 : undefined);
     const builder = new Builder().disableEnvironmentOverrides()
-      .usingServer(await service.start()).forBrowser("safari");
+      .usingServer(address).forBrowser("safari");
     if (deviceUDID) builder.withCapabilities({
       browserName: "safari",
       platformName: "iOS",

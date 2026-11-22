@@ -49,6 +49,14 @@ jobs:
       - run: npm ci
       - run: sudo safaridriver --enable
       - run: npm run test:safari
+      - name: Preserve the practice map on failure
+        if: failure()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: safari-practice-map
+          path: ${{ runner.temp }}/practice-map.png
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Select standard motion and full keyboard tab navigation
         run: |
           defaults write com.apple.universalaccess reduceMotion -bool false

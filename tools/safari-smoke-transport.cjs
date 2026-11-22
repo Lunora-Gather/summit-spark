@@ -179,7 +179,11 @@ async function launchSafari(fixture, deviceUDID) {
     async tap(selector) {
       if (!deviceUDID) throw new Error("Touch requires native iOS Safari");
       const element = await driver.findElement(By.css(selector));
-      await element.click();
+      await driver.actions()
+        .insert(finger, finger.move({origin: element, duration: 0}), finger.press())
+        .pause(120, finger)
+        .insert(finger, finger.release())
+        .perform();
     },
     setSafeAreaFixture: fixture.setSafeAreaFixture,
     async close() {

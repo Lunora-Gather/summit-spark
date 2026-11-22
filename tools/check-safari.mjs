@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import net from "node:net";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { once } from "node:events";
 import { Builder, By, until } from "selenium-webdriver";
 import { checkStorageRecovery } from "./check-storage-recovery.cjs";
@@ -11,20 +13,29 @@ import { roomEntrySpawnData } from "../public/modules/game/world-model.mjs";
 
 // Safari automation can mask Canvas readbacks. Sample the composited viewport instead.
 async function terrainPixel(driver, tileX, tileY, columns) {
-  const point = await driver.executeAsyncScript((x, y, columns, done) => {
+  const geometry = await driver.executeAsyncScript((x, y, columns, done) => {
     const canvas = document.getElementById("roomTerrainMap");
-    canvas.scrollIntoView({ block: "center" });
+    canvas.scrollIntoView({ block: "center", behavior: "instant" });
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const rect = canvas.getBoundingClientRect();
       const scale = Math.min(rect.width / canvas.width, rect.height / canvas.height);
       const tile = canvas.width / columns;
       const left = rect.left + (rect.width - canvas.width * scale) / 2;
       const top = rect.top + (rect.height - canvas.height * scale) / 2;
-      done([(left + x * tile * scale) / innerWidth, (top + y * tile * scale) / innerHeight]);
+      const px = left + x * tile * scale, py = top + y * tile * scale;
+      let source;
+      try { source = Array.from(canvas.getContext("2d").getImageData(x * tile, y * tile, 1, 1).data); }
+      catch (error) { source = String(error); }
+      done({ point: [px / innerWidth, py / innerHeight], viewport: [innerWidth, innerHeight],
+        bitmap: [canvas.width, canvas.height], rect: rect.toJSON(), hit: document.elementFromPoint(px, py)?.outerHTML.slice(0, 220),
+        open: document.querySelector("#roomTerrain").open, source });
     }));
   }, tileX, tileY, columns);
+  const { point } = geometry;
+  console.log("Practice map geometry", geometry);
   assert.ok(point.every(value => value >= 0 && value < 1), "Terrain marker must be on screen");
   const png = Buffer.from(await driver.takeScreenshot(), "base64");
+  if (process.env.RUNNER_TEMP) writeFileSync(join(process.env.RUNNER_TEMP, "practice-map.png"), png);
   const reader = `
     import Foundation
     import ImageIO

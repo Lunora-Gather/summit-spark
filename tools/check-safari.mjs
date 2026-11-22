@@ -177,10 +177,7 @@ try {
   });
   assert.ok(menuFits, "Short landscape menu must fit the title and all five actions, including resume");
 
-  // Start the drawer exercises at their intended window size and preserve the seeded training data.
   await driver.manage().window().setRect({ width: 690, height: 850 });
-  await driver.navigate().refresh();
-  await driver.wait(ready, 10000);
   await driver.findElement(By.id("startAccountButton")).click();
   const panel = await driver.findElement(By.id("settingsPanel"));
   await driver.wait(until.elementIsVisible(panel), 5000);
@@ -234,7 +231,12 @@ try {
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
-  await driver.findElement(By.id("resumeTrainingButton")).click();
+  await driver.wait(() => driver.executeScript(button => {
+    const rect = button.getBoundingClientRect();
+    return !button.disabled && rect.height > 0 && button.contains(document.elementFromPoint(
+      rect.left + rect.width / 2, rect.top + rect.height / 2));
+  }, resume), 6000, "The launch menu must restore the saved training action after closing Practice");
+  await resume.click();
   await driver.wait(() => driver.executeScript('return /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   const recoveryErrors = await checkStorageRecovery(
     (readPage) => driver.executeScript(readPage),

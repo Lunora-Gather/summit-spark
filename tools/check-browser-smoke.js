@@ -5359,10 +5359,24 @@ async function checkNativeSafeArea(browser, url) {
     browser.setSafeAreaFixture(undefined);
   }
   await navigateApp(browser, url, "native iOS keyboard entry");
+  const originalHeight = await browser.evaluate("visualViewport.height");
+  await browser.evaluate(`(() => {
+    window.__entryTapTrace = [];
+    for (const type of ["pointerdown", "pointerup", "touchend", "click", "focusin"]) {
+      document.addEventListener(type, event => {
+        const target = event.target;
+        window.__entryTapTrace.push([type, target.closest?.("button")?.id || target.id || target.tagName]);
+      }, true);
+    }
+  })()`);
   await targetPoint(browser, "#accountEntryButton");
   await browser.tap("#accountEntryButton");
-  await waitUntil("account drawer opens on iOS", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("account-focused")`));
-  const originalHeight = await browser.evaluate("visualViewport.height");
+  try {
+    await waitUntil("account drawer opens on iOS", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("account-focused")`));
+  } catch (error) {
+    const trace = await browser.evaluate(`({events:window.__entryTapTrace, panel:document.querySelector("#settingsPanel").className, status:document.querySelector("#gameStatus").textContent})`);
+    throw new Error(error.message + ": " + JSON.stringify(trace));
+  }
   await targetPoint(browser, "#accountEmail");
   await browser.tap("#accountEmail");
   await waitUntil("system keyboard reduces the visible viewport", () => browser.evaluate(`visualViewport.height < ${originalHeight - 80}`), 10000);

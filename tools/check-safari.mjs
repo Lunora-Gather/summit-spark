@@ -9,6 +9,17 @@ import safari from "selenium-webdriver/safari.js";
 import { maps } from "../public/modules/game/room-data.mjs";
 import { roomEntrySpawnData } from "../public/modules/game/world-model.mjs";
 
+// Read one rendered pixel through a CPU-backed surface in Safari's automation session.
+function terrainPixel(tileX, tileY, columns) {
+  const map = document.getElementById("roomTerrainMap");
+  const tile = map.width / columns;
+  const sample = document.createElement("canvas");
+  sample.width = sample.height = 1;
+  const context = sample.getContext("2d", { willReadFrequently: true });
+  context.drawImage(map, Math.floor(tileX * tile), Math.floor(tileY * tile), 1, 1, 0, 0, 1, 1);
+  return Array.from(context.getImageData(0, 0, 1, 1).data);
+}
+
 const probe = net.createServer().listen(0, "127.0.0.1");
 await once(probe, "listening");
 const port = probe.address().port;
@@ -141,11 +152,7 @@ try {
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "1", 5000);
   assert.match(await terrain.getAttribute("aria-label"), /R2 光继横桥/);
   const entry = roomEntrySpawnData(maps[1]);
-  const pixel = await driver.executeScript((canvas, tileX, tileY, columns) => {
-    const tile = canvas.width / columns;
-    const ctx = canvas.getContext("2d");
-    return [...ctx.getImageData((tileX + 0.55) * tile, (tileY + 0.68) * tile, 1, 1).data];
-  }, terrain, entry.tileX, entry.tileY, maps[1][0].length);
+  const pixel = await driver.executeScript(terrainPixel, entry.tileX + 0.55, entry.tileY + 0.68, maps[1][0].length);
   assert.deepEqual(pixel, [214, 243, 239, 255], "Checkpoint entries must also show the start marker");
   assert.ok(await driver.findElement(By.id("terrainCampKey")).isDisplayed());
   await driver.findElement(By.css('#roomSelect option[value="0"]')).click();
@@ -155,12 +162,9 @@ try {
   await driver.findElement(By.css('#roomSelect option[value="9"]')).click();
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "9", 5000);
   assert.match(await driver.findElement(By.id("terrainExitKey")).getText(), /星顶终点/);
-  const summitMark = await driver.executeScript((canvas, rows) => {
-    const y = rows.findIndex(row => row.includes("H"));
-    const x = rows[y].indexOf("H");
-    const tile = canvas.width / rows[0].length;
-    return [...canvas.getContext("2d").getImageData((x + 0.5) * tile, (y + 0.5) * tile, 1, 1).data];
-  }, terrain, maps[9]);
+  const summitRow = maps[9].findIndex(row => row.includes("H"));
+  const summitColumn = maps[9][summitRow].indexOf("H");
+  const summitMark = await driver.executeScript(terrainPixel, summitColumn + 0.5, summitRow + 0.5, maps[9][0].length);
   assert.deepEqual(summitMark, [255, 223, 154, 255], "The last room preview must mark its actual summit");
   await driver.findElement(By.css('#roomSelect option[value="1"]')).click();
   const target = await driver.findElement(By.id("practiceLaunchTarget")).getText();

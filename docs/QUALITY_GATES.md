@@ -42,7 +42,7 @@ npm run check
 npm run browser-smoke
 ```
 
-桌面回归使用系统 Safari 和 safaridriver，覆盖点击、键盘、Canvas 位移、模拟账号流程、云冲突、1MB 存档、原子回滚和手柄死区。CI 另设 iOS Safari 模拟器任务验证安全区与软键盘，并在独立的 macOS 任务中验证系统减少动态效果设置。
+桌面回归使用系统 Safari 和 safaridriver，覆盖点击、键盘、Canvas 位移、模拟账号流程、云冲突、1MB 存档、原子回滚和手柄死区。练习地图检查从 Safari 截图读取起点和终点的实际颜色。iPhone 模拟器先通过 SafariDriver 验证安全区，再由 AXe 在普通 Safari 标签页点按账号入口和邮箱，检查系统软键盘弹出后的可见区域。CI 会安装固定版本的 AXe。系统减少动态效果设置由独立的 macOS 任务验证。
 
 UI 还校验首次选择与主菜单的标题/主按钮同源、账号表单左右留白、空分栏隔离、移动面板尾部空白、错误/成功颜色及密码模式文案。门禁通过不等于画面精美：按 [UI_DESIGN.md](UI_DESIGN.md) 单独检查桌面和窄屏截图。
 

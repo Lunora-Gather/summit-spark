@@ -12,20 +12,26 @@ import { maps } from "../public/modules/game/room-data.mjs";
 import { roomEntrySpawnData } from "../public/modules/game/world-model.mjs";
 
 // Safari automation can mask Canvas readbacks. Sample the composited viewport instead.
-async function terrainPixel(driver, tileX, tileY, columns) {
-  const geometry = await driver.executeAsyncScript((x, y, columns, done) => {
-    const canvas = document.getElementById("roomTerrainMap");
-    canvas.scrollIntoView({ block: "center", behavior: "instant" });
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+async function terrainPixel(driver, tileX, tileY, columns, expected) {
+  await driver.executeScript(() => document.getElementById("roomTerrainMap").scrollIntoView({ block: "center", behavior: "instant" }));
+  let lastSample;
+  const geometry = await driver.wait(async () => {
+    lastSample = await driver.executeScript((x, y, columns) => {
+      const canvas = document.getElementById("roomTerrainMap");
       const rect = canvas.getBoundingClientRect();
       const scale = Math.min(rect.width / canvas.width, rect.height / canvas.height);
       const tile = canvas.width / columns;
-      const left = rect.left + (rect.width - canvas.width * scale) / 2;
-      const top = rect.top + (rect.height - canvas.height * scale) / 2;
-      const px = left + x * tile * scale, py = top + y * tile * scale;
-      done({ point: [px / innerWidth, py / innerHeight], visible: document.elementFromPoint(px, py) === canvas });
-    }));
-  }, tileX, tileY, columns);
+      const px = rect.left + (rect.width - canvas.width * scale) / 2 + x * tile * scale;
+      const py = rect.top + (rect.height - canvas.height * scale) / 2 + y * tile * scale;
+      const context = canvas.getContext("2d");
+      let source;
+      try { source = Array.from(context.getImageData(x * tile, y * tile, 1, 1).data); }
+      catch (error) { source = String(error); }
+      return { point: [px / innerWidth, py / innerHeight], visible: document.elementFromPoint(px, py) === canvas,
+        source, contextLost: context.isContextLost?.() };
+    }, tileX, tileY, columns);
+    return lastSample.visible && expected.every((value, i) => value === lastSample.source[i]) && lastSample;
+  }, 12000, () => "Practice marker failed to paint: " + JSON.stringify(lastSample));
   const { point } = geometry;
   assert.ok(geometry.visible, "The terrain marker must be visible inside the scrolling practice drawer");
   assert.ok(point.every(value => value >= 0 && value < 1), "Terrain marker must be on screen");
@@ -155,7 +161,10 @@ try {
   });
   assert.ok(menuFits, "Short landscape menu must fit the title and all five actions, including resume");
 
+  // Start the drawer exercises at their intended window size and preserve the seeded training data.
   await driver.manage().window().setRect({ width: 690, height: 850 });
+  await driver.navigate().refresh();
+  await driver.wait(ready, 10000);
   await driver.findElement(By.id("startAccountButton")).click();
   const panel = await driver.findElement(By.id("settingsPanel"));
   await driver.wait(until.elementIsVisible(panel), 5000);
@@ -187,7 +196,7 @@ try {
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "1", 5000);
   assert.match(await terrain.getAttribute("aria-label"), /R2 光继横桥/);
   const entry = roomEntrySpawnData(maps[1]);
-  const pixel = await terrainPixel(driver, entry.tileX + 0.55, entry.tileY + 0.68, maps[1][0].length);
+  const pixel = await terrainPixel(driver, entry.tileX + 0.55, entry.tileY + 0.68, maps[1][0].length, [214, 243, 239, 255]);
   assert.deepEqual(pixel, [214, 243, 239, 255], "Checkpoint entries must also show the start marker");
   assert.ok(await driver.findElement(By.id("terrainCampKey")).isDisplayed());
   await chooseRoom(0);
@@ -199,7 +208,7 @@ try {
   assert.match(await driver.findElement(By.id("terrainExitKey")).getText(), /星顶终点/);
   const summitRow = maps[9].findIndex(row => row.includes("H"));
   const summitColumn = maps[9][summitRow].indexOf("H");
-  const summitMark = await terrainPixel(driver, summitColumn + 0.5, summitRow + 0.5, maps[9][0].length);
+  const summitMark = await terrainPixel(driver, summitColumn + 0.5, summitRow + 0.5, maps[9][0].length, [255, 223, 154, 255]);
   assert.deepEqual(summitMark, [255, 223, 154, 255], "The last room preview must mark its actual summit");
   await chooseRoom(1);
   const target = await driver.findElement(By.id("practiceLaunchTarget")).getText();
@@ -209,7 +218,7 @@ try {
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
-  await resume.click();
+  await driver.findElement(By.id("resumeTrainingButton")).click();
   await driver.wait(() => driver.executeScript('return /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   const recoveryErrors = await checkStorageRecovery(
     (readPage) => driver.executeScript(readPage),

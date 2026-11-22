@@ -90,6 +90,15 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: sudo safaridriver --enable
+      - name: Install simulator touch input
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/axe.tar.gz"
+          curl --fail --location --retry 3 -o "$archive" https://github.com/cameroncooke/AXe/releases/download/v2.1.1/AXe-macOS-homebrew-v2.1.1.tar.gz
+          echo "e8a4d873fe49e38d70b8fe1bea180658b5b997f5501561755e304641b1395256  $archive" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/axe"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/axe"
+          echo "$RUNNER_TEMP/axe" >> "$GITHUB_PATH"
       - name: Boot a notched iPhone simulator
         run: |
           set -euo pipefail
@@ -98,9 +107,18 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
           echo "SAFARI_IOS_UDID=$udid" >> "$GITHUB_ENV"
           defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          defaults write com.apple.iphonesimulator DevicePreferences -dict-add "$udid" '<dict><key>ConnectHardwareKeyboard</key><false/></dict>'
           open -a Simulator --args -CurrentDeviceUDID "$udid"
           xcrun simctl launch "$udid" com.apple.mobilesafari
       - run: node tools/check-browser-smoke.js --native-safari-ios
+      - name: Preserve the iPhone screen on failure
+        if: failure()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ios-keyboard
+          path: ${{ runner.temp }}/ios-keyboard.png
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Report simulator state if Safari fails
         if: failure()
         run: |

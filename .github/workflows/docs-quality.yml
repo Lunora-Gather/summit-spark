@@ -38,8 +38,7 @@ jobs:
         run: npm run check
 
   safari:
-    # Use the Intel macOS image for native Safari screenshot and Canvas readback checks.
-    runs-on: macos-26-intel
+    runs-on: macos-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -49,6 +48,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: sudo safaridriver --enable
+      - name: Select software canvas drawing on the virtual display
+        run: |
+          defaults write com.apple.Safari WebKitPreferences.canvasUsesAcceleratedDrawing -bool false
+          defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2CanvasUsesAcceleratedDrawing -bool false
+          system_profiler SPDisplaysDataType
       - run: npm run test:safari
       - name: Preserve the practice map on failure
         if: failure()

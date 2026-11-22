@@ -71,6 +71,20 @@ try {
   await driver.get(url);
   const ready = () => driver.executeScript('return document.documentElement.classList.contains("app-ready")');
   await driver.wait(ready, 10000);
+  const calibration = await driver.executeScript(() => {
+    const results = [];
+    for (const willReadFrequently of [false, true]) {
+      const probe = document.createElement("canvas");
+      probe.width = probe.height = 16;
+      const context = probe.getContext("2d", { willReadFrequently });
+      context.fillStyle = "#5a91b2";
+      context.fillRect(0, 0, 16, 16);
+      try { results.push(Array.from(context.getImageData(1, 1, 1, 1).data)); }
+      catch (error) { results.push(String(error)); }
+    }
+    return results;
+  });
+  console.log("Safari Canvas display calibration (default and readback surfaces)", calibration);
   const titleArtReady = await driver.executeAsyncScript(async done => {
     const cover = new Image();
     cover.src = "assets/moonlit-pass.jpg";

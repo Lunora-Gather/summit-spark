@@ -78,6 +78,11 @@ const worldModelVersion = extractOne(
   runtimeSource,
   /modules\/game\/world-model\.mjs\?v=([^"]+)"/
 );
+const terrainArtVersion = extractOne(
+  "terrain art module version",
+  runtimeSource,
+  /modules\/game\/terrain-art\.mjs\?v=([^"]+)"/
+);
 const effectBudgetVersion = extractOne(
   "effect budget module version",
   runtimeSource,
@@ -145,6 +150,9 @@ if (buildVersion && roomDataVersion && buildVersion !== roomDataVersion) {
 }
 if (buildVersion && worldModelVersion && buildVersion !== worldModelVersion) {
   fail(`world model version ${worldModelVersion} does not match build version ${buildVersion}`);
+}
+if (buildVersion && terrainArtVersion && buildVersion !== terrainArtVersion) {
+  fail(`terrain art version ${terrainArtVersion} does not match build version ${buildVersion}`);
 }
 if (buildVersion && effectBudgetVersion && buildVersion !== effectBudgetVersion) {
   fail(`effect budget version ${effectBudgetVersion} does not match build version ${buildVersion}`);
@@ -238,7 +246,7 @@ if (!runtimeSource.includes('import("./modules/game/room-data.mjs?v=')
   || !roomDataSource.includes("export const CHAPTER_SURFACE_FEEDBACK = [")
   || !roomDataSource.includes("export const MECHANIC_FIRST_TOUCH_CUES = {")
   || !roomDataSource.includes("export function mechanicFirstTouchCueData(")
-  || !runtimeSource.includes("drawRoomLandmark(ambientTime, atmosphere)")
+  || !runtimeSource.includes("drawRoomLandmark(ambientTime, atmosphere, opacity === 0)")
   || !roomDataSource.includes("].forEach(deepFreeze);")) {
   fail("public runtime must consume the versioned immutable room data and landmark module");
 }
@@ -346,10 +354,8 @@ if (!runtimeSource.includes('import("./modules/training/replay.mjs?v=')
   || !runtimeSource.includes("replayGhostStateData(ghost)")) {
   fail("practice replay must distinguish PB/current paths and explain bounded action transitions");
 }
-if (!runtimeSource.includes("CHAPTER_SURFACE_KINDS[chapterIndexForRoom(roomIndex)]")
-  || !runtimeSource.includes("const material = CHAPTER_SURFACE_KINDS.includes(surfaceKind)")
-  || !runtimeSource.includes("`${scale}:${material}:")) {
-  fail("rock tile cache should preserve four chapter-owned surface materials");
+if (!runtimeSource.includes('import("./modules/game/terrain-art.mjs?v=') || !runtimeSource.includes("ledges: rockRuns(rows)") || !runtimeSource.includes("paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image)")) {
+  fail("playable terrain should group the collision map into painted chapter ledges");
 }
 if (!runtimeSource.includes("CHAPTER_SURFACE_FEEDBACK[chapter]")
   || !runtimeSource.includes("emitSurfaceLandingFeedback(fallSpeed, true)")
@@ -474,7 +480,7 @@ for (const declaration of runtimeSource.matchAll(/^  let\s+([A-Za-z_$][\w$]*)\b/
 }
 const surfaceConsumerSource = `${gameHtml}\n${runtimeSource}`;
 const stylesheetClasses = new Set(
-  [...stylesheetSource.matchAll(/\.([A-Za-z_][\w-]*)/g)].map((match) => match[1])
+  [...stylesheetSource.replace(/url\([^)]*\)/gi, "").matchAll(/\.([A-Za-z_][\w-]*)/g)].map((match) => match[1])
 );
 for (const name of stylesheetClasses) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -522,7 +528,7 @@ if (!runtimeSource.includes("drawActiveEchoMemory(anchor, time);")
   || runtimeSource.includes("hairColor = echoAnchor")) {
   fail("Echo readiness should stay local to the active anchor instead of drawing a room-spanning tether");
 }
-if (!runtimeSource.includes("drawSummitConstellation(time, atmosphere);")
+if (!runtimeSource.includes("drawSummitConstellation(ambientTime, atmosphere);")
   || !runtimeSource.includes("function drawSummitConstellation(time, atmosphere)")
   || !runtimeSource.includes("collected.size / totalLumens")
   || !runtimeSource.includes("const segmentProgress = progress * (stars.length - 1);")

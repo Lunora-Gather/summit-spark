@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20261118-p316">
+  <meta name="build-version" content="20261123-p320">
   <title>山巅微光</title>
-  <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="summit-spark.css?v=20261118-p316">
+  <meta name="theme-color" content="#193b4a">
+  <link rel="icon" type="image/svg+xml" href="assets/trail-mark.svg">
+  <link rel="stylesheet" href="summit-spark.css?v=20261123-p320">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -39,14 +40,14 @@
           <div class="counter stat" id="deathCount" aria-label="失误次数">失 0</div>
         </div>
         <div class="hud-actions">
-          <button class="icon-button practice-icon" id="practiceButton" type="button" aria-label="练习" aria-controls="settingsPanel" aria-expanded="false">&#9678;</button>
-          <button class="icon-button" id="settingsButton" type="button" aria-label="设置" aria-controls="settingsPanel" aria-expanded="false">&#9881;</button>
+          <button class="icon-button practice-icon" id="practiceButton" title="练习（P）" type="button" aria-label="练习" aria-controls="settingsPanel" aria-expanded="false">&#9678;</button>
+          <button class="icon-button" id="settingsButton" title="暂停与设置（Esc / O）" type="button" aria-label="暂停与设置" aria-controls="settingsPanel" aria-expanded="false"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3" height="12" rx="1"/><rect x="10" y="2" width="3" height="12" rx="1"/></svg></button>
         </div>
       </div>
 
       <div class="opening-guide" id="openingGuide" hidden>
-        <strong>R1 · 起势山门</strong>
-        <span id="openingGuideControls"></span>
+        <strong>R1 · 起势山门 <span>向右越过断崖</span></strong>
+        <span id="openingGuideControls"><span><kbd></kbd> 移动／定向</span><span><kbd></kbd> 跳跃</span><span><kbd></kbd> 冲刺</span><span><kbd></kbd> 抓墙</span></span>
         <span id="openingGuideRestart"></span>
       </div>
 
@@ -61,7 +62,7 @@
       <div class="settings-backdrop hidden" id="settingsBackdrop" aria-hidden="true"></div>
       <section class="settings-panel hidden" id="settingsPanel" role="dialog" aria-labelledby="panelTitle" aria-modal="true" aria-hidden="true" inert>
         <div class="settings-head">
-          <strong><span id="panelTitle">设置</span></strong>
+          <strong><span id="panelTitle">设置</span><small id="pauseRoom" hidden></small></strong>
           <button class="mini-button" id="settingsClose" type="button" aria-label="关闭设置">&times;</button>
         </div>
         <div class="settings-body">
@@ -208,6 +209,7 @@
                   <input id="touchSizeSlider" type="range" min="44" max="64" step="2" value="48">
                   <span class="range-value" aria-hidden="true">48px</span>
                 </label>
+                <p id="touchAimHelp">按住左或右方向键，上下滑动调整方向，再按「冲」斜向冲刺。</p>
               </div>
             </details>
             <details class="settings-group settings-group-audio settings-only">
@@ -269,13 +271,20 @@
           </div>
           <div class="settings-column settings-column-side">
             <details class="settings-group settings-group-room practice-only">
-              <summary aria-expanded="false"><span>选择房间</span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
+              <summary aria-expanded="false"><span>选择房间 <small id="selectedRoomLabel"></small></span><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
               <div class="settings-group-body">
                 <label class="control-row control-row-room">
                   <span>房间</span>
                   <select id="roomSelect"></select>
                 </label>
                 <div class="room-brief" id="roomBrief">R1 房间目标</div>
+                <details class="room-terrain" id="roomTerrain">
+                  <summary>查看房间地形</summary>
+                  <figure>
+                    <canvas id="roomTerrainMap" role="img" aria-label="房间地形"></canvas>
+                    <figcaption><span>● 起点</span><span class="terrain-lumen-key">微光</span><span>▲ 尖刺</span><span id="terrainCampKey" hidden>⚑ 检查点</span><span id="terrainExitKey">向右出房 →</span></figcaption>
+                  </figure>
+                </details>
                 <div class="drill-variants" aria-label="训练变体">
                   <button class="variant-button" id="drillCleanButton" type="button">无失误 · Clean</button>
                   <button class="variant-button" id="drillPaceButton" type="button">节奏 · Pace</button>
@@ -374,8 +383,9 @@
           </div>
         </div>
         <div class="practice-launch-dock practice-only" id="practiceLaunchDock">
+          <span id="practiceLaunchTarget">目标：无失误通过</span>
           <div class="coach-actions">
-            <button class="focus-button" id="focusRoomButton" type="button">开始 R1 Clean</button>
+            <button class="focus-button" id="focusRoomButton" type="button" aria-describedby="practiceLaunchTarget">开始 R1 Clean</button>
           </div>
         </div>
       </section>
@@ -424,9 +434,9 @@
     <div class="touch" id="touchControls" aria-label="触控" aria-hidden="true" inert hidden>
       <div class="touch-cluster touch-directions" aria-label="移动">
         <button type="button" data-touch="up" aria-label="上">↑</button>
-        <button type="button" data-touch="left" aria-label="左">‹</button>
+        <button type="button" data-touch="left" aria-describedby="touchAimHelp" aria-label="左">‹</button>
         <button type="button" data-touch="down" aria-label="下">↓</button>
-        <button type="button" data-touch="right" aria-label="右">›</button>
+        <button type="button" data-touch="right" aria-describedby="touchAimHelp" aria-label="右">›</button>
       </div>
       <div class="touch-cluster touch-actions" aria-label="动作">
         <button type="button" data-touch="recall" aria-label="先激活回声锚点" hidden disabled>召</button>
@@ -435,10 +445,11 @@
         <button type="button" data-touch="dash" aria-label="冲刺">冲</button>
       </div>
       <div class="touch-cluster touch-system" aria-label="重开">
-        <button type="button" data-touch-command="retry" aria-label="回到检查点" title="回到检查点">↻</button>
-        <button type="button" data-touch-command="roomRestart" aria-label="重开本房" title="回到房间起点">房</button>
+        <button type="button" data-touch-command="retry" aria-label="回到检查点" title="回到检查点"><span>返回</span>检查点</button>
+        <button type="button" data-touch-command="roomRestart" aria-label="重开本房" title="回到房间起点"><span>重开</span>本房</button>
       </div>
     </div>
+    <div id="portraitGuideDock"></div>
     <aside class="portrait-brief" id="portraitBrief" aria-hidden="true">
       <span id="portraitChapter">I · 山门</span>
       <strong id="portraitRoomTitle">R1 · 起势山门</strong>
@@ -446,6 +457,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20261118-p316"></script>
+  <script src="summit-spark.js?v=20261123-p320"></script>
 </body>
 </html>

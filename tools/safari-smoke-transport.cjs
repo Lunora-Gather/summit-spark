@@ -108,87 +108,72 @@ async function launchSafari(fixture, deviceUDID) {
   }
   let initSequence = 0;
   const finger = new Pointer("smoke-finger", Pointer.Type.TOUCH);
-  async function send(method, options = {}) {
-    switch (method) {
-      case "Runtime.evaluate": {
-        // The original scenarios may evaluate an expression or a statement block.
-        const { expression } = options;
-        const script = `const done = arguments[0]; (async () => {
-          return (${expression}\n);
-        })().then(value => done({result: {value}}), error => done({exceptionDetails: String(error)}));`;
-        return driver.executeAsyncScript(script);
-      }
-      case "Page.navigate":
-        return driver.get(options.url);
-      case "Page.reload":
-        return driver.navigate().refresh();
-      case "Page.addScriptToEvaluateOnNewDocument": {
-        const identifier = String(++initSequence);
-        fixture.scripts.set(identifier, options.source);
-        return {identifier};
-      }
-      case "Page.removeScriptToEvaluateOnNewDocument":
-        fixture.scripts.delete(options.identifier);
-        return;
-      case "Emulation.setDeviceMetricsOverride": {
-        if (options.mobile || options.deviceScaleFactor !== 1) {
-          throw new Error("This scenario requires native mobile Safari or a separate high-DPI fixture");
-        }
-        const [dx, dy] = await driver.executeScript("return [outerWidth - innerWidth, outerHeight - innerHeight]");
-        return driver.manage().window().setRect({x: 0, y: 0, width: options.width + dx, height: options.height + dy});
-      }
-      case "Emulation.setTouchEmulationEnabled":
-        if (options.enabled) throw new Error("This scenario requires native mobile Safari");
-        return;
-      case "Input.dispatchTouchEvent": {
-        if (!deviceUDID) throw new Error("Touch requires native iOS Safari");
-        const actions = driver.actions();
-        if (options.type === "touchEnd") return actions.insert(finger, finger.release()).perform();
-        const point = options.touchPoints[0];
-        const move = finger.move({x: Math.round(point.x), y: Math.round(point.y), duration: 0});
-        return actions.insert(finger, move, finger.press()).perform();
-      }
-      case "Input.dispatchMouseEvent": {
-        const action = driver.actions();
-        if (options.type === "mouseReleased") return action.release().perform();
-        return action.move({x: Math.round(options.x), y: Math.round(options.y)}).press().perform();
-      }
-      case "Input.dispatchKeyEvent": {
-        const key = safariKey(options);
-        if (options.modifiers === 8) {
-          const action = driver.actions();
-          return options.type === "keyUp"
-            ? action.keyUp(key).keyUp(Key.SHIFT).perform()
-            : action.keyDown(Key.SHIFT).keyDown(key).perform();
-        }
-        return options.type === "keyUp"
-          ? driver.actions().keyUp(key).perform()
-          : driver.actions().keyDown(key).perform();
-      }
-      case "Input.insertText":
-        return driver.executeScript(text => {
-          const editor = document.activeElement;
-          editor.setRangeText(text, editor.selectionStart, editor.selectionEnd, "end");
-          editor.dispatchEvent(new InputEvent("input", {bubbles: true, inputType: "insertText", data: text}));
-        }, options.text);
-      case "Network.enable":
-      case "Network.setCacheDisabled":
-        // All test responses have no-store; blocking is an HTTP fixture rule.
-        return;
-      case "Network.setBlockedURLs":
-        fixture.blocked.clear();
-        for (const entry of options.urls) {
-          const match = /^\*vendor\/([\w.-]+)\*$/.exec(entry);
-          if (!match) throw new Error("Unsupported test asset block: " + entry);
-          fixture.blocked.add("/vendor/" + match[1]);
-        }
-        return;
-      default:
-        throw new Error("Native Safari stage has no implementation for " + method);
-    }
-  }
   return {
-    send,
+    async evaluate(expression) {
+      const result = await driver.executeAsyncScript(`const done = arguments[0]; (async () => (
+        ${expression}
+      ))().then(value => done({value}), error => done({error: String(error)}));`);
+      if (result.error) throw new Error("Evaluation failed: " + result.error + "\n" + expression);
+      return result.value;
+    },
+    navigate(url) { return driver.get(url); },
+    reload() { return driver.navigate().refresh(); },
+    addInitScript({source}) {
+      const id = ++initSequence;
+      fixture.scripts.set(id, source);
+      return id;
+    },
+    removeInitScript(id) { fixture.scripts.delete(id); },
+    blockAsset(pathname) { fixture.blocked.add(pathname); },
+    unblockAssets() { fixture.blocked.clear(); },
+    async setViewport(width, height, { mobile = false, pixelRatio } = {}) {
+      if (mobile !== Boolean(deviceUDID)) throw new Error("The requested viewport requires a matching Safari device");
+      if (pixelRatio && pixelRatio !== await driver.executeScript("return devicePixelRatio")) {
+        throw new Error("Safari device pixel ratio differs from the requested fixture");
+      }
+      if (mobile) {
+        const viewport = await driver.executeScript("return [innerWidth, innerHeight]");
+        if (viewport[0] !== width || viewport[1] !== height) {
+          throw new Error("Select a simulator with the required viewport: " + width + " x " + height);
+        }
+        return;
+      }
+      const [dx, dy] = await driver.executeScript("return [outerWidth - innerWidth, outerHeight - innerHeight]");
+      await driver.manage().window().setRect({x: 0, y: 0, width: width + dx, height: height + dy});
+    },
+    async clickElement(selector) {
+      await driver.findElement(By.css(selector)).click();
+    },
+    async clickAt(x, y) {
+      await driver.actions().move({x: Math.round(x), y: Math.round(y)}).press().perform();
+      await driver.actions().release().perform();
+    },
+    keyDown(code, key, shift = false) {
+      const actions = driver.actions();
+      if (shift) actions.keyDown(Key.SHIFT);
+      return actions.keyDown(safariKey({code, key})).perform();
+    },
+    keyUp(code, key, shift = false) {
+      const actions = driver.actions().keyUp(safariKey({code, key}));
+      if (shift) actions.keyUp(Key.SHIFT);
+      return actions.perform();
+    },
+    touchDown({x, y}) {
+      if (!deviceUDID) throw new Error("Touch requires native iOS Safari");
+      const move = finger.move({x: Math.round(x), y: Math.round(y), duration: 0});
+      return driver.actions().insert(finger, move, finger.press()).perform();
+    },
+    touchUp() {
+      if (!deviceUDID) throw new Error("Touch requires native iOS Safari");
+      return driver.actions().insert(finger, finger.release()).perform();
+    },
+    insertText(text) {
+      return driver.executeScript(value => {
+        const editor = document.activeElement;
+        editor.setRangeText(value, editor.selectionStart, editor.selectionEnd, "end");
+        editor.dispatchEvent(new InputEvent("input", {bubbles: true, inputType: "insertText", data: value}));
+      }, text);
+    },
     async tap(selector) {
       if (!deviceUDID) throw new Error("Touch requires native iOS Safari");
       const element = await driver.findElement(By.css(selector));

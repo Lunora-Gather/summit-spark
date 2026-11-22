@@ -25,12 +25,15 @@ function listFiles(directory, prefix = "") {
     .sort();
 }
 
-function sha256(buffer) {
-  const normalized = Buffer.from(buffer.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
-  return crypto.createHash("sha256").update(normalized).digest("hex");
+function sha256(buffer, relativePath) {
+  const data = /\.(?:jpg|png)$/.test(relativePath) ? buffer : buffer.toString("utf8").replace(/\r\n/g, "\n");
+  return crypto.createHash("sha256").update(data).digest("hex");
 }
 
 function expectedMime(relativePath) {
+  if (relativePath.endsWith(".png")) return /^image\/png\b/i;
+  if (relativePath.endsWith(".jpg")) return /^image\/jpeg\b/i;
+  if (relativePath.endsWith(".svg")) return /^image\/svg\+xml\b/i;
   if (relativePath.endsWith(".html")) return /^text\/html\b/i;
   if (relativePath.endsWith(".css")) return /^text\/css\b/i;
   if (/\.(?:js|mjs)$/.test(relativePath)) return /^(?:text|application)\/javascript\b/i;
@@ -146,8 +149,8 @@ async function main() {
       fail(`${relativePath} returned unexpected Content-Type ${download.contentType || "(missing)"}`);
     }
     const remote = download.data;
-    const localHash = sha256(local);
-    const remoteHash = sha256(remote);
+    const localHash = sha256(local, relativePath);
+    const remoteHash = sha256(remote, relativePath);
     if (localHash !== remoteHash) {
       fail(`${relativePath} does not match local ${build} (${remoteHash.slice(0, 12)} != ${localHash.slice(0, 12)})`);
     }

@@ -65,6 +65,7 @@
       roomEntrySpawnData,
       roomWorldData
     },
+    { rockMaterials, rockRuns, paintLedge, paintSpikes, paintFracturedIce },
     {
       effectQueueLimit,
       enforceEffectQueueBudget
@@ -201,20 +202,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261118-p316"),
-    import("./modules/core/math.mjs?v=20261118-p316"),
-    import("./modules/game/room-data.mjs?v=20261118-p316"),
-    import("./modules/game/world-model.mjs?v=20261118-p316"),
-    import("./modules/game/effect-budget.mjs?v=20261118-p316"),
-    import("./modules/game/landmark-progress.mjs?v=20261118-p316"),
-    import("./modules/game/audio-cues.mjs?v=20261118-p316"),
-    import("./modules/game/lumen-progress.mjs?v=20261118-p316"),
-    import("./modules/systems/storage.mjs?v=20261118-p316"),
-    import("./modules/systems/cloud-save.mjs?v=20261118-p316"),
-    import("./modules/systems/input.mjs?v=20261118-p316"),
-    import("./modules/training/state.mjs?v=20261118-p316"),
-    import("./modules/training/replay.mjs?v=20261118-p316"),
-    import("./modules/ui/presentation.mjs?v=20261118-p316")
+    import("./modules/core/format.mjs?v=20261123-p320"),
+    import("./modules/core/math.mjs?v=20261123-p320"),
+    import("./modules/game/room-data.mjs?v=20261123-p320"),
+    import("./modules/game/world-model.mjs?v=20261123-p320"),
+    import("./modules/game/terrain-art.mjs?v=20261123-p320"),
+    import("./modules/game/effect-budget.mjs?v=20261123-p320"),
+    import("./modules/game/landmark-progress.mjs?v=20261123-p320"),
+    import("./modules/game/audio-cues.mjs?v=20261123-p320"),
+    import("./modules/game/lumen-progress.mjs?v=20261123-p320"),
+    import("./modules/systems/storage.mjs?v=20261123-p320"),
+    import("./modules/systems/cloud-save.mjs?v=20261123-p320"),
+    import("./modules/systems/input.mjs?v=20261123-p320"),
+    import("./modules/training/state.mjs?v=20261123-p320"),
+    import("./modules/training/replay.mjs?v=20261123-p320"),
+    import("./modules/ui/presentation.mjs?v=20261123-p320")
   ]);
 
   const canvas = document.getElementById("game");
@@ -251,7 +253,15 @@
   const deathCountText = document.getElementById("deathCount");
   const debugPanel = document.getElementById("debugPanel");
   const openingGuide = document.getElementById("openingGuide");
-  const openingGuideControls = document.getElementById("openingGuideControls");
+  const portraitGuideSpace = window.matchMedia("(max-width: 760px) and (min-height: 650px) and (max-aspect-ratio: 4/7)");
+  const guideDock = document.getElementById("portraitGuideDock");
+  function positionOpeningGuide() {
+    if (portraitGuideSpace.matches) guideDock.append(openingGuide);
+    else stage.insertBefore(openingGuide, document.getElementById("debugPanel"));
+  }
+  positionOpeningGuide();
+  portraitGuideSpace.addEventListener("change", positionOpeningGuide);
+  const openingGuideKeys = document.querySelectorAll("#openingGuideControls kbd");
   const openingGuideRestart = document.getElementById("openingGuideRestart");
   const coarsePointerQuery = window.matchMedia?.("(pointer: coarse)");
   const gameTip = document.getElementById("gameTip");
@@ -326,11 +336,17 @@
   const saveBackupStatus = document.getElementById("saveBackupStatus");
   const roomSelect = document.getElementById("roomSelect");
   const roomBrief = document.getElementById("roomBrief");
+  const roomTerrain = document.getElementById("roomTerrain");
+  const terrainMap = document.getElementById("roomTerrainMap");
+  const terrainExitKey = document.getElementById("terrainExitKey");
+  const terrainCampKey = document.getElementById("terrainCampKey");
   const chapterOverview = document.getElementById("chapterOverview");
   const practicePlan = document.getElementById("practicePlan");
+  const selectedRoomLabel = document.getElementById("selectedRoomLabel");
   const nextPracticeLabel = document.getElementById("nextPracticeLabel");
   const routeContracts = document.getElementById("routeContracts");
   const feelLab = document.getElementById("feelLab");
+  const practiceLaunchTarget = document.getElementById("practiceLaunchTarget");
   const focusRoomButton = document.getElementById("focusRoomButton");
   const focusResetButton = document.getElementById("focusResetButton");
   const practiceReport = document.getElementById("practiceReport");
@@ -406,6 +422,7 @@
   const LIGHT_TRAIL_WIDTH = 24;
   const LIGHT_TRAIL_HEIGHT = 2;
   const LIGHT_TRAIL_STEP = 11;
+  const REFILL_RESET_TIME = 3.2;
   const RELAY_RESET_TIME = 4.2;
   const RELAY_TRIGGER_SPEED = 390;
   const RELAY_CHAIN_TIME = 1.35;
@@ -479,7 +496,7 @@
     retry: "重开",
     room: "换房"
   };
-  const GAME_TIP_CLASSES = ["death", "storage"];
+  const GAME_TIP_CLASSES = ["death", "storage", "lumen"];
   const FLOW_CHALLENGE_TARGET = 900;
   const GAMEPAD_DEADZONE_DEFAULT = 0.28;
   const GAMEPAD_DEADZONE_MIN = 0.12;
@@ -634,7 +651,29 @@
   const CANVAS_PANEL_STROKE = "rgba(60,88,96,0.18)";
   const CANVAS_PANEL_INK = "rgba(36,58,68,0.9)";
   const CANVAS_PANEL_MUTED = "rgba(48,72,80,0.68)";
-  const cachedRockTiles = new Map();
+  // The moon sits in open sky in each composition, including the narrow canyon openings.
+  const ROOM_PAINTINGS = [
+    { file: "gate", moonX: 0.74, moonY: 0.13 },
+    { file: "bridge", moonX: 0.64, moonY: 0.12 },
+    { file: "springs", moonX: 0.65, moonY: 0.08 },
+    { file: "ruins", moonX: 0.57, moonY: 0.11 },
+    { file: "switchback", moonX: 0.62, moonY: 0.10 },
+    { file: "pass", moonX: 0.51, moonY: 0.12 },
+    { file: "wind", moonX: 0.45, moonY: 0.13 },
+    { file: "gallery", moonX: 0.52, moonY: 0.27 },
+    { file: "echo", moonX: 0.28, moonY: 0.13 },
+    { file: "summit", moonX: 0.21, moonY: 0.14 }
+  ];
+  const LUMEN_NAMES = ["松灯种", "铜提灯", "翼风铃", "霜星花"];
+  let lumenSheet = null;
+  const roomPaintingCache = new Map();
+  let lastSceneryRoom = -1;
+  let menuScenePainted = false;
+  let mountainRoom = -1;
+  let mountainLayers;
+  const materialImages = new Map();
+  let ledgeSprites = new WeakMap();
+  const spikeSprites = new Map();
   const cachedCrumbleTiles = new Map();
 
   function assertMaps() {
@@ -660,6 +699,7 @@
   const pressed = new Set();
   const touchPressed = new Set();
   const touchPointerIds = new Map();
+  const slideAim = { left: 0, right: 0 };
   const gamepadPressed = new Set();
   const gamepadHeld = new Set();
   const gamepadInput = {
@@ -782,7 +822,6 @@
   let gameTipMax = GAME_TIP_TIME;
   let gameTipKind = "";
   let gameTipPriority = 0;
-  let lumenReserveExplained = false;
   let focusResetConfirmUntil = 0;
   let focusResetExpiryTimer = 0;
   let lastGameStatus = "";
@@ -954,6 +993,11 @@
     }
     if (settingsVisible && event.code === "Tab") {
       trapPanelFocus(event);
+      return;
+    }
+    if (!settingsVisible && event.code === "Escape" && started && !won) {
+      event.preventDefault();
+      if (!event.repeat && !event.isComposing) openSettingsPanel();
       return;
     }
     if (settingsVisible && event.code === "Escape") {
@@ -1185,11 +1229,13 @@
 
   function configureCanvasBuffer({ allowContextLost = false } = {}) {
     if (canvasContextLost && !allowContextLost) return;
+    menuScenePainted = false;
     const scale = canvasBufferScale();
     const width = Math.round(W * scale);
     const height = Math.round(H * scale);
     if (canvas.width !== width || canvas.height !== height) {
-      cachedRockTiles.clear();
+      ledgeSprites = new WeakMap();
+      spikeSprites.clear();
       cachedCrumbleTiles.clear();
       canvas.width = width;
       canvas.height = height;
@@ -1219,6 +1265,8 @@
     });
     clearGrabToggle();
     touchPointerIds.clear();
+    slideAim.left = slideAim.right = 0;
+    document.querySelectorAll("[data-slide-aim]").forEach(button => delete button.dataset.slideAim);
     document.querySelectorAll("[data-touch]").forEach((button) => button.classList.remove("active"));
     clearInputBuffers(player);
     resetActionPulses();
@@ -1280,6 +1328,8 @@
   syncReducedMotionPreference();
   configureCanvasBuffer();
   window.addEventListener("resize", configureCanvasBuffer);
+  const canvasLayoutObserver = new ResizeObserver(() => configureCanvasBuffer());
+  canvasLayoutObserver.observe(canvas);
   startButton.addEventListener("click", begin);
   guestEntryButton?.addEventListener("click", () => resolveEntryMode("guest"));
   window.addEventListener("keydown", () => {
@@ -1533,6 +1583,8 @@
     if (document.activeElement === cloudRetryButton) cloudSyncStatus?.focus({ preventScroll: true });
     inspectCloudSave();
   });
+  roomTerrain.addEventListener("toggle", drawRoomTerrainPreview);
+  roomTerrain.closest(".settings-group").addEventListener("toggle", drawRoomTerrainPreview);
   roomSelect?.addEventListener("change", () => {
     const target = Number(roomSelect.value);
     if (Number.isInteger(target) && target >= 0 && target < maps.length) {
@@ -1642,6 +1694,9 @@
 
   document.querySelectorAll("[data-touch]").forEach((button) => {
     const action = button.dataset.touch;
+    const horizontal = action === "left" || action === "right";
+    let startY = 0;
+    let aimThreshold = 0;
     const set = (value) => {
       const transition = transitionDigitalInput(touch, touchPressed, action, value);
       button.classList.toggle("active", value);
@@ -1659,6 +1714,10 @@
       event.preventDefault();
       if (touchPointerIds.has(button)) return;
       touchPointerIds.set(button, event.pointerId);
+      if (horizontal) {
+        startY = event.clientY;
+        aimThreshold = button.getBoundingClientRect().height * 0.35;
+      }
       set(true);
       try {
         button.setPointerCapture?.(event.pointerId);
@@ -1667,9 +1726,23 @@
         // fallback release paths on older or interrupted touch engines.
       }
     });
+    if (horizontal) button.addEventListener("pointermove", (event) => {
+      if (event.pointerType !== "touch" || touchPointerIds.get(button) !== event.pointerId || !aimThreshold) return;
+      const dy = event.clientY - startY;
+      const threshold = slideAim[action] ? aimThreshold * 0.7 : aimThreshold;
+      const aim = Math.abs(dy) >= threshold ? Math.sign(dy) : 0;
+      if (aim === slideAim[action]) return;
+      slideAim[action] = aim;
+      if (aim) button.dataset.slideAim = aim < 0 ? "up" : "down";
+      else delete button.dataset.slideAim;
+    });
     const releasePointer = (event) => {
       if (!touchPointerIds.has(button) || touchPointerIds.get(button) !== event.pointerId) return;
       touchPointerIds.delete(button);
+      if (horizontal) {
+        slideAim[action] = 0;
+        delete button.dataset.slideAim;
+      }
       set(false);
     };
     button.addEventListener("pointerup", releasePointer);
@@ -1697,6 +1770,9 @@
   });
 
   markAppReady();
+  requestRoomPainting(0);
+  requestTerrainMaterial(0);
+  requestLumenSheet();
   scheduleFrame();
 
   function parseRoom(index) {
@@ -1816,6 +1892,7 @@
     }
 
     const visualGroups = {
+      ledges: rockRuns(rows),
       dashGateColumns: dashGateColumns(entities.dashGates),
       phaseRuns: phaseBlockRuns(entities.phaseBlocks),
       crumbleRuns: crumbleBridgeRuns(entities.crumble)
@@ -1992,9 +2069,10 @@
     const bindings = effectiveBindings();
     const key = (action) => keyCodeLabel(bindings[action]);
     const movement = ["up", "left", "down", "right"].map(key).join("/");
-    setElementText(openingGuideControls, source === "gamepad"
-      ? "左摇杆移动／定向 · A 跳跃 · B 冲刺 · 肩键抓墙"
-      : `${movement} 移动／定向 · ${key("jump")} 跳跃 · ${key("dash")} 冲刺 · ${key("grab")} 抓墙`);
+    const labels = source === "gamepad"
+      ? ["左摇杆", "A", "B", "肩键"]
+      : [movement, key("jump"), key("dash"), key("grab")];
+    openingGuideKeys.forEach((cap, index) => setElementText(cap, labels[index]));
     setElementText(openingGuideRestart, restartControlHint(source, bindings));
   }
 
@@ -2159,6 +2237,7 @@
     syncSettingsVisibility();
     settingsPanel.scrollTop = 0;
     syncSettingsPanel();
+    if (panelMode === "practice") refreshRoomSelectOptions();
     if (panelMode === "settings") flushDeferredAccountUi();
     setGameStatus(panelMode === "practice" ? "练习面板已打开" : "设置已打开，游戏暂停");
     settingsCloseButton?.focus({ preventScroll: true });
@@ -2188,6 +2267,7 @@
     gameTip.classList.remove("hidden", ...GAME_TIP_CLASSES);
     gameTip.classList.add(resolvedKind);
     gameTip.style.setProperty("--tip-progress", "100%");
+    return true;
   }
 
   function clearGameTip(kind = "") {
@@ -2980,11 +3060,11 @@
         player.dashCooldown = 0;
         addFlow(18, "lumen");
         playSound("refill", 0.65);
-        setGameStatus(player.lumenReserve ? "微光储备：额外冲刺已就绪" : "微光拾取：冲刺已恢复");
-        if (!lumenReserveExplained) {
-          lumenReserveExplained = true;
-          showGameTip("微光储备", "满冲刺拾取可保留第二次冲刺；金色冲刺条表示储备就绪", "storage", 1.8, 3);
-        }
+        const name = LUMEN_NAMES[chapterIndexForRoom(roomIndex)];
+        let benefit = player.lumenReserve ? "已储备第二次冲刺" : "冲刺已恢复";
+        if (collected.size === 1 && !player.lumenReserve) benefit += "，满冲刺拾取可多储备一次";
+        const detail = `${collected.size}/${totalLumens} · ${benefit}`;
+        if (!showGameTip(name, detail, "lumen", 1.5, 2)) setGameStatus(`拾获${name} · ${detail}`);
         burst(lumen.x, lumen.y, palette.gold, 10, 190);
       }
       lumen.bob += dt * 4;
@@ -3021,7 +3101,7 @@
       }
       if (refill.ready && playerNeedsRefill() && distRectPoint(box, refill.x, refill.y) < 24) {
         refill.ready = false;
-        refill.timer = 3.2;
+        refill.timer = REFILL_RESET_TIME;
         restoreDashCharge();
         player.stamina = MAX_STAMINA;
         player.dashCooldown = 0;
@@ -3325,7 +3405,6 @@
   }
 
   function showFinishOverlay(isBest, assisted = runUsedAssist, partial = false) {
-    const record = isBest ? " · 新纪录" : "";
     const recordNote = partial
       ? assisted ? " · 练习登顶 · 辅助开启，不计总纪录" : " · 练习登顶，不计总纪录"
       : assisted ? " · 辅助完成，不计纪录" : "";
@@ -3339,7 +3418,7 @@
     const finishStatus = recordNote
       ? recordNote.replace(/^ · /, "")
       : isBest ? "新的山径纪录" : "完整路线";
-    overlay.innerHTML = `<section class="finish-sheet"><div class="finish-top"><header class="finish-hero"><span class="finish-eyebrow">山巅微光 · 旅程完成</span><h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p></header><div class="finish-summary"><div class="finish-stats" aria-label="本轮概览"><span><em>用时</em><strong>${formatTime(runTime)}${record}</strong></span><span><em>失误</em><strong>${deathCount}</strong></span><span><em>微光</em><strong>${escapeHtml(lumens.label)}</strong></span><span><em>Flow</em><strong>${Math.floor(flowPeak)}</strong></span></div><p class="finish-line">${escapeHtml(finishStatus)} · ${lumenStatus}${lumens.rewardLabel ? ` · ${escapeHtml(lumens.rewardLabel)}` : ""} · 光继连锁 ${bestRelayChain}</p>${review.lead}</div></div>${review.details}<button class="primary" id="restartButton" type="button">再来一次</button></section>`;
+    overlay.innerHTML = `<section class="finish-sheet"><div class="finish-top"><header class="finish-hero"><span class="finish-eyebrow">山巅微光 · 旅程完成</span><h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p></header><div class="finish-summary"><div class="finish-stats" aria-label="本轮概览"><span><em>用时</em><strong>${formatTime(runTime)}</strong></span><span><em>失误</em><strong>${deathCount}</strong></span><span><em>微光</em><strong>${escapeHtml(lumens.label)}</strong></span><span><em>Flow</em><strong>${Math.floor(flowPeak)}</strong></span></div><p class="finish-line">${escapeHtml(finishStatus)} · ${lumenStatus}${lumens.rewardLabel ? ` · ${escapeHtml(lumens.rewardLabel)}` : ""} · 光继连锁 ${bestRelayChain}</p>${review.lead}</div></div>${review.details}<button class="primary" id="restartButton" type="button">再来一次</button></section>`;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");
@@ -3949,8 +4028,7 @@
   }
 
   function quickRetry() {
-    if (player.deadTimer > 0) return;
-    const deathReason = registerDeath("retry");
+    if (player.deadTimer <= 0) registerDeath("retry");
     setGameStatus(`快速重开 · R${roomIndex + 1}`);
     clearFocusPopup();
     resetRelayChain();
@@ -3962,8 +4040,10 @@
   }
 
   function restartCurrentRoom() {
-    if (player.deadTimer > 0) return;
-    const deathReason = registerDeath("room");
+    if (player.deadTimer <= 0) registerDeath("room");
+    echoAnchor = null;
+    recallCooldown = 0;
+    recallPulseTimer = 0;
     setGameStatus(`房间重开 · R${roomIndex + 1}`);
     clearFocusPopup();
     resetRelayChain();
@@ -4720,13 +4800,15 @@
   }
 
   function updatePracticeCoach() {
-    if (!settingsVisible) return;
+    if (!settingsVisible || panelMode !== "practice") return;
     if (focusRoomButton) {
       const target = practiceTargetRoom();
       const mode = resolveDrillMode(target);
       const label = `开始 R${target + 1} ${drillModeLabel(mode)}`;
       if (focusRoomButton.textContent !== label) focusRoomButton.textContent = label;
-      focusRoomButton.title = drillPresentation(target, mode).brief;
+      const presentation = drillPresentation(target, mode);
+      focusRoomButton.title = presentation.brief;
+      if (practiceLaunchTarget.textContent !== presentation.target) practiceLaunchTarget.textContent = presentation.target;
     }
     updatePracticePlan();
     updateRouteContracts();
@@ -5563,8 +5645,8 @@
   function getInput() {
     const left = keyHeldAny(actionCodes("left")) || touch.left || gamepadInput.left;
     const right = keyHeldAny(actionCodes("right")) || touch.right || gamepadInput.right;
-    const up = keyHeldAny(actionCodes("up")) || touch.up || gamepadInput.up;
-    const down = keyHeldAny(actionCodes("down")) || touch.down || gamepadInput.down;
+    const up = keyHeldAny(actionCodes("up")) || touch.up || slideAim.left < 0 || slideAim.right < 0 || gamepadInput.up;
+    const down = keyHeldAny(actionCodes("down")) || touch.down || slideAim.left > 0 || slideAim.right > 0 || gamepadInput.down;
     const grab = settings.grabMode === "toggle" ? grabLatched : rawGrabHeld();
     return resolveMovementInput({ left, right, up, down, grab });
   }
@@ -5948,7 +6030,7 @@
   }
 
   function refreshRoomSelectOptions() {
-    if (!roomSelect) return;
+    if (!roomSelect || !settingsVisible || panelMode !== "practice") return;
     for (const option of roomSelect.options) {
       const index = Number(option.value);
       option.textContent = roomSelectLabel(index);
@@ -5979,23 +6061,108 @@
     updateRoomBrief();
   }
 
+  function drawRoomTerrainPreview() {
+    if (!settingsVisible || panelMode !== "practice" || !roomTerrain.open
+      || !roomTerrain.closest(".settings-group").open) return;
+    const index = Number(roomSelect.value);
+    const rows = maps[index];
+    if (!rows || terrainMap.dataset.room === String(index)) return;
+    const pen = terrainMap.getContext("2d");
+    if (!pen) return;
+    const tile = 16;
+    terrainMap.width = rows[0].length * tile;
+    terrainMap.height = rows.length * tile;
+    pen.scale(tile, tile);
+    const atmosphere = ROOM_ATMOSPHERES[index];
+    const sky = pen.createLinearGradient(0, 0, 0, rows.length);
+    sky.addColorStop(0, `${atmosphere.top}88`);
+    sky.addColorStop(1, `${atmosphere.midPeak}33`);
+    pen.fillStyle = sky;
+    pen.fillRect(0, 0, rows[0].length, rows.length);
+    let summit = false;
+    let lumens = 0;
+    let camps = 0;
+    for (const [y, row] of rows.entries()) {
+      for (let x = 0; x < row.length; x++) {
+        const symbol = row[x];
+        if ("#CED".includes(symbol)) {
+          pen.fillStyle = symbol === "C" ? "#80adb9" : symbol === "D" ? "#b99358" : symbol === "E" ? "#688595" : "#54727e";
+          pen.fillRect(x, y, 1, 1);
+          if (rows[y - 1]?.[x] !== symbol) {
+            pen.fillStyle = "#c0d8d6";
+            pen.fillRect(x, y, 1, 0.14);
+          }
+        } else if ("^>v<".includes(symbol)) {
+          pen.save();
+          pen.translate(x + 0.5, y + 0.5);
+          pen.rotate("^>v<".indexOf(symbol) * Math.PI / 2);
+          pen.fillStyle = "#ec9d86";
+          pen.beginPath();
+          pen.moveTo(0, -0.46);
+          pen.lineTo(0.48, 0.5);
+          pen.lineTo(-0.48, 0.5);
+          pen.fill();
+          pen.restore();
+        } else if (symbol === "P" || symbol === "J") {
+          camps++;
+          pen.fillStyle = "#9de2bd";
+          pen.fillRect(x + 0.18, y - 0.2, 0.15, 1.16);
+          pen.fillRect(x + 0.33, y - 0.2, 0.72, 0.48);
+        } else if (symbol === "H") {
+          summit = true;
+          pen.save();
+          pen.translate(x + 0.5, y + 0.5);
+          pen.beginPath();
+          for (let ray = 0; ray < 8; ray++) {
+            const angle = ray * Math.PI / 4;
+            const radius = ray % 2 === 0 ? 0.88 : 0.24;
+            pen.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+          }
+          pen.closePath();
+          pen.fillStyle = "#ffdf9a";
+          pen.fill();
+          pen.restore();
+        } else if (symbol === "L") {
+          lumens++;
+          paintLumenToken(pen, chapterIndexForRoom(index), x + 0.5, y + 0.5, 1.45);
+        }
+      }
+    }
+    const entry = roomEntrySpawnData(rows);
+    if (entry) {
+      pen.fillStyle = "#d6f3ef";
+      pen.beginPath();
+      pen.arc(entry.tileX + 0.55, entry.tileY + 0.68, 0.36, 0, Math.PI * 2);
+      pen.fill();
+    }
+    terrainCampKey.hidden = camps === 0;
+    setElementText(terrainExitKey, summit ? "✦ 星顶终点" : "向右出房 →");
+    terrainMap.setAttribute("aria-label", `R${index + 1} ${ROOM_NAMES[index]}，${lumens} 个微光，${camps} 处检查点。${summit ? "触碰星顶终点" : "从右侧离开房间"}。${ROOM_GUIDES[index]}`);
+    roomTerrain.dataset.lumenChapter = String(chapterIndexForRoom(index));
+    terrainMap.dataset.room = String(index);
+  }
+
   function roomBriefHtml(index) {
     const progress = roomProgressSummary(index);
     const route = (tone, label, slot) => `<span class="room-route ${tone}"><b>${label}</b><em>${escapeHtml(routeLineCore(index, slot))}</em></span>`;
     return `<span class="room-brief-head"><strong>R${index + 1} ${escapeHtml(ROOM_NAMES[index] || "Summit")}</strong><em>${escapeHtml(progress.medal)} · ${escapeHtml(progress.pace)}</em></span>`
-      + `<span class="room-brief-stats">${escapeHtml(progress.clean)} · ${escapeHtml(progress.drill)} · ${escapeHtml(roomSkillLabel(index))}<small>合同 ${escapeHtml(progress.contract)}</small></span>`
       + `<span class="room-brief-focus"><b>本房目标</b><em>${escapeHtml(roomPurposeLabel(index))}</em><small>${escapeHtml(styleTrialText(index))}</small></span>`
-      + `<span class="room-route-grid">${route("safe", "稳健", 0)}${route("fast", "快速", 1)}${route("expert", "高手", 2)}</span>`;
+      + `<span class="room-route-grid">${route("safe", "稳健", 0)}${route("fast", "快速", 1)}${route("expert", "高手", 2)}</span>`
+      + `<details class="room-history"><summary>训练记录</summary><span class="room-brief-stats">${escapeHtml(progress.clean)} · ${escapeHtml(progress.drill)} · ${escapeHtml(roomSkillLabel(index))}<small>合同 ${escapeHtml(progress.contract)}</small></span></details>`;
   }
 
   function updateRoomBrief() {
-    if (!roomBrief || !roomSelect) return;
+    if (!roomBrief || !roomSelect || !settingsVisible || panelMode !== "practice") return;
     const index = Number(roomSelect.value);
     const target = Number.isInteger(index) && index >= 0 && index < maps.length ? index : roomIndex;
+    setElementText(selectedRoomLabel, `R${target + 1} · ${ROOM_NAMES[target]}`);
+    drawRoomTerrainPreview();
     const html = roomBriefHtml(target);
     if (html === lastRoomBriefHtml) return;
+    const historyWasOpen = roomBrief.querySelector(".room-history")?.open;
     lastRoomBriefHtml = html;
     roomBrief.innerHTML = html;
+    if (historyWasOpen) roomBrief.querySelector(".room-history").open = true;
     updateDrillVariantButtons();
   }
 
@@ -6551,11 +6718,16 @@
       if (accountCodeInput) accountCodeInput.value = "";
       const phrase = token.phrase ? `，安全短语：${token.phrase}` : "";
       setAccountStatus(`验证码已发送${phrase}`, "valid");
-      accountCodeInput?.focus();
     } catch (error) {
       setAccountStatus(friendlyAccountError(error), "error");
+      return;
     } finally {
       setAccountBusy(false);
+    }
+    // Safari cannot focus the code field while the request has disabled it.
+    if (settingsVisible && accountGroup?.open && authMode === "code"
+      && [document.body, accountEmailInput, accountSendCodeButton].includes(document.activeElement)) {
+      accountCodeInput?.focus();
     }
   }
 
@@ -7438,8 +7610,14 @@
     else settingsPanel?.setAttribute("inert", "");
     const practiceMode = panelMode === "practice";
     const recoveryMode = Boolean(accountFocused && recoveryUserId && recoverySecret);
-    if (panelTitle) panelTitle.textContent = practiceMode ? "练习" : recoveryMode ? "设置新密码" : accountFocused ? "账号" : "设置";
-    settingsCloseButton?.setAttribute("aria-label", practiceMode ? "关闭练习" : recoveryMode ? "关闭改密" : accountFocused ? "关闭账号" : "关闭设置");
+    const pausedRun = settingsVisible && started && !won && !practiceMode && !accountFocused;
+    const pauseRoom = document.getElementById("pauseRoom");
+    pauseRoom.hidden = !pausedRun;
+    if (pausedRun) setElementText(pauseRoom, `R${roomIndex + 1} · ${ROOM_NAMES[roomIndex]}　${formatTime(roomTime)}`);
+    settingsCloseButton?.classList.toggle("resume-run", pausedRun);
+    setElementText(settingsCloseButton, pausedRun ? "继续攀登" : "×");
+    if (panelTitle) panelTitle.textContent = practiceMode ? "练习" : recoveryMode ? "设置新密码" : accountFocused ? "账号" : pausedRun ? "已暂停" : "设置";
+    settingsCloseButton?.setAttribute("aria-label", practiceMode ? "关闭练习" : recoveryMode ? "关闭改密" : accountFocused ? "关闭账号" : pausedRun ? "继续攀登" : "关闭设置");
     settingsButton?.setAttribute("aria-expanded", String(settingsVisible && panelMode === "settings"));
     practiceButton?.setAttribute("aria-expanded", String(settingsVisible && panelMode === "practice"));
     syncGameplayAccessibility();
@@ -8412,15 +8590,20 @@
   }
 
   function render(time) {
+    if (!started) {
+      if (!menuScenePainted) {
+        drawBackground(0);
+        menuScenePainted = true;
+      }
+      return;
+    }
     drawBackground(time);
     const offset = shakeOffset();
     ctx.save();
     ctx.translate(offset.x - cameraX, offset.y);
-    drawTerrainArchitecture(time);
     drawHazardFields(time);
     drawObstacleArchitecture(time);
     drawTiles(time);
-    drawTerrainAccents(time);
     drawBestRoomPath(time);
     drawCurrentRoomPath(time);
     drawBestRoomGhost(time);
@@ -9391,7 +9574,8 @@
       : "";
     const styleButton = `<button class="review-button" type="button" data-finish-drill="${styleIndex}" data-finish-mode="style">类型 Style</button>`;
     const advice = postRunTrainingAdvice(runPlan);
-    const primaryCard = `<article class="review-card primary"><span>下一 Drill</span><strong>R${next + 1} ${escapeHtml(drillModeLabel(nextMode))}</strong><p class="review-advice">${escapeHtml(advice)}</p></article>`;
+    const primaryCard = `<article class="review-card primary"><div><span>建议练习</span><strong>R${next + 1} ${escapeHtml(drillModeLabel(nextMode))}</strong><p class="review-advice">${escapeHtml(advice)}</p></div>`
+      + `<button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">练习 R${next + 1}</button></article>`;
     const chapterDetail = `Clean ${chapter.clean}/${maps.length} · S ${chapter.pace}/${maps.length} · X ${chapter.expert}/${maps.length}`;
     const challengeDetail = nextChallenge ? `${nextChallenge.label}：${nextChallenge.detail}` : "挑战已全部完成";
     const extraCards = reviewCardHtml("章节完成度", chapterText, chapterDetail)
@@ -9403,8 +9587,7 @@
       + reviewCardHtml("训练航线", practiceRouteSummary(), "先稳无失误，再追目标时间，最后冲高手线。")
       + (lastRouteContractResult ? routeContractCard : "");
     const lead = `<div class="review-grid review-grid-primary">${primaryCard}</div>`
-      + `<div class="finish-progress" aria-label="长期进度"><span><em>章节掌握</em><strong>${escapeHtml(chapterText)}</strong></span><span><em>长期挑战</em><strong>${challengeSummary.wins}/${challengeSummary.total}</strong></span></div>`
-      + `<div class="review-actions"><button class="review-button primary-review" type="button" data-finish-drill="${next}" data-finish-mode="${nextMode}">练习 R${next + 1}</button></div>`;
+      + `<div class="finish-progress" aria-label="长期进度"><span><em>章节掌握</em><strong>${escapeHtml(chapterText)}</strong></span><span><em>长期挑战</em><strong>${challengeSummary.wins}/${challengeSummary.total}</strong></span></div>`;
     const details = `<div class="finish-disclosures"><details class="review-more"><summary aria-expanded="false"><span>完整复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><p class="finish-mastery">${escapeHtml(masterySummary())}</p><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-actions review-actions-secondary">${styleButton}${lossButton}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>仅含本轮时间、失误、微光与 Flow；不含身份和路线坐标，不会上传。</small></div></details>`
       + `<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>训练路线</span><span class="review-more-chevron" aria-hidden="true">›</span></summary>${reviewRoadmapHtml()}</details></div>`;
     return { lead, details };
@@ -9727,9 +9910,77 @@
     ctx.restore();
   }
 
+  function requestRoomPainting(index) {
+    const scene = ROOM_PAINTINGS[index];
+    if (!scene || roomPaintingCache.has(index)) return;
+    const image = new Image();
+    const entry = { image, readyAt: null };
+    roomPaintingCache.set(index, entry);
+    image.decoding = "async";
+    image.src = `assets/rooms/${scene.file}.jpg`;
+    image.decode().then(() => {
+      entry.readyAt = performance.now();
+    }).catch(() => {
+      // Keep the playable fallback and allow another attempt on re-entry.
+      if (roomPaintingCache.get(index) === entry) roomPaintingCache.delete(index);
+    });
+  }
+
   function drawBackground(time) {
     const ambientTime = prefersReducedMotion ? 0 : time;
     const atmosphere = roomAtmosphere();
+    if (started && lastSceneryRoom !== roomIndex) {
+      for (const index of roomPaintingCache.keys()) {
+        if (Math.abs(index - roomIndex) > 1) roomPaintingCache.delete(index);
+      }
+      requestTerrainMaterial(roomIndex);
+      requestLumenSheet();
+      requestRoomPainting(roomIndex);
+      requestRoomPainting(roomIndex + 1);
+      lastSceneryRoom = roomIndex;
+    }
+    const entry = started ? roomPaintingCache.get(roomIndex) : null;
+    const opacity = entry?.readyAt == null ? 0
+      : prefersReducedMotion || settings.lowPerformance ? 1
+      : Math.min(1, Math.max(0, (performance.now() - entry.readyAt) / 260));
+    if (opacity < 1) drawFallbackLandscape(ambientTime, atmosphere);
+    if (opacity > 0) drawRoomPainting(entry.image, opacity, atmosphere);
+    drawChapterResonance(ambientTime, atmosphere);
+    ctx.save();
+    ctx.translate(prefersReducedMotion ? 0 : -cameraX * 0.12, 0);
+    if (chapterIndexForRoom(roomIndex) === 3) drawSummitConstellation(ambientTime, atmosphere);
+    drawRoomLandmark(ambientTime, atmosphere, opacity === 0);
+    ctx.restore();
+    drawChapterWeather(ambientTime, atmosphere);
+  }
+
+  function drawRoomPainting(image, opacity, atmosphere) {
+    // Overscan provides camera travel on both sides, including negative camera X on portrait entry.
+    const scale = Math.max(W / image.naturalWidth, H / image.naturalHeight) * 1.08;
+    const width = image.naturalWidth * scale;
+    const height = image.naturalHeight * scale;
+    const drift = prefersReducedMotion || settings.lowPerformance ? 0 : cameraX * 0.065;
+    const left = Math.max(W - width, Math.min(0, (W - width) / 2 - drift));
+    const top = (H - height) / 2;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(image, left, top, width, height);
+    // A cool wash unifies the plates with the slate foreground and leaves the brightest marks to the route.
+    ctx.fillStyle = "rgba(25, 43, 56, 0.17)";
+    ctx.fillRect(0, 0, W, H);
+    const scene = ROOM_PAINTINGS[roomIndex];
+    ctx.translate(left + width * scene.moonX, top + height * scene.moonY);
+    ctx.fillStyle = atmosphere.moon;
+    ctx.globalAlpha = opacity * (roomIndex >= 8 ? 0.78 : 0.38);
+    ctx.beginPath();
+    ctx.moveTo(3, -10);
+    ctx.bezierCurveTo(-12, -6, -11, 10, 3, 11);
+    ctx.bezierCurveTo(-5, 8, -5, -5, 3, -10);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFallbackLandscape(ambientTime, atmosphere) {
     const gradient = ctx.createLinearGradient(0, 0, 0, H);
     gradient.addColorStop(0, atmosphere.top);
     gradient.addColorStop(0.55, atmosphere.mid);
@@ -9756,19 +10007,27 @@
     }
     ctx.restore();
 
-    if (!settings.lowPerformance && !prefersReducedMotion) drawSkyRibbons(time, atmosphere);
-    drawChapterResonance(ambientTime, atmosphere);
+    drawMoon(ambientTime, atmosphere);
+    if (!settings.lowPerformance && !prefersReducedMotion) drawSkyRibbons(ambientTime, atmosphere);
 
-    drawMountainLayer(atmosphere.back, 0.35, 80 + roomIndex * 18, 0.18);
-    drawMountainLayer(atmosphere.midPeak, 0.48, 150 + roomIndex * 9, 0.12);
+    drawMountainLayer(0, atmosphere.back, atmosphere);
+    drawMountainLayer(1, atmosphere.midPeak, atmosphere);
     ctx.save();
     ctx.translate(-cameraX * 0.12, 0);
     drawChapterLandmarks(ambientTime, atmosphere);
-    drawRoomLandmark(ambientTime, atmosphere);
     ctx.restore();
-    drawChapterWeather(ambientTime, atmosphere);
-    drawMountainLayer(atmosphere.front, 0.72, 220, 0.08);
+    if (!settings.lowPerformance) {
+      const valleyMist = ctx.createLinearGradient(0, H * 0.40, 0, H * 0.84);
+      valleyMist.addColorStop(0, `${atmosphere.haze}00`);
+      valleyMist.addColorStop(0.70, `${atmosphere.haze}26`);
+      valleyMist.addColorStop(1, `${atmosphere.haze}00`);
+      ctx.fillStyle = valleyMist;
+      ctx.fillRect(0, H * 0.40, W, H * 0.44);
+    }
+    drawMountainLayer(2, atmosphere.front, atmosphere);
+  }
 
+  function drawMoon(ambientTime, atmosphere) {
     // Let the moon travel across the chapters instead of pinning every exit
     // against the same bright disc. It starts high on the right and drifts to
     // the left as the climb advances, leaving late-room goals a clear focal area.
@@ -9790,30 +10049,33 @@
     ctx.strokeStyle = `${atmosphere.rim}36`;
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    ctx.fillStyle = "rgba(23, 31, 47, 0.12)";
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = `${atmosphere.top}1c`;
     ctx.beginPath();
-    ctx.arc(moonX + 10, moonY - 7, 7, 0, Math.PI * 2);
-    ctx.arc(moonX - 11, moonY + 10, 5, 0, Math.PI * 2);
+    ctx.ellipse(moonX + 15, moonY + 11, 14, 8, -0.6, 0, Math.PI * 2);
     ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(moonX - 9, moonY + 5, 4, 3, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   function drawSkyRibbons(time, atmosphere) {
+    // Fade both ends into the sky. Bright solid strokes read as route markers.
+    const drift = Math.sin(time * 0.06 + roomIndex) * 32;
     ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    for (let i = 0; i < 2; i += 1) {
-      const y = 68 + i * 34 + Math.sin(time * 0.22 + roomIndex + i) * 8;
-      const drift = ((time * (8 + i * 3) + roomIndex * 43) % (W + 260)) - 130;
-      ctx.globalAlpha = settings.calmEffects ? 0.035 : 0.055 + i * 0.015;
-      ctx.strokeStyle = i === 1 ? atmosphere.rim : atmosphere.haze;
-      ctx.lineWidth = 7 - i * 2;
-      ctx.shadowColor = ctx.strokeStyle;
-      ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 2 : 9);
-      ctx.beginPath();
-      ctx.moveTo(drift - 260, y + 14);
-      ctx.bezierCurveTo(drift - 90, y - 28, drift + 160, y + 28, drift + 360, y - 4);
-      ctx.stroke();
-    }
+    ctx.translate(drift, 0);
+    const mist = ctx.createLinearGradient(70, 0, 710, 0);
+    mist.addColorStop(0, `${atmosphere.haze}00`);
+    mist.addColorStop(0.52, `${atmosphere.haze}${settings.calmEffects ? "0b" : "14"}`);
+    mist.addColorStop(1, `${atmosphere.haze}00`);
+    ctx.fillStyle = mist;
+    ctx.beginPath();
+    ctx.moveTo(40, 112);
+    ctx.bezierCurveTo(280, 67, 395, 126, 745, 63);
+    ctx.bezierCurveTo(430, 137, 263, 89, 40, 112);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -9942,7 +10204,6 @@
       ctx.lineTo(domeX - 16, domeY - 108);
       ctx.closePath();
       ctx.fill();
-      drawSummitConstellation(time, atmosphere);
     }
     ctx.restore();
   }
@@ -10000,20 +10261,27 @@
     ctx.restore();
   }
 
-  function drawRoomLandmark(time, atmosphere) {
+  function drawRoomLandmark(time, atmosphere, drawSilhouette) {
     const landmark = ROOM_LANDMARKS[roomIndex];
     if (!landmark) return;
-    const pulse = prefersReducedMotion ? 0 : Math.sin(time * 0.55 + roomIndex) * 0.035;
     const scale = Number(landmark.scale) || 1;
     ctx.save();
     ctx.translate(W * landmark.x, H * landmark.y);
     ctx.scale(scale, scale);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    if (drawSilhouette) drawLandmarkSilhouette(landmark, time, atmosphere);
+    drawGateLandmarkResponse(landmark.kind, gateLandmarkProgress(), time);
+    drawRelayLandmarkResponse(landmark.kind, relayLandmarkProgress(), time, atmosphere);
+    ctx.restore();
+  }
+
+  function drawLandmarkSilhouette(landmark, time, atmosphere) {
+    const pulse = prefersReducedMotion ? 0 : Math.sin(time * 0.55 + roomIndex) * 0.035;
     ctx.globalAlpha = (settings.lowPerformance ? 0.11 : settings.calmEffects ? 0.15 : 0.18) + pulse;
     ctx.strokeStyle = atmosphere.rim;
     ctx.fillStyle = atmosphere.haze;
     ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
     ctx.shadowColor = atmosphere.haze;
     ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 2 : 7);
 
@@ -10168,9 +10436,6 @@
         ctx.stroke();
       }
     }
-    drawGateLandmarkResponse(landmark.kind, gateLandmarkProgress(), time);
-    drawRelayLandmarkResponse(landmark.kind, relayLandmarkProgress(), time, atmosphere);
-    ctx.restore();
   }
 
   function gateLandmarkProgress() {
@@ -10317,7 +10582,7 @@
   }
 
   function drawHazardField(x, y, dir, time, phase) {
-    const pulse = 0.5 + Math.sin(time * 5.6 + phase) * 0.5;
+    const pulse = prefersReducedMotion || settings.calmEffects ? 0.5 : 0.5 + Math.sin(time * 5.6 + phase) * 0.5;
     ctx.save();
     ctx.translate(x + TILE / 2, y + TILE / 2);
     if (dir === "v") ctx.rotate(Math.PI);
@@ -10342,677 +10607,175 @@
   }
 
 
-  function drawMountainLayer(color, yBase, offset, sway) {
+  // Heights run from the foothills (0) to the crest (1). Each act has its own
+  // sequence of shoulders, saddles and peaks, shared by its three depth planes.
+  function buildMountainLayers() {
+    const chapter = chapterIndexForRoom(roomIndex);
+    const profiles = [
+      [0.38, 0.44, 0.60, 0.54, 0.64, 0.81, 0.76, 0.59, 0.49, 0.43, 0.48, 0.37, 0.30, 0.42, 0.56, 0.53, 0.69, 0.82, 0.95, 0.75, 0.72, 0.51],
+      [0.24, 0.30, 0.56, 0.58, 0.57, 0.78, 0.80, 0.68, 0.67, 0.40, 0.34, 0.34, 0.45, 0.49, 0.83, 0.86, 0.84, 0.72, 0.73, 0.42, 0.43, 0.30],
+      [0.88, 0.78, 0.75, 0.62, 0.57, 0.55, 0.42, 0.24, 0.22, 0.15, 0.21, 0.32, 0.48, 0.74, 0.91, 0.85, 0.80, 0.71, 0.65, 0.61, 0.52, 0.44],
+      [0.33, 0.54, 0.48, 0.65, 0.71, 0.63, 0.79, 0.96, 0.85, 0.90, 0.67, 0.74, 0.55, 0.57, 0.44, 0.67, 0.62, 0.81, 0.72, 0.56, 0.61, 0.45]
+    ];
+    const heights = profiles[chapter];
+    return [0, 1, 2].map(depth => {
+      const silhouette = new Path2D();
+      const faces = new Path2D();
+      const snow = new Path2D();
+      const trees = new Path2D();
+      const points = [];
+      const origin = -190;
+      const spacing = 45 + depth * 8;
+      const extent = W + roomWorldWidth() * 0.22 + spacing;
+      const valley = H * (0.60 + depth * 0.16);
+      const rise = H * (0.43 - depth * 0.016);
+      for (let i = 0, x = origin; x <= extent; i++, x += spacing) {
+        const index = (i + depth * 7 + roomIndex * 3) % heights.length;
+        points.push({ x: x + ((i * 19 + depth * 3) % 23), y: valley - rise * heights[index] });
+      }
+      silhouette.moveTo(points[0].x, H);
+      for (const point of points) silhouette.lineTo(point.x, point.y);
+      silhouette.lineTo(points[points.length - 1].x, H);
+      silhouette.closePath();
+
+      for (let i = 1; i < points.length - 1; i++) {
+        const a = points[i - 1], b = points[i], c = points[i + 1];
+        if (b.y < a.y && b.y < c.y) {
+          const drop = 23 + (i * 13) % 41;
+          faces.moveTo(b.x, b.y);
+          faces.lineTo(c.x, c.y);
+          faces.lineTo(c.x + 15, c.y + drop * 1.3);
+          faces.lineTo(b.x + 12, b.y + drop * 0.45);
+          faces.lineTo(b.x + 7, b.y + drop * 0.56);
+          faces.closePath();
+          if (chapter === 3 || (depth === 0 && b.y < valley - rise * 0.74)) {
+            snow.moveTo(a.x * 0.44 + b.x * 0.56, a.y * 0.44 + b.y * 0.56);
+            snow.lineTo(b.x, b.y);
+            snow.lineTo(b.x * 0.67 + c.x * 0.33, b.y * 0.67 + c.y * 0.33);
+            snow.lineTo(b.x + 4, b.y + 5);
+            snow.lineTo(b.x - 4, b.y + 13);
+            snow.lineTo(b.x - 5, b.y + 8);
+            snow.closePath();
+          }
+        }
+        if (chapter === 0 && depth > 0) {
+          const count = (i * 7 + depth) % 5;
+          for (let tree = 1; tree <= count; tree++) {
+            const t = tree / (count + 1);
+            const x = a.x + (b.x - a.x) * t;
+            const y = a.y + (b.y - a.y) * t;
+            const h = (4 + (i * 3 + tree * 7) % 8) * depth;
+            trees.moveTo(x, y - h);
+            trees.lineTo(x + h * 0.19, y - h * 0.50);
+            trees.lineTo(x + h * 0.10, y - h * 0.52);
+            trees.lineTo(x + h * 0.29, y - h * 0.16);
+            trees.lineTo(x + 1, y - h * 0.22);
+            trees.lineTo(x + 1, y + 2);
+            trees.lineTo(x - 1, y + 2);
+            trees.lineTo(x - 1, y - h * 0.22);
+            trees.lineTo(x - h * 0.27, y - h * 0.14);
+            trees.lineTo(x - h * 0.10, y - h * 0.51);
+            trees.lineTo(x - h * 0.19, y - h * 0.47);
+            trees.closePath();
+          }
+        }
+      }
+      return { silhouette, faces, snow, trees };
+    });
+  }
+
+  function drawMountainLayer(depth, color, atmosphere) {
+    if (mountainRoom !== roomIndex) {
+      mountainLayers = buildMountainLayers();
+      mountainRoom = roomIndex;
+    }
+    const layer = mountainLayers[depth];
     ctx.save();
+    ctx.translate(-cameraX * (0.06 + depth * 0.08), 0);
+    ctx.globalAlpha = 0.68 + depth * 0.14;
     ctx.fillStyle = color;
-    ctx.globalAlpha = yBase < 0.4 ? 0.62 : yBase < 0.6 ? 0.8 : 0.97;
-    ctx.beginPath();
-    const mountainPeaks = 8;
-    const step = (W + 180) / 6;
-    const parallaxRate = yBase < 0.4 ? 0.08 : yBase < 0.6 ? 0.14 : 0.22;
-    const parallax = (cameraX * parallaxRate) % step;
-    const baseY = H * yBase + 110;
-    const peaks = [];
-    ctx.moveTo(-90 - step - parallax, H);
-    ctx.lineTo(-90 - step - parallax, baseY);
-    for (let i = 0; i < mountainPeaks; i += 1) {
-      const startX = -90 - step - parallax + i * step;
-      const nextX = startX + step;
-      const peakX = startX + step * (0.38 + ((i * 17 + roomIndex * 7) % 18) / 100);
-      const peakY = H * yBase - 32 - ((i * 47 + Math.round(offset)) % 76) * (0.7 + sway);
-      const valleyY = baseY + (i % 2) * 18;
-      const nextValleyY = baseY + ((i + 1) % 2) * 18;
-      ctx.lineTo(startX, valleyY);
-      ctx.lineTo(peakX - step * 0.17, peakY + 38);
-      ctx.lineTo(peakX, peakY);
-      ctx.lineTo(peakX + step * 0.22, peakY + 48);
-      ctx.lineTo(nextX, nextValleyY);
-      peaks.push({ peakX, peakY, nextX, nextValleyY, step });
+    ctx.fill(layer.silhouette);
+    ctx.fill(layer.trees);
+    if (!settings.lowPerformance) {
+      ctx.globalAlpha = 0.13 + depth * 0.025;
+      ctx.fillStyle = atmosphere.top;
+      ctx.fill(layer.faces);
+      ctx.fillStyle = atmosphere.moon;
+      ctx.fill(layer.snow);
     }
-    ctx.lineTo(W + step, H);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.globalAlpha = yBase < 0.4 ? 0.055 : yBase < 0.6 ? 0.07 : 0.085;
-    ctx.fillStyle = "rgba(230, 240, 239, 0.9)";
-    for (const peak of peaks) {
-      ctx.beginPath();
-      ctx.moveTo(peak.peakX, peak.peakY);
-      ctx.lineTo(peak.peakX + peak.step * 0.22, peak.peakY + 48);
-      ctx.lineTo(peak.nextX, peak.nextValleyY);
-      ctx.lineTo(peak.peakX + peak.step * 0.08, peak.peakY + 30);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    ctx.globalAlpha = 0.08;
-    ctx.strokeStyle = "rgba(231, 241, 241, 0.76)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
     ctx.restore();
+  }
+
+  function requestTerrainMaterial(index) {
+    const kind = CHAPTER_SURFACE_KINDS[chapterIndexForRoom(index)];
+    if (materialImages.has(kind)) return;
+    const image = new Image();
+    materialImages.set(kind, null);
+    image.decoding = "async";
+    image.src = `assets/terrain/${rockMaterials[kind].file}.jpg`;
+    image.decode().then(() => materialImages.set(kind, image)).catch(() => materialImages.delete(kind));
+  }
+
+  function createSpriteSurface(width = TILE, height = TILE) {
+    const scale = canvas.width / W;
+    const sprite = document.createElement("canvas");
+    sprite.width = Math.round(width * scale);
+    sprite.height = Math.round(height * scale);
+    const surface = sprite.getContext("2d");
+    surface.setTransform(sprite.width / width, 0, 0, sprite.height / height, 0, 0);
+    return { sprite, surface };
   }
 
   function drawTiles(time) {
+    const chapter = chapterIndexForRoom(roomIndex);
+    const kind = CHAPTER_SURFACE_KINDS[chapter];
+    const image = materialImages.get(kind) || null;
+    for (const run of room.visualGroups.ledges) {
+      const left = run.x * TILE, width = run.length * TILE;
+      if (left + width < cameraX || left > cameraX + W) continue;
+      let cached = ledgeSprites.get(run);
+      if (!cached || cached.image !== image) {
+        const { sprite, surface } = createSpriteSurface(width, TILE + 18);
+        surface.translate(0, 6);
+        paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image);
+        cached = { image, sprite };
+        ledgeSprites.set(run, cached);
+      }
+      ctx.drawImage(cached.sprite, left, run.y * TILE - 6, width, TILE + 18);
+    }
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < room.cols; x++) {
         const tile = room.tiles[y][x];
-        const px = x * TILE;
-        const py = y * TILE;
-        if (tile === "#") drawRock(px, py, x, y);
-        if (tile === "C") drawCrumblePlatform(px, py, x, y, time);
-        if (tile === "^") drawSpike(px, py, "up", time);
-        if (tile === "v") drawSpike(px, py, "down", time);
-        if (tile === "<") drawSpike(px, py, "left", time);
-        if (tile === ">") drawSpike(px, py, "right", time);
+        if (tile === "C") drawCrumblePlatform(x * TILE, y * TILE, x, y, time);
+        if (HAZARDS.has(tile)) drawSpike(x, y, tile, chapter);
       }
     }
   }
 
-  function drawTerrainArchitecture(time) {
-    const atmosphere = roomAtmosphere();
-    const chapter = chapterIndexForRoom(roomIndex);
-    const architecture = ROOM_LANDMARKS[roomIndex]?.kind || "gate-steps";
-    const motion = prefersReducedMotion ? 0 : time;
-    let painted = 0;
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    for (let y = 2; y < ROWS - 1 && painted < 7; y += 1) {
-      let x = 0;
-      while (x < room.cols && painted < 7) {
-        const topSurface = SOLID.has(room.tiles[y]?.[x]) && !SOLID.has(room.tiles[y - 1]?.[x]);
-        if (!topSurface) {
-          x += 1;
-          continue;
-        }
-        const start = x;
-        while (x < room.cols && SOLID.has(room.tiles[y]?.[x]) && !SOLID.has(room.tiles[y - 1]?.[x])) x += 1;
-        const length = x - start;
-        if (length < 3 || (start + y + roomIndex) % 3 === 1) continue;
-        const left = start * TILE;
-        const width = length * TILE;
-        if (left + width < cameraX - TILE || left > cameraX + W + TILE) continue;
-
-        const middle = Math.min(room.cols - 1, start + Math.floor(length / 2));
-        let landingRow = ROWS - 1;
-        for (let below = y + 1; below < ROWS; below += 1) {
-          if (SOLID.has(room.tiles[below]?.[middle])) {
-            landingRow = below;
-            break;
-          }
-        }
-        const top = y * TILE;
-        const bottom = landingRow * TILE;
-        const gap = bottom - (top + TILE);
-        drawTerraceProfile(left, top, width, atmosphere, chapter, architecture, painted);
-        if (gap >= TILE * 1.5) {
-          drawTerraceSupport(left, top + TILE, width, gap, chapter, atmosphere, motion, painted, architecture);
-        }
-        painted += 1;
-      }
+  function drawSpike(x, y, tile, chapter) {
+    const variant = (x + y * 2) % 3;
+    const key = chapter * 3 + variant;
+    let sprite = spikeSprites.get(key);
+    if (!sprite) {
+      const buffer = createSpriteSurface();
+      paintSpikes(buffer.surface, chapter, variant);
+      sprite = buffer.sprite;
+      spikeSprites.set(key, sprite);
     }
+    ctx.save();
+    ctx.translate((x + 0.5) * TILE, (y + 0.5) * TILE);
+    if (tile === "v") ctx.rotate(Math.PI);
+    if (tile === "<") ctx.rotate(-Math.PI / 2);
+    if (tile === ">") ctx.rotate(Math.PI / 2);
+    ctx.drawImage(sprite, -TILE / 2, -TILE / 2, TILE, TILE);
     ctx.restore();
   }
 
-  function drawTerrainAccents(time) {
-    const atmosphere = roomAtmosphere();
-    const chapter = chapterIndexForRoom(roomIndex);
-    const architecture = ROOM_LANDMARKS[roomIndex]?.kind || "gate-steps";
-    const motion = prefersReducedMotion ? 0 : time;
-    let painted = 0;
-    ctx.save();
-    ctx.strokeStyle = chapter === 1 || chapter === 3 ? atmosphere.rim : atmosphere.haze;
-    ctx.fillStyle = ctx.strokeStyle;
-    ctx.globalAlpha = settings.lowPerformance ? 0.1 : settings.calmEffects ? 0.13 : 0.18;
-    ctx.lineWidth = 1;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    for (let y = 2; y < ROWS - 1 && painted < 12; y += 1) {
-      let x = 0;
-      while (x < room.cols && painted < 12) {
-        if (!SOLID.has(room.tiles[y]?.[x]) || SOLID.has(room.tiles[y - 1]?.[x])) {
-          x += 1;
-          continue;
-        }
-        const start = x;
-        while (x < room.cols && SOLID.has(room.tiles[y]?.[x]) && !SOLID.has(room.tiles[y - 1]?.[x])) x += 1;
-        const length = x - start;
-        if (length < 2) continue;
-        const left = start * TILE;
-        const width = length * TILE;
-        if (left + width < cameraX || left > cameraX + W) continue;
-        const faceY = y * TILE + 17;
-        const center = left + width / 2;
-
-        if (architecture === "relay-bridge") {
-          ctx.beginPath();
-          ctx.moveTo(left + 8, faceY - 4);
-          ctx.quadraticCurveTo(center, faceY + 8, left + width - 8, faceY - 4);
-          ctx.stroke();
-        } else if (architecture === "mist-springs") {
-          ctx.beginPath();
-          ctx.moveTo(left + 8, faceY + 3);
-          for (let step = 1; step < 6; step += 1) {
-            ctx.lineTo(left + 8 + (width - 16) * (step / 6), faceY + (step % 2 ? -4 : 3));
-          }
-          ctx.lineTo(left + width - 8, faceY + 3);
-          ctx.stroke();
-        } else if (architecture === "triple-link") {
-          [-11, 0, 11].forEach((offset, index) => {
-            ctx.save();
-            ctx.translate(center + offset * 1.35, faceY + (index === 1 ? -1 : 1));
-            ctx.rotate(Math.PI / 4);
-            ctx.strokeRect(-4, -4, 8, 8);
-            ctx.restore();
-          });
-        } else if (architecture === "switchback") {
-          ctx.beginPath();
-          ctx.moveTo(left + 8, faceY + 4);
-          ctx.lineTo(center - 8, faceY + 4);
-          ctx.lineTo(center - 8, faceY - 4);
-          ctx.lineTo(left + width - 8, faceY - 4);
-          ctx.stroke();
-        } else if (architecture === "broken-gate") {
-          const split = center + (((start + y) % 3) - 1) * 7;
-          ctx.beginPath();
-          ctx.moveTo(left + 8, faceY - 3);
-          ctx.lineTo(split - 8, faceY + 2);
-          ctx.lineTo(split, faceY - 6);
-          ctx.moveTo(split + 5, faceY + 5);
-          ctx.lineTo(left + width - 8, faceY - 2);
-          ctx.stroke();
-        } else if (architecture === "wind-notch") {
-          const sway = Math.sin(motion * 0.7 + start + y) * 1.5;
-          [-12, 10].forEach((offset) => {
-            ctx.beginPath();
-            ctx.moveTo(center + offset - 9, faceY + 5);
-            ctx.lineTo(center + offset + 9 + sway, faceY - 5);
-            ctx.stroke();
-          });
-        } else if (architecture === "prism-hall") {
-          ctx.beginPath();
-          ctx.moveTo(left + 8, faceY + 2);
-          ctx.lineTo(center - 8, faceY + 2);
-          ctx.lineTo(center, faceY - 6);
-          ctx.lineTo(center + 8, faceY + 2);
-          ctx.lineTo(left + width - 8, faceY + 2);
-          ctx.stroke();
-        } else if (architecture === "echo-rings") {
-          ctx.beginPath();
-          ctx.arc(center, faceY - 9, Math.min(18, width * 0.18), Math.PI * 0.16, Math.PI * 0.84);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(center, faceY - 12, Math.min(27, width * 0.27), Math.PI * 0.2, Math.PI * 0.8);
-          ctx.stroke();
-        } else if (architecture === "summit-mark") {
-          ctx.beginPath();
-          ctx.moveTo(left + 8, faceY + 3);
-          ctx.lineTo(center, faceY - 6);
-          ctx.lineTo(left + width - 8, faceY + 3);
-          ctx.stroke();
-          ctx.save();
-          ctx.translate(center, faceY - 1);
-          ctx.rotate(Math.PI / 4);
-          ctx.strokeRect(-4, -4, 8, 8);
-          ctx.restore();
-        } else if (chapter === 0) {
-          ctx.beginPath();
-          ctx.moveTo(left + 10, faceY);
-          ctx.lineTo(center - 8, faceY);
-          ctx.lineTo(center, faceY + 4);
-          ctx.lineTo(center + 9, faceY);
-          ctx.lineTo(left + width - 10, faceY);
-          ctx.stroke();
-        } else if (chapter === 1) {
-          const offset = ((start * 11 + y * 7) % Math.max(18, width - 28)) + 10;
-          ctx.beginPath();
-          ctx.moveTo(left + offset - 8, faceY - 5);
-          ctx.lineTo(left + offset, faceY + 2);
-          ctx.lineTo(left + offset + 9, faceY - 3);
-          ctx.lineTo(left + offset + 18, faceY + 4);
-          ctx.stroke();
-        } else {
-          ctx.beginPath();
-          ctx.moveTo(left + 10, faceY);
-          ctx.lineTo(center - 13, faceY);
-          ctx.moveTo(center + 13, faceY);
-          ctx.lineTo(left + width - 10, faceY);
-          ctx.stroke();
-          ctx.save();
-          ctx.translate(center, faceY);
-          ctx.rotate(Math.PI / 4);
-          ctx.strokeRect(-6, -6, 12, 12);
-          ctx.restore();
-        }
-        painted += 1;
-      }
-    }
-    ctx.restore();
-  }
-
-  function drawTerraceProfile(left, top, width, atmosphere, chapter, architecture, seed) {
-    const depths = {
-      "gate-steps": 10,
-      "relay-bridge": 8,
-      "mist-springs": 14,
-      "triple-link": 11,
-      "switchback": seed % 2 ? 16 : 9,
-      "broken-gate": 13,
-      "wind-notch": 7,
-      "prism-hall": 18,
-      "echo-rings": 12,
-      "summit-mark": 20
-    };
-    const depth = depths[architecture] || (chapter === 1 ? 12 : chapter === 2 ? 7 : 10);
-    const base = top + TILE - 4;
-    ctx.save();
-    ctx.globalAlpha = chapter === 2 ? 0.16 : 0.2;
-    ctx.fillStyle = atmosphere.front;
-    ctx.beginPath();
-    ctx.moveTo(left + 3, base);
-    ctx.lineTo(left + width - 3, base);
-    if (architecture === "relay-bridge") {
-      ctx.lineTo(left + width - 9, base + depth);
-      ctx.quadraticCurveTo(left + width / 2, base + depth + 9, left + 9, base + depth);
-    } else if (architecture === "mist-springs") {
-      ctx.lineTo(left + width - 10, base + depth - 5);
-      ctx.quadraticCurveTo(left + width * 0.75, base + depth + 5, left + width / 2, base + depth - 4);
-      ctx.quadraticCurveTo(left + width * 0.25, base + depth + 5, left + 10, base + depth - 5);
-    } else if (architecture === "triple-link") {
-      ctx.lineTo(left + width - 10, base + depth);
-      ctx.lineTo(left + width * 0.64, base + depth);
-      ctx.lineTo(left + width / 2, base + depth + 8);
-      ctx.lineTo(left + width * 0.36, base + depth);
-      ctx.lineTo(left + 10, base + depth);
-    } else if (architecture === "switchback") {
-      const inset = seed % 2 ? width * 0.28 : width * 0.58;
-      ctx.lineTo(left + width - 9, base + depth);
-      ctx.lineTo(left + inset, base + depth);
-      ctx.lineTo(left + inset, base + depth - 6);
-      ctx.lineTo(left + 10, base + depth - 6);
-    } else if (architecture === "broken-gate") {
-      ctx.lineTo(left + width - 9, base + depth - 5);
-      ctx.lineTo(left + width * 0.64, base + depth + 1);
-      ctx.lineTo(left + width * 0.54, base + depth - 7);
-      ctx.lineTo(left + width * 0.42, base + depth + 3);
-      ctx.lineTo(left + 10, base + depth - 2);
-    } else if (architecture === "wind-notch") {
-      ctx.lineTo(left + width * 0.72, base + depth);
-      ctx.lineTo(left + width * 0.54, base + depth + 7);
-      ctx.lineTo(left + width * 0.32, base + depth);
-      ctx.lineTo(left + 10, base + depth - 2);
-    } else if (architecture === "prism-hall") {
-      ctx.lineTo(left + width - 10, base + depth - 7);
-      ctx.lineTo(left + width * 0.68, base + depth - 2);
-      ctx.lineTo(left + width / 2, base + depth + 10);
-      ctx.lineTo(left + width * 0.32, base + depth - 2);
-      ctx.lineTo(left + 10, base + depth - 7);
-    } else if (architecture === "echo-rings") {
-      ctx.lineTo(left + width - 10, base + depth - 2);
-      ctx.quadraticCurveTo(left + width / 2, base + depth + 10, left + 10, base + depth - 2);
-    } else if (architecture === "summit-mark") {
-      ctx.lineTo(left + width - 10, base + depth - 8);
-      ctx.lineTo(left + width / 2, base + depth + 12);
-      ctx.lineTo(left + 10, base + depth - 8);
-    } else {
-      ctx.lineTo(left + width - 9, base + depth);
-      ctx.lineTo(left + 10, base + depth);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha *= 0.72;
-    ctx.strokeStyle = atmosphere.haze;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(left + 12, top + TILE + 2);
-    ctx.lineTo(left + width - 12, top + TILE + 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawTerraceSupport(left, top, width, gap, chapter, atmosphere, time, seed, architecture) {
-    const bottom = top + Math.min(gap, TILE * 5.2);
-    const center = left + width / 2;
-    ctx.save();
-    ctx.strokeStyle = atmosphere.haze;
-    ctx.fillStyle = atmosphere.front;
-    ctx.globalAlpha = settings.lowPerformance ? 0.12 : settings.calmEffects ? 0.16 : 0.22;
-    ctx.lineWidth = chapter === 0 ? 5 : 3;
-
-    if (architecture === "gate-steps") {
-      const inset = Math.min(20, width * 0.22);
-      const leftPier = left + inset;
-      const rightPier = left + width - inset;
-      ctx.fillRect(leftPier - 3, top, 7, bottom - top);
-      ctx.fillRect(rightPier - 3, top, 7, bottom - top);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(leftPier, top + 10);
-      ctx.lineTo(rightPier, Math.min(bottom, top + 58));
-      ctx.moveTo(rightPier, top + 10);
-      ctx.lineTo(leftPier, Math.min(bottom, top + 58));
-      ctx.stroke();
-    } else if (architecture === "relay-bridge") {
-      const cableBottom = Math.min(bottom, top + 66);
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(left + 6, top + 4);
-      ctx.quadraticCurveTo(center, cableBottom, left + width - 6, top + 4);
-      ctx.stroke();
-      [0.24, 0.5, 0.76].forEach((ratio) => {
-        const x = left + width * ratio;
-        const sag = 4 + Math.sin(Math.PI * ratio) * Math.min(48, gap * 0.55);
-        ctx.beginPath();
-        ctx.moveTo(x, top);
-        ctx.lineTo(x, top + sag);
-        ctx.stroke();
-      });
-    } else if (architecture === "mist-springs") {
-      const coilBottom = Math.min(bottom, top + 92);
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(center - Math.min(24, width * 0.22), top + 2);
-      for (let step = 1; step <= 7; step += 1) {
-        const ratio = step / 7;
-        const x = center + (step % 2 ? 1 : -1) * Math.min(24, width * 0.22);
-        ctx.lineTo(x, top + (coilBottom - top) * ratio);
-      }
-      ctx.stroke();
-      ctx.globalAlpha *= 0.68;
-      [0.38, 0.68].forEach((ratio) => {
-        ctx.beginPath();
-        ctx.ellipse(center, top + (coilBottom - top) * ratio, Math.min(32, width * 0.3), 8, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      });
-    } else if (architecture === "triple-link") {
-      const linkSize = Math.min(18, width * 0.16);
-      [-1, 0, 1].forEach((offset, index) => {
-        const y = top + 16 + index * Math.min(24, gap * 0.22);
-        ctx.save();
-        ctx.translate(center + offset * linkSize * 1.65, y);
-        ctx.rotate(Math.PI / 4);
-        ctx.strokeRect(-linkSize / 2, -linkSize / 2, linkSize, linkSize);
-        ctx.restore();
-      });
-      ctx.beginPath();
-      ctx.moveTo(left + 10, top);
-      ctx.lineTo(center - linkSize * 1.1, top + 16);
-      ctx.moveTo(left + width - 10, top);
-      ctx.lineTo(center + linkSize * 1.1, top + 16);
-      ctx.stroke();
-    } else if (architecture === "switchback") {
-      const spineX = left + width * (seed % 2 ? 0.3 : 0.7);
-      const braceBottom = Math.min(bottom, top + 92);
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(spineX, top);
-      ctx.lineTo(spineX, braceBottom);
-      ctx.stroke();
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(left + 9, top + 4);
-      ctx.lineTo(spineX, top + 34);
-      ctx.lineTo(left + width - 9, top + 56);
-      ctx.lineTo(spineX, braceBottom);
-      ctx.stroke();
-    } else if (architecture === "broken-gate") {
-      const inset = Math.min(18, width * 0.2);
-      const archBottom = Math.min(bottom, top + 82);
-      ctx.fillRect(left + inset - 3, top, 7, archBottom - top);
-      ctx.fillRect(left + width - inset - 4, top, 7, archBottom - top);
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(left + inset, top + 28);
-      ctx.quadraticCurveTo(center, top + 66, left + width - inset, top + 28);
-      ctx.stroke();
-      ctx.globalAlpha *= 0.58;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(center - 6, top + 50);
-      ctx.lineTo(center + 9, top + 66);
-      ctx.stroke();
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(left + inset, top + 28);
-      ctx.lineTo(left + inset + 9, top + 39);
-      ctx.lineTo(left + inset + 3, top + 52);
-      ctx.moveTo(left + width - inset, top + 25);
-      ctx.lineTo(left + width - inset - 10, top + 36);
-      ctx.stroke();
-    } else if (architecture === "wind-notch") {
-      const sway = Math.sin(time * 1.4 + seed) * 4;
-      const cordLength = Math.min(gap * 0.72, 78);
-      [left + 14, left + width - 14].forEach((anchor, index) => {
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(anchor, top);
-        ctx.quadraticCurveTo(anchor + sway * (index ? -1 : 1), top + cordLength * 0.5, anchor + sway, top + cordLength);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(anchor + sway, top + cordLength * 0.34);
-        ctx.lineTo(anchor + sway + (index ? -16 : 16), top + cordLength * 0.47);
-        ctx.lineTo(anchor + sway, top + cordLength * 0.62);
-        ctx.closePath();
-        ctx.fill();
-      });
-    } else if (architecture === "prism-hall") {
-      const latticeBottom = Math.min(bottom, top + 96);
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(left + 10, top);
-      ctx.lineTo(center, latticeBottom);
-      ctx.lineTo(left + width - 10, top);
-      ctx.moveTo(left + width * 0.28, top);
-      ctx.lineTo(left + width * 0.72, latticeBottom * 0.52 + top * 0.48);
-      ctx.moveTo(left + width * 0.72, top);
-      ctx.lineTo(left + width * 0.28, latticeBottom * 0.52 + top * 0.48);
-      ctx.stroke();
-      ctx.save();
-      ctx.translate(center, Math.min(latticeBottom - 14, top + 54));
-      ctx.rotate(Math.PI / 4);
-      ctx.strokeRect(-7, -7, 14, 14);
-      ctx.restore();
-    } else if (architecture === "echo-rings") {
-      const radius = Math.min(width * 0.42, gap * 0.55, 52);
-      ctx.lineWidth = 2.5;
-      [1, 0.68, 0.38].forEach((ratio) => {
-        ctx.beginPath();
-        ctx.arc(center, top + 2, radius * ratio, 0.12 * Math.PI, 0.88 * Math.PI);
-        ctx.stroke();
-      });
-      ctx.save();
-      ctx.translate(center, top + Math.min(radius * 0.72, 42));
-      ctx.rotate(Math.PI / 4);
-      ctx.strokeRect(-6, -6, 12, 12);
-      ctx.restore();
-    } else if (architecture === "summit-mark") {
-      const peakBottom = Math.min(bottom, top + 104);
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(left + 8, top);
-      ctx.lineTo(center, peakBottom);
-      ctx.lineTo(left + width - 8, top);
-      ctx.moveTo(left + width * 0.28, top);
-      ctx.lineTo(center, top + (peakBottom - top) * 0.58);
-      ctx.lineTo(left + width * 0.72, top);
-      ctx.stroke();
-      ctx.save();
-      ctx.translate(center, Math.min(peakBottom - 12, top + 58));
-      ctx.rotate(Math.PI / 4);
-      ctx.strokeRect(-8, -8, 16, 16);
-      ctx.restore();
-    } else if (chapter === 1) {
-      ctx.beginPath();
-      ctx.moveTo(left + 10, top);
-      ctx.quadraticCurveTo(center, Math.min(bottom, top + 60), left + width - 10, top);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  function createTileSpriteSurface() {
-    const scale = canvasBufferScale();
-    const sprite = document.createElement("canvas");
-    sprite.width = Math.round(TILE * scale);
-    sprite.height = Math.round(TILE * scale);
-    const spriteCtx = sprite.getContext("2d");
-    spriteCtx.setTransform(scale, 0, 0, scale, 0, 0);
-    return { sprite, spriteCtx, scale };
-  }
-
-  function rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, alternateCrack, surfaceKind, detailLevel = 1) {
-    const scale = canvasBufferScale();
-    const material = CHAPTER_SURFACE_KINDS.includes(surfaceKind) ? surfaceKind : CHAPTER_SURFACE_KINDS[0];
-    const resolvedDetail = detailLevel > 0.5 ? 1 : 0.16;
-    const key = `${scale}:${material}:${Number(leftSolid)}${Number(rightSolid)}${Number(belowSolid)}${Number(topOpen)}${Number(alternateCrack)}:${resolvedDetail}`;
-    if (cachedRockTiles.has(key)) return cachedRockTiles.get(key);
-    const { sprite, spriteCtx } = createTileSpriteSurface();
-    spriteCtx.fillStyle = "#2b4054";
-    spriteCtx.fillRect(0, 0, TILE, TILE);
-    const grad = spriteCtx.createLinearGradient(0, 0, 0, TILE);
-    grad.addColorStop(0, palette.rockLight);
-    grad.addColorStop(0.13, palette.rock);
-    grad.addColorStop(1, palette.rockDark);
-    spriteCtx.fillStyle = grad;
-    spriteCtx.fillRect(0, 0, TILE, TILE);
-    if (!rightSolid) {
-      spriteCtx.fillStyle = "rgba(10, 18, 29, 0.18)";
-      spriteCtx.fillRect(TILE - 3, 3, 3, TILE - 3);
-    }
-    if (!leftSolid) {
-      spriteCtx.fillStyle = "rgba(220,235,239,0.08)";
-      spriteCtx.fillRect(0, 3, 1, TILE - 3);
-    }
-    if (!belowSolid) {
-      spriteCtx.fillStyle = "rgba(10, 18, 29, 0.16)";
-      spriteCtx.fillRect(0, TILE - 3, TILE, 3);
-    }
-    spriteCtx.strokeStyle = material === "old-peak"
-      ? "rgba(238,207,157,0.12)"
-      : material === "wind-cut"
-        ? "rgba(196,232,225,0.13)"
-        : material === "star-etched"
-          ? "rgba(237,202,218,0.14)"
-          : "rgba(220,235,239,0.12)";
-    spriteCtx.lineWidth = 1;
-    spriteCtx.globalAlpha = resolvedDetail;
-    spriteCtx.beginPath();
-    if (material === "old-peak") {
-      if (!alternateCrack) {
-        spriteCtx.moveTo(5, 10);
-        spriteCtx.lineTo(18, 10);
-        spriteCtx.lineTo(23, 15);
-        spriteCtx.lineTo(28, 15);
-      } else {
-        spriteCtx.moveTo(4, 21);
-        spriteCtx.lineTo(11, 15);
-        spriteCtx.lineTo(25, 15);
-      }
-    } else if (material === "wind-cut") {
-      const drift = alternateCrack ? 4 : 0;
-      spriteCtx.moveTo(3 + drift, 19);
-      spriteCtx.lineTo(15 + drift, 12);
-      spriteCtx.moveTo(10 - drift, 26);
-      spriteCtx.lineTo(25 - drift, 17);
-      spriteCtx.moveTo(18, 9);
-      spriteCtx.lineTo(29, 4);
-    } else if (material === "star-etched") {
-      spriteCtx.moveTo(16, 7);
-      spriteCtx.lineTo(24, 15);
-      spriteCtx.lineTo(16, 23);
-      spriteCtx.lineTo(8, 15);
-      spriteCtx.closePath();
-      if (alternateCrack) {
-        spriteCtx.moveTo(3, 25);
-        spriteCtx.lineTo(9, 20);
-        spriteCtx.moveTo(23, 9);
-        spriteCtx.lineTo(29, 4);
-      }
-    } else if (!alternateCrack) {
-      spriteCtx.moveTo(5, 8);
-      spriteCtx.lineTo(22, 4);
-      spriteCtx.lineTo(28, 21);
-    } else {
-      spriteCtx.moveTo(3, 20);
-      spriteCtx.lineTo(17, 9);
-      spriteCtx.lineTo(29, 14);
-    }
-    spriteCtx.stroke();
-    spriteCtx.globalAlpha = 1;
-    if (resolvedDetail > 0.5 && material === "old-peak") {
-      spriteCtx.fillStyle = "rgba(238,207,157,0.12)";
-      spriteCtx.fillRect(alternateCrack ? 25 : 6, alternateCrack ? 7 : 22, 2, 2);
-    } else if (resolvedDetail > 0.5 && material === "star-etched") {
-      spriteCtx.fillStyle = "rgba(247,198,93,0.16)";
-      spriteCtx.fillRect(alternateCrack ? 5 : 26, alternateCrack ? 6 : 24, 2, 2);
-    }
-    if (topOpen) {
-      const snowInsetLeft = leftSolid ? 0 : 1;
-      const snowInsetRight = rightSolid ? 0 : 1;
-      spriteCtx.fillStyle = material === "old-peak"
-        ? "#edf0e7"
-        : material === "wind-cut"
-          ? "#e8f4f2"
-          : material === "star-etched"
-            ? "#f1e8ef"
-            : palette.snow;
-      spriteCtx.fillRect(snowInsetLeft, 0, TILE - snowInsetLeft - snowInsetRight, 5);
-      spriteCtx.fillStyle = material === "old-peak"
-        ? "rgba(225,172,110,0.32)"
-        : material === "wind-cut"
-          ? "rgba(133,211,197,0.34)"
-          : material === "star-etched"
-            ? "rgba(230,174,203,0.34)"
-            : "rgba(119,196,215,0.36)";
-      spriteCtx.fillRect(snowInsetLeft, 5, TILE - snowInsetLeft - snowInsetRight, 2);
-    }
-    cachedRockTiles.set(key, sprite);
-    return sprite;
-  }
-
-  function drawRock(x, y, gx, gy) {
-    const leftSolid = SOLID.has(room.tiles[gy]?.[gx - 1]);
-    const rightSolid = SOLID.has(room.tiles[gy]?.[gx + 1]);
-    const belowSolid = SOLID.has(room.tiles[gy + 1]?.[gx]);
-    const topOpen = gy > 0 && !SOLID.has(room.tiles[gy - 1]?.[gx]);
-    const surfaceKind = CHAPTER_SURFACE_KINDS[chapterIndexForRoom(roomIndex)] || CHAPTER_SURFACE_KINDS[0];
-    const detailLevel = (gx * 7 + gy * 5 + roomIndex * 3) % 5 === 0 ? 1 : 0.16;
-    const sprite = rockTileSprite(leftSolid, rightSolid, belowSolid, topOpen, (gx + gy) % 2 !== 0, surfaceKind, detailLevel);
-    ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE);
-  }
-
-  function crumbleTileSprite(detailed = true) {
-    const scale = canvasBufferScale();
-    const key = `${scale}:${Number(detailed)}`;
-    if (cachedCrumbleTiles.has(key)) return cachedCrumbleTiles.get(key);
-    const { sprite, spriteCtx } = createTileSpriteSurface();
-    const grad = spriteCtx.createLinearGradient(0, 0, TILE, TILE);
-    grad.addColorStop(0, "#c8d7d6");
-    grad.addColorStop(0.42, "#7f9293");
-    grad.addColorStop(1, "#354a52");
-    spriteCtx.fillStyle = grad;
-    spriteCtx.fillRect(1, 1, TILE - 2, TILE - 2);
-    spriteCtx.fillStyle = "rgba(239,248,246,0.2)";
-    spriteCtx.fillRect(3, 3, TILE - 6, 4);
-    spriteCtx.strokeStyle = detailed ? "rgba(247,245,240,0.3)" : "rgba(247,245,240,0.09)";
-    spriteCtx.lineWidth = detailed ? 2 : 1;
-    spriteCtx.beginPath();
-    if (detailed) {
-      spriteCtx.moveTo(7, 7);
-      spriteCtx.lineTo(14, 17);
-      spriteCtx.lineTo(10, 28);
-      spriteCtx.moveTo(22, 6);
-      spriteCtx.lineTo(16, 18);
-      spriteCtx.lineTo(25, 28);
-    } else {
-      spriteCtx.moveTo(5, 19);
-      spriteCtx.lineTo(14, 13);
-      spriteCtx.lineTo(26, 16);
-    }
-    spriteCtx.stroke();
-    cachedCrumbleTiles.set(key, sprite);
+  function crumbleTileSprite(variant) {
+    if (cachedCrumbleTiles.has(variant)) return cachedCrumbleTiles.get(variant);
+    const { sprite, surface } = createSpriteSurface();
+    paintFracturedIce(surface, variant);
+    cachedCrumbleTiles.set(variant, sprite);
     return sprite;
   }
 
@@ -11023,11 +10786,10 @@
       : 0;
     const armed = block && block.rippleDelay <= 0 ? block.timer / CRUMBLE_BREAK_TIME : 0;
     const danger = armed > 0 ? 1 - armed : 0;
-    const jitter = armed > 0 ? Math.sin(time * 50 + gx) * (1 - armed) * 1.3 : 0;
+    const jitter = armed > 0 && !prefersReducedMotion ? Math.sin(time * 50 + gx) * (1 - armed) * 1.3 : 0;
     ctx.save();
     ctx.translate(jitter, 0);
-    const detailed = (gx * 5 + gy * 3 + roomIndex) % 4 === 0;
-    const sprite = crumbleTileSprite(detailed);
+    const sprite = crumbleTileSprite((gx + gy * 2 + roomIndex) % 3);
     ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE);
     if (queued > 0) {
       ctx.fillStyle = `rgba(118, 215, 255, ${settings.calmEffects ? 0.08 : 0.13})`;
@@ -11067,36 +10829,6 @@
       ctx.strokeStyle = `rgba(255,240,160,${0.2 + danger * 0.4})`;
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 2.5, y + 2.5, TILE - 5, TILE - 5);
-    }
-    ctx.restore();
-  }
-
-  function drawSpike(x, y, dir, time) {
-    ctx.save();
-    ctx.translate(x + TILE / 2, y + TILE / 2);
-    if (dir === "down") ctx.rotate(Math.PI);
-    if (dir === "left") ctx.rotate(-Math.PI / 2);
-    if (dir === "right") ctx.rotate(Math.PI / 2);
-    ctx.translate(-TILE / 2, -TILE / 2);
-    ctx.fillStyle = "rgba(71, 24, 39, 0.75)";
-    ctx.fillRect(0, TILE - 8, TILE, 8);
-    for (let i = 0; i < 3; i++) {
-      const sx = i * 11 + 1;
-      const flicker = Math.sin(time * 3 + i) * 0.35;
-      ctx.fillStyle = palette.hot;
-      ctx.beginPath();
-      ctx.moveTo(sx, TILE - 6);
-      ctx.lineTo(sx + 5.5, 5 + flicker);
-      ctx.lineTo(sx + 11, TILE - 6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "rgba(255,235,220,0.32)";
-      ctx.beginPath();
-      ctx.moveTo(sx + 5.5, 8 + flicker);
-      ctx.lineTo(sx + 7, TILE - 9);
-      ctx.lineTo(sx + 4, TILE - 9);
-      ctx.closePath();
-      ctx.fill();
     }
     ctx.restore();
   }
@@ -11328,38 +11060,61 @@
 
   function drawDynamicObstacles(time) {
     for (const block of room.entities.phaseBlocks) {
-      const warningPulse = block.warning ? Math.sin(time * 26) * 0.16 : 0;
-      const alpha = block.active ? 0.76 + warningPulse : 0.16 + Math.max(0, warningPulse);
+      const x = block.x, y = block.y;
+      const warningPulse = block.warning && !prefersReducedMotion ? (1 + Math.sin(time * 22)) / 2 : 0;
       ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = block.active ? "#547789" : "rgba(99,139,153,0.28)";
-      ctx.strokeStyle = block.active ? palette.cyan : "rgba(159,205,215,0.54)";
-      ctx.lineWidth = block.pulse > 0 ? 2.2 : 1.2;
-      roundRect(ctx, block.x + 2, block.y + 4, block.w - 4, block.h - 8, 5);
-      ctx.fill();
-      ctx.stroke();
-      ctx.setLineDash([4, 5]);
+      ctx.translate(x, y);
+      ctx.lineJoin = "round";
+      ctx.lineWidth = block.active ? 1.8 : 1.3;
       ctx.beginPath();
-      ctx.moveTo(block.x + 7, block.y + TILE / 2);
-      ctx.lineTo(block.x + TILE - 7, block.y + TILE / 2);
+      ctx.moveTo(1, 3);
+      ctx.lineTo(5, 1);
+      ctx.lineTo(28, 1);
+      ctx.lineTo(31, 4);
+      ctx.lineTo(27, 23);
+      ctx.lineTo(16, 30);
+      ctx.lineTo(5, 24);
+      ctx.closePath();
+      if (block.active) {
+        ctx.fillStyle = "#487e85";
+        ctx.fill();
+      } else {
+        ctx.setLineDash([3, 4]);
+      }
+      ctx.strokeStyle = block.warning ? "#edcc91" : block.active ? "#bae5df" : "rgba(195,224,224,0.68)";
       ctx.stroke();
+      if (block.active) {
+        ctx.fillStyle = "#7bafb0";
+        ctx.beginPath();
+        ctx.moveTo(2, 5); ctx.lineTo(29, 4); ctx.lineTo(15, 13); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = block.warning ? "#efc578" : "#d0f4e6";
+        ctx.fillRect(5, 0, 22, 2 + warningPulse);
+        ctx.beginPath();
+        ctx.moveTo(16, 12); ctx.lineTo(19, 17); ctx.lineTo(16, 23); ctx.lineTo(13, 17); ctx.closePath(); ctx.fill();
+      }
       ctx.restore();
     }
 
     for (const gate of room.entities.dashGates) {
       if (gate.broken) continue;
       ctx.save();
-      ctx.globalAlpha = 0.86;
-      ctx.fillStyle = "rgba(65,84,96,0.9)";
-      ctx.strokeStyle = palette.gold;
-      ctx.lineWidth = 1.2;
-      roundRect(ctx, gate.x + 3, gate.y + 2, TILE - 6, TILE - 4, 4);
-      ctx.fill();
-      ctx.stroke();
-      ctx.globalAlpha = 0.5;
+      ctx.translate(gate.x, gate.y);
+      // A split bronze seal carries the fracture through the full height of the door.
+      ctx.fillStyle = "#5b493c";
+      ctx.fillRect(2, 0, 28, TILE);
+      ctx.fillStyle = "#a67d50";
       ctx.beginPath();
-      ctx.moveTo(gate.x + 8, gate.y + TILE / 2);
-      ctx.lineTo(gate.x + TILE - 8, gate.y + TILE / 2);
+      ctx.moveTo(3, 1); ctx.lineTo(17, 1); ctx.lineTo(12, 12); ctx.lineTo(18, 17); ctx.lineTo(12, 31); ctx.lineTo(3, 29);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#826141";
+      ctx.beginPath();
+      ctx.moveTo(20, 1); ctx.lineTo(29, 2); ctx.lineTo(29, 30); ctx.lineTo(15, 31); ctx.lineTo(21, 16); ctx.lineTo(15, 11);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#f1c77c";
+      ctx.lineWidth = 1.7;
+      ctx.beginPath();
+      ctx.moveTo(6, 10); ctx.lineTo(11, 16); ctx.lineTo(6, 22);
+      ctx.moveTo(21, 11); ctx.lineTo(26, 16); ctx.lineTo(21, 21);
       ctx.stroke();
       ctx.restore();
     }
@@ -11532,34 +11287,22 @@
   }
 
   function drawCrumbleBridgeProfiles() {
-    const atmosphere = roomAtmosphere();
-    for (const run of room.visualGroups?.crumbleRuns || crumbleBridgeRuns()) {
-      const left = run[0].x * TILE;
-      const top = run[0].y * TILE;
-      const width = (run[run.length - 1].x - run[0].x + 1) * TILE;
-      ctx.save();
-      ctx.globalAlpha = settings.lowPerformance ? 0.12 : settings.calmEffects ? 0.17 : 0.22;
-      ctx.strokeStyle = atmosphere.haze;
-      ctx.fillStyle = "rgba(78,111,118,0.42)";
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(left + 4, top + TILE - 2);
-      ctx.lineTo(left + width - 4, top + TILE - 2);
-      ctx.lineTo(left + width - 12, top + TILE + 8);
-      ctx.lineTo(left + 12, top + TILE + 8);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      [left + 12, left + width / 2, left + width - 12].forEach((x, index) => {
-        const depth = index === 1 ? 12 : 8;
+    ctx.save();
+    ctx.strokeStyle = "rgba(172,214,218,0.48)";
+    ctx.lineWidth = 1.4;
+    for (const run of room.visualGroups.crumbleRuns) {
+      for (let i = 1; i < run.length; i++) {
+        const { x, y } = run[i];
+        if (room.tiles[y][x - 1] !== "C" || room.tiles[y][x] !== "C") continue;
+        const seam = x * TILE, base = (y + 1) * TILE;
         ctx.beginPath();
-        ctx.moveTo(x - 4, top + TILE + 3);
-        ctx.lineTo(x, top + TILE + depth);
-        ctx.lineTo(x + 4, top + TILE + 3);
+        ctx.moveTo(seam - 8, base - 6);
+        ctx.lineTo(seam - 2, base + 1);
+        ctx.lineTo(seam + 7, base - 5);
         ctx.stroke();
-      });
-      ctx.restore();
+      }
     }
+    ctx.restore();
   }
 
   function drawEntities(time) {
@@ -11638,14 +11381,7 @@
     }
 
     for (const refill of room.entities.refills) {
-      if (!refill.ready) {
-        ctx.save();
-        ctx.globalAlpha = 0.18;
-        drawDiamond(refill.x, refill.y, 13, palette.cyan, time);
-        ctx.restore();
-        continue;
-      }
-      drawDiamond(refill.x, refill.y + Math.sin(refill.bob) * (prefersReducedMotion ? 0 : 4), 14, palette.cyan, time);
+      drawRefill(refill);
     }
 
     for (const relay of room.entities.relays) {
@@ -11851,19 +11587,102 @@
     ctx.restore();
   }
 
+  function requestLumenSheet() {
+    if (lumenSheet) return;
+    const image = new Image();
+    lumenSheet = image;
+    image.decoding = "async";
+    image.src = "assets/lumens.png";
+    image.decode().then(() => {
+      document.documentElement.classList.add("lumen-art-ready");
+      delete terrainMap.dataset.room;
+      drawRoomTerrainPreview();
+    }).catch(() => { lumenSheet = null; });
+  }
+
+  function paintLumenToken(pen, chapter, x, y, size) {
+    if (lumenSheet?.complete && lumenSheet.naturalWidth) {
+      const cell = lumenSheet.naturalWidth / 2;
+      pen.drawImage(lumenSheet, (chapter % 2) * cell, Math.floor(chapter / 2) * cell, cell, cell,
+        x - size / 2, y - size / 2, size, size);
+      return;
+    }
+    // The amber flame is shared by all four objects and remains visible while the sheet loads.
+    pen.save();
+    pen.translate(x, y);
+    pen.scale(size / 32, size / 32);
+    pen.fillStyle = "#f1b449";
+    pen.strokeStyle = "#69492f";
+    pen.lineWidth = 2.2;
+    pen.beginPath();
+    pen.moveTo(1, -13);
+    pen.bezierCurveTo(2, -5, 12, -2, 8, 6);
+    pen.bezierCurveTo(4, 14, -9, 12, -9, 3);
+    pen.bezierCurveTo(-9, -2, -2, -6, 1, -13);
+    pen.fill();
+    pen.stroke();
+    pen.restore();
+  }
+
   function drawLumen(lumen, time) {
-    const y = lumen.y + Math.sin(lumen.bob) * (prefersReducedMotion ? 0 : 4);
+    const quiet = prefersReducedMotion || settings.lowPerformance;
+    const y = lumen.y + (quiet ? 0 : Math.sin(lumen.bob) * 2);
+    const chapter = chapterIndexForRoom(roomIndex);
     ctx.save();
-    ctx.globalAlpha = 0.28;
-    ctx.strokeStyle = palette.gold;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(lumen.x, y, 17, -Math.PI * 0.82, Math.PI * 0.82);
-    ctx.stroke();
-    ctx.fillStyle = "rgba(255,240,160,0.7)";
-    ctx.fillRect(lumen.x - 4, y + 19, 8, 2);
+    ctx.shadowColor = "rgba(255,204,106,0.7)";
+    ctx.shadowBlur = performanceShadowBlur(settings.calmEffects ? 3 : 6);
+    paintLumenToken(ctx, chapter, lumen.x, y, 36);
+    ctx.shadowBlur = 0;
+    if (!quiet && !settings.calmEffects) {
+      const phase = (time * 0.55 + lumen.x / 73) % 1;
+      ctx.globalAlpha = Math.sin(phase * Math.PI) * 0.7;
+      ctx.fillStyle = "#ffe7a0";
+      ctx.beginPath();
+      ctx.arc(lumen.x + Math.sin(phase * 4) * 5, y - 14 - phase * 7, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
-    drawDiamond(lumen.x, y, 11, palette.gold, time);
+  }
+
+  function drawRefill(refill) {
+    const y = refill.y + (refill.ready && !prefersReducedMotion ? Math.sin(refill.bob) * 2 : 0);
+    ctx.save();
+    ctx.translate(refill.x, y);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-10, 12);
+    ctx.bezierCurveTo(-15, 1, -4, -9, 13, -15);
+    ctx.quadraticCurveTo(12, -7, 8, -3);
+    ctx.lineTo(4, -2);
+    ctx.lineTo(8, -2);
+    ctx.quadraticCurveTo(7, 2, 3, 4);
+    ctx.lineTo(-1, 4);
+    ctx.lineTo(2, 6);
+    ctx.quadraticCurveTo(-3, 12, -10, 12);
+    ctx.closePath();
+    ctx.fillStyle = refill.ready ? "#7ed4d7" : "rgba(36,69,75,0.45)";
+    ctx.fill();
+    ctx.strokeStyle = refill.ready ? "#254c58" : "#759da0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    if (refill.ready) {
+      ctx.fillStyle = "#c5f1e9";
+      ctx.beginPath();
+      ctx.moveTo(-10, 10);
+      ctx.quadraticCurveTo(-8, -2, 12, -14);
+      ctx.quadraticCurveTo(-1, -1, -10, 10);
+      ctx.fill();
+      ctx.strokeStyle = "#337785";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-13, 15);
+      ctx.quadraticCurveTo(-6, 5, 6, -7);
+      ctx.stroke();
+    } else {
+      drawCooldownRing(0, 0, 17, 1 - refill.timer / REFILL_RESET_TIME, palette.cyan);
+    }
+    ctx.restore();
   }
 
   function drawUpdraft(updraft, time) {
@@ -11875,12 +11694,12 @@
     const bottom = fieldBounds.y + fieldBounds.h;
     ctx.save();
     const field = ctx.createLinearGradient(0, top, 0, bottom);
-    field.addColorStop(0, `rgba(247,245,240,${0.05 + pulse * 0.035})`);
-    field.addColorStop(0.5, `rgba(143,227,155,${0.145 + pulse * 0.075})`);
+    field.addColorStop(0, `rgba(32,88,96,${0.16 + pulse * 0.05})`);
+    field.addColorStop(0.5, `rgba(44,134,126,${0.19 + pulse * 0.075})`);
     field.addColorStop(1, "rgba(247,245,240,0)");
     ctx.fillStyle = field;
     ctx.fillRect(fieldBounds.x, top, fieldBounds.w, bottom - top);
-    ctx.globalAlpha = 0.26 + pulse * 0.08;
+    ctx.globalAlpha = 0.48 + pulse * 0.08;
     ctx.strokeStyle = "rgba(248,251,255,0.72)";
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 7]);
@@ -11891,7 +11710,7 @@
     ctx.lineTo(fieldBounds.x + fieldBounds.w - 3, top + 12);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.globalAlpha = 0.24 + pulse * 0.1;
+    ctx.globalAlpha = 0.40 + pulse * 0.1;
     ctx.strokeStyle = "rgba(226, 236, 224, 0.82)";
     ctx.lineWidth = 1.5;
     ctx.lineCap = "round";
@@ -11913,9 +11732,7 @@
     ctx.lineTo(x, arrowY - 3);
     ctx.lineTo(x + 6, arrowY + 4);
     ctx.stroke();
-    ctx.globalAlpha = 0.4 + pulse * 0.1;
-    ctx.strokeStyle = "rgba(247,245,240,0.78)";
-    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.84 + pulse * 0.1;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();
@@ -11924,6 +11741,11 @@
     ctx.lineTo(x + 5, top + 7);
     ctx.moveTo(x, top + 2);
     ctx.lineTo(x, top + 13);
+    ctx.strokeStyle = "rgba(26,57,64,0.86)";
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+    ctx.strokeStyle = "#e5f2e6";
+    ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.restore();
   }
@@ -11977,91 +11799,85 @@
   }
 
   function drawRelay(relay, time) {
-    const motionTime = prefersReducedMotion ? 0 : time;
-    const relaySpin = motionTime * (settings.calmEffects ? 0.42 : 1.2);
-    const y = relay.y + Math.sin(relay.bob) * (prefersReducedMotion ? 0 : 3);
-    const active = relay.ready ? 1 : 0.28;
-    const pulse = relay.pulse > 0 ? relay.pulse / 0.3 : 0;
+    const motion = prefersReducedMotion ? 0 : time;
+    const pulse = Math.min(1, relay.pulse / 0.3);
+    const y = relay.y + (prefersReducedMotion ? 0 : Math.sin(relay.bob) * 2);
     ctx.save();
     ctx.translate(relay.x, y);
-    ctx.globalAlpha = 0.34 + active * 0.38 + pulse * 0.12;
-    ctx.shadowColor = palette.cyan;
-    ctx.shadowBlur = performanceShadowBlur(relay.ready ? (settings.calmEffects ? 2 : 8) : (settings.calmEffects ? 0 : 3));
-    ctx.strokeStyle = relay.ready ? palette.cyan : "rgba(118, 215, 255, 0.42)";
-    ctx.lineWidth = 2.2;
-    ctx.rotate(relaySpin);
-    ctx.beginPath();
-    ctx.arc(0, 0, 13 + pulse * 4, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.rotate(-relaySpin * 1.75);
-    ctx.beginPath();
-    ctx.moveTo(0, -10);
-    ctx.lineTo(9, 0);
-    ctx.lineTo(0, 10);
-    ctx.lineTo(-9, 0);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.fillStyle = relay.ready ? "rgba(248,251,255,0.9)" : "rgba(248,251,255,0.24)";
-    ctx.fillRect(-2, -2, 4, 4);
-    if (!relay.ready) {
-      drawCooldownRing(0, 0, 19, 1 - relay.timer / RELAY_RESET_TIME, palette.cyan);
-    } else if (!settings.calmEffects || pulse > 0.04) {
-      ctx.globalAlpha = 0.16 + pulse * 0.24;
-      ctx.strokeStyle = palette.cyan;
-      ctx.lineWidth = 2;
+    ctx.save();
+    ctx.rotate(motion * (settings.calmEffects ? 0.32 : 0.75));
+    ctx.lineCap = "round";
+    const radius = 10.5 + pulse * 3;
+    for (let i = 0; i < 3; i++) {
+      const angle = i * Math.PI * 2 / 3;
       ctx.beginPath();
-      ctx.moveTo(-22, 0);
-      ctx.lineTo(-13, 0);
-      ctx.moveTo(13, 0);
-      ctx.lineTo(22, 0);
+      ctx.arc(0, 0, radius, angle, angle + 1.55);
+      ctx.strokeStyle = "#295460";
+      ctx.lineWidth = 6.5;
+      ctx.stroke();
+      ctx.strokeStyle = relay.ready ? "#9fe4dd" : "#648a93";
+      ctx.lineWidth = 3.6;
       ctx.stroke();
     }
+    ctx.restore();
+    ctx.fillStyle = relay.ready ? "#e1f7e7" : "#6d9295";
+    ctx.strokeStyle = "#32616a";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 3.4 + pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    if (!relay.ready) drawCooldownRing(0, 0, 18, 1 - relay.timer / RELAY_RESET_TIME, palette.cyan);
     ctx.restore();
   }
 
   function drawPrism(prism, time) {
-    const motionTime = prefersReducedMotion ? 0 : time;
-    const prismSpin = motionTime * (settings.calmEffects ? 0.46 : 1.35);
-    const y = prism.y + Math.sin(prism.bob) * (prefersReducedMotion ? 0 : 3);
-    const active = prism.ready ? 1 : 0.22;
-    const pulse = prism.pulse > 0 ? prism.pulse / 0.5 : 0;
+    const pulse = Math.min(1, prism.pulse / 0.5);
+    const motion = prefersReducedMotion || settings.calmEffects ? 0 : Math.sin(time * 1.3) * 0.07;
+    const y = prism.y + (prefersReducedMotion ? 0 : Math.sin(prism.bob) * 2);
     ctx.save();
     ctx.translate(prism.x, y);
-    ctx.globalAlpha = 0.28 + active * 0.48 + pulse * 0.12;
-    ctx.shadowColor = palette.gold;
-    ctx.shadowBlur = performanceShadowBlur(prism.ready ? (settings.calmEffects ? 2 : 8) : (settings.calmEffects ? 0 : 3));
-    ctx.rotate(-prismSpin);
-    ctx.strokeStyle = prism.ready ? palette.gold : "rgba(247, 198, 93, 0.34)";
-    ctx.lineWidth = 2.4;
+    ctx.save();
+    ctx.rotate(motion);
+    ctx.scale(1 + pulse * 0.16, 1 + pulse * 0.16);
+    ctx.lineJoin = "round";
+    ctx.fillStyle = prism.ready ? "#99c5c1" : "#748891";
+    ctx.strokeStyle = "#3e4a5b";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(0, -14 - pulse * 5);
-    ctx.lineTo(13 + pulse * 4, 0);
-    ctx.lineTo(0, 14 + pulse * 5);
-    ctx.lineTo(-13 - pulse * 4, 0);
+    ctx.moveTo(-2, -15);
+    ctx.lineTo(5, -11);
+    ctx.lineTo(16, 9);
+    ctx.lineTo(9, 13);
+    ctx.lineTo(-15, 9);
     ctx.closePath();
+    ctx.fill();
     ctx.stroke();
-    ctx.rotate(prismSpin * 1.78);
-    ctx.fillStyle = prism.ready ? "rgba(255,240,160,0.7)" : "rgba(255,240,160,0.2)";
-    ctx.fillRect(-4, -4, 8, 8);
-    if (!prism.ready) {
-      drawCooldownRing(0, 0, 22, 1 - prism.timer / PRISM_RESET_TIME, palette.gold);
-    } else if (!settings.calmEffects || pulse > 0.04) {
-      ctx.globalAlpha = 0.18 + pulse * 0.22;
-      ctx.strokeStyle = palette.gold;
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
+    if (prism.ready) {
+      ctx.fillStyle = "#f4d791";
       ctx.beginPath();
-      ctx.arc(0, 0, 20 + pulse * 3, -Math.PI * 0.82, Math.PI * 0.82);
-      ctx.stroke();
+      ctx.moveTo(-2, -14);
+      ctx.lineTo(9, 11);
+      ctx.lineTo(-14, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#bd9db4";
       ctx.beginPath();
-      ctx.moveTo(-19, -6);
-      ctx.lineTo(-14, 0);
-      ctx.lineTo(-19, 6);
-      ctx.moveTo(19, -6);
-      ctx.lineTo(14, 0);
-      ctx.lineTo(19, 6);
+      ctx.moveTo(-14, 8);
+      ctx.lineTo(4, 1);
+      ctx.lineTo(9, 11);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#fff1c6";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-12, 6);
+      ctx.lineTo(3, 0);
+      ctx.lineTo(12, 2);
       ctx.stroke();
     }
+    ctx.restore();
+    if (!prism.ready) drawCooldownRing(0, 0, 20, 1 - prism.timer / PRISM_RESET_TIME, palette.gold);
     ctx.restore();
   }
 
@@ -12139,32 +11955,6 @@
     ctx.beginPath();
     ctx.arc(x, y, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamped);
     ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawDiamond(x, y, radius, color, time) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(prefersReducedMotion ? Math.PI / 4 : time * 1.4);
-    ctx.shadowColor = color;
-    ctx.shadowBlur = performanceShadowBlur(18);
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(0, -radius);
-    ctx.lineTo(radius * 0.8, 0);
-    ctx.lineTo(0, radius);
-    ctx.lineTo(-radius * 0.8, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(255,255,255,0.72)";
-    ctx.beginPath();
-    ctx.moveTo(0, -radius * 0.65);
-    ctx.lineTo(radius * 0.3, 0);
-    ctx.lineTo(0, radius * 0.35);
-    ctx.lineTo(-radius * 0.3, 0);
-    ctx.closePath();
-    ctx.fill();
     ctx.restore();
   }
 
@@ -12730,7 +12520,7 @@
     const firstTouchClimb = openingGuideTimer > 0 && !startContext && target === 0
       && gameplayInputSource() === "touch";
     const goal = firstTouchClimb
-      ? "先跳起，按住上＋冲刺可以抬高"
+      ? "按住方向键，上滑再按冲刺可斜向上"
       : ROOM_PURPOSES[target] || ROOM_GUIDES[target] || "保持节奏，向上。";
     setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(mode)} · ` : ""}${goal}`);
   }
@@ -12740,8 +12530,10 @@
     const found = collected instanceof Set ? collected.size : 0;
     const roomBest = bestRoomTimes[roomIndex] || 0;
     const grade = splitGrade(roomBest, ROOM_TARGETS[roomIndex]);
-    setElementText(lumenCount, `✦ ${found}/${totalLumens}`);
-    setElementTitle(lumenCount, "微光会恢复冲刺；满冲刺拾取时可储备第二次冲刺");
+    const lumenName = LUMEN_NAMES[chapterIndexForRoom(roomIndex)];
+    setElementText(lumenCount, `${found}/${totalLumens}`);
+    setElementAttribute(lumenCount, "aria-label", `微光 ${found}/${totalLumens}`);
+    setElementTitle(lumenCount, `${lumenName} · 微光会恢复冲刺，满冲刺拾取可储备第二次冲刺`);
     setElementText(roomCount, `R${roomIndex + 1}/${maps.length}${grade ? ` ${grade}` : ""}`);
     syncTouchRecallButton();
     updatePortraitBrief();
@@ -12762,13 +12554,13 @@
     flowCountText?.classList.toggle("best", bestFlow > 0 && Math.floor(flowPeak) >= Math.floor(bestFlow));
     runTimeText.classList.toggle("best", bestTime > 0 && runTime > 0 && runTime <= bestTime);
     const dashCharges = Math.max(0, Math.min(2, Math.round(player.dashes)));
-    setElementTransform(dashFill, `scaleX(${dashCharges > 0 ? 1 : 0.12})`);
+    setElementTransform(dashFill, `scaleX(${dashCharges / 2})`);
     setElementAttribute(dashMeter, "aria-valuenow", String(dashCharges));
     setElementAttribute(dashMeter, "aria-valuetext", dashCharges > 0 ? `${dashCharges} 次冲刺可用` : "冲刺已耗尽");
     stage.classList.toggle("lumen-reserve", player.lumenReserve || player.dashes > 1);
     const staminaRatio = Math.max(0, Math.min(1, player.stamina / MAX_STAMINA));
     const staminaPercent = Math.round(staminaRatio * 100);
-    setElementTransform(staminaFill, `scaleX(${Math.max(0.08, staminaRatio)})`);
+    setElementTransform(staminaFill, `scaleX(${staminaRatio})`);
     setElementAttribute(staminaMeter, "aria-valuenow", String(staminaPercent));
     setElementAttribute(staminaMeter, "aria-valuetext", `体力 ${staminaPercent}%`);
     const paceLimit = activeRoomTimeLimit(roomIndex) || splitReference;

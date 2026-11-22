@@ -5,7 +5,7 @@ This file tracks real limits, not speculative wishlist items. Move an item here 
 ## Needs Human Or Device Verification
 
 - Physical gamepad feel: automated gates cover movement, deadzone and the complete pause/retry/room-restart/recall mapping, and Settings reports non-sensitive connection status, but a real controller pass is still needed for stick drift, chord comfort and long-session grab fatigue.
-- Real touch device feel: mobile smoke covers the larger portrait camera crop, portrait/landscape fit, synthetic notch/home-indicator insets, keyboard-resized account input, retry commands, contextual R9 recall and touch UI visibility; a physical phone or tablet pass is still needed for thumb reach, accidental presses, and vendor-specific browser chrome behavior.
+- Real touch device feel: the iOS Safari simulator job checks entry layout, notch insets and the account field with the software keyboard. Use a physical phone or tablet to verify portrait and landscape play, thumb reach, accidental presses, retry, R9 recall and toolbar movement.
 - Full 10-room human pass: scripts verify maps, state, and UI surfaces, but at least one uninterrupted human playthrough is still required before treating difficulty and teaching order as public-test stable.
 - Audio perception: headless smoke can verify unavailable/recovered AudioContext paths, status updates and static checkpoint/wind-entry/two-stage crumble triggers, but their volume balance, separation and fatigue still need a real listening pass.
 - Diagnostics, feedback templates and summit run reports are local-only: they can include the current feedback note, viewport/training/gamepad summary, or bounded run timing evidence as appropriate, but there is no automatic upload or issue tracker integration.

@@ -5358,43 +5358,7 @@ async function checkNativeSafeArea(browser, url) {
   } finally {
     browser.setSafeAreaFixture(undefined);
   }
-  await navigateApp(browser, url, "native iOS keyboard entry");
-  const originalHeight = await browser.evaluate("visualViewport.height");
-  await browser.evaluate(`(() => {
-    window.__entryTapTrace = [];
-    for (const type of ["pointerdown", "pointerup", "touchend", "click", "focusin"]) {
-      document.addEventListener(type, event => {
-        const target = event.target;
-        window.__entryTapTrace.push([type, target.closest?.("button")?.id || target.id || target.tagName]);
-      }, true);
-    }
-  })()`);
-  await targetPoint(browser, "#accountEntryButton");
-  await browser.tap("#accountEntryButton");
-  try {
-    await waitUntil("account drawer opens on iOS", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("account-focused")`));
-  } catch (error) {
-    const trace = await browser.evaluate(`({events:window.__entryTapTrace, panel:document.querySelector("#settingsPanel").className, status:document.querySelector("#gameStatus").textContent})`);
-    throw new Error(error.message + ": " + JSON.stringify(trace));
-  }
-  await targetPoint(browser, "#accountEmail");
-  await browser.tap("#accountEmail");
-  await waitUntil("system keyboard reduces the visible viewport", () => browser.evaluate(`visualViewport.height < ${originalHeight - 80}`), 10000);
-  const account = await browser.evaluate(`(() => {
-    const viewport = visualViewport;
-    const panel = document.querySelector("#settingsPanel");
-    const field = document.querySelector("#accountEmail");
-    const box = field.getBoundingClientRect();
-    return {
-      focused: document.activeElement === field,
-      accountScrolls: ["auto", "scroll"].includes(getComputedStyle(panel.querySelector(".settings-body")).overflowY),
-      fieldVisible: box.top >= viewport.offsetTop - 1 && box.bottom <= viewport.offsetTop + viewport.height + 1
-    };
-  })()`);
-  if (!account.focused || !account.accountScrolls || !account.fieldVisible) {
-    throw new Error("Native iOS keyboard regression: " + JSON.stringify(account));
-  }
-  console.log("Safari passed notched safe-area and system keyboard checks");
+  console.log("Native Safari passed safe-area checks");
 }
 
 async function runNativeSafari({ motionOnly = false, mobile = false, extended = false } = {}) {
@@ -5419,6 +5383,10 @@ async function runNativeSafari({ motionOnly = false, mobile = false, extended = 
 
     if (mobile) {
       await checkNativeSafeArea(browser, url);
+      // Release SafariDriver's input shield before using the simulator's native touchscreen.
+      await browser.close();
+      browser = undefined;
+      await require("./check-ios-keyboard.cjs").checkIOSKeyboard(fixture, deviceUDID);
       return;
     }
     if (motionOnly) {

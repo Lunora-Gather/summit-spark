@@ -9,10 +9,12 @@ const { Pointer } = require("selenium-webdriver/lib/input");
 async function startFixture(upstream) {
   const port = new URL(upstream).port;
   const scripts = new Map();
+  const routes = new Map();
   const blocked = new Set();
   let safeAreaFixture;
   const server = http.createServer((incoming, outgoing) => {
     const url = new URL(incoming.url, "http://127.0.0.1");
+    if (routes.has(url.pathname)) return routes.get(url.pathname)(url, outgoing);
     if (blocked.has(url.pathname)) {
       outgoing.writeHead(503, {"Cache-Control": "no-store"}).end();
       return;
@@ -69,6 +71,7 @@ async function startFixture(upstream) {
   return {
     url: `http://127.0.0.1:${server.address().port}`,
     scripts,
+    routes,
     blocked,
     setSafeAreaFixture(insets) {safeAreaFixture = insets;},
     async close() {
@@ -175,11 +178,6 @@ async function launchSafari(fixture, deviceUDID) {
         editor.setRangeText(value, editor.selectionStart, editor.selectionEnd, "end");
         editor.dispatchEvent(new InputEvent("input", {bubbles: true, inputType: "insertText", data: value}));
       }, text);
-    },
-    async tap(selector) {
-      if (!deviceUDID) throw new Error("Touch requires native iOS Safari");
-      const element = await driver.findElement(By.css(selector));
-      await element.click();
     },
     setSafeAreaFixture: fixture.setSafeAreaFixture,
     async close() {

@@ -48,7 +48,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: sudo safaridriver --enable
+      - name: Select software canvas drawing on the virtual display
+        run: |
+          defaults write com.apple.Safari WebKitPreferences.canvasUsesAcceleratedDrawing -bool false
+          defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2CanvasUsesAcceleratedDrawing -bool false
+          defaults write com.apple.Safari WebKitPreferences.useGPUProcessForCanvasRenderingEnabled -bool false
+          defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2UseGPUProcessForCanvasRenderingEnabled -bool false
+          defaults write com.apple.Safari WebKitPreferences.acceleratedDrawingEnabled -bool false
+          defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2AcceleratedDrawingEnabled -bool false
       - run: npm run test:safari
+      - name: Preserve the practice map on failure
+        if: failure()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: safari-practice-map
+          path: ${{ runner.temp }}/practice-map.png
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Select standard motion and full keyboard tab navigation
         run: |
           defaults write com.apple.universalaccess reduceMotion -bool false
@@ -82,6 +98,16 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: sudo safaridriver --enable
+      - name: Install simulator touch input
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/axe.tar.gz"
+          curl --fail --location --retry 3 -o "$archive" https://github.com/cameroncooke/AXe/releases/download/v2.1.1/AXe-macOS-v2.1.1-universal.tar.gz
+          echo "8788838b1b32059d143cf06541b72fcaead85c16274457cdbff086510a5b17fa  $archive" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/axe"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/axe"
+          "$RUNNER_TEMP/axe/axe" --version
+          echo "$RUNNER_TEMP/axe" >> "$GITHUB_PATH"
       - name: Boot a notched iPhone simulator
         run: |
           set -euo pipefail
@@ -90,9 +116,18 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
           echo "SAFARI_IOS_UDID=$udid" >> "$GITHUB_ENV"
           defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          defaults write com.apple.iphonesimulator DevicePreferences -dict-add "$udid" '<dict><key>ConnectHardwareKeyboard</key><false/></dict>'
           open -a Simulator --args -CurrentDeviceUDID "$udid"
           xcrun simctl launch "$udid" com.apple.mobilesafari
       - run: node tools/check-browser-smoke.js --native-safari-ios
+      - name: Preserve the iPhone screen on failure
+        if: failure()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ios-keyboard
+          path: ${{ runner.temp }}/ios-keyboard.png
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Report simulator state if Safari fails
         if: failure()
         run: |

@@ -23,16 +23,11 @@ async function terrainPixel(driver, tileX, tileY, columns) {
       const left = rect.left + (rect.width - canvas.width * scale) / 2;
       const top = rect.top + (rect.height - canvas.height * scale) / 2;
       const px = left + x * tile * scale, py = top + y * tile * scale;
-      let source;
-      try { source = Array.from(canvas.getContext("2d").getImageData(x * tile, y * tile, 1, 1).data); }
-      catch (error) { source = String(error); }
-      done({ point: [px / innerWidth, py / innerHeight], viewport: [innerWidth, innerHeight],
-        bitmap: [canvas.width, canvas.height], rect: rect.toJSON(), hit: document.elementFromPoint(px, py)?.outerHTML.slice(0, 220),
-        open: document.querySelector("#roomTerrain").open, source });
+      done({ point: [px / innerWidth, py / innerHeight], visible: document.elementFromPoint(px, py) === canvas });
     }));
   }, tileX, tileY, columns);
   const { point } = geometry;
-  console.log("Practice map geometry", geometry);
+  assert.ok(geometry.visible, "The terrain marker must be visible inside the scrolling practice drawer");
   assert.ok(point.every(value => value >= 0 && value < 1), "Terrain marker must be on screen");
   const png = Buffer.from(await driver.takeScreenshot(), "base64");
   if (process.env.RUNNER_TEMP) writeFileSync(join(process.env.RUNNER_TEMP, "practice-map.png"), png);
@@ -181,7 +176,12 @@ try {
   });
   assert.ok(spaceAboveLaunch >= 0 && spaceAboveLaunch < 40, "Collapsed Practice should fit its visible rows after visiting Account");
   await driver.findElement(By.css(".settings-group-room > summary")).click();
-  await driver.findElement(By.css('#roomSelect option[value="1"]')).click();
+  const roomSelect = await driver.findElement(By.id("roomSelect"));
+  async function chooseRoom(index) {
+    await driver.executeScript(select => select.scrollIntoView({ block: "center", behavior: "instant" }), roomSelect);
+    await roomSelect.findElement(By.css(`option[value="${index}"]`)).click();
+  }
+  await chooseRoom(1);
   await driver.findElement(By.css("#roomTerrain > summary")).click();
   const terrain = await driver.findElement(By.id("roomTerrainMap"));
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "1", 5000);
@@ -190,18 +190,18 @@ try {
   const pixel = await terrainPixel(driver, entry.tileX + 0.55, entry.tileY + 0.68, maps[1][0].length);
   assert.deepEqual(pixel, [214, 243, 239, 255], "Checkpoint entries must also show the start marker");
   assert.ok(await driver.findElement(By.id("terrainCampKey")).isDisplayed());
-  await driver.findElement(By.css('#roomSelect option[value="0"]')).click();
+  await chooseRoom(0);
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "0", 5000);
   assert.ok(!await driver.findElement(By.id("terrainCampKey")).isDisplayed());
   assert.match(await driver.findElement(By.id("terrainExitKey")).getText(), /向右出房/);
-  await driver.findElement(By.css('#roomSelect option[value="9"]')).click();
+  await chooseRoom(9);
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "9", 5000);
   assert.match(await driver.findElement(By.id("terrainExitKey")).getText(), /星顶终点/);
   const summitRow = maps[9].findIndex(row => row.includes("H"));
   const summitColumn = maps[9][summitRow].indexOf("H");
   const summitMark = await terrainPixel(driver, summitColumn + 0.5, summitRow + 0.5, maps[9][0].length);
   assert.deepEqual(summitMark, [255, 223, 154, 255], "The last room preview must mark its actual summit");
-  await driver.findElement(By.css('#roomSelect option[value="1"]')).click();
+  await chooseRoom(1);
   const target = await driver.findElement(By.id("practiceLaunchTarget")).getText();
   const launch = await driver.findElement(By.id("focusRoomButton"));
   assert.match(await launch.getText(), /^开始 R2 /);

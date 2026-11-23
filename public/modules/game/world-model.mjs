@@ -15,6 +15,16 @@ export function roomWorldData(rows, options = {}) {
   return { columns, width: columns * tile };
 }
 
+export function roomExitLandingsData(rows) {
+  if (!rows?.length || rows.some(row => row.includes("H"))) return [];
+  // Mark only stable shelves that carry the climber through the right boundary.
+  const x = rows[0].length - 2;
+  return rows.flatMap((row, y) => {
+    if (y < 2 || !row.endsWith("###") || /[#CDE<>^vTK]/.test(rows[y - 1].slice(x))) return [];
+    return [{ x, y }];
+  });
+}
+
 export function roomEntrySpawnData(rows, options = {}) {
   const tile = Math.max(1, finite(options.tile, 32));
   const playerWidth = Math.max(1, finite(options.playerWidth, 19));
@@ -95,7 +105,9 @@ export function phaseBlockActiveData(options = {}) {
   const warning = wantsActive
     ? clock >= Math.max(0, activeTime - warningTime)
     : clock >= period - warningTime;
-  return { active: wantsActive && !trapped, clock, wantsActive, warning };
+  const untilChange = (wantsActive ? activeTime : period) - clock;
+  const warningProgress = warning ? clamp(1 - untilChange / warningTime, 0, 1) : 0;
+  return { active: wantsActive && !trapped, clock, wantsActive, warning, warningProgress };
 }
 
 export function driftShardPositionData(options = {}) {

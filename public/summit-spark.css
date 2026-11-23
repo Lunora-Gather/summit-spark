@@ -7727,18 +7727,71 @@ textarea,
   object-fit: contain;
 }
 .room-terrain figcaption {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 8px;
   margin-top: 6px;
   font-size: 12px;
 }
-.stage .room-terrain figcaption span { color: #d6f3ef; }
-.stage .room-terrain figcaption span:nth-child(2) { color: #f0cb76; }
-.stage .room-terrain figcaption span:nth-child(3) { color: #ec9d86; }
+.room-terrain .terrain-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 9px;
+}
+.stage .room-terrain .terrain-key span { color: #d6f3ef; white-space: nowrap; }
+.stage .room-terrain .terrain-key span:nth-child(2) { color: #f0cb76; }
+.stage .room-terrain .terrain-key span:nth-child(3) { color: #ec9d86; }
 .stage .room-terrain #terrainCampKey { color: #9de2bd; }
 .stage .room-terrain #terrainExitKey { color: #ffe2a2; }
+.terrain-viewport { overflow-x: auto; overscroll-behavior-x: contain; }
+.terrain-viewport #roomTerrainMap { display: block; }
+.terrain-viewport.zoomed #roomTerrainMap {
+  width: max(100%, var(--detail-width));
+  max-width: none;
+  max-height: none;
+}
+.stage .room-terrain #terrainZoom {
+  min-height: 44px;
+  padding: 0 7px;
+  border: 0;
+  background: transparent;
+  color: #ffe2a2;
+  font: inherit;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.stage .room-terrain #terrainZoom::before {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  vertical-align: 1px;
+  width: 14px;
+  height: 14px;
+  margin-inline-end: 4px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  line-height: 1;
+}
+.stage .room-terrain #terrainZoom[aria-pressed="true"]::before { content: "−"; }
+.room-terrain #terrainMechanics:not([hidden]) {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px 12px;
+  width: 100%;
+  padding-top: 5px;
+  border-top: 1px solid #54707a;
+}
+.room-terrain #terrainMechanics > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #e2ede7;
+  white-space: nowrap;
+}
+.room-terrain #terrainMechanics canvas { width: 14px; height: 14px; }
 
 .stage .room-brief-head strong {
   font-size: 14.5px;

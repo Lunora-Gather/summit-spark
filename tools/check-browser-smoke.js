@@ -2256,8 +2256,16 @@ async function runRetryAndTouchAimSmoke(browser, baseUrl) {
       touch(dash, "pointerup", 10);
       touch(right, "pointermove", 8, center + bounds.height * 0.6);
       if (right.dataset.slideAim !== "down") throw new Error("Downward drag did not change aim");
+      const left = document.querySelector('[data-touch="left"]');
+      const leftBox = left.getBoundingClientRect();
+      right.dispatchEvent(new PointerEvent("pointermove", { pointerType: "touch", pointerId: 8,
+        clientX: leftBox.left + leftBox.width / 2, clientY: center, bubbles: true }));
+      if (!left.classList.contains("active") || right.classList.contains("active")) throw new Error("Sliding across the pad should turn without lifting");
+      touch(left, "pointerdown", 11);
       touch(right, "pointercancel", 8);
-      if (right.dataset.slideAim || right.classList.contains("active")) throw new Error("Cancelled touch stayed active");
+      if (!left.classList.contains("active")) throw new Error("Cancelling a slide released the other thumb");
+      touch(left, "pointerup", 11);
+      if (right.dataset.slideAim || right.classList.contains("active") || left.classList.contains("active")) throw new Error("Cancelled touch stayed active");
     };
     await browser.evaluate(`(${exercise})()`);
   } finally {

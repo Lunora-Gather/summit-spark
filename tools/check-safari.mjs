@@ -222,8 +222,14 @@ try {
   const pixel = await terrainPixel(driver, entry.tileX + 0.55, entry.tileY + 0.68, maps[1][0].length, [214, 243, 239, 255]);
   assert.deepEqual(pixel, [214, 243, 239, 255], "Checkpoint entries must also show the start marker");
   assert.ok(await driver.findElement(By.id("terrainCampKey")).isDisplayed());
+  assert.match(await terrain.getAttribute("aria-label"), /光继/);
+  assert.match(await driver.findElement(By.id("terrainMechanics")).getText(), /光继/);
+  const zoom = await driver.findElement(By.id("terrainZoom"));
+  await zoom.click();
+  assert.equal(await zoom.getAttribute("aria-pressed"), "true");
   await chooseRoom(0);
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "0", 5000);
+  assert.equal(await zoom.getAttribute("aria-pressed"), "false");
   assert.ok(!await driver.findElement(By.id("terrainCampKey")).isDisplayed());
   assert.match(await driver.findElement(By.id("terrainExitKey")).getText(), /向右出房/);
   await chooseRoom(9);

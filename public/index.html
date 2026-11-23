@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20261123-p323">
+  <meta name="build-version" content="20261123-p324">
   <title>山巅微光</title>
   <meta name="theme-color" content="#193b4a">
   <link rel="icon" type="image/svg+xml" href="assets/trail-mark.svg">
-  <link rel="stylesheet" href="summit-spark.css?v=20261123-p323">
+  <link rel="stylesheet" href="summit-spark.css?v=20261123-p324">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -209,7 +209,7 @@
                   <input id="touchSizeSlider" type="range" min="44" max="64" step="2" value="48">
                   <span class="range-value" aria-hidden="true">48px</span>
                 </label>
-                <p id="touchAimHelp">按住左或右方向键，上下滑动调整方向，再按「冲」斜向冲刺。</p>
+                <p id="touchAimHelp">拇指从左键滑到右键即可转身。按住方向键上下滑动，再按「冲」可斜向冲刺。</p>
               </div>
             </details>
             <details class="settings-group settings-group-audio settings-only">
@@ -281,8 +281,8 @@
                 <details class="room-terrain" id="roomTerrain">
                   <summary>查看房间地形</summary>
                   <figure>
-                    <canvas id="roomTerrainMap" role="img" aria-label="房间地形"></canvas>
-                    <figcaption><span>● 起点</span><span class="terrain-lumen-key">微光</span><span>▲ 尖刺</span><span id="terrainCampKey" hidden>⚑ 检查点</span><span id="terrainExitKey">向右出房 →</span></figcaption>
+                    <div class="terrain-viewport" id="terrainViewport" role="group" aria-label="房间地形，可在放大后左右滑动"><canvas id="roomTerrainMap" role="img" aria-label="房间地形"></canvas></div>
+                    <figcaption><span class="terrain-key"><span>● 起点</span><span class="terrain-lumen-key">微光</span><span>▲ 尖刺</span><span id="terrainCampKey" hidden>⚑ 检查点</span><span id="terrainExitKey">向右出房 →</span></span><button id="terrainZoom" type="button" aria-controls="terrainViewport" aria-pressed="false">放大地形</button><span id="terrainMechanics" hidden></span></figcaption>
                   </figure>
                 </details>
                 <div class="drill-variants" aria-label="训练变体">
@@ -457,6 +457,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20261123-p323"></script>
+  <script src="summit-spark.js?v=20261123-p324"></script>
 </body>
 </html>

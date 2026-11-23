@@ -2055,8 +2055,6 @@ async function runWindGorgeCrumbleRippleSmoke(browser, baseUrl) {
   try {
     await navigateApp(browser, baseUrl, "Wind Gorge crumble ripple");
     await clickSelector(browser, "#startButton");
-    await keyTap(browser, "F3", "F3");
-    await keyTap(browser, "Digit8", "8");
     const exercise = () => {
       const panel = document.getElementById("debugPanel");
       const key = (type, code) => window.dispatchEvent(new KeyboardEvent(type, {code, bubbles: true}));
@@ -2069,6 +2067,8 @@ async function runWindGorgeCrumbleRippleSmoke(browser, baseUrl) {
         throw new Error(label + ": " + panel.textContent);
       }
       const x = text => Number(text.match(/pos ([\d.-]+),/)?.[1]);
+      if (panel.classList.contains("hidden")) tap("F3");
+      tap("Digit8");
       stepUntil("R8 fully restored", text => /room 8\/10/.test(text) && /crumble 15\/15 q0 a0/.test(text)
         && /ground 1/.test(text) && /act 0\.000/.test(text), 180);
       key("keydown", "KeyD");

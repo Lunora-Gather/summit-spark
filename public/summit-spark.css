@@ -7745,6 +7745,24 @@ textarea,
 .stage .room-terrain #terrainCampKey { color: #9de2bd; }
 .stage .room-terrain #terrainExitKey { color: #ffe2a2; }
 .terrain-viewport { overflow-x: auto; overscroll-behavior-x: contain; }
+.terrain-viewport:focus-visible {
+  outline: 2px solid #ffe2a2;
+  outline-offset: -2px;
+}
+.terrain-position:not([hidden]) {
+  position: relative;
+  height: 3px;
+  margin: 4px 0 0;
+  background: #40555d;
+}
+.terrain-position::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: var(--map-left);
+  width: var(--map-width);
+  background: #ffe2a2;
+}
 .terrain-viewport #roomTerrainMap { display: block; }
 .terrain-viewport.zoomed #roomTerrainMap {
   width: max(100%, var(--detail-width));

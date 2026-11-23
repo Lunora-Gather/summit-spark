@@ -29,7 +29,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: sudo safaridriver --enable
-      - run: open -a Safari about:blank --args -com.apple.TipKit.HideAllTips 1
       - run: npm run browser-smoke
 
   build:

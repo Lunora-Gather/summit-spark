@@ -5,9 +5,9 @@ import net from "node:net";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { once } from "node:events";
-import { Builder, By, Key, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import { checkStorageRecovery } from "./check-storage-recovery.cjs";
-import safari from "selenium-webdriver/safari.js";
+import { createSafariSession } from "./safari-smoke-transport.cjs";
 import { maps } from "../public/modules/game/room-data.mjs";
 import { roomEntrySpawnData } from "../public/modules/game/world-model.mjs";
 
@@ -63,10 +63,9 @@ await once(probe, "listening");
 const port = probe.address().port;
 await new Promise(resolve => probe.close(resolve));
 const server = spawn(process.execPath, ["game-server.js"], { env: { ...process.env, PORT: String(port) } });
-const service = new safari.ServiceBuilder("/usr/bin/safaridriver").build();
-let driver;
+let service, driver;
 try {
-  driver = await new Builder().disableEnvironmentOverrides().usingServer(await service.start()).forBrowser("safari").build();
+  ({ driver, service } = await createSafariSession());
   const url = `http://127.0.0.1:${port}/`;
   await driver.wait(async () => { try { return (await fetch(url)).ok; } catch { return false; } }, 10000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
@@ -308,5 +307,5 @@ try {
   assert.deepEqual(recoveryErrors, []);
   console.log("Safari passed: climb, fit the resume menu and account form, select a training goal, resume and recover storage.");
 } finally {
-  try { await driver?.quit(); } finally { server.kill(); await service.kill(); }
+  try { await driver?.quit(); } finally { server.kill(); await service?.kill(); }
 }

@@ -56,7 +56,6 @@ jobs:
           defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2UseGPUProcessForCanvasRenderingEnabled -bool false
           defaults write com.apple.Safari WebKitPreferences.acceleratedDrawingEnabled -bool false
           defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2AcceleratedDrawingEnabled -bool false
-      - run: open -a Safari about:blank --args -com.apple.TipKit.HideAllTips 1
       - run: npm run test:safari
       - name: Preserve the practice map on failure
         if: failure()
@@ -86,7 +85,6 @@ jobs:
       - run: npm ci
       - run: sudo safaridriver --enable
       - run: defaults write com.apple.universalaccess reduceMotion -bool true
-      - run: open -a Safari about:blank --args -com.apple.TipKit.HideAllTips 1
       - run: node tools/check-browser-smoke.js --native-safari-reduced-motion
 
   safari-ios:

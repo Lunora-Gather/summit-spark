@@ -5,7 +5,7 @@ import net from "node:net";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { once } from "node:events";
-import { Builder, By, until } from "selenium-webdriver";
+import { Builder, By, Key, until } from "selenium-webdriver";
 import { checkStorageRecovery } from "./check-storage-recovery.cjs";
 import safari from "selenium-webdriver/safari.js";
 import { maps } from "../public/modules/game/room-data.mjs";
@@ -235,6 +235,26 @@ try {
   await chooseRoom(9);
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "9", 5000);
   assert.match(await driver.findElement(By.id("terrainExitKey")).getText(), /星顶终点/);
+  const viewport = await driver.findElement(By.id("terrainViewport"));
+  await driver.executeScript(button => button.focus(), zoom);
+  await zoom.sendKeys(Key.ENTER);
+  await driver.wait(() => driver.executeScript(el => document.activeElement === el, viewport), 3000);
+  const mapScroll = () => driver.executeScript(el => ({
+    left: el.scrollLeft, max: el.scrollWidth - el.clientWidth,
+    indicator: !document.getElementById("terrainPosition").hidden
+  }), viewport);
+  assert.ok((await mapScroll()).indicator, "A cropped map should show the displayed portion");
+  await viewport.sendKeys(Key.ARROW_RIGHT);
+  assert.ok((await mapScroll()).left > 0);
+  await viewport.sendKeys(Key.END);
+  let position = await mapScroll();
+  assert.ok(Math.abs(position.left - position.max) <= 1);
+  await viewport.sendKeys(Key.HOME);
+  assert.equal((await mapScroll()).left, 0);
+  await viewport.sendKeys(Key.ESCAPE);
+  assert.equal(await zoom.getAttribute("aria-pressed"), "false");
+  assert.ok(await panel.isDisplayed());
+  assert.ok(await driver.executeScript(el => document.activeElement === el, zoom));
   const summitRow = maps[9].findIndex(row => row.includes("H"));
   const summitColumn = maps[9][summitRow].indexOf("H");
   const summitMark = await terrainPixel(driver, summitColumn + 0.5, summitRow + 0.5, maps[9][0].length, [255, 223, 154, 255]);

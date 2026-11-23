@@ -419,6 +419,27 @@ async function runBackwardTransitionSmoke(browser, baseUrl) {
     errors.push("backward same-act transition should re-arm Clean, preserve banked Lumen and leave room training cleanly: " + JSON.stringify({ text: sameAct.text, status: sameActStatus }));
   }
 
+  // A checkpoint retry on the exit shelf must still be a partial visit.
+  await keyTap(browser, "KeyR", "r");
+  const readRecords = `(() => {
+    const focus = JSON.parse(localStorage.getItem("summit-spark-room-focus") || "{}").rooms?.[0];
+    return JSON.stringify([
+      localStorage.getItem("summit-spark-room-bests"), localStorage.getItem("summit-spark-room-paths"),
+      focus?.clears || 0, focus?.clean || 0
+    ]);
+  })()`;
+  const beforeRecross = await browser.evaluate(readRecords);
+  await keyDown(browser, "KeyD", "d");
+  try {
+    await waitUntil("walk back into R2 from the exit shelf", () =>
+      browser.evaluate(`document.querySelector("#debugPanel").textContent.includes("room 2/10")`), 6000, 40);
+  } finally {
+    await keyUp(browser, "KeyD", "d");
+  }
+  if (await browser.evaluate(readRecords) !== beforeRecross) {
+    errors.push("returning across the exit after a checkpoint retry changed a PB, replay or clear count");
+  }
+
   // R4 -> R3 additionally proves a backward act boundary restores the
   // existing chapter transition cue instead of silently changing ambience.
   await keyTap(browser, "Digit4", "4");

@@ -203,21 +203,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261123-p324"),
-    import("./modules/core/math.mjs?v=20261123-p324"),
-    import("./modules/game/room-data.mjs?v=20261123-p324"),
-    import("./modules/game/world-model.mjs?v=20261123-p324"),
-    import("./modules/game/terrain-art.mjs?v=20261123-p324"),
-    import("./modules/game/effect-budget.mjs?v=20261123-p324"),
-    import("./modules/game/landmark-progress.mjs?v=20261123-p324"),
-    import("./modules/game/audio-cues.mjs?v=20261123-p324"),
-    import("./modules/game/lumen-progress.mjs?v=20261123-p324"),
-    import("./modules/systems/storage.mjs?v=20261123-p324"),
-    import("./modules/systems/cloud-save.mjs?v=20261123-p324"),
-    import("./modules/systems/input.mjs?v=20261123-p324"),
-    import("./modules/training/state.mjs?v=20261123-p324"),
-    import("./modules/training/replay.mjs?v=20261123-p324"),
-    import("./modules/ui/presentation.mjs?v=20261123-p324")
+    import("./modules/core/format.mjs?v=20261124-p325"),
+    import("./modules/core/math.mjs?v=20261124-p325"),
+    import("./modules/game/room-data.mjs?v=20261124-p325"),
+    import("./modules/game/world-model.mjs?v=20261124-p325"),
+    import("./modules/game/terrain-art.mjs?v=20261124-p325"),
+    import("./modules/game/effect-budget.mjs?v=20261124-p325"),
+    import("./modules/game/landmark-progress.mjs?v=20261124-p325"),
+    import("./modules/game/audio-cues.mjs?v=20261124-p325"),
+    import("./modules/game/lumen-progress.mjs?v=20261124-p325"),
+    import("./modules/systems/storage.mjs?v=20261124-p325"),
+    import("./modules/systems/cloud-save.mjs?v=20261124-p325"),
+    import("./modules/systems/input.mjs?v=20261124-p325"),
+    import("./modules/training/state.mjs?v=20261124-p325"),
+    import("./modules/training/replay.mjs?v=20261124-p325"),
+    import("./modules/ui/presentation.mjs?v=20261124-p325")
   ]);
 
   const canvas = document.getElementById("game");
@@ -340,6 +340,7 @@
   const roomTerrain = document.getElementById("roomTerrain");
   const terrainMap = document.getElementById("roomTerrainMap");
   const terrainViewport = document.getElementById("terrainViewport");
+  const terrainPosition = document.getElementById("terrainPosition");
   const terrainZoom = document.getElementById("terrainZoom");
   const terrainExitKey = document.getElementById("terrainExitKey");
   const terrainCampKey = document.getElementById("terrainCampKey");
@@ -751,6 +752,8 @@
   const lightTrails = [];
   const recentPath = [];
   const roomPath = [];
+  let roomPathSampleInterval = 0;
+  let campReplay = null;
   let roomIndex = 0;
   let room = null;
   let cameraX = 0;
@@ -769,6 +772,7 @@
   let runRoomTimes = createRoomCounters();
   let roomFocus = readRoomFocus();
   let roomAttemptClean = true;
+  let roomStartedAtEntry = true;
   let runUsedAssist = false;
   let runStartedAsFullRoute = true;
   let lastDeathReason = "none";
@@ -1591,7 +1595,30 @@
     if (document.activeElement === cloudRetryButton) cloudSyncStatus?.focus({ preventScroll: true });
     inspectCloudSave();
   });
-  terrainZoom.addEventListener("click", () => setTerrainZoom(terrainZoom.getAttribute("aria-pressed") !== "true"));
+  terrainZoom.addEventListener("click", (event) => {
+    const zoomed = terrainZoom.getAttribute("aria-pressed") !== "true";
+    setTerrainZoom(zoomed);
+    if (zoomed && event.detail === 0) terrainViewport.focus({ preventScroll: true });
+  });
+  terrainViewport.addEventListener("scroll", updateTerrainPosition, { passive: true });
+  new ResizeObserver(updateTerrainPosition).observe(terrainViewport);
+  terrainViewport.addEventListener("keydown", (event) => {
+    if (!terrainViewport.classList.contains("zoomed") || event.altKey || event.ctrlKey || event.metaKey) return;
+    const step = Math.max(32, Math.round(terrainViewport.clientWidth / 4));
+    switch (event.key) {
+      case "ArrowLeft": terrainViewport.scrollLeft -= step; break;
+      case "ArrowRight": terrainViewport.scrollLeft += step; break;
+      case "Home": terrainViewport.scrollLeft = 0; break;
+      case "End": terrainViewport.scrollLeft = terrainViewport.scrollWidth; break;
+      case "Escape":
+        setTerrainZoom(false);
+        terrainZoom.focus({ preventScroll: true });
+        break;
+      default: return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  });
   roomTerrain.addEventListener("toggle", drawRoomTerrainPreview);
   roomTerrain.closest(".settings-group").addEventListener("toggle", drawRoomTerrainPreview);
   roomSelect?.addEventListener("change", () => {
@@ -1990,6 +2017,7 @@
   }
 
   function resetToStart(index) {
+    roomStartedAtEntry = true;
     roomIndex = index;
     room = parseRoom(roomIndex);
     resetRoomTech();
@@ -2376,7 +2404,7 @@
     lightTrails.length = 0;
     shards.length = 0;
     recentPath.length = 0;
-    roomPath.length = 0;
+    clearRoomPath();
     pathSampleTimer = 0;
     relayChain = 0;
     relayChainTimer = 0;
@@ -2446,7 +2474,7 @@
     lightTrails.length = 0;
     shards.length = 0;
     recentPath.length = 0;
-    roomPath.length = 0;
+    clearRoomPath();
     pathSampleTimer = 0;
     relayChain = 0;
     relayChainTimer = 0;
@@ -3257,6 +3285,7 @@
       player.respawnLumens = currentRoomLumenSnapshot();
       if (changed) {
         player.respawnRoomTime = roomTime;
+        campReplay = { points: roomPath.filter(point => point.t < roomTime), interval: roomPathSampleInterval };
         waypoint.pulse = 0.5;
         playSound("checkpoint", 0.58);
         setGameStatus(`中段营灯已点亮 · R${roomIndex + 1}，失败从这里继续`);
@@ -3690,8 +3719,11 @@
 
   function saveRoomPath(index) {
     const path = roomPath.filter((point) => point.room === index);
-    if (path.length < 2) return;
-    bestRoomPaths[index] = downsamplePath(path, MAX_ROOM_PATH_POINTS).map((point) => ({
+    const finish = playerPathPoint();
+    if (path.length && path[path.length - 1].t === finish.t) path.pop();
+    path.push(finish);
+    const samples = path.length >= 2 ? downsamplePath(path, MAX_ROOM_PATH_POINTS) : [];
+    bestRoomPaths[index] = samples.map((point) => ({
       x: Math.round(point.x * 10) / 10,
       y: Math.round(point.y * 10) / 10,
       dash: Boolean(point.dash),
@@ -3867,14 +3899,18 @@
   function resolveRoomTransition() {
     if (player.x > roomWorldWidth() + 3 && roomIndex < maps.length - 1) {
       const clearedRoom = roomIndex;
-      const clearedClean = roomAttemptClean;
-      const masteryBefore = roomMasteryScore(clearedRoom);
-      const roomResult = recordRoomBest(clearedRoom);
-      markRoomClear(clearedRoom);
-      const drillMode = activeDrill && activeDrill.room === clearedRoom ? activeDrill.mode : "";
-      const drillResult = completeDrill(clearedRoom, clearedClean);
-      if (drillResult === false) return;
-      showMasteryPopup(clearedRoom, masteryBefore, clearedClean, drillResult === true ? drillMode : "", roomResult);
+      if (roomStartedAtEntry) {
+        const clearedClean = roomAttemptClean;
+        const masteryBefore = roomMasteryScore(clearedRoom);
+        const roomResult = recordRoomBest(clearedRoom);
+        markRoomClear(clearedRoom);
+        const drillMode = activeDrill && activeDrill.room === clearedRoom ? activeDrill.mode : "";
+        const drillResult = completeDrill(clearedRoom, clearedClean);
+        if (drillResult === false) return;
+        showMasteryPopup(clearedRoom, masteryBefore, clearedClean, drillResult === true ? drillMode : "", roomResult);
+        addFlow(26, "split");
+      }
+      roomStartedAtEntry = true;
       roomIndex += 1;
       beginChapterTransition(clearedRoom, roomIndex);
       roomAttemptClean = true;
@@ -3901,7 +3937,6 @@
       player.springLaunchTimer = 0;
       clearRecentPath();
       clearRoomPath();
-      addFlow(26, "split");
       burst(28, player.y + player.h / 2, palette.cyan, 10, 170);
     }
     if (player.x < -player.w - 3 && roomIndex > 0) {
@@ -3942,9 +3977,10 @@
       timingInputReady = true;
       roomIntroTimer = roomIntroDuration(roomIndex);
       armRouteCue("回看", null, ROUTE_CUE_TIME);
-      // A backward crossing starts a fresh attempt in the room we just
-      // re-entered. Keep the route-wide mistake ledger, but do not let a
-      // fault from the room we left poison this attempt's Clean result.
+      // Returning to the exit shelf preserves banked rewards. A scored split
+      // starts at the entrance, including an explicit whole-room restart.
+      roomStartedAtEntry = false;
+      if (!backtrackedDrill) setGameStatus(`回看 R${roomIndex + 1} · 从房间起点重开可重新计分`);
       roomAttemptClean = true;
       player.respawnRoom = roomIndex;
       player.respawnX = player.x;
@@ -4042,7 +4078,12 @@
     lightTrails.length = 0;
     shards.length = 0;
     clearRecentPath();
-    clearRoomPath();
+    if (campReplay && roomTime > 0) {
+      roomPath.splice(0, roomPath.length, ...campReplay.points, playerPathPoint());
+      roomPathSampleInterval = campReplay.interval;
+    } else {
+      clearRoomPath();
+    }
     resetRelayChain();
     seedHair();
     resetActionVisuals();
@@ -4088,6 +4129,7 @@
   }
 
   function restartCurrentRoom() {
+    roomStartedAtEntry = true;
     if (player.deadTimer <= 0) registerDeath("room");
     echoAnchor = null;
     recallCooldown = 0;
@@ -6109,12 +6151,23 @@
     updateRoomBrief();
   }
 
+  function updateTerrainPosition() {
+    const width = terrainViewport.scrollWidth;
+    const visible = terrainViewport.clientWidth;
+    terrainPosition.hidden = !terrainViewport.classList.contains("zoomed") || visible === 0 || width <= visible;
+    if (terrainPosition.hidden) return;
+    const left = Math.max(0, Math.min(width - visible, terrainViewport.scrollLeft));
+    terrainPosition.style.setProperty("--map-left", `${100 * left / width}%`);
+    terrainPosition.style.setProperty("--map-width", `${100 * visible / width}%`);
+  }
+
   function setTerrainZoom(zoomed) {
     terrainZoom.setAttribute("aria-pressed", String(zoomed));
     terrainZoom.textContent = zoomed ? "显示全图" : "放大地形";
     terrainViewport.classList.toggle("zoomed", zoomed);
     terrainViewport.tabIndex = zoomed ? 0 : -1;
     if (!zoomed) terrainViewport.scrollLeft = 0;
+    updateTerrainPosition();
   }
 
   function drawRoomTerrainPreview() {
@@ -8548,12 +8601,8 @@
     }
   }
 
-  function samplePlayerPath(dt) {
-    if (player.deadTimer > 0 || won) return;
-    pathSampleTimer -= dt;
-    if (pathSampleTimer > 0) return;
-    pathSampleTimer = PATH_SAMPLE_INTERVAL;
-    const sample = {
+  function playerPathPoint() {
+    return {
       room: roomIndex,
       x: player.x + player.w / 2,
       y: player.y + player.h / 2,
@@ -8562,16 +8611,28 @@
       over: player.overdrive > 0,
       t: roomTime
     };
+  }
+
+  function samplePlayerPath(dt) {
+    if (player.deadTimer > 0 || won) return;
+    pathSampleTimer -= dt;
+    if (pathSampleTimer > 0) return;
+    pathSampleTimer = PATH_SAMPLE_INTERVAL;
+    const sample = playerPathPoint();
     for (const point of recentPath) {
       point.age += PATH_SAMPLE_INTERVAL;
     }
     recentPath.push({ ...sample, age: 0 });
-    roomPath.push(sample);
     while (recentPath.length > 0 && recentPath[0].age > RECENT_PATH_SECONDS) {
       recentPath.shift();
     }
-    while (roomPath.length > MAX_ROOM_PATH_POINTS * 2) {
-      roomPath.shift();
+    const last = roomPath[roomPath.length - 1];
+    if (last && (sample.t <= last.t || sample.t - last.t < roomPathSampleInterval)) return;
+    roomPath.push(sample);
+    if (roomPath.length > MAX_ROOM_PATH_POINTS * 2) {
+      // Distribute the bounded trace across the whole attempt, including its start.
+      roomPath.splice(0, roomPath.length, ...downsamplePath(roomPath, MAX_ROOM_PATH_POINTS));
+      roomPathSampleInterval = Math.max(PATH_SAMPLE_INTERVAL, roomPathSampleInterval) * 2;
     }
   }
 
@@ -8582,6 +8643,8 @@
 
   function clearRoomPath() {
     roomPath.length = 0;
+    roomPathSampleInterval = 0;
+    campReplay = null;
   }
 
   function burst(x, y, color, count, speed, options = {}) {
@@ -9139,6 +9202,7 @@
     if (!practiceVisualsActive() || player.deadTimer > 0) return;
     const path = bestRoomPaths[roomIndex];
     if (!Array.isArray(path) || path.length < 2) return;
+    if (roomTime < path[0].t) return;
     const rawIndex = pathIndexAtTime(path, roomTime, bestRoomTimes[roomIndex] || 0);
     const ghost = pointOnPath(path, rawIndex);
     if (!ghost) return;

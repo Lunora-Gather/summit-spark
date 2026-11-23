@@ -108,10 +108,14 @@ try {
     const materials = new WeakMap();
     const landmarks = new WeakMap();
     window.paintedLandmarks = new Set();
+    window.supportFrames = new Set();
     prototype.drawImage = function (image, ...args) {
       const result = drawImage.call(this, image, ...args);
       if (image instanceof HTMLImageElement && image.src.includes("/assets/terrain/")) {
         materials.set(this.canvas, new URL(image.src).pathname.split("/").pop());
+      }
+      if (this.canvas === game && image instanceof HTMLImageElement && image.src.endsWith("/abutments.webp")) {
+        window.supportFrames.add(args[0] / args[2] + 4 * args[1] / args[3]);
       }
       if (this.canvas === game && image instanceof HTMLImageElement && image.src.endsWith("/lumens.png")) {
         window.lastLumenChapter = args[0] / args[2] + 2 * args[1] / args[3];
@@ -128,7 +132,7 @@ try {
     };
   });
   await start.click();
-  await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "gate.jpg" && window.lastPaintedMaterial === "moss.jpg" && window.lastLumenChapter === 0 && window.paintedLandmarks.has(0)'), 5000);
+  await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "gate.jpg" && window.lastPaintedMaterial === "moss.jpg" && window.lastLumenChapter === 0 && window.paintedLandmarks.has(0) && window.supportFrames.has(0)'), 5000);
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden")'), 5000);
   const guideKeys = await driver.findElements(By.css("#openingGuideControls kbd"));
   assert.equal(guideKeys.length, 4);
@@ -147,7 +151,7 @@ try {
     await keyEvent(code, "keydown");
     await keyEvent(code, "keyup");
   }
-  await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "summit.jpg" && window.lastPaintedMaterial === "glacier.jpg" && window.lastLumenChapter === 3 && window.paintedLandmarks.has(7)'), 5000);
+  await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "summit.jpg" && window.lastPaintedMaterial === "glacier.jpg" && window.lastLumenChapter === 3 && window.paintedLandmarks.has(7) && window.supportFrames.has(7)'), 5000);
   for (const code of ["KeyH", "F3"]) {
     await keyEvent(code, "keydown");
     await keyEvent(code, "keyup");

@@ -26,11 +26,12 @@ function listFiles(directory, prefix = "") {
 }
 
 function sha256(buffer, relativePath) {
-  const data = /\.(?:jpg|png)$/.test(relativePath) ? buffer : buffer.toString("utf8").replace(/\r\n/g, "\n");
+  const data = /\.(?:jpg|png|webp)$/.test(relativePath) ? buffer : buffer.toString("utf8").replace(/\r\n/g, "\n");
   return crypto.createHash("sha256").update(data).digest("hex");
 }
 
 function expectedMime(relativePath) {
+  if (relativePath.endsWith(".webp")) return /^image\/webp\b/i;
   if (relativePath.endsWith(".png")) return /^image\/png\b/i;
   if (relativePath.endsWith(".jpg")) return /^image\/jpeg\b/i;
   if (relativePath.endsWith(".svg")) return /^image\/svg\+xml\b/i;

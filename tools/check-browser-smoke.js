@@ -5333,78 +5333,6 @@ async function installRuntimeFixture(browser) {
     });
 }
 
-async function checkNativeSafeArea(browser, url) {
-  await navigateApp(browser, url, "native iOS safe-area entry");
-  const entry = await browser.evaluate(`(() => {
-    const gate = document.querySelector("#entryGate");
-    const insets = document.createElement("div");
-    insets.style.padding = "env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
-    document.body.append(insets);
-    const style = getComputedStyle(insets);
-    const safeArea = Object.fromEntries(["Top", "Right", "Bottom", "Left"].map(side =>
-      [side.toLowerCase(), parseFloat(style["padding" + side])]));
-    insets.remove();
-    const rect = gate.getBoundingClientRect();
-    return {
-      safariVersion: navigator.userAgent,
-      touchCount: navigator.maxTouchPoints,
-      safeArea,
-      viewport: document.querySelector('meta[name="viewport"]').content,
-      fits: rect.top >= safeArea.top - 1 && rect.right <= innerWidth - safeArea.right + 1
-        && rect.bottom <= innerHeight - safeArea.bottom + 1 && rect.left >= safeArea.left - 1,
-      actionSizes: [...gate.querySelectorAll("button")].map(button => button.getBoundingClientRect().height),
-      briefHidden: getComputedStyle(document.querySelector("#portraitBrief")).visibility === "hidden",
-      guestFocused: document.activeElement === document.querySelector("#guestEntryButton")
-    };
-  })()`);
-  if (!entry.touchCount || !Object.values(entry.safeArea).every(Number.isFinite) || !entry.fits
-    || !entry.briefHidden || !entry.guestFocused || entry.actionSizes.length !== 2
-    || entry.actionSizes.some(height => height < 44) || !entry.viewport.includes("viewport-fit=cover")
-    || !entry.viewport.includes("interactive-widget=resizes-content")) {
-    throw new Error("Native iOS entry safe-area regression: " + JSON.stringify(entry));
-  }
-
-  // The Safari toolbar can already cover the device's notch. Retain the
-  // non-zero inset regression by exercising fixed insets in the fixture CSS.
-  const notch = { top: 47, right: 0, bottom: 34, left: 0 };
-  browser.setSafeAreaFixture(notch);
-  try {
-    await navigateApp(browser, url, "native Safari fixed notch layout");
-    const layout = await browser.evaluate(`(() => {
-      const gate = document.querySelector("#entryGate").getBoundingClientRect();
-      return {
-        top: gate.top,
-        roomBelow: innerHeight - gate.bottom,
-        actionsFit: [...document.querySelectorAll("#entryGate button")].every(button => {
-          const rect = button.getBoundingClientRect();
-          return rect.width >= 44 && rect.height >= 44;
-        })
-      };
-    })()`);
-    if (layout.top < notch.top || layout.roomBelow < notch.bottom || !layout.actionsFit) {
-      throw new Error("Safari fixed notch layout regression: " + JSON.stringify(layout));
-    }
-  } finally {
-    browser.setSafeAreaFixture(undefined);
-  }
-  await navigateApp(browser, url, "native iOS portrait playfield");
-  await clickSelector(browser, "#guestEntryButton");
-  await clickSelector(browser, "#startButton");
-  await waitUntil("native iOS touch controls", () => browser.evaluate(`document.querySelector(".stage").classList.contains("run-started") && !document.querySelector("#touchControls").hidden`));
-  const thumbRoom = await browser.evaluate(`(() => {
-    const stage = document.querySelector(".stage").getBoundingClientRect();
-    const buttons = ["left","right","jump","dash"].map(action => {
-      const rect = document.querySelector('[data-touch="' + action + '"]').getBoundingClientRect();
-      return { width:rect.width, height:rect.height, gap:rect.top - stage.bottom, left:rect.left, right:rect.right };
-    });
-    return { buttons, width:innerWidth };
-  })()`);
-  if (thumbRoom.buttons.some(b => b.width < 44 || b.height < 44 || b.gap < 0 || b.left < 0 || b.right > thumbRoom.width + 1)) {
-    throw new Error("Portrait movement and dash must leave the entire landing area visible: " + JSON.stringify(thumbRoom));
-  }
-  console.log("Native Safari passed safe-area checks");
-}
-
 async function runNativeSafari({ motionOnly = false, mobile = false, extended = false } = {}) {
   const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
   const port = await findFreePort();
@@ -5421,18 +5349,14 @@ async function runNativeSafari({ motionOnly = false, mobile = false, extended = 
     fixture = await startFixture(upstream);
     const deviceUDID = mobile ? process.env.SAFARI_IOS_UDID : undefined;
     if (mobile && !deviceUDID) throw new Error("SAFARI_IOS_UDID is required");
-    browser = await launchSafari(fixture, deviceUDID);
+    if (mobile) {
+      await require("./check-ios-safari.cjs").checkIOSSafari(fixture, deviceUDID);
+      return;
+    }
+    browser = await launchSafari(fixture);
     const { url } = fixture;
     await installRuntimeFixture(browser);
 
-    if (mobile) {
-      await checkNativeSafeArea(browser, url);
-      // Release SafariDriver's input shield before using the simulator's native touchscreen.
-      await browser.close();
-      browser = undefined;
-      await require("./check-ios-keyboard.cjs").checkIOSKeyboard(fixture, deviceUDID);
-      return;
-    }
     if (motionOnly) {
       await navigateApp(browser, url, "Safari reduced motion");
       await checkReducedMotion(browser);

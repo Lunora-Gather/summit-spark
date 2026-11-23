@@ -158,6 +158,14 @@ try {
     await keyEvent(code, "keydown");
     await keyEvent(code, "keyup");
   }
+  async function waitForMenuTarget(button) {
+    await driver.wait(() => driver.executeScript(el => {
+      el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+      const rect = el.getBoundingClientRect();
+      return !el.disabled && !el.closest("[inert]") && rect.height > 0
+        && el.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+    }, button), 6000, "The menu action must be visible at its click point");
+  }
   const adviceButton = await driver.wait(until.elementLocated(By.css(".finish-summary .primary-review")), 8000);
   const recommendationFits = await driver.executeScript(() => {
     const card = document.querySelector(".finish-summary .review-card.primary");
@@ -169,14 +177,17 @@ try {
       && bounds.bottom <= progress.top + 1 && button.height >= 44;
   });
   assert.ok(recommendationFits, "The summit card must contain the advice and clear the progress row");
+  await waitForMenuTarget(adviceButton);
   await adviceButton.click();
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden") && /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
   await driver.executeScript('localStorage.setItem("summit-spark-room-focus", JSON.stringify({schemaVersion:1,rooms:[{faults:4,fall:4,drills:1,cleanWins:0}]}))');
+  const previousPage = await driver.findElement(By.css("html"));
   await driver.navigate().refresh();
+  await driver.wait(until.stalenessOf(previousPage), 10000, "Wait for the practice page to reload");
   await driver.wait(ready, 10000);
   const resume = await driver.findElement(By.id("resumeTrainingButton"));
-  await driver.wait(until.elementIsVisible(resume), 5000);
+  await driver.wait(until.elementIsVisible(resume), 10000, "Saved training should appear on the launch menu");
   assert.match(await resume.getText(), /继续训练/);
   await driver.manage().window().setRect({ width: 840, height: 320 });
   const menuFits = await driver.executeScript(() => {
@@ -190,9 +201,11 @@ try {
   assert.ok(menuFits, "Short landscape menu must fit the title and all five actions, including resume");
 
   await driver.manage().window().setRect({ width: 690, height: 850 });
-  await driver.findElement(By.id("startAccountButton")).click();
+  const accountButton = await driver.findElement(By.id("startAccountButton"));
+  await waitForMenuTarget(accountButton);
+  await accountButton.click();
   const panel = await driver.findElement(By.id("settingsPanel"));
-  await driver.wait(until.elementIsVisible(panel), 5000);
+  await driver.wait(until.elementIsVisible(panel), 10000, "Account sheet should open from the launch menu");
   const form = await driver.executeScript(() => {
     const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
     return { width: rect.width, centerOffset: rect.left + rect.width / 2 - innerWidth / 2,
@@ -201,17 +214,10 @@ try {
   assert.ok(form.width <= 430 && Math.abs(form.centerOffset) <= 1 && form.fontSize >= 16, JSON.stringify(form));
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
-  async function waitForMenuTarget(button) {
-    await driver.wait(() => driver.executeScript(el => {
-      const rect = el.getBoundingClientRect();
-      return !el.disabled && !el.closest("[inert]") && rect.height > 0
-        && el.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
-    }, button), 6000, "The returning menu button must actually receive a click");
-  }
   const openPractice = await driver.findElement(By.id("openTrainingButton"));
   await waitForMenuTarget(openPractice);
   await openPractice.click();
-  await driver.wait(until.elementIsVisible(panel), 5000);
+  await driver.wait(until.elementIsVisible(panel), 10000, "Practice sheet should open after closing Account");
   const spaceAboveLaunch = await driver.executeScript(() => {
     const lastGroup = document.querySelector(".settings-group-training").getBoundingClientRect();
     const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();

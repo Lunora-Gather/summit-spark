@@ -112,11 +112,10 @@ async function checkIOSSafari(fixture, udid) {
   const tap = (x, y) => run("axe", ["tap", "-x", String(x), "-y", String(y), "--tap-style", "physical", "--udid", udid], { timeout: 45000 });
   async function waitFor(label, predicate, timeout = 25000) {
     const until = Date.now() + timeout;
-    while (Date.now() < until) {
-      if (state && predicate(state)) return;
+    while (!state || !predicate(state)) {
+      if (Date.now() >= until) throw new Error(label + ": " + JSON.stringify(state));
       await delay(150);
     }
-    throw new Error(label + ": " + JSON.stringify(state));
   }
   async function openScene(scene) {
     const firstPage = !currentScene;

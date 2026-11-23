@@ -77,7 +77,7 @@ async function checkIOSKeyboard(fixture, udid) {
     await waitFor("Receive the simulator touch in the entry artwork", report => !report.open && report.touch);
     const left = probe.x - state.touch.x, top = probe.y - state.touch.y;
     await tap(left + state.target.x, top + state.target.y);
-    await waitFor("A native tap opens Account", report => report.entryTapped && report.open && report.target.visible);
+    await waitFor("A native tap opens Account", report => report.entryTapped && report.open && report.target.visible && !report.focused);
     await tap(left + state.target.x, top + state.target.y);
     await waitFor("The software keyboard opens with its field in view", report => report.fieldTapped && report.focused &&
       report.scrolls && report.visible && report.height < fullHeight - 80);

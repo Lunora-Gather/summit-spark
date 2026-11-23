@@ -112,11 +112,11 @@ jobs:
         run: |
           set -euo pipefail
           udid="$(xcrun simctl list devices available -j | jq -er '[.devices | to_entries | sort_by(.key) | reverse | .[].value[] | select((.name | startswith("iPhone")) and (.name | contains("SE") | not))][0].udid')"
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          defaults write com.apple.iphonesimulator DevicePreferences -dict-add "$udid" '<dict><key>ConnectHardwareKeyboard</key><false/></dict>'
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
           echo "SAFARI_IOS_UDID=$udid" >> "$GITHUB_ENV"
-          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
-          defaults write com.apple.iphonesimulator DevicePreferences -dict-add "$udid" '<dict><key>ConnectHardwareKeyboard</key><false/></dict>'
           open -a Simulator --args -CurrentDeviceUDID "$udid"
           xcrun simctl launch "$udid" com.apple.mobilesafari
       - run: node tools/check-browser-smoke.js --native-safari-ios

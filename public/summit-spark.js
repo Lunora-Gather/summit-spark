@@ -2195,7 +2195,7 @@
     openPanel("settings");
   }
 
-  function openAccountPanel() {
+  function openAccountPanel(event) {
     accountFocused = true;
     openPanel("settings");
     if (!accountSdk) loadAppwriteSdk();
@@ -2205,6 +2205,9 @@
         syncSettingsGroupDisclosure(group);
       });
       accountGroup.scrollIntoView({ block: "start" });
+      // On a touchscreen the field tap itself must own text focus and open the software keyboard.
+      const touchEntry = event?.pointerType === "touch" || (event?.detail > 0 && coarsePointerQuery?.matches);
+      if (!accountUser && touchEntry) return;
       window.setTimeout(() => {
         if (!settingsVisible || panelMode !== "settings" || !accountFocused || !accountGroup.open) return;
         if (accountUser) {
@@ -7576,7 +7579,7 @@
     }
     if (pointHitsVisibleElement(startAccountButton, x, y)) {
       panelReturnFocus = startAccountButton;
-      openAccountPanel();
+      openAccountPanel(event);
       return;
     }
     closeSettings();

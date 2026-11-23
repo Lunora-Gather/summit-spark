@@ -38,7 +38,8 @@ jobs:
         run: npm run check
 
   safari:
-    runs-on: macos-latest
+    # A retry can use the other standard Mac pool if a hosted runner is unavailable.
+    runs-on: ${{ github.run_attempt == 1 && 'macos-26-intel' || 'macos-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -75,7 +76,7 @@ jobs:
 
   safari-reduced-motion:
     name: Safari system reduced motion
-    runs-on: macos-latest
+    runs-on: ${{ github.run_attempt == 1 && 'macos-26-intel' || 'macos-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -89,7 +90,7 @@ jobs:
 
   safari-ios:
     name: Native iOS Safari safe areas
-    runs-on: macos-latest
+    runs-on: ${{ github.run_attempt == 1 && 'macos-26-intel' || 'macos-latest' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

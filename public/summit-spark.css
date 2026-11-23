@@ -1838,19 +1838,12 @@ canvas:focus {
   box-shadow:
     0 24px 72px rgba(0, 0, 0, 0.36),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.stage.settings-open .overlay:not(.hidden) .start-panel {
-  opacity: 0.18;
-  transform: translateX(-16px) scale(0.985);
-  pointer-events: none;
-}
-
-/* Account entry is a focused startup task. Retiring the launch menu entirely
-   avoids the translucent duplicate controls seen behind the account sheet. */
+/* Keep the launch targets in place while the account or practice drawer owns focus. */
 .stage.settings-open .overlay:not(.hidden) .start-panel {
   visibility: hidden;
+  pointer-events: none;
 }
 
 .stage:has(.overlay:not(.hidden)) .settings-panel.account-focused {
@@ -3129,7 +3122,6 @@ body,
   }
 
   .touch button {
-    --touch-size: 42px;
     font-size: 20px;
   }
 }
@@ -4635,8 +4627,14 @@ body {
   }
 }
 
-/* P56: landscape controls sit over the map, so keep terrain readable beneath them. */
-@media (max-width: 760px) and (orientation: landscape) and (pointer: coarse) {
+/* Keep the thumb groups at the safe outer edges of short landscape screens. */
+@media (max-height: 520px) and (orientation: landscape) and (pointer: coarse) {
+  .touch {
+    position: fixed;
+    inset: auto max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    padding-bottom: 0;
+  }
+
   .touch button {
     background: rgba(20, 20, 21, 0.3);
     backdrop-filter: blur(4px);

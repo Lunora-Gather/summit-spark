@@ -81,8 +81,11 @@ export function cameraFollowData(options = {}) {
   const velocityX = finite(options.velocityX, 0);
   const lookAhead = clamp(velocityX * finite(options.lookAheadTime, 0.1), -40, 40);
   const anticipatedCenter = playerCenter + lookAhead;
-  const leftGuide = viewportWidth * clamp(finite(options.leftGuide, 0.36), 0.1, 0.49);
-  const rightGuide = viewportWidth * clamp(finite(options.rightGuide, 0.64), 0.51, 0.9);
+  // The portrait crop needs nearly the same amount of terrain in front of a
+  // moving climber, with a small central dead zone to absorb minor corrections.
+  const sideMargin = clamp(960 * 0.36 / viewportWidth, 0.36, 0.46);
+  const leftGuide = viewportWidth * clamp(finite(options.leftGuide, sideMargin), 0.1, 0.49);
+  const rightGuide = viewportWidth * clamp(finite(options.rightGuide, 1 - sideMargin), 0.51, 0.9);
   let target = clamp(finite(options.targetX, 0), 0, maxCamera);
   const screenX = anticipatedCenter - target;
   if (screenX > rightGuide) target = anticipatedCenter - rightGuide;

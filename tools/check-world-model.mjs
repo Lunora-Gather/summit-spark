@@ -54,6 +54,18 @@ assert.equal(anticipated.lookAhead, 40, "camera look-ahead should stay capped du
 assert.ok(anticipated.targetX > 0, "camera should reveal the route slightly before a fast player crosses the guide");
 const reversing = cameraFollowData({ cameraX: 240, targetX: 240, playerCenter: 590, velocityX: -420, worldWidth: 1440, viewportWidth: 960, dt: 1 / 60 });
 assert.equal(reversing.lookAhead, -40, "camera anticipation should follow a genuine direction reversal");
+// Approach the R8 ice at full running speed. Compare the right edge of the
+// portrait viewport to the authored recovery shelf while still on the approach.
+let portrait = { cameraX: 0, targetX: 0 };
+for (let frame = 0; frame <= 240; frame++) {
+  portrait = cameraFollowData({ ...portrait, playerCenter: 16 * 32 + frame * 2,
+    velocityX: 240, dt: 1 / 120, worldWidth: 1440, viewportWidth: 640 });
+}
+assert.ok(portrait.cameraX + 640 >= 40 * 32, "at least one tile of R8's stable shoulder should be visible before entering the ice");
+const stopped = cameraFollowData({ ...portrait, playerCenter: 31 * 32, velocityX: 0,
+  worldWidth: 1440, viewportWidth: 640, dt: 1 / 60 });
+assert.equal(stopped.targetX, portrait.targetX, "letting go should allow inspection without recentering the target");
+
 const rightEdge = cameraFollowData({ cameraX: 999, targetX: 999, playerCenter: 2000, worldWidth: 1440, viewportWidth: 960, dt: 1 });
 assert.equal(rightEdge.maxCamera, 480, "camera range should equal world width minus viewport width");
 assert.equal(rightEdge.targetX, 480, "camera target should clamp to the room edge");

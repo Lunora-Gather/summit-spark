@@ -66,7 +66,7 @@
       roomExitLandingsData,
       roomWorldData
     },
-    { rockMaterials, rockRuns, terrainAbutments, paintAbutments, paintExitSign, mapMechanics, paintMapMechanic, applyTerrainLight, paintLedge, paintLandmarkLedge, paintSpikes, spikeIntersectsBox, iceVariants, paintFracturedIce, paintIceStress },
+    { rockMaterials, rockRuns, terrainAbutments, paintAbutments, paintExitSign, mapMechanics, paintMapMechanic, paintPhaseSpan, paintDriftShard, applyTerrainLight, paintLedge, paintLandmarkLedge, paintSpikes, spikeIntersectsBox, iceVariants, paintFracturedIce, paintIceStress },
     {
       effectQueueLimit,
       enforceEffectQueueBudget
@@ -203,21 +203,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261124-p325"),
-    import("./modules/core/math.mjs?v=20261124-p325"),
-    import("./modules/game/room-data.mjs?v=20261124-p325"),
-    import("./modules/game/world-model.mjs?v=20261124-p325"),
-    import("./modules/game/terrain-art.mjs?v=20261124-p325"),
-    import("./modules/game/effect-budget.mjs?v=20261124-p325"),
-    import("./modules/game/landmark-progress.mjs?v=20261124-p325"),
-    import("./modules/game/audio-cues.mjs?v=20261124-p325"),
-    import("./modules/game/lumen-progress.mjs?v=20261124-p325"),
-    import("./modules/systems/storage.mjs?v=20261124-p325"),
-    import("./modules/systems/cloud-save.mjs?v=20261124-p325"),
-    import("./modules/systems/input.mjs?v=20261124-p325"),
-    import("./modules/training/state.mjs?v=20261124-p325"),
-    import("./modules/training/replay.mjs?v=20261124-p325"),
-    import("./modules/ui/presentation.mjs?v=20261124-p325")
+    import("./modules/core/format.mjs?v=20261124-p326"),
+    import("./modules/core/math.mjs?v=20261124-p326"),
+    import("./modules/game/room-data.mjs?v=20261124-p326"),
+    import("./modules/game/world-model.mjs?v=20261124-p326"),
+    import("./modules/game/terrain-art.mjs?v=20261124-p326"),
+    import("./modules/game/effect-budget.mjs?v=20261124-p326"),
+    import("./modules/game/landmark-progress.mjs?v=20261124-p326"),
+    import("./modules/game/audio-cues.mjs?v=20261124-p326"),
+    import("./modules/game/lumen-progress.mjs?v=20261124-p326"),
+    import("./modules/systems/storage.mjs?v=20261124-p326"),
+    import("./modules/systems/cloud-save.mjs?v=20261124-p326"),
+    import("./modules/systems/input.mjs?v=20261124-p326"),
+    import("./modules/training/state.mjs?v=20261124-p326"),
+    import("./modules/training/replay.mjs?v=20261124-p326"),
+    import("./modules/ui/presentation.mjs?v=20261124-p326")
   ]);
 
   const canvas = document.getElementById("game");
@@ -658,7 +658,7 @@
   // The moon sits in open sky in each composition, including the narrow canyon openings.
   const ROOM_PAINTINGS = [
     { file: "gate", moonX: 0.74, moonY: 0.13 },
-    { file: "bridge", moonX: 0.64, moonY: 0.12 },
+    { file: "bridge", revision: 2, moonX: 0.64, moonY: 0.12 },
     { file: "springs", moonX: 0.65, moonY: 0.08 },
     { file: "ruins", moonX: 0.57, moonY: 0.11 },
     { file: "switchback", moonX: 0.62, moonY: 0.10 },
@@ -758,6 +758,7 @@
   let room = null;
   let cameraX = 0;
   let cameraTargetX = 0;
+  const portraitViewport = window.matchMedia("(max-width: 760px) and (orientation: portrait)");
   let started = false;
   let won = false;
   let summitRevealTimer = 0;
@@ -1969,9 +1970,7 @@
   }
 
   function cameraSideCrop() {
-    return window.matchMedia?.("(max-width: 760px) and (orientation: portrait)")?.matches
-      ? (W - 640) / 2
-      : 0;
+    return portraitViewport.matches ? (W - 640) / 2 : 0;
   }
 
   function cameraViewportWidth() {
@@ -6220,21 +6219,17 @@
       for (let x = 0; x < row.length; x++) {
         const symbol = row[x];
         if ("#CED".includes(symbol)) {
-          pen.fillStyle = symbol === "C" ? "#80adb9" : symbol === "D" ? "#b99358" : symbol === "E" ? "#688595" : "#54727e";
-          pen.fillRect(x, y, 1, 1);
-          if (rows[y - 1]?.[x] !== symbol) {
-            pen.fillStyle = "#c0d8d6";
-            pen.fillRect(x, y, 1, 0.14);
-          }
-          if (symbol === "C") {
-            pen.strokeStyle = "#354f63";
-            pen.lineWidth = 0.12;
-            pen.beginPath();
-            pen.moveTo(x, y + 0.47);
-            pen.lineTo(x + 0.32, y + 0.56);
-            pen.lineTo(x + 0.58, y + 0.35);
-            pen.lineTo(x + 1, y + 0.47);
-            pen.stroke();
+          const exposed = rows[y - 1]?.[x] !== symbol;
+          if (symbol === "#") {
+            pen.fillStyle = "#54727e";
+            pen.fillRect(x, y, 1, 1);
+            if (exposed) {
+              pen.fillStyle = "#c0d8d6";
+              pen.fillRect(x, y, 1, 0.14);
+            }
+          } else {
+            mechanics.add(symbol);
+            paintMapMechanic(pen, symbol, x + 0.5, y + 0.5, exposed);
           }
         } else if ("^>v<".includes(symbol)) {
           pen.save();
@@ -8786,7 +8781,7 @@
     ctx.save();
     ctx.translate(offset.x - cameraX, offset.y);
     const abutments = terrainImages.get("assets/abutments.webp");
-    if (abutments) paintAbutments(ctx, room.visualGroups.abutments, abutments, TILE, cameraX, W);
+    if (abutments) paintAbutments(ctx, room.visualGroups.abutments, abutments, TILE, cameraX, W, roomIndex);
     drawHazardFields(time);
     drawObstacleArchitecture(time);
     drawTiles();
@@ -10104,7 +10099,7 @@
     const entry = { image, readyAt: null };
     roomPaintingCache.set(index, entry);
     image.decoding = "async";
-    image.src = `assets/rooms/${scene.file}.jpg`;
+    image.src = `assets/rooms/${scene.file}.jpg` + (scene.revision ? `?v=${scene.revision}` : "");
     image.decode().then(() => {
       entry.readyAt = performance.now();
     }).catch(() => {
@@ -11214,72 +11209,21 @@
     ctx.restore();
   }
 
-  function drawDynamicObstacles(time) {
-    for (const block of room.entities.phaseBlocks) {
-      const x = block.x, y = block.y;
-      const warningPhase = prefersReducedMotion ? 0.5 : block.warningProgress;
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.lineJoin = "round";
-      ctx.lineWidth = block.active ? 1.8 : 1.3;
-      ctx.beginPath();
-      ctx.moveTo(1, 3);
-      ctx.lineTo(5, 1);
-      ctx.lineTo(28, 1);
-      ctx.lineTo(31, 4);
-      ctx.lineTo(27, 23);
-      ctx.lineTo(16, 30);
-      ctx.lineTo(5, 24);
-      ctx.closePath();
-      if (block.active) {
-        ctx.fillStyle = "#487e85";
-        ctx.fill();
-      } else {
-        ctx.setLineDash([3, 4]);
+  function drawDynamicObstacles() {
+    for (const run of room.visualGroups.phaseRuns) {
+      for (let start = 0; start < run.length;) {
+        const block = run[start];
+        let end = start + 1;
+        while (end < run.length && run[end].active === block.active && run[end].warning === block.warning) end++;
+        paintPhaseSpan(ctx, block, (end - start) * TILE);
+        start = end;
       }
-      ctx.strokeStyle = block.warning ? "#edcc91" : block.active ? "#bae5df" : "rgba(195,224,224,0.68)";
-      ctx.stroke();
-      if (block.active) {
-        ctx.fillStyle = "#7bafb0";
-        ctx.beginPath();
-        ctx.moveTo(2, 5); ctx.lineTo(29, 4); ctx.lineTo(15, 13); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = block.warning ? "#efc578" : "#d0f4e6";
-        const lip = block.warning ? 22 * (1 - 0.85 * warningPhase) : 22;
-        ctx.fillRect(16 - lip / 2, 0, lip, 2.5);
-        ctx.beginPath();
-        ctx.moveTo(16, 12); ctx.lineTo(19, 17); ctx.lineTo(16, 23); ctx.lineTo(13, 17); ctx.closePath(); ctx.fill();
-      } else if (block.warning) {
-        // The lip grows inward as the empty rail becomes a landing again.
-        const edge = 3 + warningPhase * 8;
-        ctx.fillStyle = "#f6d497";
-        ctx.fillRect(3, 0, edge, 2.5);
-        ctx.fillRect(TILE - 3 - edge, 0, edge, 2.5);
-      }
-      ctx.restore();
     }
-
-    for (const gate of room.entities.dashGates) {
-      if (gate.broken) continue;
-      ctx.save();
-      ctx.translate(gate.x, gate.y);
-      // A split bronze seal carries the fracture through the full height of the door.
-      ctx.fillStyle = "#5b493c";
-      ctx.fillRect(2, 0, 28, TILE);
-      ctx.fillStyle = "#a67d50";
-      ctx.beginPath();
-      ctx.moveTo(3, 1); ctx.lineTo(17, 1); ctx.lineTo(12, 12); ctx.lineTo(18, 17); ctx.lineTo(12, 31); ctx.lineTo(3, 29);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#826141";
-      ctx.beginPath();
-      ctx.moveTo(20, 1); ctx.lineTo(29, 2); ctx.lineTo(29, 30); ctx.lineTo(15, 31); ctx.lineTo(21, 16); ctx.lineTo(15, 11);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = "#f1c77c";
-      ctx.lineWidth = 1.7;
-      ctx.beginPath();
-      ctx.moveTo(6, 10); ctx.lineTo(11, 16); ctx.lineTo(6, 22);
-      ctx.moveTo(21, 11); ctx.lineTo(26, 16); ctx.lineTo(21, 21);
-      ctx.stroke();
-      ctx.restore();
+    for (const column of room.visualGroups.dashGateColumns) {
+      const seal = column[Math.floor(column.length / 2)];
+      for (const gate of column) {
+        if (!gate.broken) drawGatePlate(gate, gate === seal);
+      }
     }
 
     for (const shard of room.entities.driftShards) {
@@ -11299,21 +11243,36 @@
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.translate(shard.x, shard.y);
-      ctx.rotate(time * 1.8 + shard.phase);
-      ctx.globalAlpha = 0.68 + Math.min(0.22, shard.pulse * 2);
-      ctx.fillStyle = palette.hot;
-      ctx.strokeStyle = "#fff0b0";
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(0, -9);
-      ctx.lineTo(9, 0);
-      ctx.lineTo(0, 9);
-      ctx.lineTo(-9, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+      ctx.globalAlpha = 0.94;
+      paintDriftShard(ctx);
       ctx.restore();
     }
+  }
+
+  function drawGatePlate(gate, seal) {
+    ctx.save();
+    ctx.translate(gate.x, gate.y);
+    ctx.fillStyle = "#584a40";
+    ctx.fillRect(2, 0, 28, TILE);
+    ctx.fillStyle = "#ae865e";
+    ctx.beginPath();
+    ctx.moveTo(3,0); ctx.lineTo(16,0); ctx.lineTo(12,12); ctx.lineTo(18,18);
+    ctx.lineTo(14,32); ctx.lineTo(3,31); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#886a51";
+    ctx.beginPath();
+    ctx.moveTo(19,0); ctx.lineTo(29,1); ctx.lineTo(29,32); ctx.lineTo(17,32);
+    ctx.lineTo(21,17); ctx.lineTo(15,11); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#c5a57a";
+    ctx.fillRect(4,2,2,3); ctx.fillRect(26,26,2,3);
+    if (seal) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffdc93";
+      ctx.beginPath();
+      ctx.moveTo(6,9); ctx.lineTo(13,16); ctx.lineTo(6,23);
+      ctx.moveTo(17,9); ctx.lineTo(24,16); ctx.lineTo(17,23);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   function drawObstacleArchitecture(time) {
@@ -11337,37 +11296,19 @@
       const left = column[0].x;
       const top = column[0].y;
       const bottom = column[column.length - 1].y + TILE;
-      const height = bottom - top;
       const intact = column.some((gate) => !gate.broken);
       const pulse = prefersReducedMotion ? 0 : Math.sin(time * 2.7 + left * 0.01) * 0.04;
       ctx.save();
       ctx.globalAlpha = intact ? 0.42 + pulse : 0.11;
-      ctx.fillStyle = "rgba(31,49,62,0.78)";
-      ctx.strokeStyle = palette.gold;
-      ctx.lineWidth = 1.6;
-      roundRect(ctx, left - 5, top - 6, TILE + 10, height + 12, 7);
-      ctx.fill();
-      ctx.stroke();
-      ctx.globalAlpha *= 0.72;
+      ctx.strokeStyle = "#d4b482";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(left - 8, top + 3);
-      ctx.lineTo(left - 8, bottom - 3);
-      ctx.moveTo(left + TILE + 8, top + 3);
-      ctx.lineTo(left + TILE + 8, bottom - 3);
-      ctx.stroke();
-      if (intact) {
-        const centerY = top + height / 2;
-        ctx.globalAlpha = 0.62;
-        ctx.beginPath();
-        ctx.moveTo(left + 8, centerY - 10);
-        ctx.lineTo(left + TILE / 2, centerY);
-        ctx.lineTo(left + 8, centerY + 10);
-        ctx.moveTo(left + TILE - 8, centerY - 10);
-        ctx.lineTo(left + TILE / 2, centerY);
-        ctx.lineTo(left + TILE - 8, centerY + 10);
-        ctx.stroke();
+      for (const edge of [left-2, left+TILE+2]) {
+        ctx.moveTo(edge, top-2); ctx.lineTo(edge, bottom+2);
       }
+      ctx.moveTo(left-4,top-2); ctx.lineTo(left+TILE+4,top-2);
+      ctx.moveTo(left-4,bottom+2); ctx.lineTo(left+TILE+4,bottom+2);
+      ctx.stroke();
       ctx.restore();
     }
   }
@@ -11415,13 +11356,6 @@
       ctx.moveTo(left + 6, top + TILE / 2);
       ctx.lineTo(left + width - 6, top + TILE / 2);
       ctx.stroke();
-      for (let x = left + TILE / 2; x < left + width; x += TILE) {
-        ctx.save();
-        ctx.translate(x, top + TILE / 2);
-        ctx.rotate(Math.PI / 4);
-        ctx.strokeRect(-4, -4, 8, 8);
-        ctx.restore();
-      }
       ctx.restore();
     }
   }
@@ -11433,7 +11367,7 @@
   }
 
   function drawEntities(time) {
-    drawDynamicObstacles(time);
+    drawDynamicObstacles();
     for (const updraft of room.entities.updrafts) {
       drawUpdraft(updraft, time);
     }

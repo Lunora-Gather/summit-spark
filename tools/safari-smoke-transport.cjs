@@ -2,6 +2,9 @@
 
 const http = require("node:http");
 const { once } = require("node:events");
+const { execFile } = require("node:child_process");
+const { promisify } = require("node:util");
+const { setTimeout: delay } = require("node:timers/promises");
 const { Builder, By, Key } = require("selenium-webdriver");
 const safari = require("selenium-webdriver/safari");
 const { Pointer } = require("selenium-webdriver/lib/input");
@@ -92,25 +95,34 @@ function safariKey({code, key}) {
   return aliases[code] ?? aliases[key] ?? key;
 }
 
-async function launchSafari(fixture, deviceUDID) {
-  const service = new safari.ServiceBuilder("/usr/bin/safaridriver").build();
-  let driver;
-  try {
-    // A freshly booted iPhone simulator can keep SafariDriver busy discovering devices.
-    const address = await service.start(deviceUDID ? 120_000 : undefined);
-    const builder = new Builder().disableEnvironmentOverrides()
-      .usingServer(address).forBrowser("safari");
-    if (deviceUDID) builder.withCapabilities({
-      browserName: "safari",
-      platformName: "iOS",
-      "safari:useSimulator": true,
-      "safari:deviceUDID": deviceUDID
-    });
-    driver = await builder.build();
-  } catch (error) {
-    await service.kill();
-    throw error;
+async function createSafariSession(deviceUDID) {
+  const hostedDesktop = !deviceUDID && process.env.GITHUB_ACTIONS === "true" && process.env.RUNNER_ENVIRONMENT === "github-hosted";
+  const attempts = hostedDesktop ? 2 : 1;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const service = new safari.ServiceBuilder("/usr/bin/safaridriver").build();
+    try {
+      const address = await service.start(deviceUDID ? 120_000 : undefined);
+      const builder = new Builder().disableEnvironmentOverrides().usingServer(address).forBrowser("safari");
+      if (deviceUDID) builder.withCapabilities({
+        browserName: "safari",
+        platformName: "iOS",
+        "safari:useSimulator": true,
+        "safari:deviceUDID": deviceUDID
+      });
+      return { driver: await builder.build(), service };
+    } catch (error) {
+      await service.kill();
+      const startupFailure = /timed out while connecting to a Safari instance|Server terminated early/i.test(error.message);
+      if (attempt === attempts || !startupFailure) throw error;
+      console.warn("Safari could not open its first automation window. Retrying on the disposable Mac.");
+      await promisify(execFile)("/usr/bin/killall", ["-TERM", "Safari"]).catch(() => {});
+      await delay(1500);
+    }
   }
+}
+
+async function launchSafari(fixture, deviceUDID) {
+  const { driver, service } = await createSafariSession(deviceUDID);
   let initSequence = 0;
   const finger = new Pointer("smoke-finger", Pointer.Type.TOUCH);
   return {
@@ -185,4 +197,4 @@ async function launchSafari(fixture, deviceUDID) {
     }
   };
 }
-module.exports = { launchSafari, startFixture };
+module.exports = { createSafariSession, launchSafari, startFixture };

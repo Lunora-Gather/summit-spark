@@ -49,15 +49,48 @@ export function terrainAbutments(rows, index) {
   });
 }
 
-export function paintAbutments(g, supports, sheet, tile, viewLeft, viewWidth) {
-  const sw = sheet.naturalWidth / 4, sh = sheet.naturalHeight / 2;
+// A room keeps just the atlas frames it uses. The painted timber and rock take
+// their strongest shadow at the socket and pick up valley light toward the foot.
+const supportArt = new WeakMap();
+
+export function paintAbutments(g, supports, sheet, tile, viewLeft, viewWidth, index) {
+  let frames = supportArt.get(supports);
+  if (!frames) {
+    frames = new Map();
+    supportArt.set(supports, frames);
+  }
   for (const { left, top, width, height, frame, flipped } of supports) {
     const x = left * tile, w = width * tile;
     if (x + w < viewLeft || x > viewLeft + viewWidth) continue;
+    let art = frames.get(frame);
+    if (!art) {
+      art = document.createElement("canvas");
+      art.width = sheet.naturalWidth / 4;
+      art.height = sheet.naturalHeight / 2;
+      const surface = art.getContext("2d");
+      const h = art.height;
+      surface.drawImage(sheet, (frame % 4) * art.width, Math.floor(frame / 4) * h, art.width, h, 0, 0, art.width, h);
+      const [sky, rock] = terrainLight[index];
+      const wash = surface.createLinearGradient(0, 0, 0, h);
+      wash.addColorStop(0, "#26323b65");
+      wash.addColorStop(.14, rock + "25");
+      wash.addColorStop(.55, rock + "40");
+      wash.addColorStop(1, sky + "78");
+      surface.globalCompositeOperation = "source-atop";
+      surface.fillStyle = wash;
+      surface.fillRect(0, 0, art.width, h);
+      const fade = surface.createLinearGradient(0, h * .42, 0, h);
+      fade.addColorStop(0, "#fff");
+      fade.addColorStop(1, "#ffffff58");
+      surface.globalCompositeOperation = "destination-in";
+      surface.fillStyle = fade;
+      surface.fillRect(0, 0, art.width, h);
+      frames.set(frame, art);
+    }
     g.save();
     g.translate(flipped ? x + w : x, top * tile);
     if (flipped) g.scale(-1, 1);
-    g.drawImage(sheet, (frame % 4) * sw, Math.floor(frame / 4) * sh, sw, sh, 0, 0, w, height * tile);
+    g.drawImage(art, 0, 0, w, height * tile);
     g.restore();
   }
 }
@@ -146,12 +179,13 @@ export function paintExitSign(g, chapter) {
 }
 
 export const mapMechanics = {
+  C: ["脆冰", "#80adb9"], D: ["冲刺门", "#b99358"], E: ["相位台", "#688595"],
   T: ["弹簧", "#a8e5ae"], A: ["光继", "#9ce5db"], R: ["补给", "#a5deeb"],
   U: ["风升", "#b5ebe3"], B: ["棱镜", "#ffd98c"], M: ["回声", "#e1c7fc"], K: ["巡游晶核", "#f6adab"]
 };
 
 // The terrain map and its key use the same silhouettes, in tile coordinates.
-export function paintMapMechanic(g, symbol, x, y) {
+export function paintMapMechanic(g, symbol, x, y, exposed = true) {
   g.save();
   g.translate(x, y);
   g.scale(1 / 16, 1 / 16);
@@ -162,6 +196,25 @@ export function paintMapMechanic(g, symbol, x, y) {
   g.fillStyle = g.strokeStyle;
   g.beginPath();
   switch (symbol) {
+    case "C":
+    case "D":
+    case "E":
+      g.fillRect(-8,-8,16,16);
+      if (exposed) {
+        g.fillStyle = symbol === "D" ? "#f1d4a2" : "#c0d8d6";
+        g.fillRect(-8,-8,16,2);
+      }
+      g.lineWidth = 1.8;
+      g.strokeStyle = symbol === "D" ? "#674c38" : "#354f63";
+      if (symbol === "C") {
+        g.moveTo(-8,0); g.lineTo(-3,2); g.lineTo(1,-2); g.lineTo(8,0);
+      } else if (symbol === "D") {
+        g.moveTo(-4,-4); g.lineTo(0,0); g.lineTo(-4,4);
+        g.moveTo(1,-4); g.lineTo(5,0); g.lineTo(1,4);
+      } else {
+        g.setLineDash([3,3]); g.moveTo(-8,4); g.lineTo(8,4);
+      }
+      break;
     case "T":
       g.moveTo(-7,-4); g.lineTo(7,-4);
       g.moveTo(-4,-1); g.lineTo(3,1); g.lineTo(-3,3); g.lineTo(3,5);
@@ -179,11 +232,54 @@ export function paintMapMechanic(g, symbol, x, y) {
     case "M":
       g.arc(0,0,6,0,Math.PI*2); g.moveTo(3,0); g.arc(0,0,3,0,Math.PI*2); break;
     case "K":
-      g.moveTo(0,-7); g.lineTo(5,-2); g.lineTo(3,2); g.lineTo(0,7); g.lineTo(-5,0); g.closePath();
-      g.fill(); break;
+      g.scale(.82,.82);
+      paintDriftShard(g);
+      g.restore();
+      return;
   }
   g.stroke();
   g.restore();
+}
+
+// Phase runs can have a hole where a returning cell would overlap the player.
+export function paintPhaseSpan(g, block, width) {
+  const progress = block.warningProgress || 0;
+  g.save();
+  g.translate(block.x, block.y);
+  if (block.active) {
+    polygon(g, "#375a64", [0,1, width,1, width,19, width-6,26, width*.56,30, 5,25, 0,20]);
+    polygon(g, "#64999d", [0,2, width,2, width-4,9, width*.66,13, width*.19,10, 2,13]);
+    for (let x = 4; x < width - 9; x += 24) {
+      polygon(g, "#4e7982", [x,13, x+14,10, x+7,22, x+2,24]);
+    }
+    g.lineWidth = 1.5;
+    g.strokeStyle = "#abd0cd";
+    g.setLineDash([5,4]);
+    g.beginPath(); g.moveTo(5,16); g.lineTo(width-5,16); g.stroke();
+    const lip = block.warning ? width * (1 - progress) : width;
+    g.fillStyle = block.warning ? "#efc578" : "#c5eae1";
+    g.fillRect((width - lip) / 2, 0, lip, 2.5);
+  } else {
+    g.lineWidth = 1.5;
+    g.strokeStyle = "#b4ced0";
+    g.setLineDash([4,5]);
+    g.beginPath(); g.moveTo(0,1); g.lineTo(width,1); g.stroke();
+    if (block.warning) {
+      const edge = width * progress / 2;
+      g.fillStyle = "#f6d497";
+      g.fillRect(0,0,edge,2.5);
+      g.fillRect(width-edge,0,edge,2.5);
+    }
+  }
+  g.restore();
+}
+
+// The four broken points occupy the patrol's 18px collision footprint.
+export function paintDriftShard(g) {
+  polygon(g, "#753e50", [-9,-8, -2,-5, 4,-9, 5,-4, 9,-2, 6,3, 8,9, 1,6, -6,9, -5,3, -9,1]);
+  polygon(g, "#df837f", [-8,-7, -1,-3, 4,-8, 2,0, -4,4]);
+  polygon(g, "#be616d", [3,-2, 8,-2, 4,3, 7,8, -1,4]);
+  polygon(g, "#f5bbb1", [-3,-2, 2,-3, 3,0, -1,2]);
 }
 
 function noise(seed, sample) {
@@ -236,6 +332,15 @@ export function paintLandmarkLedge(g, run, tile, sheet) {
   if ((run.x + run.y) % 2) { g.translate(width, 0); g.scale(-1, 1); }
   g.drawImage(sheet, sourceX, Math.floor(run.frame / 2) * cellH, cellW * crop, cellH, 0, 0, width, height);
   g.restore();
+  if (run.frame === trestle) {
+    // The worn front edges of individual boards mark the actual walkable deck.
+    const seed = run.x + 31 * run.y;
+    for (let x = 0, i = 0; x < width; i++) {
+      const next = Math.min(width, x + 12 + noise(seed, i) * 11);
+      polygon(g, "#d3ad77", [x+1,0, next-1,0, next-2,2, x+3,2.8]);
+      x = next;
+    }
+  }
 }
 
 const seamlessStone = new WeakMap();

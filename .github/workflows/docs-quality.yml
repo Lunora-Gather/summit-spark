@@ -75,7 +75,7 @@ jobs:
 
   safari-reduced-motion:
     name: Safari system reduced motion
-    runs-on: macos-latest
+    runs-on: ${{ github.run_attempt == 1 && 'macos-15-intel' || 'macos-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -89,7 +89,8 @@ jobs:
 
   safari-ios:
     name: Native iOS Safari safe areas
-    runs-on: macos-latest
+    # The simulator touch service needs the native Apple Silicon image.
+    runs-on: ${{ github.run_attempt == 1 && 'macos-latest' || 'macos-15' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -97,7 +98,6 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
-      - run: sudo safaridriver --enable
       - name: Install simulator touch input
         run: |
           set -euo pipefail
@@ -118,14 +118,14 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
           echo "SAFARI_IOS_UDID=$udid" >> "$GITHUB_ENV"
           open -a Simulator --args -CurrentDeviceUDID "$udid"
-          xcrun simctl launch "$udid" com.apple.mobilesafari
+          xcrun simctl launch --terminate-running-process "$udid" com.apple.mobilesafari -com.apple.TipKit.HideAllTips 1
       - run: node tools/check-browser-smoke.js --native-safari-ios
       - name: Preserve the iPhone screen on failure
         if: failure()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: ios-keyboard
-          path: ${{ runner.temp }}/ios-keyboard.png
+          name: ios-safari-screen
+          path: ${{ runner.temp }}/ios-safari-screen.png
           if-no-files-found: ignore
           retention-days: 3
       - name: Report simulator state if Safari fails

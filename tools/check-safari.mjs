@@ -5,9 +5,9 @@ import net from "node:net";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { once } from "node:events";
-import { Builder, By, Key, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import { checkStorageRecovery } from "./check-storage-recovery.cjs";
-import safari from "selenium-webdriver/safari.js";
+import { createSafariSession } from "./safari-smoke-transport.cjs";
 import { maps } from "../public/modules/game/room-data.mjs";
 import { roomEntrySpawnData } from "../public/modules/game/world-model.mjs";
 
@@ -63,10 +63,9 @@ await once(probe, "listening");
 const port = probe.address().port;
 await new Promise(resolve => probe.close(resolve));
 const server = spawn(process.execPath, ["game-server.js"], { env: { ...process.env, PORT: String(port) } });
-const service = new safari.ServiceBuilder("/usr/bin/safaridriver").build();
-let driver;
+let service, driver;
 try {
-  driver = await new Builder().disableEnvironmentOverrides().usingServer(await service.start()).forBrowser("safari").build();
+  ({ driver, service } = await createSafariSession());
   const url = `http://127.0.0.1:${port}/`;
   await driver.wait(async () => { try { return (await fetch(url)).ok; } catch { return false; } }, 10000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
@@ -107,6 +106,7 @@ try {
     const drawImage = prototype.drawImage;
     const materials = new WeakMap();
     const landmarks = new WeakMap();
+    const supports = new WeakMap();
     window.paintedLandmarks = new Set();
     window.supportFrames = new Set();
     prototype.drawImage = function (image, ...args) {
@@ -114,9 +114,10 @@ try {
       if (image instanceof HTMLImageElement && image.src.includes("/assets/terrain/")) {
         materials.set(this.canvas, new URL(image.src).pathname.split("/").pop());
       }
-      if (this.canvas === game && image instanceof HTMLImageElement && image.src.endsWith("/abutments.webp")) {
-        window.supportFrames.add(args[0] / args[2] + 4 * args[1] / args[3]);
+      if (image instanceof HTMLImageElement && image.src.endsWith("/abutments.webp")) {
+        supports.set(this.canvas, args[0] / args[2] + 4 * args[1] / args[3]);
       }
+      if (this.canvas === game && supports.has(image)) window.supportFrames.add(supports.get(image));
       if (this.canvas === game && image instanceof HTMLImageElement && image.src.endsWith("/lumens.png")) {
         window.lastLumenChapter = args[0] / args[2] + 2 * args[1] / args[3];
       }
@@ -156,6 +157,14 @@ try {
     await keyEvent(code, "keydown");
     await keyEvent(code, "keyup");
   }
+  async function waitForMenuTarget(button) {
+    await driver.wait(() => driver.executeScript(el => {
+      el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+      const rect = el.getBoundingClientRect();
+      return !el.disabled && !el.closest("[inert]") && rect.height > 0
+        && el.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+    }, button), 6000, "The menu action must be visible at its click point");
+  }
   const adviceButton = await driver.wait(until.elementLocated(By.css(".finish-summary .primary-review")), 8000);
   const recommendationFits = await driver.executeScript(() => {
     const card = document.querySelector(".finish-summary .review-card.primary");
@@ -167,14 +176,17 @@ try {
       && bounds.bottom <= progress.top + 1 && button.height >= 44;
   });
   assert.ok(recommendationFits, "The summit card must contain the advice and clear the progress row");
+  await waitForMenuTarget(adviceButton);
   await adviceButton.click();
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden") && /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
   await driver.executeScript('localStorage.setItem("summit-spark-room-focus", JSON.stringify({schemaVersion:1,rooms:[{faults:4,fall:4,drills:1,cleanWins:0}]}))');
+  const previousPage = await driver.findElement(By.css("html"));
   await driver.navigate().refresh();
+  await driver.wait(until.stalenessOf(previousPage), 10000, "Wait for the practice page to reload");
   await driver.wait(ready, 10000);
   const resume = await driver.findElement(By.id("resumeTrainingButton"));
-  await driver.wait(until.elementIsVisible(resume), 5000);
+  await driver.wait(until.elementIsVisible(resume), 10000, "Saved training should appear on the launch menu");
   assert.match(await resume.getText(), /继续训练/);
   await driver.manage().window().setRect({ width: 840, height: 320 });
   const menuFits = await driver.executeScript(() => {
@@ -188,9 +200,11 @@ try {
   assert.ok(menuFits, "Short landscape menu must fit the title and all five actions, including resume");
 
   await driver.manage().window().setRect({ width: 690, height: 850 });
-  await driver.findElement(By.id("startAccountButton")).click();
+  const accountButton = await driver.findElement(By.id("startAccountButton"));
+  await waitForMenuTarget(accountButton);
+  await accountButton.click();
   const panel = await driver.findElement(By.id("settingsPanel"));
-  await driver.wait(until.elementIsVisible(panel), 5000);
+  await driver.wait(until.elementIsVisible(panel), 10000, "Account sheet should open from the launch menu");
   const form = await driver.executeScript(() => {
     const rect = document.querySelector("#settingsPanel").getBoundingClientRect();
     return { width: rect.width, centerOffset: rect.left + rect.width / 2 - innerWidth / 2,
@@ -199,8 +213,10 @@ try {
   assert.ok(form.width <= 430 && Math.abs(form.centerOffset) <= 1 && form.fontSize >= 16, JSON.stringify(form));
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
-  await driver.findElement(By.id("openTrainingButton")).click();
-  await driver.wait(until.elementIsVisible(panel), 5000);
+  const openPractice = await driver.findElement(By.id("openTrainingButton"));
+  await waitForMenuTarget(openPractice);
+  await openPractice.click();
+  await driver.wait(until.elementIsVisible(panel), 10000, "Practice sheet should open after closing Account");
   const spaceAboveLaunch = await driver.executeScript(() => {
     const lastGroup = document.querySelector(".settings-group-training").getBoundingClientRect();
     const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
@@ -235,6 +251,17 @@ try {
   await chooseRoom(9);
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "9", 5000);
   assert.match(await driver.findElement(By.id("terrainExitKey")).getText(), /星顶终点/);
+  await chooseRoom(7);
+  await driver.wait(async () => (await terrain.getAttribute("data-room")) === "7", 5000);
+  const keyText = await driver.findElement(By.id("terrainMechanics")).getText();
+  const mapLabel = await terrain.getAttribute("aria-label");
+  for (const material of ["脆冰", "冲刺门", "相位台"]) {
+    assert.ok(keyText.includes(material) && mapLabel.includes(material));
+  }
+  const shelfPixel = await terrainPixel(driver, 40.5, 10.5, maps[7][0].length, [84, 114, 126, 255]);
+  assert.deepEqual(shelfPixel, [84, 114, 126, 255], "the atlas must paint the new recovery shelf as permanent rock");
+  await chooseRoom(9);
+  await driver.wait(async () => (await terrain.getAttribute("data-room")) === "9", 5000);
   const viewport = await driver.findElement(By.id("terrainViewport"));
   await driver.executeScript(button => button.focus(), zoom);
   await zoom.sendKeys(Key.ENTER);
@@ -267,11 +294,7 @@ try {
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
-  await driver.wait(() => driver.executeScript(button => {
-    const rect = button.getBoundingClientRect();
-    return !button.disabled && rect.height > 0 && button.contains(document.elementFromPoint(
-      rect.left + rect.width / 2, rect.top + rect.height / 2));
-  }, resume), 6000, "The launch menu must restore the saved training action after closing Practice");
+  await waitForMenuTarget(resume);
   await resume.click();
   await driver.wait(() => driver.executeScript('return /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   const recoveryErrors = await checkStorageRecovery(
@@ -284,5 +307,5 @@ try {
   assert.deepEqual(recoveryErrors, []);
   console.log("Safari passed: climb, fit the resume menu and account form, select a training goal, resume and recover storage.");
 } finally {
-  try { await driver?.quit(); } finally { server.kill(); await service.kill(); }
+  try { await driver?.quit(); } finally { server.kill(); await service?.kill(); }
 }

@@ -27,9 +27,9 @@ const landmarks = [
 const wooded = 0, masonry = 1, columns = 2, snow = 3, timber = 4, bluff = 5, crag = 6, granite = 7;
 const sockets = [.67, .73, .62, .70, .74, .70, .65, .63];
 const abutments = [
-  [[8,10,wooded,16.6,5.0], [18,6,crag,13.5,4.1], [25,4,wooded,13.8,-6.4]],
+  [[4,14,wooded,16.2,2.7], [11,12,crag,16.7,-3.3], [8,10,wooded,16.6,5.0], [18,6,crag,13.5,4.1], [25,4,wooded,13.8,-6.4]],
   [[1,9,timber,16.3,3.0], [11,9,timber,14.8,-3.8], [24,7,wooded,16,-5.7], [16,3,wooded,10,4.7]],
-  [[1,6,crag,16,7.0], [16,9,wooded,16.5,4.7], [24,6,crag,15,-5.5]],
+  [[1,6,crag,16,7.0], [16,9,wooded,16.5,4.7], [27,6,crag,15,-5.5]],
   [[1,9,masonry,16.3,3.4], [14,4,bluff,12.8,5.7], [24,3,masonry,10.2,-3.9], [7,13,bluff,17.5,4.7], [33,9,masonry,15.5,3.7], [42,6,bluff,15,-6.0]],
   [[1,8,bluff,16.6,5.6], [10,10,bluff,16.2,4.6], [21,5,bluff,14,-6.2], [34,6,masonry,12.5,3.5], [42,9,bluff,16.4,-4.7]],
   [[2,9,masonry,16.5,3.5], [13,9,masonry,16,3.8], [23,3,masonry,8.8,-3.2], [24,7,bluff,16,-7.1], [37,6,masonry,12.7,3.4], [41,2,bluff,12.8,-6.0]],
@@ -70,12 +70,20 @@ const terrainLight = [
   ["#8aadb3", "#769ca2"], ["#91aacc", "#87adba"], ["#6d7bc8", "#5f6aa2"], ["#8293c4", "#7488d3"]
 ];
 
-export function applyTerrainLight(g, width, tile, index) {
+// Local rock in the near hillside, from the pine gate through violet summit granite.
+const bedrockPigments = [
+  "#647364", "#736f60", "#777184", "#98766a", "#a07e68",
+  "#8d6f76", "#58797a", "#637f89", "#777794", "#6e7292"
+];
+
+export function applyTerrainLight(g, width, tile, index, face) {
   const [sky, rock] = terrainLight[index];
   const light = g.createLinearGradient(0, 0, 0, tile + 5);
-  light.addColorStop(0, sky + "18");
-  light.addColorStop(.42, sky + "2f");
-  light.addColorStop(1, rock + "4e");
+  // Internal row boundaries share one tint across the entire continuous rock face.
+  const bed = rock + "32";
+  light.addColorStop(0, face?.top === false ? bed : sky + "18");
+  light.addColorStop(.42, face?.top === false ? bed : sky + "2f");
+  light.addColorStop(tile / (tile + 5), face?.bottom === false ? bed : rock + "4e");
   g.save();
   g.globalCompositeOperation = "source-atop";
   g.fillStyle = light;
@@ -95,7 +103,10 @@ export function rockRuns(rows, roomIndex) {
       const bottom = rows[y + 1]?.[x] !== "#";
       x += 1;
       while (row[x] === "#" && (rows[y - 1]?.[x] !== "#") === top && (rows[y + 1]?.[x] !== "#") === bottom) x += 1;
-      runs.push({ x: start, y, length: x - start, floor: y === rows.length - 1, top, bottom, left: row[start - 1] !== "#", right: row[x] !== "#" });
+      const left = row[start - 1] !== "#", right = row[x] !== "#";
+      const bankLeft = top && !left && rows[y - 1]?.[start - 1] === "#";
+      const bankRight = top && !right && rows[y - 1]?.[x] === "#";
+      runs.push({ x: start, y, length: x - start, floor: y === rows.length - 1, top, bottom, left, right, bankLeft, bankRight });
     }
   });
   for (const [x, y, frame] of landmarks[roomIndex] || []) {
@@ -215,12 +226,13 @@ export function paintLedge(g, run, tile, material, index, image) {
   const isolated = run.bottom && !run.floor;
   const bevel = kind === "sandstone" ? 4 : 7;
   const left = run.left ? 1 : 0, right = run.right ? 1 : 0;
-  const lowerCut = isolated ? Math.min(width / 5, bevel + n(1)*10) : 2;
+  const lowerCut = isolated ? Math.min(width / 5, bevel + n(1)*10) : 0;
   g.save();
   g.beginPath();
-  g.moveTo(left * 2, 0);
-  g.lineTo(width - right * 2, 0);
-  g.lineTo(width, right * 3);
+  const topLeft = run.top ? left : 0, topRight = run.top ? right : 0;
+  g.moveTo(topLeft * 2, 0);
+  g.lineTo(width - topRight * 2, 0);
+  g.lineTo(width, topRight * 3);
   if (right && isolated) {
     g.lineTo(width-1, 11+n(2)*5);
     g.lineTo(width-5, 19);
@@ -257,7 +269,7 @@ export function paintLedge(g, run, tile, material, index, image) {
     g.lineTo(5, 18);
     g.lineTo(0, 13);
   }
-  g.lineTo(0, left*4);
+  g.lineTo(0, topLeft*4);
   g.closePath();
   g.clip();
   g.fillStyle = material.stone;
@@ -325,7 +337,24 @@ export function paintLedge(g, run, tile, material, index, image) {
   if (run.top && run.bottom && run.length >= 4) {
     paintLedgeFeature(g, index, run.y, width, seed);
   }
+  // Preserve the light and dark painted strata while picking up the local rock hue.
+  g.globalCompositeOperation = "color";
+  g.globalAlpha = .64;
+  g.fillStyle = bedrockPigments[index];
+  g.fillRect(0, 0, width, tile + 12);
   g.restore();
+
+  // Scree collects where a real vertical wall meets a walkable lower shelf.
+  for (const side of [-1, 1]) {
+    if (side === -1 ? !run.bankLeft : !run.bankRight) continue;
+    g.save();
+    g.translate(side === -1 ? 0 : width, 0);
+    g.scale(-side, 1);
+    polygon(g, material.shade, [0,-5, 4,-4, 7,-2, 13,-1, 16,1, 0,2]);
+    polygon(g, material.face, [1,-5, 4,-5, 6,-2, 3,-1, 0,-2]);
+    polygon(g, material.edge, [7,-1, 9,-3, 12,-2, 14,0, 8,1]);
+    g.restore();
+  }
 
   if (run.top && (kind === "moss" || kind === "basalt")) {
     for (let x = 10+n(57)*24, i = 0; x < width-5; x += 38+n(i+63)*34, i++) {
@@ -368,16 +397,35 @@ const spikeColors = [
   ["#563a3f","#a44c51","#ea8880"], ["#432935","#b54652","#ff9c90"],
   ["#3c414e","#985967","#dc9093"], ["#51364f","#a55b81","#efa2b9"]
 ];
-export function paintSpikes(g, chapter, variant) {
-  const [dark, middle, light] = spikeColors[chapter];
-  // A dominant point and a shorter companion give each hazardous cell a clear direction.
-  const split = [17, 13, 20][variant];
-  const lean = [4, -2, 6, 1][chapter];
-  for (let i = 0; i < 2; i++) {
-    const a = i === 0 ? 0 : split - 2, b = i === 0 ? split + 3 : 32;
+const spikeProfiles = [4, -2, 6, 1].map(lean =>
+  [17, 13, 20].map((split, variant) => [[0, split + 3], [split - 2, 32]].map(([a, b], i) => {
     const foot = (a + b) / 2;
     const tip = Math.max(2, Math.min(30, foot + lean + (i === 0 ? 2 : -2)));
     const h = i === variant % 2 ? 1 : 6 + variant;
+    return { a, b, foot, tip, h };
+  }))
+);
+
+export function spikeIntersectsBox(direction, chapter, variant, x0, y0, x1, y1) {
+  // Undo the same quarter-turn as the sprite, then clip to this cell.
+  let left = x0, right = x1, base = y1;
+  if (direction === ">") { left = y0; right = y1; base = 32 - x0; }
+  if (direction === "<") { left = 32 - y1; right = 32 - y0; base = x1; }
+  if (direction === "v") { left = 32 - x1; right = 32 - x0; base = 32 - y0; }
+  if (x1 <= 0 || y1 <= 0 || x0 >= 32 || y0 >= 32) return false;
+  if (base > 29) return true;
+  for (const { a, b, tip, h } of spikeProfiles[chapter][variant]) {
+    if (base <= h) continue;
+    // A forgiving triangle inside the painted tooth, widest at the bottom of the box.
+    const t = (base - h) / (29 - h);
+    if (right > tip + (a + 2 - tip) * t && left < tip + (b - 2 - tip) * t) return true;
+  }
+  return false;
+}
+
+export function paintSpikes(g, chapter, variant) {
+  const [dark, middle, light] = spikeColors[chapter];
+  for (const { a, b, foot, tip, h } of spikeProfiles[chapter][variant]) {
     if (chapter === 0) {
       g.fillStyle = dark;
       g.beginPath();

@@ -845,7 +845,7 @@ if (!js.includes("const CRUMBLE_RIPPLE_DELAY = 0.065;")
   || !js.includes("block.rippleDelay = order * CRUMBLE_RIPPLE_DELAY;")
   || !js.includes("if (block.rippleDelay > 0) continue;")
   || !js.includes("const queued = block?.rippleDelay > 0")
-  || !js.includes("(TILE - 8) * queued")
+  || !js.includes("paintIceStress(ctx, variant, queued, fracture, block.rippleDirection)")
   || !js.includes('name === "land" || name === "crumble"')
   || !js.includes("q${crumble.queued} a${crumble.armed}")) {
   errors.push("Wind Gorge crumble strips must ripple only through contiguous same-row tiles while queued collision, full warnings and bounded audio remain intact");
@@ -950,10 +950,10 @@ if (!js.includes("ledgeSprites = new WeakMap()") || !js.includes("cached.image !
 if (!js.includes("function drawObstacleArchitecture(time)")
   || !js.includes("function drawDashGateFrames(time)")
   || !js.includes("function drawPhaseRails(time)")
-  || !js.includes("function drawCrumbleBridgeProfiles()")
+  || !js.includes('crumbleTileSprite(variant, row[gx - 1] === "C", row[gx + 1] === "C")')
   || !js.includes("const visualGroups = {")
   || !js.includes("return { tiles, entities, visualGroups, cols, worldWidth: world.width, dynamicTime: 0 };")
-  || !js.includes("drawHazardFields(time);\n    drawObstacleArchitecture(time);\n    drawTiles(time);")
+  || !js.includes("drawHazardFields(time);\n    drawObstacleArchitecture(time);\n    drawTiles();")
   || !js.includes("function drawWaypointCamp(waypoint, time, active)")) {
   errors.push("late-room mechanisms should compose repeated tiles into coherent gates, phase rails and crumble bridges, with a readable midpoint camp");
 }

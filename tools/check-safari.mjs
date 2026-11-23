@@ -106,6 +106,8 @@ try {
     const prototype = CanvasRenderingContext2D.prototype;
     const drawImage = prototype.drawImage;
     const materials = new WeakMap();
+    const landmarks = new WeakMap();
+    window.paintedLandmarks = new Set();
     prototype.drawImage = function (image, ...args) {
       const result = drawImage.call(this, image, ...args);
       if (image instanceof HTMLImageElement && image.src.includes("/assets/terrain/")) {
@@ -114,6 +116,10 @@ try {
       if (this.canvas === game && image instanceof HTMLImageElement && image.src.endsWith("/lumens.png")) {
         window.lastLumenChapter = args[0] / args[2] + 2 * args[1] / args[3];
       }
+      if (image instanceof HTMLImageElement && image.src.endsWith("/ledges.png")) {
+        landmarks.set(this.canvas, Math.floor(args[0] / (image.naturalWidth / 2)) + 2 * args[1] / args[3]);
+      }
+      if (this.canvas === game && landmarks.has(image)) window.paintedLandmarks.add(landmarks.get(image));
       if (this.canvas === game && materials.has(image)) window.lastPaintedMaterial = materials.get(image);
       if (this.canvas === game && image instanceof HTMLImageElement && image.src.includes("/assets/rooms/") && this.globalAlpha === 1) {
         window.lastPaintedRoom = new URL(image.src).pathname.split("/").pop();
@@ -122,7 +128,7 @@ try {
     };
   });
   await start.click();
-  await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "gate.jpg" && window.lastPaintedMaterial === "moss.jpg" && window.lastLumenChapter === 0'), 5000);
+  await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "gate.jpg" && window.lastPaintedMaterial === "moss.jpg" && window.lastLumenChapter === 0 && window.paintedLandmarks.has(0)'), 5000);
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden")'), 5000);
   const guideKeys = await driver.findElements(By.css("#openingGuideControls kbd"));
   assert.equal(guideKeys.length, 4);
@@ -141,7 +147,7 @@ try {
     await keyEvent(code, "keydown");
     await keyEvent(code, "keyup");
   }
-  await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "summit.jpg" && window.lastPaintedMaterial === "glacier.jpg" && window.lastLumenChapter === 3'), 5000);
+  await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "summit.jpg" && window.lastPaintedMaterial === "glacier.jpg" && window.lastLumenChapter === 3 && window.paintedLandmarks.has(7)'), 5000);
   for (const code of ["KeyH", "F3"]) {
     await keyEvent(code, "keydown");
     await keyEvent(code, "keyup");

@@ -31,6 +31,7 @@ const types = {
   ".mjs": "text/javascript; charset=utf-8"
 };
 const publicFiles = new Map([
+  ["/assets/ledges.png", path.join("public", "assets", "ledges.png")],
   ["/assets/lumens.png", path.join("public", "assets", "lumens.png")],
   ["/assets/moonlit-pass.jpg", path.join("public", "assets", "moonlit-pass.jpg")],
   ["/assets/trail-contours.svg", path.join("public", "assets", "trail-contours.svg")],

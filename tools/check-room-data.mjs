@@ -100,9 +100,18 @@ assert.equal(new Set(CHAPTER_SURFACE_KINDS).size, CHAPTER_EXPERIENCE.length, "ch
 for (const kind of CHAPTER_SURFACE_KINDS) {
   await access(new URL(`../public/assets/terrain/${rockMaterials[kind].file}.jpg`, import.meta.url));
 }
-for (const rows of maps) {
+const landmarkFrames = new Set();
+for (const [roomIndex, rows] of maps.entries()) {
   const coverage = rows.map(row => Array(row.length).fill(0));
-  for (const run of rockRuns(rows)) {
+  const runs = rockRuns(rows, roomIndex);
+  const landmarks = runs.filter(run => run.frame !== undefined);
+  assert.ok(landmarks.length >= 2, `R${roomIndex + 1} should retain painted landmarks along the route`);
+  for (const run of landmarks) {
+    assert.ok(run.top && run.bottom && run.left && run.right);
+    assert.ok(run.length >= 4 && run.frame >= 0 && run.frame < 8);
+    landmarkFrames.add(run.frame);
+  }
+  for (const run of runs) {
     for (let x = run.x; x < run.x + run.length; x++) {
       coverage[run.y][x] += 1;
       assert.equal(run.top, rows[run.y - 1]?.[x] !== "#");
@@ -111,6 +120,7 @@ for (const rows of maps) {
   }
   assert.deepEqual(coverage, rows.map(row => [...row].map(cell => Number(cell === "#"))), "painted runs must cover every solid cell exactly once");
 }
+assert.equal(landmarkFrames.size, 8, "all eight terrain silhouettes should appear on walkable ledges");
 assert.deepEqual(
   CHAPTER_SURFACE_FEEDBACK.map((feedback) => feedback.kind),
   ["slate-chip", "warm-dust", "ice-flake", "star-spark"],

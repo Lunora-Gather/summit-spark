@@ -81,6 +81,10 @@ async function verifyServerBoundary(baseUrl) {
   expectHeader(rootResponse, "x-frame-options", "DENY");
   expectHeader(rootResponse, "permissions-policy", "camera=()");
 
+  const ledges = await request(baseUrl + "/assets/ledges.png", { method: "HEAD" });
+  if (ledges.status !== 200 || ledges.headers["content-type"] !== "image/png") {
+    errors.push("painted ledges must be available to the game as a PNG");
+  }
   const headResponse = await request(baseUrl + "/summit-spark.js", { method: "HEAD" });
   if (headResponse.status !== 200 || headResponse.body !== "") {
     errors.push("server HEAD must return the public asset without a response body");

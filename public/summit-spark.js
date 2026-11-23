@@ -65,7 +65,7 @@
       roomEntrySpawnData,
       roomWorldData
     },
-    { rockMaterials, rockRuns, paintLedge, paintSpikes, paintFracturedIce },
+    { rockMaterials, rockRuns, paintLedge, paintLandmarkLedge, paintSpikes, iceVariants, paintFracturedIce, paintIceStress },
     {
       effectQueueLimit,
       enforceEffectQueueBudget
@@ -202,21 +202,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261123-p320"),
-    import("./modules/core/math.mjs?v=20261123-p320"),
-    import("./modules/game/room-data.mjs?v=20261123-p320"),
-    import("./modules/game/world-model.mjs?v=20261123-p320"),
-    import("./modules/game/terrain-art.mjs?v=20261123-p320"),
-    import("./modules/game/effect-budget.mjs?v=20261123-p320"),
-    import("./modules/game/landmark-progress.mjs?v=20261123-p320"),
-    import("./modules/game/audio-cues.mjs?v=20261123-p320"),
-    import("./modules/game/lumen-progress.mjs?v=20261123-p320"),
-    import("./modules/systems/storage.mjs?v=20261123-p320"),
-    import("./modules/systems/cloud-save.mjs?v=20261123-p320"),
-    import("./modules/systems/input.mjs?v=20261123-p320"),
-    import("./modules/training/state.mjs?v=20261123-p320"),
-    import("./modules/training/replay.mjs?v=20261123-p320"),
-    import("./modules/ui/presentation.mjs?v=20261123-p320")
+    import("./modules/core/format.mjs?v=20261123-p321"),
+    import("./modules/core/math.mjs?v=20261123-p321"),
+    import("./modules/game/room-data.mjs?v=20261123-p321"),
+    import("./modules/game/world-model.mjs?v=20261123-p321"),
+    import("./modules/game/terrain-art.mjs?v=20261123-p321"),
+    import("./modules/game/effect-budget.mjs?v=20261123-p321"),
+    import("./modules/game/landmark-progress.mjs?v=20261123-p321"),
+    import("./modules/game/audio-cues.mjs?v=20261123-p321"),
+    import("./modules/game/lumen-progress.mjs?v=20261123-p321"),
+    import("./modules/systems/storage.mjs?v=20261123-p321"),
+    import("./modules/systems/cloud-save.mjs?v=20261123-p321"),
+    import("./modules/systems/input.mjs?v=20261123-p321"),
+    import("./modules/training/state.mjs?v=20261123-p321"),
+    import("./modules/training/replay.mjs?v=20261123-p321"),
+    import("./modules/ui/presentation.mjs?v=20261123-p321")
   ]);
 
   const canvas = document.getElementById("game");
@@ -672,6 +672,7 @@
   let mountainRoom = -1;
   let mountainLayers;
   const materialImages = new Map();
+  let ledgeSheet = null;
   let ledgeSprites = new WeakMap();
   const spikeSprites = new Map();
   const cachedCrumbleTiles = new Map();
@@ -1877,6 +1878,7 @@
             rippleDelay: 0,
             rippleDelayMax: 0,
             rippleOrder: 0,
+            rippleDirection: 0,
             warned: false
           });
         }
@@ -1892,10 +1894,9 @@
     }
 
     const visualGroups = {
-      ledges: rockRuns(rows),
+      ledges: rockRuns(rows, index),
       dashGateColumns: dashGateColumns(entities.dashGates),
-      phaseRuns: phaseBlockRuns(entities.phaseBlocks),
-      crumbleRuns: crumbleBridgeRuns(entities.crumble)
+      phaseRuns: phaseBlockRuns(entities.phaseBlocks)
     };
     return { tiles, entities, visualGroups, cols, worldWidth: world.width, dynamicTime: 0 };
   }
@@ -2194,7 +2195,7 @@
     openPanel("settings");
   }
 
-  function openAccountPanel() {
+  function openAccountPanel(event) {
     accountFocused = true;
     openPanel("settings");
     if (!accountSdk) loadAppwriteSdk();
@@ -2204,6 +2205,9 @@
         syncSettingsGroupDisclosure(group);
       });
       accountGroup.scrollIntoView({ block: "start" });
+      // On a touchscreen the field tap itself must own text focus and open the software keyboard.
+      const touchEntry = event?.pointerType === "touch" || (event?.detail > 0 && coarsePointerQuery?.matches);
+      if (!accountUser && touchEntry) return;
       window.setTimeout(() => {
         if (!settingsVisible || panelMode !== "settings" || !accountFocused || !accountGroup.open) return;
         if (accountUser) {
@@ -6092,6 +6096,16 @@
             pen.fillStyle = "#c0d8d6";
             pen.fillRect(x, y, 1, 0.14);
           }
+          if (symbol === "C") {
+            pen.strokeStyle = "#354f63";
+            pen.lineWidth = 0.12;
+            pen.beginPath();
+            pen.moveTo(x, y + 0.47);
+            pen.lineTo(x + 0.32, y + 0.56);
+            pen.lineTo(x + 0.58, y + 0.35);
+            pen.lineTo(x + 1, y + 0.47);
+            pen.stroke();
+          }
         } else if ("^>v<".includes(symbol)) {
           pen.save();
           pen.translate(x + 0.5, y + 0.5);
@@ -7565,7 +7579,7 @@
     }
     if (pointHitsVisibleElement(startAccountButton, x, y)) {
       panelReturnFocus = startAccountButton;
-      openAccountPanel();
+      openAccountPanel(event);
       return;
     }
     closeSettings();
@@ -8202,6 +8216,7 @@
       block.rippleDelay = order * CRUMBLE_RIPPLE_DELAY;
       block.rippleDelayMax = block.rippleDelay;
       block.rippleOrder = order;
+      block.rippleDirection = Math.sign(block.x - origin.x);
       block.warned = true;
     }
   }
@@ -8603,7 +8618,7 @@
     ctx.translate(offset.x - cameraX, offset.y);
     drawHazardFields(time);
     drawObstacleArchitecture(time);
-    drawTiles(time);
+    drawTiles();
     drawBestRoomPath(time);
     drawCurrentRoomPath(time);
     drawBestRoomGhost(time);
@@ -10707,6 +10722,13 @@
   }
 
   function requestTerrainMaterial(index) {
+    if (!ledgeSheet) {
+      const sheet = new Image();
+      ledgeSheet = sheet;
+      sheet.decoding = "async";
+      sheet.src = "assets/ledges.png";
+      sheet.decode().catch(() => { ledgeSheet = null; });
+    }
     const kind = CHAPTER_SURFACE_KINDS[chapterIndexForRoom(index)];
     if (materialImages.has(kind)) return;
     const image = new Image();
@@ -10726,18 +10748,22 @@
     return { sprite, surface };
   }
 
-  function drawTiles(time) {
+  function drawTiles() {
     const chapter = chapterIndexForRoom(roomIndex);
     const kind = CHAPTER_SURFACE_KINDS[chapter];
-    const image = materialImages.get(kind) || null;
+    const material = materialImages.get(kind) || null;
+    const sheet = ledgeSheet?.complete && ledgeSheet.naturalWidth ? ledgeSheet : null;
     for (const run of room.visualGroups.ledges) {
       const left = run.x * TILE, width = run.length * TILE;
       if (left + width < cameraX || left > cameraX + W) continue;
+      const useLandmark = run.frame !== undefined && sheet;
+      const image = useLandmark ? sheet : material;
       let cached = ledgeSprites.get(run);
       if (!cached || cached.image !== image) {
         const { sprite, surface } = createSpriteSurface(width, TILE + 18);
         surface.translate(0, 6);
-        paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image);
+        if (useLandmark) paintLandmarkLedge(surface, run, TILE, image);
+        else paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image);
         cached = { image, sprite };
         ledgeSprites.set(run, cached);
       }
@@ -10746,7 +10772,7 @@
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < room.cols; x++) {
         const tile = room.tiles[y][x];
-        if (tile === "C") drawCrumblePlatform(x * TILE, y * TILE, x, y, time);
+        if (tile === "C") drawCrumblePlatform(x * TILE, y * TILE, x, y);
         if (HAZARDS.has(tile)) drawSpike(x, y, tile, chapter);
       }
     }
@@ -10771,65 +10797,29 @@
     ctx.restore();
   }
 
-  function crumbleTileSprite(variant) {
-    if (cachedCrumbleTiles.has(variant)) return cachedCrumbleTiles.get(variant);
+  function crumbleTileSprite(variant, left, right) {
+    const key = variant * 4 + Number(left) * 2 + Number(right);
+    if (cachedCrumbleTiles.has(key)) return cachedCrumbleTiles.get(key);
     const { sprite, surface } = createSpriteSurface();
-    paintFracturedIce(surface, variant);
-    cachedCrumbleTiles.set(variant, sprite);
+    paintFracturedIce(surface, variant, left, right);
+    cachedCrumbleTiles.set(key, sprite);
     return sprite;
   }
 
-  function drawCrumblePlatform(x, y, gx, gy, time) {
-    const block = room.entities.crumble?.get(`${gx}:${gy}`);
+  function drawCrumblePlatform(x, y, gx, gy) {
+    const row = room.tiles[gy];
+    const variant = (gx + gy * 2 + roomIndex) % iceVariants;
+    const sprite = crumbleTileSprite(variant, row[gx - 1] === "C", row[gx + 1] === "C");
+    ctx.drawImage(sprite, x, y, TILE, TILE);
+    const block = room.entities.crumble.get(`${gx}:${gy}`);
     const queued = block?.rippleDelay > 0
       ? 1 - block.rippleDelay / Math.max(block.rippleDelayMax, CRUMBLE_RIPPLE_DELAY)
       : 0;
-    const armed = block && block.rippleDelay <= 0 ? block.timer / CRUMBLE_BREAK_TIME : 0;
-    const danger = armed > 0 ? 1 - armed : 0;
-    const jitter = armed > 0 && !prefersReducedMotion ? Math.sin(time * 50 + gx) * (1 - armed) * 1.3 : 0;
+    const fracture = block?.timer > 0 && block.rippleDelay <= 0 ? 1 - block.timer / CRUMBLE_BREAK_TIME : 0;
+    if (queued <= 0 && fracture <= 0) return;
     ctx.save();
-    ctx.translate(jitter, 0);
-    const sprite = crumbleTileSprite((gx + gy * 2 + roomIndex) % 3);
-    ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, x, y, TILE, TILE);
-    if (queued > 0) {
-      ctx.fillStyle = `rgba(118, 215, 255, ${settings.calmEffects ? 0.08 : 0.13})`;
-      ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
-      ctx.fillStyle = `rgba(214, 245, 248, ${settings.calmEffects ? 0.28 : 0.42})`;
-      ctx.fillRect(x + 4, y + 4, (TILE - 8) * queued, 2);
-    }
-    if (armed > 0) {
-      ctx.fillStyle = `rgba(239,248,246,${armed * 0.12})`;
-      ctx.fillRect(x + 3, y + 3, TILE - 6, 4);
-      ctx.fillStyle = "rgba(18,18,19,0.52)";
-      ctx.fillRect(x + 4, y + TILE - 7, TILE - 8, 3);
-      ctx.fillStyle = `rgba(255,101,125,${0.62 + danger * 0.24})`;
-      ctx.fillRect(x + 4, y + TILE - 7, (TILE - 8) * danger, 3);
-      ctx.fillStyle = `rgba(255, 92, 108, ${0.12 + danger * 0.12})`;
-      ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
-      ctx.fillStyle = `rgba(255, 240, 160, ${0.32 + danger * 0.16})`;
-      for (let i = -1; i < 3; i += 1) {
-        ctx.fillRect(x + i * 13 + danger * 5, y + TILE - 11, 8, 2);
-      }
-      ctx.strokeStyle = "rgba(255,101,125,0.7)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(x + 7, y + 7);
-      ctx.lineTo(x + 14 + armed * 5, y + 17);
-      ctx.lineTo(x + 10, y + 28);
-      ctx.moveTo(x + 22, y + 6);
-      ctx.lineTo(x + 16 - armed * 4, y + 18);
-      ctx.lineTo(x + 25, y + 28);
-      ctx.moveTo(x + 5, y + 22);
-      ctx.lineTo(x + 13 + danger * 7, y + 24);
-      ctx.moveTo(x + 19, y + 10);
-      ctx.lineTo(x + 28, y + 18 + danger * 4);
-      ctx.stroke();
-      ctx.fillStyle = `rgba(255,101,125,${0.18 + (1 - armed) * 0.28})`;
-      ctx.fillRect(x + 1, y + 1, TILE - 2, TILE - 2);
-      ctx.strokeStyle = `rgba(255,240,160,${0.2 + danger * 0.4})`;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 2.5, y + 2.5, TILE - 5, TILE - 5);
-    }
+    ctx.translate(x, y);
+    paintIceStress(ctx, variant, queued, fracture, block.rippleDirection);
     ctx.restore();
   }
 
@@ -11157,7 +11147,6 @@
     const motionTime = prefersReducedMotion ? 0 : time;
     drawDashGateFrames(motionTime);
     drawPhaseRails(motionTime);
-    drawCrumbleBridgeProfiles();
   }
 
   function dashGateColumns(gates = room.entities.dashGates) {
@@ -11262,47 +11251,6 @@
       }
       ctx.restore();
     }
-  }
-
-  function crumbleBridgeRuns(crumble = room.entities.crumble) {
-    const rows = new Map();
-    for (const block of crumble.values()) {
-      if (!rows.has(block.y)) rows.set(block.y, []);
-      rows.get(block.y).push(block);
-    }
-    const runs = [];
-    for (const blocks of rows.values()) {
-      blocks.sort((a, b) => a.x - b.x);
-      let run = [];
-      for (const block of blocks) {
-        if (run.length && block.x !== run[run.length - 1].x + 1) {
-          if (run.length > 1) runs.push(run);
-          run = [];
-        }
-        run.push(block);
-      }
-      if (run.length > 1) runs.push(run);
-    }
-    return runs;
-  }
-
-  function drawCrumbleBridgeProfiles() {
-    ctx.save();
-    ctx.strokeStyle = "rgba(172,214,218,0.48)";
-    ctx.lineWidth = 1.4;
-    for (const run of room.visualGroups.crumbleRuns) {
-      for (let i = 1; i < run.length; i++) {
-        const { x, y } = run[i];
-        if (room.tiles[y][x - 1] !== "C" || room.tiles[y][x] !== "C") continue;
-        const seam = x * TILE, base = (y + 1) * TILE;
-        ctx.beginPath();
-        ctx.moveTo(seam - 8, base - 6);
-        ctx.lineTo(seam - 2, base + 1);
-        ctx.lineTo(seam + 7, base - 5);
-        ctx.stroke();
-      }
-    }
-    ctx.restore();
   }
 
   function drawEntities(time) {

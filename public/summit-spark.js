@@ -2210,19 +2210,21 @@
       accountGroup.scrollIntoView({ block: "start" });
       // On a touchscreen the field tap itself must own text focus and open the software keyboard.
       const touchEntry = event?.pointerType === "touch" || (event?.detail > 0 && coarsePointerQuery?.matches);
-      if (!accountUser && touchEntry) return;
+      if (!accountUser) {
+        const field = recoverySecret ? accountPasswordInput : accountEmailInput;
+        if (!touchEntry) field?.focus({ preventScroll: true });
+        return;
+      }
       window.setTimeout(() => {
         if (!settingsVisible || panelMode !== "settings" || !accountFocused || !accountGroup.open) return;
-        if (accountUser) {
-          if (cloudComparison && !cloudComparison.hidden) {
-            cloudComparison.focus({ preventScroll: true });
-            return;
-          }
-          const cloudAction = [cloudUploadButton, cloudDownloadButton, cloudRetryButton]
-            .find((button) => button && !button.disabled && button.getClientRects().length > 0);
-          cloudAction?.focus({ preventScroll: true });
-        } else if (recoverySecret) accountPasswordInput?.focus({ preventScroll: true });
-        else accountEmailInput?.focus({ preventScroll: true });
+        if (!accountUser) return;
+        if (cloudComparison && !cloudComparison.hidden) {
+          cloudComparison.focus({ preventScroll: true });
+          return;
+        }
+        const cloudAction = [cloudUploadButton, cloudDownloadButton, cloudRetryButton]
+          .find((button) => button && !button.disabled && button.getClientRects().length > 0);
+        cloudAction?.focus({ preventScroll: true });
       }, 0);
     }
   }

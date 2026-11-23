@@ -102,6 +102,8 @@ for (const kind of CHAPTER_SURFACE_KINDS) {
 }
 const landmarkFrames = new Set();
 const supportFrames = new Set();
+assert.equal(maps[7][10].slice(33,42), "CCCCCC###", "the final R8 ice must feed straight onto three stable cells");
+assert.match(maps[7][9].slice(39,42), /^\.{3}$/, "the recovery shoulder needs standing headroom");
 for (const [roomIndex, rows] of maps.entries()) {
   const coverage = rows.map(row => Array(row.length).fill(0));
   const runs = rockRuns(rows, roomIndex);

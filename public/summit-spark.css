@@ -3129,7 +3129,6 @@ body,
   }
 
   .touch button {
-    --touch-size: 42px;
     font-size: 20px;
   }
 }
@@ -4635,8 +4634,14 @@ body {
   }
 }
 
-/* P56: landscape controls sit over the map, so keep terrain readable beneath them. */
-@media (max-width: 760px) and (orientation: landscape) and (pointer: coarse) {
+/* Keep the thumb groups at the safe outer edges of short landscape screens. */
+@media (max-height: 520px) and (orientation: landscape) and (pointer: coarse) {
+  .touch {
+    position: fixed;
+    inset: auto max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    padding-bottom: 0;
+  }
+
   .touch button {
     background: rgba(20, 20, 21, 0.3);
     backdrop-filter: blur(4px);

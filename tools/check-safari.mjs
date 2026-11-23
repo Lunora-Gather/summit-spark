@@ -107,6 +107,7 @@ try {
     const drawImage = prototype.drawImage;
     const materials = new WeakMap();
     const landmarks = new WeakMap();
+    const supports = new WeakMap();
     window.paintedLandmarks = new Set();
     window.supportFrames = new Set();
     prototype.drawImage = function (image, ...args) {
@@ -114,9 +115,10 @@ try {
       if (image instanceof HTMLImageElement && image.src.includes("/assets/terrain/")) {
         materials.set(this.canvas, new URL(image.src).pathname.split("/").pop());
       }
-      if (this.canvas === game && image instanceof HTMLImageElement && image.src.endsWith("/abutments.webp")) {
-        window.supportFrames.add(args[0] / args[2] + 4 * args[1] / args[3]);
+      if (image instanceof HTMLImageElement && image.src.endsWith("/abutments.webp")) {
+        supports.set(this.canvas, args[0] / args[2] + 4 * args[1] / args[3]);
       }
+      if (this.canvas === game && supports.has(image)) window.supportFrames.add(supports.get(image));
       if (this.canvas === game && image instanceof HTMLImageElement && image.src.endsWith("/lumens.png")) {
         window.lastLumenChapter = args[0] / args[2] + 2 * args[1] / args[3];
       }
@@ -235,6 +237,17 @@ try {
   await chooseRoom(9);
   await driver.wait(async () => (await terrain.getAttribute("data-room")) === "9", 5000);
   assert.match(await driver.findElement(By.id("terrainExitKey")).getText(), /星顶终点/);
+  await chooseRoom(7);
+  await driver.wait(async () => (await terrain.getAttribute("data-room")) === "7", 5000);
+  const keyText = await driver.findElement(By.id("terrainMechanics")).getText();
+  const mapLabel = await terrain.getAttribute("aria-label");
+  for (const material of ["脆冰", "冲刺门", "相位台"]) {
+    assert.ok(keyText.includes(material) && mapLabel.includes(material));
+  }
+  const shelfPixel = await terrainPixel(driver, 40.5, 10.5, maps[7][0].length, [84, 114, 126, 255]);
+  assert.deepEqual(shelfPixel, [84, 114, 126, 255], "the atlas must paint the new recovery shelf as permanent rock");
+  await chooseRoom(9);
+  await driver.wait(async () => (await terrain.getAttribute("data-room")) === "9", 5000);
   const viewport = await driver.findElement(By.id("terrainViewport"));
   await driver.executeScript(button => button.focus(), zoom);
   await zoom.sendKeys(Key.ENTER);

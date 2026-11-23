@@ -5387,6 +5387,21 @@ async function checkNativeSafeArea(browser, url) {
   } finally {
     browser.setSafeAreaFixture(undefined);
   }
+  await navigateApp(browser, url, "native iOS portrait playfield");
+  await clickSelector(browser, "#guestEntryButton");
+  await clickSelector(browser, "#startButton");
+  await waitUntil("native iOS touch controls", () => browser.evaluate(`document.querySelector(".stage").classList.contains("run-started") && !document.querySelector("#touchControls").hidden`));
+  const thumbRoom = await browser.evaluate(`(() => {
+    const stage = document.querySelector(".stage").getBoundingClientRect();
+    const buttons = ["left","right","jump","dash"].map(action => {
+      const rect = document.querySelector('[data-touch="' + action + '"]').getBoundingClientRect();
+      return { width:rect.width, height:rect.height, gap:rect.top - stage.bottom, left:rect.left, right:rect.right };
+    });
+    return { buttons, width:innerWidth };
+  })()`);
+  if (thumbRoom.buttons.some(b => b.width < 44 || b.height < 44 || b.gap < 0 || b.left < 0 || b.right > thumbRoom.width + 1)) {
+    throw new Error("Portrait movement and dash must leave the entire landing area visible: " + JSON.stringify(thumbRoom));
+  }
   console.log("Native Safari passed safe-area checks");
 }
 

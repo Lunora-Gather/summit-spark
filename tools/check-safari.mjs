@@ -201,7 +201,16 @@ try {
   assert.ok(form.width <= 430 && Math.abs(form.centerOffset) <= 1 && form.fontSize >= 16, JSON.stringify(form));
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
-  await driver.findElement(By.id("openTrainingButton")).click();
+  async function waitForMenuTarget(button) {
+    await driver.wait(() => driver.executeScript(el => {
+      const rect = el.getBoundingClientRect();
+      return !el.disabled && !el.closest("[inert]") && rect.height > 0
+        && el.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+    }, button), 6000, "The returning menu button must actually receive a click");
+  }
+  const openPractice = await driver.findElement(By.id("openTrainingButton"));
+  await waitForMenuTarget(openPractice);
+  await openPractice.click();
   await driver.wait(until.elementIsVisible(panel), 5000);
   const spaceAboveLaunch = await driver.executeScript(() => {
     const lastGroup = document.querySelector(".settings-group-training").getBoundingClientRect();
@@ -280,11 +289,7 @@ try {
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
-  await driver.wait(() => driver.executeScript(button => {
-    const rect = button.getBoundingClientRect();
-    return !button.disabled && rect.height > 0 && button.contains(document.elementFromPoint(
-      rect.left + rect.width / 2, rect.top + rect.height / 2));
-  }, resume), 6000, "The launch menu must restore the saved training action after closing Practice");
+  await waitForMenuTarget(resume);
   await resume.click();
   await driver.wait(() => driver.executeScript('return /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   const recoveryErrors = await checkStorageRecovery(

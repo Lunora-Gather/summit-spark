@@ -2051,52 +2051,43 @@ async function runWindGorgeCrumbleRippleSmoke(browser, baseUrl) {
     saved.keyboardLayout = "pc";
     localStorage.setItem("summit-spark-settings", JSON.stringify(saved));
   })()`);
-  await navigateApp(browser, baseUrl, "Wind Gorge crumble ripple");
-  await clickSelector(browser, "#startButton");
-  await enableDebugPanel(browser);
-  await keyTap(browser, "Digit8", "8");
-  const dormant = await waitUntil("R8 crumble strip starts fully restored", () => browser.evaluate(`(() => {
-    const text = document.querySelector("#debugPanel").textContent;
-    return /room 8\\/10/.test(text) && /crumble 15\\/15 q0 a0/.test(text) ? { text } : null;
-  })()`), 3500);
-  let waveStart;
-  let waveBroken;
-  await keyDown(browser, "KeyD", "D");
+  const clock = await installFrameClock(browser);
   try {
-    await waitUntil("R8 crumble approach reaches its launch pocket", () => browser.evaluate(`(() => {
-      const text = document.querySelector("#debugPanel").textContent;
-      const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-      return /ground 1/.test(text) && position && Number(position[1]) >= 155 && Number(position[1]) <= 170;
-    })()`), 1400, 20);
-    await keyTap(browser, "KeyK", "K");
-    waveStart = await waitUntil("R8 five-tile strip enters a staged fracture wave", () => browser.evaluate(`(() => {
-      const text = document.querySelector("#debugPanel").textContent;
-      const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
-      return /crumble (?:15\\/15 q[1-4] a1|10\\/15 q0 a0)/.test(text) && position
-        ? { x: Number(position[1]), y: Number(position[2]), text }
-        : null;
-    })()`), 1600, 20);
-    waveBroken = await waitUntil("R8 staged strip completes five bounded breaks", () => browser.evaluate(`(() => {
-      const text = document.querySelector("#debugPanel").textContent;
-      return /crumble 10\\/15 q0 a0/.test(text) ? { text } : null;
-    })()`), 1800, 20);
+    await navigateApp(browser, baseUrl, "Wind Gorge crumble ripple");
+    await clickSelector(browser, "#startButton");
+    await keyTap(browser, "F3", "F3");
+    await keyTap(browser, "Digit8", "8");
+    const exercise = () => {
+      const panel = document.getElementById("debugPanel");
+      const key = (type, code) => window.dispatchEvent(new KeyboardEvent(type, {code, bubbles: true}));
+      const tap = code => { key("keydown", code); key("keyup", code); };
+      function stepUntil(label, match, frames) {
+        for (let i = 0; i < frames; i++) {
+          window.stepGameFrame();
+          if (match(panel.textContent)) return;
+        }
+        throw new Error(label + ": " + panel.textContent);
+      }
+      const x = text => Number(text.match(/pos ([\d.-]+),/)?.[1]);
+      stepUntil("R8 fully restored", text => /room 8\/10/.test(text) && /crumble 15\/15 q0 a0/.test(text)
+        && /ground 1/.test(text) && /act 0\.000/.test(text), 180);
+      key("keydown", "KeyD");
+      try {
+        stepUntil("Reach the launch pocket", text => /ground 1/.test(text) && x(text) >= 155 && x(text) <= 170, 90);
+        tap("KeyK");
+        stepUntil("First tile arms while the strip is queued", text =>
+          /crumble 15\/15 q[1-4] a1/.test(text) && x(text) >= 240 && x(text) <= 450, 120);
+        stepUntil("Only the five contiguous tiles break", text => /crumble 10\/15 q0 a0/.test(text), 120);
+      } finally {
+        key("keyup", "KeyD");
+      }
+      tap("KeyR");
+      stepUntil("Retry restores every tile", text => /快速重开 · R8/.test(document.getElementById("gameStatus").textContent)
+        && /crumble 15\/15 q0 a0/.test(text), 120);
+    };
+    await browser.evaluate(`(${exercise})()`);
   } finally {
-    await keyUp(browser, "KeyD", "D");
-  }
-  await keyTap(browser, "KeyR", "R");
-  const reset = await waitUntil("R8 retry restores the full crumble strip", () => browser.evaluate(`(() => {
-    const text = document.querySelector("#debugPanel").textContent;
-    return /快速重开 · R8/.test(document.querySelector("#gameStatus").textContent)
-      && /crumble 15\\/15 q0 a0/.test(text)
-      ? { text }
-      : null;
-  })()`), 3500);
-  if (!/crumble 15\/15 q0 a0/.test(dormant.text)
-    || waveStart.x < 240
-    || waveStart.x > 450
-    || !/crumble 10\/15 q0 a0/.test(waveBroken.text)
-    || !/crumble 15\/15 q0 a0/.test(reset.text)) {
-    errors.push("R8 should stage one five-tile same-row fracture wave and restore it atomically on retry: " + JSON.stringify({ dormant, waveStart, waveBroken, reset }));
+    await browser.removeInitScript(clock);
   }
 }
 
@@ -2214,9 +2205,8 @@ async function runSpringApexSmoke(browser, baseUrl) {
   }
 }
 
-async function runRetryAndTouchAimSmoke(browser, baseUrl) {
-  // Advance each animation frame explicitly to press retry during the short death animation.
-  const clock = await browser.addInitScript({source: `(() => {
+function installFrameClock(browser) {
+  return browser.addInitScript({source: `(() => {
     let pending = [];
     let time;
     window.requestAnimationFrame = callback => pending.push(callback);
@@ -2227,6 +2217,10 @@ async function runRetryAndTouchAimSmoke(browser, baseUrl) {
       for (const callback of callbacks) callback(time);
     };
   })();`});
+}
+
+async function runRetryAndTouchAimSmoke(browser, baseUrl) {
+  const clock = await installFrameClock(browser);
   try {
     await browser.setViewport(390, 760);
     // Keep the recorded falls and the guest choice out of other first-run scenarios.

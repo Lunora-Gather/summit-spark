@@ -63,9 +63,10 @@
       nearestSafePositionData,
       phaseBlockActiveData,
       roomEntrySpawnData,
+      roomExitLandingsData,
       roomWorldData
     },
-    { rockMaterials, rockRuns, terrainAbutments, paintAbutments, applyTerrainLight, paintLedge, paintLandmarkLedge, paintSpikes, spikeIntersectsBox, iceVariants, paintFracturedIce, paintIceStress },
+    { rockMaterials, rockRuns, terrainAbutments, paintAbutments, paintExitSign, mapMechanics, paintMapMechanic, applyTerrainLight, paintLedge, paintLandmarkLedge, paintSpikes, spikeIntersectsBox, iceVariants, paintFracturedIce, paintIceStress },
     {
       effectQueueLimit,
       enforceEffectQueueBudget
@@ -202,21 +203,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261123-p323"),
-    import("./modules/core/math.mjs?v=20261123-p323"),
-    import("./modules/game/room-data.mjs?v=20261123-p323"),
-    import("./modules/game/world-model.mjs?v=20261123-p323"),
-    import("./modules/game/terrain-art.mjs?v=20261123-p323"),
-    import("./modules/game/effect-budget.mjs?v=20261123-p323"),
-    import("./modules/game/landmark-progress.mjs?v=20261123-p323"),
-    import("./modules/game/audio-cues.mjs?v=20261123-p323"),
-    import("./modules/game/lumen-progress.mjs?v=20261123-p323"),
-    import("./modules/systems/storage.mjs?v=20261123-p323"),
-    import("./modules/systems/cloud-save.mjs?v=20261123-p323"),
-    import("./modules/systems/input.mjs?v=20261123-p323"),
-    import("./modules/training/state.mjs?v=20261123-p323"),
-    import("./modules/training/replay.mjs?v=20261123-p323"),
-    import("./modules/ui/presentation.mjs?v=20261123-p323")
+    import("./modules/core/format.mjs?v=20261123-p324"),
+    import("./modules/core/math.mjs?v=20261123-p324"),
+    import("./modules/game/room-data.mjs?v=20261123-p324"),
+    import("./modules/game/world-model.mjs?v=20261123-p324"),
+    import("./modules/game/terrain-art.mjs?v=20261123-p324"),
+    import("./modules/game/effect-budget.mjs?v=20261123-p324"),
+    import("./modules/game/landmark-progress.mjs?v=20261123-p324"),
+    import("./modules/game/audio-cues.mjs?v=20261123-p324"),
+    import("./modules/game/lumen-progress.mjs?v=20261123-p324"),
+    import("./modules/systems/storage.mjs?v=20261123-p324"),
+    import("./modules/systems/cloud-save.mjs?v=20261123-p324"),
+    import("./modules/systems/input.mjs?v=20261123-p324"),
+    import("./modules/training/state.mjs?v=20261123-p324"),
+    import("./modules/training/replay.mjs?v=20261123-p324"),
+    import("./modules/ui/presentation.mjs?v=20261123-p324")
   ]);
 
   const canvas = document.getElementById("game");
@@ -338,6 +339,8 @@
   const roomBrief = document.getElementById("roomBrief");
   const roomTerrain = document.getElementById("roomTerrain");
   const terrainMap = document.getElementById("roomTerrainMap");
+  const terrainViewport = document.getElementById("terrainViewport");
+  const terrainZoom = document.getElementById("terrainZoom");
   const terrainExitKey = document.getElementById("terrainExitKey");
   const terrainCampKey = document.getElementById("terrainCampKey");
   const chapterOverview = document.getElementById("chapterOverview");
@@ -702,6 +705,7 @@
   const pressed = new Set();
   const touchPressed = new Set();
   const touchPointerIds = new Map();
+  const directionTouches = new Map();
   const slideAim = { left: 0, right: 0 };
   const gamepadPressed = new Set();
   const gamepadHeld = new Set();
@@ -1268,6 +1272,7 @@
     });
     clearGrabToggle();
     touchPointerIds.clear();
+    directionTouches.clear();
     slideAim.left = slideAim.right = 0;
     document.querySelectorAll("[data-slide-aim]").forEach(button => delete button.dataset.slideAim);
     document.querySelectorAll("[data-touch]").forEach((button) => button.classList.remove("active"));
@@ -1586,6 +1591,7 @@
     if (document.activeElement === cloudRetryButton) cloudSyncStatus?.focus({ preventScroll: true });
     inspectCloudSave();
   });
+  terrainZoom.addEventListener("click", () => setTerrainZoom(terrainZoom.getAttribute("aria-pressed") !== "true"));
   roomTerrain.addEventListener("toggle", drawRoomTerrainPreview);
   roomTerrain.closest(".settings-group").addEventListener("toggle", drawRoomTerrainPreview);
   roomSelect?.addEventListener("change", () => {
@@ -1695,11 +1701,29 @@
   syncChallengeWins();
   initCloudAccount();
 
+  const thumbButtons = Object.fromEntries(["left", "right"].map(direction =>
+    [direction, document.querySelector(`[data-touch="${direction}"]`)]));
+  function syncThumbDirections() {
+    for (const [direction, button] of Object.entries(thumbButtons)) {
+      let held = false, aim = 0;
+      for (const gesture of directionTouches.values()) {
+        if (gesture.direction !== direction) continue;
+        held = true;
+        aim = gesture.aim || aim;
+      }
+      const edge = transitionDigitalInput(touch, touchPressed, direction, held);
+      if (edge.pressed) lastGameplayInput = "touch";
+      slideAim[direction] = aim;
+      button.classList.toggle("active", held);
+      if (aim) button.dataset.slideAim = aim < 0 ? "up" : "down";
+      else delete button.dataset.slideAim;
+    }
+  }
+
   document.querySelectorAll("[data-touch]").forEach((button) => {
     const action = button.dataset.touch;
     const horizontal = action === "left" || action === "right";
-    let startY = 0;
-    let aimThreshold = 0;
+
     const set = (value) => {
       const transition = transitionDigitalInput(touch, touchPressed, action, value);
       button.classList.toggle("active", value);
@@ -1718,10 +1742,12 @@
       if (touchPointerIds.has(button)) return;
       touchPointerIds.set(button, event.pointerId);
       if (horizontal) {
-        startY = event.clientY;
-        aimThreshold = button.getBoundingClientRect().height * 0.35;
-      }
-      set(true);
+        const left = thumbButtons.left.getBoundingClientRect();
+        const right = thumbButtons.right.getBoundingClientRect();
+        directionTouches.set(event.pointerId, { direction: action, aim: 0, startY: event.clientY,
+          upThreshold: left.height * 0.35, leftEdge: left.right, rightEdge: right.left });
+        syncThumbDirections();
+      } else set(true);
       try {
         button.setPointerCapture?.(event.pointerId);
       } catch {
@@ -1730,23 +1756,27 @@
       }
     });
     if (horizontal) button.addEventListener("pointermove", (event) => {
-      if (event.pointerType !== "touch" || touchPointerIds.get(button) !== event.pointerId || !aimThreshold) return;
-      const dy = event.clientY - startY;
-      const threshold = slideAim[action] ? aimThreshold * 0.7 : aimThreshold;
+      const gesture = directionTouches.get(event.pointerId);
+      if (event.pointerType !== "touch" || touchPointerIds.get(button) !== event.pointerId || !gesture) return;
+      const dy = event.clientY - gesture.startY;
+      const threshold = gesture.upThreshold * (gesture.aim ? 0.7 : 1);
       const aim = Math.abs(dy) >= threshold ? Math.sign(dy) : 0;
-      if (aim === slideAim[action]) return;
-      slideAim[action] = aim;
-      if (aim) button.dataset.slideAim = aim < 0 ? "up" : "down";
-      else delete button.dataset.slideAim;
+      let direction = gesture.direction;
+      if (event.clientX <= gesture.leftEdge) direction = "left";
+      if (event.clientX >= gesture.rightEdge) direction = "right";
+      if (direction === gesture.direction && aim === gesture.aim) return;
+      gesture.direction = direction;
+      gesture.aim = aim;
+      syncThumbDirections();
     });
     const releasePointer = (event) => {
-      if (!touchPointerIds.has(button) || touchPointerIds.get(button) !== event.pointerId) return;
+      if (touchPointerIds.get(button) !== event.pointerId) return;
+      if (event.type === "pointerleave" && button.hasPointerCapture?.(event.pointerId)) return;
       touchPointerIds.delete(button);
       if (horizontal) {
-        slideAim[action] = 0;
-        delete button.dataset.slideAim;
-      }
-      set(false);
+        directionTouches.delete(event.pointerId);
+        syncThumbDirections();
+      } else set(false);
     };
     button.addEventListener("pointerup", releasePointer);
     button.addEventListener("pointercancel", releasePointer);
@@ -1802,9 +1832,11 @@
     };
     const tiles = rows.map((row) => row.split(""));
 
+    const spikes = [];
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < cols; x++) {
         const tile = tiles[y][x];
+        if (HAZARDS.has(tile)) spikes.push({ x, y, tile });
         const cx = x * TILE + TILE / 2;
         const cy = y * TILE + TILE / 2;
         if (tile === "S") {
@@ -1896,12 +1928,13 @@
     }
 
     const visualGroups = {
+      spikes,
       ledges: rockRuns(rows, index),
       abutments: terrainAbutments(rows, index),
       dashGateColumns: dashGateColumns(entities.dashGates),
       phaseRuns: phaseBlockRuns(entities.phaseBlocks)
     };
-    return { tiles, entities, visualGroups, cols, worldWidth: world.width, dynamicTime: 0 };
+    return { tiles, entities, visualGroups, exits: roomExitLandingsData(rows), cols, worldWidth: world.width, dynamicTime: 0 };
   }
 
   function roomWorldWidth() {
@@ -2599,7 +2632,6 @@
         inputEdgesConsumed = true;
         updateParticles(fixedFrame.frameDt * 0.22);
         updateHair(fixedFrame.frameDt);
-        updateHud();
       } else {
         pendingClockDt += fixedFrame.elapsed;
         for (let stepIndex = 0; stepIndex < fixedFrame.steps; stepIndex += 1) {
@@ -2612,6 +2644,7 @@
           }
         }
       }
+      updateHud();
     } else {
       pendingClockDt = 0;
       physicsAccumulator = 0;
@@ -2686,7 +2719,6 @@
   function update(dt, clockDt = dt) {
     if (assistActive()) runUsedAssist = true;
     if (recoverInvalidRuntimeState()) {
-      updateHud();
       return;
     }
 
@@ -2697,7 +2729,6 @@
       hitStopTimer = Math.max(0, hitStopTimer - dt);
       updateParticles(dt * 0.3);
       updateGhosts(dt);
-      updateHud();
       return;
     }
 
@@ -2710,7 +2741,6 @@
       if (player.deadTimer <= 0) {
         respawn({ preserveInputBuffers: true });
       }
-      updateHud();
       return;
     }
 
@@ -2821,7 +2851,6 @@
     updateGhosts(dt);
     updateLightTrails(dt);
     samplePlayerPath(dt);
-    updateHud();
   }
 
   function updateBuffers(dt) {
@@ -3195,6 +3224,7 @@
 
     for (const checkpoint of room.entities.checkpoints) {
       if (distRectPoint(box, checkpoint.x, checkpoint.y) < 26) {
+        if (room.entities.waypoints.some(isActiveCamp)) continue;
         const nextX = checkpoint.x - player.w / 2;
         const nextY = checkpoint.y + TILE / 2 - player.h;
         const changed = player.respawnRoom !== roomIndex
@@ -3313,6 +3343,7 @@
       if (nextActive !== block.active) block.pulse = 0.22;
       block.active = nextActive;
       block.warning = state.warning;
+      block.warningProgress = state.warningProgress;
       if (distRectPoint(box, block.x + TILE / 2, block.y + TILE / 2) < 58) {
         markRoomTech("phase");
         showMechanicFirstTouchCue("phase");
@@ -3894,15 +3925,15 @@
       beginChapterTransition(returnedFromRoom, roomIndex);
       room = parseRoom(roomIndex);
       resetRoomTech();
-      player.x = roomWorldWidth() - 5;
-      player.y = Math.min(player.y, H - TILE * 3);
-      let returnRecovery = unstuckFromSolids();
-      if (!returnRecovery) {
-        const entrySpawn = roomEntrySpawn(roomIndex);
-        player.x = entrySpawn.x;
-        player.y = entrySpawn.y;
-        returnRecovery = unstuckFromSolids();
-      }
+      const incomingFeet = player.y + player.h;
+      const landing = room.exits.reduce((best, shelf) =>
+        !best || Math.abs(incomingFeet - shelf.y * TILE) < Math.abs(incomingFeet - best.y * TILE) ? shelf : best, null);
+      const returnSpawn = landing
+        ? { x: (landing.x + 1) * TILE - player.w / 2, y: landing.y * TILE - player.h }
+        : roomEntrySpawn(roomIndex);
+      player.x = returnSpawn.x;
+      player.y = returnSpawn.y;
+      unstuckFromSolids(RESPAWN_SAFE_RADIUS, { avoidHazards: true });
       resetCrossingEffects();
       cameraX = clampCamera(roomWorldWidth() - W + cameraSideCrop());
       cameraTargetX = cameraX;
@@ -4454,7 +4485,7 @@
     room.entities.anchors.forEach((anchor) => add(anchor.x, anchor.y, "回声", 4));
     room.entities.updrafts.forEach((updraft) => add(updraft.x + updraft.w / 2, updraft.y + updraft.h * 0.2, "风", 3));
     if (room.entities.goal) add(room.entities.goal.x, room.entities.goal.y, "终点", 2);
-    else add(roomWorldWidth() + 18, cy, "出口", 1);
+    else for (const shelf of room.exits) add(roomWorldWidth() + 4, shelf.y * TILE - player.h / 2, "出口", 1);
     const ahead = points.filter((point) => point.x > cx + 12);
     const pool = ahead.length ? ahead : points;
     return pool.sort((a, b) => {
@@ -6078,6 +6109,14 @@
     updateRoomBrief();
   }
 
+  function setTerrainZoom(zoomed) {
+    terrainZoom.setAttribute("aria-pressed", String(zoomed));
+    terrainZoom.textContent = zoomed ? "显示全图" : "放大地形";
+    terrainViewport.classList.toggle("zoomed", zoomed);
+    terrainViewport.tabIndex = zoomed ? 0 : -1;
+    if (!zoomed) terrainViewport.scrollLeft = 0;
+  }
+
   function drawRoomTerrainPreview() {
     if (!settingsVisible || panelMode !== "practice" || !roomTerrain.open
       || !roomTerrain.closest(".settings-group").open) return;
@@ -6087,6 +6126,11 @@
     const pen = terrainMap.getContext("2d");
     if (!pen) return;
     const tile = 16;
+    if (terrainViewport.dataset.room !== String(index)) {
+      setTerrainZoom(false);
+      terrainViewport.dataset.room = String(index);
+    }
+    terrainViewport.style.setProperty("--detail-width", (rows[0].length * tile) + "px");
     terrainMap.width = rows[0].length * tile;
     terrainMap.height = rows.length * tile;
     pen.scale(tile, tile);
@@ -6096,9 +6140,29 @@
     sky.addColorStop(1, `${atmosphere.midPeak}33`);
     pen.fillStyle = sky;
     pen.fillRect(0, 0, rows[0].length, rows.length);
+    pen.fillStyle = "#b5ebe326";
+    rows.forEach((row, y) => [...row].forEach((symbol, x) => {
+      if (symbol === "U") {
+        const field = updraftFieldBounds({ x: x * TILE, y: y * TILE, w: TILE, h: TILE * 4 });
+        pen.fillRect(field.x / TILE, field.y / TILE, field.w / TILE, field.h / TILE);
+      } else if (symbol === "K") {
+        const travel = DRIFT_SHARD_AMPLITUDE / TILE;
+        const dx = y % 2 === 0 ? travel : 0, dy = dx ? 0 : travel;
+        pen.save();
+        pen.strokeStyle = "#f6adab";
+        pen.lineWidth = 0.09;
+        pen.setLineDash([0.15, 0.22]);
+        pen.beginPath();
+        pen.moveTo(x + 0.5 - dx, y + 0.5 - dy);
+        pen.lineTo(x + 0.5 + dx, y + 0.5 + dy);
+        pen.stroke();
+        pen.restore();
+      }
+    }));
     let summit = false;
     let lumens = 0;
     let camps = 0;
+    const mechanics = new Set();
     for (const [y, row] of rows.entries()) {
       for (let x = 0; x < row.length; x++) {
         const symbol = row[x];
@@ -6130,6 +6194,9 @@
           pen.lineTo(-0.48, 0.5);
           pen.fill();
           pen.restore();
+        } else if (Object.hasOwn(mapMechanics, symbol)) {
+          mechanics.add(symbol);
+          paintMapMechanic(pen, symbol, x + 0.5, y + 0.5);
         } else if (symbol === "P" || symbol === "J") {
           camps++;
           pen.fillStyle = "#9de2bd";
@@ -6155,6 +6222,26 @@
         }
       }
     }
+    for (const shelf of roomExitLandingsData(rows)) {
+      pen.save();
+      pen.translate(shelf.x + 0.5, shelf.y);
+      pen.scale(1 / 25, 1 / 25);
+      paintExitSign(pen, chapterIndexForRoom(index));
+      pen.restore();
+    }
+    const legend = document.getElementById("terrainMechanics");
+    legend.replaceChildren(...Object.entries(mapMechanics).filter(([symbol]) => mechanics.has(symbol)).map(([symbol, [label]]) => {
+      const item = document.createElement("span");
+      const icon = document.createElement("canvas");
+      icon.width = icon.height = 32;
+      icon.setAttribute("aria-hidden", "true");
+      const key = icon.getContext("2d");
+      key.scale(32, 32);
+      paintMapMechanic(key, symbol, 0.5, 0.5);
+      item.append(icon, label);
+      return item;
+    }));
+    legend.hidden = mechanics.size === 0;
     const entry = roomEntrySpawnData(rows);
     if (entry) {
       pen.fillStyle = "#d6f3ef";
@@ -6165,6 +6252,7 @@
     terrainCampKey.hidden = camps === 0;
     setElementText(terrainExitKey, summit ? "✦ 星顶终点" : "向右出房 →");
     terrainMap.setAttribute("aria-label", `R${index + 1} ${ROOM_NAMES[index]}，${lumens} 个微光，${camps} 处检查点。${summit ? "触碰星顶终点" : "从右侧离开房间"}。${ROOM_GUIDES[index]}`);
+    if (mechanics.size) terrainMap.setAttribute("aria-label", terrainMap.getAttribute("aria-label") + " 机关：" + [...mechanics].map(symbol => mapMechanics[symbol][0]).join("、") + "。");
     roomTerrain.dataset.lumenChapter = String(chapterIndexForRoom(index));
     terrainMap.dataset.room = String(index);
   }
@@ -10617,15 +10705,10 @@
   }
 
   function drawHazardFields(time) {
-    ctx.save();
-    for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < room.cols; x++) {
-        const tile = room.tiles[y][x];
-        if (!HAZARDS.has(tile)) continue;
-        drawHazardField(x * TILE, y * TILE, tile, time, x + y * 0.7);
-      }
+    for (const { x, y, tile } of room.visualGroups.spikes) {
+      if ((x + 1) * TILE < cameraX || x * TILE > cameraX + W) continue;
+      drawHazardField(x * TILE, y * TILE, tile, time, x + y * 0.7);
     }
-    ctx.restore();
   }
 
   function drawHazardField(x, y, dir, time, phase) {
@@ -10785,12 +10868,13 @@
       }
       ctx.drawImage(cached.sprite, left, run.y * TILE - 6, width, TILE + 18);
     }
-    for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < room.cols; x++) {
-        const tile = room.tiles[y][x];
-        if (tile === "C") drawCrumblePlatform(x * TILE, y * TILE, x, y);
-        if (HAZARDS.has(tile)) drawSpike(x, y, tile, chapter);
+    for (const { x, y } of room.entities.crumble.values()) {
+      if (room.tiles[y][x] === "C" && (x + 1) * TILE >= cameraX && x * TILE <= cameraX + W) {
+        drawCrumblePlatform(x * TILE, y * TILE, x, y);
       }
+    }
+    for (const { x, y, tile } of room.visualGroups.spikes) {
+      if ((x + 1) * TILE >= cameraX && x * TILE <= cameraX + W) drawSpike(x, y, tile, chapter);
     }
   }
 
@@ -11069,7 +11153,7 @@
   function drawDynamicObstacles(time) {
     for (const block of room.entities.phaseBlocks) {
       const x = block.x, y = block.y;
-      const warningPulse = block.warning && !prefersReducedMotion ? (1 + Math.sin(time * 22)) / 2 : 0;
+      const warningPhase = prefersReducedMotion ? 0.5 : block.warningProgress;
       ctx.save();
       ctx.translate(x, y);
       ctx.lineJoin = "round";
@@ -11096,9 +11180,16 @@
         ctx.beginPath();
         ctx.moveTo(2, 5); ctx.lineTo(29, 4); ctx.lineTo(15, 13); ctx.closePath(); ctx.fill();
         ctx.fillStyle = block.warning ? "#efc578" : "#d0f4e6";
-        ctx.fillRect(5, 0, 22, 2 + warningPulse);
+        const lip = block.warning ? 22 * (1 - 0.85 * warningPhase) : 22;
+        ctx.fillRect(16 - lip / 2, 0, lip, 2.5);
         ctx.beginPath();
         ctx.moveTo(16, 12); ctx.lineTo(19, 17); ctx.lineTo(16, 23); ctx.lineTo(13, 17); ctx.closePath(); ctx.fill();
+      } else if (block.warning) {
+        // The lip grows inward as the empty rail becomes a landing again.
+        const edge = 3 + warningPhase * 8;
+        ctx.fillStyle = "#f6d497";
+        ctx.fillRect(3, 0, edge, 2.5);
+        ctx.fillRect(TILE - 3 - edge, 0, edge, 2.5);
       }
       ctx.restore();
     }
@@ -11271,23 +11362,33 @@
     }
   }
 
+  function isActiveCamp(marker) {
+    return player.respawnRoom === roomIndex
+      && Math.abs(player.respawnX - (marker.x - player.w / 2)) < 2
+      && Math.abs(player.respawnY - (marker.y + TILE / 2 - player.h)) < 2;
+  }
+
   function drawEntities(time) {
     drawDynamicObstacles(time);
     for (const updraft of room.entities.updrafts) {
       drawUpdraft(updraft, time);
     }
 
+    for (const shelf of room.exits) {
+      const x = (shelf.x + 0.5) * TILE;
+      if (x < cameraX - TILE || x > cameraX + W + TILE) continue;
+      ctx.save();
+      ctx.translate(x, shelf.y * TILE);
+      paintExitSign(ctx, chapterIndexForRoom(roomIndex));
+      ctx.restore();
+    }
     for (const waypoint of room.entities.waypoints) {
-      const active = player.respawnRoom === roomIndex
-        && Math.abs(player.respawnX - (waypoint.x - player.w / 2)) < 2
-        && Math.abs(player.respawnY - (waypoint.y + TILE / 2 - player.h)) < 2;
+      const active = isActiveCamp(waypoint);
       drawWaypointCamp(waypoint, time, active);
     }
 
     for (const checkpoint of room.entities.checkpoints) {
-      const active = player.respawnRoom === roomIndex
-        && Math.abs(player.respawnX - (checkpoint.x - player.w / 2)) < 2
-        && Math.abs(player.respawnY - (checkpoint.y + TILE / 2 - player.h)) < 2;
+      const active = isActiveCamp(checkpoint);
       const baseY = checkpoint.y + TILE / 2 - 2;
       const poleX = checkpoint.x - 15;
       ctx.save();
@@ -12509,7 +12610,6 @@
     const chapter = ROOM_CHAPTER_LABELS[target] || "山巅";
     const chapterTone = target < 3 ? "gate" : target < 6 ? "old-peak" : target < 8 ? "wind" : "summit";
     if (shell && shell.dataset.portraitChapter !== chapterTone) shell.dataset.portraitChapter = chapterTone;
-    const mode = resolveDrillMode(target);
     setElementText(portraitChapter, startContext
       ? `${hasProgress ? "上次训练" : "攀登起点"} · ${chapter}`
       : chapter);
@@ -12518,8 +12618,8 @@
       && gameplayInputSource() === "touch";
     const goal = firstTouchClimb
       ? "按住方向键，上滑再按冲刺可斜向上"
-      : ROOM_PURPOSES[target] || ROOM_GUIDES[target] || "保持节奏，向上。";
-    setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(mode)} · ` : ""}${goal}`);
+      : (startContext ? ROOM_PURPOSES[target] : ROOM_GUIDES[target]) || "向右寻找山径路标。";
+    setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(resolveDrillMode(target))} · ` : ""}${goal}`);
   }
 
   function updateHud() {
@@ -12566,7 +12666,7 @@
     if (paceMeter) {
       paceMeter.classList.toggle("ahead", paceLimit > 0 && roomTime <= paceLimit);
       paceMeter.classList.toggle("behind", paceLimit > 0 && roomTime > paceLimit);
-      paceMeter.title = paceLimit > 0 ? `房间目标 ${formatTime(paceLimit)} / ${formatDelta(roomTime - paceLimit)}` : "房间目标节奏";
+      setElementTitle(paceMeter, paceLimit > 0 ? `房间目标 ${formatTime(paceLimit)} / ${formatDelta(roomTime - paceLimit)}` : "房间目标节奏");
     }
     syncRoomSelect();
     updateDebug();
@@ -12612,15 +12712,14 @@
     const roomHasAnchor = Boolean(room?.entities?.anchors?.length);
     const anchorActive = Boolean(echoAnchor && echoAnchor.room === roomIndex);
     const available = roomHasAnchor && anchorActive && recallCooldown <= 0 && player.deadTimer <= 0 && !won;
-    touchRecallButton.hidden = !roomHasAnchor;
-    touchRecallButton.disabled = !available;
+    if (touchRecallButton.hidden === roomHasAnchor) touchRecallButton.hidden = !roomHasAnchor;
+    if (touchRecallButton.disabled === available) touchRecallButton.disabled = !available;
     touchRecallButton.classList.toggle("available", available);
     if (!available) {
       touch.recall = false;
-      touchRecallButton.classList.remove("active");
+      if (touchRecallButton.classList.contains("active")) touchRecallButton.classList.remove("active");
     }
-    touchRecallButton.setAttribute(
-      "aria-label",
+    setElementAttribute(touchRecallButton, "aria-label",
       available ? "召回到回声锚点" : anchorActive ? "召回冷却中" : "先激活回声锚点"
     );
   }

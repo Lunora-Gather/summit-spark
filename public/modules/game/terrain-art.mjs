@@ -125,6 +125,67 @@ function polygon(g, color, points) {
   g.fill();
 }
 
+// A worn trail finger on a small cairn. The tip points past the shelf's open end.
+export function paintExitSign(g, chapter) {
+  const stone = ["#657367", "#957868", "#617c83", "#747b93"][chapter];
+  polygon(g, stone, [-12,0, -9,-4, 0,-6, 9,-4, 12,0]);
+  polygon(g, "#414c50", [-6,-4, -5,-8, 3,-9, 7,-6, 4,-4]);
+  polygon(g, "#644f41", [-2,-5, -3,-29, 1,-31, 2,-5]);
+  polygon(g, "#9e8263", [-2,-6, -3,-29, -1,-29, 0,-6]);
+  polygon(g, "#503e35", [-11,-28, 6,-29, 15,-24, 6,-18, -11,-20]);
+  polygon(g, "#bc946c", [-11,-29, 6,-30, 15,-25, 6,-20, -11,-21]);
+  polygon(g, "#695844", [-10,-27, 5,-28, 11,-25, 5,-22, -10,-23]);
+  g.strokeStyle = "#ffe3a3";
+  g.lineWidth = 2.1;
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  g.beginPath();
+  g.moveTo(-5,-25); g.lineTo(6,-25);
+  g.moveTo(3,-28); g.lineTo(7,-25); g.lineTo(3,-22);
+  g.stroke();
+}
+
+export const mapMechanics = {
+  T: ["弹簧", "#a8e5ae"], A: ["光继", "#9ce5db"], R: ["补给", "#a5deeb"],
+  U: ["风升", "#b5ebe3"], B: ["棱镜", "#ffd98c"], M: ["回声", "#e1c7fc"], K: ["巡游晶核", "#f6adab"]
+};
+
+// The terrain map and its key use the same silhouettes, in tile coordinates.
+export function paintMapMechanic(g, symbol, x, y) {
+  g.save();
+  g.translate(x, y);
+  g.scale(1 / 16, 1 / 16);
+  g.lineWidth = 2.3;
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  g.strokeStyle = mapMechanics[symbol][1];
+  g.fillStyle = g.strokeStyle;
+  g.beginPath();
+  switch (symbol) {
+    case "T":
+      g.moveTo(-7,-4); g.lineTo(7,-4);
+      g.moveTo(-4,-1); g.lineTo(3,1); g.lineTo(-3,3); g.lineTo(3,5);
+      g.moveTo(-6,7); g.lineTo(6,7); break;
+    case "U":
+      g.moveTo(-5,0); g.lineTo(0,-6); g.lineTo(5,0);
+      g.moveTo(-5,6); g.lineTo(0,0); g.lineTo(5,6); break;
+    case "A":
+      g.arc(0,0,6,0.28,Math.PI*1.86); g.moveTo(2,0); g.arc(0,0,2,0,Math.PI*2); break;
+    case "R":
+      g.moveTo(-5,5); g.quadraticCurveTo(-6,-4,6,-7); g.quadraticCurveTo(5,3,-5,5);
+      g.moveTo(-6,7); g.lineTo(2,-2); break;
+    case "B":
+      g.moveTo(0,-7); g.lineTo(7,5); g.lineTo(-7,5); g.closePath(); break;
+    case "M":
+      g.arc(0,0,6,0,Math.PI*2); g.moveTo(3,0); g.arc(0,0,3,0,Math.PI*2); break;
+    case "K":
+      g.moveTo(0,-7); g.lineTo(5,-2); g.lineTo(3,2); g.lineTo(0,7); g.lineTo(-5,0); g.closePath();
+      g.fill(); break;
+  }
+  g.stroke();
+  g.restore();
+}
+
 function noise(seed, sample) {
   const value = Math.sin(seed * 41.19 + sample * 78.23) * 43758.5453;
   return value - Math.floor(value);

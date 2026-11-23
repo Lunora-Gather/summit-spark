@@ -952,7 +952,7 @@ if (!js.includes("function drawObstacleArchitecture(time)")
   || !js.includes("function drawPhaseRails(time)")
   || !js.includes('crumbleTileSprite(variant, row[gx - 1] === "C", row[gx + 1] === "C")')
   || !js.includes("const visualGroups = {")
-  || !js.includes("return { tiles, entities, visualGroups, cols, worldWidth: world.width, dynamicTime: 0 };")
+  || !js.includes("return { tiles, entities, visualGroups, exits: roomExitLandingsData(rows), cols, worldWidth: world.width, dynamicTime: 0 };")
   || !js.includes("drawHazardFields(time);\n    drawObstacleArchitecture(time);\n    drawTiles();")
   || !js.includes("function drawWaypointCamp(waypoint, time, active)")) {
   errors.push("late-room mechanisms should compose repeated tiles into coherent gates, phase rails and crumble bridges, with a readable midpoint camp");

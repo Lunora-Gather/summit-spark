@@ -8,6 +8,7 @@ import {
   nearestSafePositionData,
   phaseBlockActiveData,
   roomEntrySpawnData,
+  roomExitLandingsData,
   roomWorldData
 } from "../public/modules/game/world-model.mjs";
 import { maps } from "../public/modules/game/room-data.mjs";
@@ -24,6 +25,14 @@ roomEntries.forEach((spawn, index) => {
   assert.equal(maps[index][spawn.tileY + 1]?.[spawn.tileX], "#", `R${index + 1} entry should retain solid support`);
   assert.equal(spawn.y + 25, (spawn.tileY + 1) * 32, `R${index + 1} player feet should meet, not overlap, entry support`);
 });
+const exits = maps.map(roomExitLandingsData);
+assert.deepEqual(exits.map(shelves => shelves.length), [1,1,1,1,2,1,2,1,2,0]);
+exits.forEach((shelves, index) => shelves.forEach(({ x, y }) => {
+  assert.equal(maps[index][y].slice(x - 1), "###", "the sign and return point must share a continuous walk-out");
+  assert.doesNotMatch(maps[index][y - 1].slice(x), /[#CDE<>^vTK]/);
+}));
+assert.deepEqual(roomExitLandingsData(["...", ".^.", "###"]), [], "a spike bank is not a safe return");
+assert.deepEqual(roomExitLandingsData(["...", "...", "#CC"]), [], "ice cannot anchor a return");
 assert.equal(roomEntrySpawnData(["S.P", "###"]), null, "ambiguous entry maps should fail closed");
 
 const playerBoxBlockedByR2Entry = (x, y) => x < 160 && x + 19 > 0 && y < 320 && y + 25 > 288;
@@ -55,6 +64,8 @@ assert.equal(phaseBlockActiveData({ elapsed: 1.8 }).active, false, "phase ledges
 assert.equal(phaseBlockActiveData({ elapsed: 2.5, wasActive: false, overlapping: true }).active, false, "phase ledges must not rematerialize inside the player");
 assert.equal(phaseBlockActiveData({ elapsed: 2.5, wasActive: false, overlapping: false }).active, true, "phase ledges should rematerialize once clear");
 assert.equal(phaseBlockActiveData({ elapsed: 1.2 }).warning, true, "phase ledges should telegraph before disappearing");
+assert.ok(phaseBlockActiveData({ elapsed: 1.38 }).warningProgress > phaseBlockActiveData({ elapsed: 1.18 }).warningProgress);
+assert.ok(phaseBlockActiveData({ elapsed: 2.36 }).warningProgress > phaseBlockActiveData({ elapsed: 2.18 }).warningProgress);
 assert.equal(phaseBlockActiveData({ elapsed: 2.2 }).warning, true, "phase ledges should telegraph before rematerializing");
 
 assert.deepEqual(

@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
-import { rockMaterials, rockRuns, terrainAbutments } from "../public/modules/game/terrain-art.mjs";
+import { rockMaterials, rockRuns, spikeIntersectsBox, terrainAbutments } from "../public/modules/game/terrain-art.mjs";
 import {
   CHAPTER_EXPERIENCE,
   CHAPTER_START_ROOMS,
@@ -131,6 +131,36 @@ for (const [roomIndex, rows] of maps.entries()) {
 }
 assert.equal(supportFrames.size, 8, "all eight abutment paintings should reach actual shelves");
 assert.equal(landmarkFrames.size, 8, "all eight terrain silhouettes should appear on walkable ledges");
+
+for (const [room, rows] of maps.entries()) {
+  rows.forEach((row, y) => [...row].forEach((cell, x) => {
+    const where = `R${room + 1} (${x},${y})`;
+    if (cell === "^" || cell === "T") assert.equal(rows[y + 1]?.[x], "#", where + " needs a rock footing");
+    if (cell === "v") assert.equal(rows[y - 1]?.[x], "#", where + " needs an overhead anchor");
+    if (cell === "T") {
+      for (let above = 1; above <= 4; above++) assert.doesNotMatch(rows[y - above][x], /[#C<>^vD]/, where + " needs launch headroom");
+    }
+  }));
+}
+
+// Check empty space alongside the tip, solid footing, and rotated cells at every site style.
+for (let chapter = 0; chapter < 4; chapter++) {
+  for (let variant = 0; variant < 3; variant++) {
+    const hit = (direction, ...bounds) => spikeIntersectsBox(direction, chapter, variant, ...bounds);
+    for (const [direction, empty, base, outside] of [
+      ["^", [0,0,2,3], [1,30,3,32], [1,32,3,34]],
+      ["v", [30,29,32,32], [29,0,31,2], [29,-2,31,0]],
+      [">", [29,0,32,2], [0,1,2,3], [-2,1,0,3]],
+      ["<", [0,30,3,32], [30,29,32,31], [32,29,34,31]]
+    ]) {
+      assert.equal(hit(direction, ...empty), false);
+      assert.equal(hit(direction, ...base), true);
+      assert.equal(hit(direction, ...outside), false);
+    }
+    assert.equal(hit("^", 0, 1.1, 32, 2), true, "the tallest visible tip should register");
+    assert.equal(hit("^", 0, -2, 32, 1), false, "air above the tallest tip should remain clear");
+  }
+}
 assert.deepEqual(
   CHAPTER_SURFACE_FEEDBACK.map((feedback) => feedback.kind),
   ["slate-chip", "warm-dust", "ice-flake", "star-spark"],

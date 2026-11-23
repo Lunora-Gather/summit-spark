@@ -65,7 +65,7 @@
       roomEntrySpawnData,
       roomWorldData
     },
-    { rockMaterials, rockRuns, terrainAbutments, paintAbutments, applyTerrainLight, paintLedge, paintLandmarkLedge, paintSpikes, iceVariants, paintFracturedIce, paintIceStress },
+    { rockMaterials, rockRuns, terrainAbutments, paintAbutments, applyTerrainLight, paintLedge, paintLandmarkLedge, paintSpikes, spikeIntersectsBox, iceVariants, paintFracturedIce, paintIceStress },
     {
       effectQueueLimit,
       enforceEffectQueueBudget
@@ -202,21 +202,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261123-p322"),
-    import("./modules/core/math.mjs?v=20261123-p322"),
-    import("./modules/game/room-data.mjs?v=20261123-p322"),
-    import("./modules/game/world-model.mjs?v=20261123-p322"),
-    import("./modules/game/terrain-art.mjs?v=20261123-p322"),
-    import("./modules/game/effect-budget.mjs?v=20261123-p322"),
-    import("./modules/game/landmark-progress.mjs?v=20261123-p322"),
-    import("./modules/game/audio-cues.mjs?v=20261123-p322"),
-    import("./modules/game/lumen-progress.mjs?v=20261123-p322"),
-    import("./modules/systems/storage.mjs?v=20261123-p322"),
-    import("./modules/systems/cloud-save.mjs?v=20261123-p322"),
-    import("./modules/systems/input.mjs?v=20261123-p322"),
-    import("./modules/training/state.mjs?v=20261123-p322"),
-    import("./modules/training/replay.mjs?v=20261123-p322"),
-    import("./modules/ui/presentation.mjs?v=20261123-p322")
+    import("./modules/core/format.mjs?v=20261123-p323"),
+    import("./modules/core/math.mjs?v=20261123-p323"),
+    import("./modules/game/room-data.mjs?v=20261123-p323"),
+    import("./modules/game/world-model.mjs?v=20261123-p323"),
+    import("./modules/game/terrain-art.mjs?v=20261123-p323"),
+    import("./modules/game/effect-budget.mjs?v=20261123-p323"),
+    import("./modules/game/landmark-progress.mjs?v=20261123-p323"),
+    import("./modules/game/audio-cues.mjs?v=20261123-p323"),
+    import("./modules/game/lumen-progress.mjs?v=20261123-p323"),
+    import("./modules/systems/storage.mjs?v=20261123-p323"),
+    import("./modules/systems/cloud-save.mjs?v=20261123-p323"),
+    import("./modules/systems/input.mjs?v=20261123-p323"),
+    import("./modules/training/state.mjs?v=20261123-p323"),
+    import("./modules/training/replay.mjs?v=20261123-p323"),
+    import("./modules/ui/presentation.mjs?v=20261123-p323")
   ]);
 
   const canvas = document.getElementById("game");
@@ -668,6 +668,8 @@
   let lumenSheet = null;
   const roomPaintingCache = new Map();
   let lastSceneryRoom = -1;
+  let lastSceneryCamera = 0;
+  let outgoingScenery = null;
   let menuScenePainted = false;
   let mountainRoom = -1;
   let mountainLayers;
@@ -3821,6 +3823,14 @@
     });
   }
 
+  function resetCrossingEffects() {
+    particles.length = 0;
+    ghosts.length = 0;
+    lightTrails.length = 0;
+    shards.length = 0;
+    seedHair();
+  }
+
   function resolveRoomTransition() {
     if (player.x > roomWorldWidth() + 3 && roomIndex < maps.length - 1) {
       const clearedRoom = roomIndex;
@@ -3837,10 +3847,10 @@
       roomAttemptClean = true;
       room = parseRoom(roomIndex);
       resetRoomTech();
-      lightTrails.length = 0;
       const entrySpawn = roomEntrySpawn(roomIndex);
       player.x = -player.w + 4;
       player.y = entrySpawn.y;
+      resetCrossingEffects();
       cameraX = clampCamera(-cameraSideCrop());
       cameraTargetX = cameraX;
       roomTime = 0;
@@ -3882,7 +3892,6 @@
       beginChapterTransition(returnedFromRoom, roomIndex);
       room = parseRoom(roomIndex);
       resetRoomTech();
-      lightTrails.length = 0;
       player.x = roomWorldWidth() - 5;
       player.y = Math.min(player.y, H - TILE * 3);
       let returnRecovery = unstuckFromSolids();
@@ -3892,6 +3901,7 @@
         player.y = entrySpawn.y;
         returnRecovery = unstuckFromSolids();
       }
+      resetCrossingEffects();
       cameraX = clampCamera(roomWorldWidth() - W + cameraSideCrop());
       cameraTargetX = cameraX;
       roomTime = 0;
@@ -8320,17 +8330,30 @@
     return broken;
   }
 
-  function touchingHazard(box) {
-    const inset = { x: box.x + 4, y: box.y + 3, w: box.w - 8, h: box.h - 6 };
-    const minX = Math.max(0, Math.floor(inset.x / TILE));
-    const maxX = Math.min(room.cols - 1, Math.floor((inset.x + inset.w - 1) / TILE));
-    const minY = Math.max(0, Math.floor(inset.y / TILE));
-    const maxY = Math.min(ROWS - 1, Math.floor((inset.y + inset.h - 1) / TILE));
+  function spikeVariantAt(x, y) {
+    return (x + y * 2) % 3;
+  }
+
+  function intersectsSpikeTiles(box) {
+    const minX = Math.max(0, Math.floor(box.x / TILE));
+    const maxX = Math.min(room.cols - 1, Math.ceil((box.x + box.w) / TILE) - 1);
+    const minY = Math.max(0, Math.floor(box.y / TILE));
+    const maxY = Math.min(ROWS - 1, Math.ceil((box.y + box.h) / TILE) - 1);
+    const chapter = chapterIndexForRoom(roomIndex);
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
-        if (HAZARDS.has(room.tiles[y]?.[x])) return true;
+        const tile = room.tiles[y][x];
+        if (!HAZARDS.has(tile)) continue;
+        const left = box.x - x * TILE, top = box.y - y * TILE;
+        if (spikeIntersectsBox(tile, chapter, spikeVariantAt(x, y), left, top, left + box.w, top + box.h)) return true;
       }
     }
+    return false;
+  }
+
+  function touchingHazard(box) {
+    const inset = { x: box.x + 4, y: box.y + 3, w: box.w - 8, h: box.h - 6 };
+    if (intersectsSpikeTiles(inset)) return true;
     const shardBox = { w: 18, h: 18 };
     for (const shard of room.entities.driftShards) {
       if (aabb(inset, { ...shardBox, x: shard.x - shardBox.w / 2, y: shard.y - shardBox.h / 2 })) return true;
@@ -8345,15 +8368,7 @@
       w: box.w + padding * 2,
       h: box.h + padding * 2
     };
-    const minX = Math.max(0, Math.floor(inset.x / TILE));
-    const maxX = Math.min(room.cols - 1, Math.floor((inset.x + inset.w - 1) / TILE));
-    const minY = Math.max(0, Math.floor(inset.y / TILE));
-    const maxY = Math.min(ROWS - 1, Math.floor((inset.y + inset.h - 1) / TILE));
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        if (HAZARDS.has(room.tiles[y]?.[x])) return true;
-      }
-    }
+    if (intersectsSpikeTiles(inset)) return true;
     for (const shard of room.entities.driftShards) {
       if (distRectPoint(inset, shard.x, shard.y) < 15) return true;
     }
@@ -9947,7 +9962,12 @@
   function drawBackground(time) {
     const ambientTime = prefersReducedMotion ? 0 : time;
     const atmosphere = roomAtmosphere();
+    const blendScenery = started && !prefersReducedMotion && !settings.lowPerformance;
     if (started && lastSceneryRoom !== roomIndex) {
+      const previous = roomPaintingCache.get(lastSceneryRoom);
+      outgoingScenery = blendScenery && previous?.readyAt != null
+        ? { image: previous.image, index: lastSceneryRoom, camera: lastSceneryCamera, since: performance.now() }
+        : null;
       for (const index of roomPaintingCache.keys()) {
         if (Math.abs(index - roomIndex) > 1) roomPaintingCache.delete(index);
       }
@@ -9963,6 +9983,13 @@
       : Math.min(1, Math.max(0, (performance.now() - entry.readyAt) / 260));
     if (opacity < 1) drawFallbackLandscape(ambientTime, atmosphere);
     if (opacity > 0) drawRoomPainting(entry.image, opacity, atmosphere);
+    if (outgoingScenery) {
+      const { image, index, camera, since } = outgoingScenery;
+      const t = Math.min(1, (performance.now() - since) / 240);
+      if (blendScenery && t < 1) drawRoomPainting(image, 1 - t * t * (3 - 2 * t), ROOM_ATMOSPHERES[index], index, camera);
+      else outgoingScenery = null;
+    }
+    lastSceneryCamera = cameraX;
     drawChapterResonance(ambientTime, atmosphere);
     ctx.save();
     ctx.translate(prefersReducedMotion ? 0 : -cameraX * 0.12, 0);
@@ -9972,12 +9999,12 @@
     drawChapterWeather(ambientTime, atmosphere);
   }
 
-  function drawRoomPainting(image, opacity, atmosphere) {
+  function drawRoomPainting(image, opacity, atmosphere, index = roomIndex, camera = cameraX) {
     // Overscan provides camera travel on both sides, including negative camera X on portrait entry.
     const scale = Math.max(W / image.naturalWidth, H / image.naturalHeight) * 1.08;
     const width = image.naturalWidth * scale;
     const height = image.naturalHeight * scale;
-    const drift = prefersReducedMotion || settings.lowPerformance ? 0 : cameraX * 0.065;
+    const drift = prefersReducedMotion || settings.lowPerformance ? 0 : camera * 0.065;
     const left = Math.max(W - width, Math.min(0, (W - width) / 2 - drift));
     const top = (H - height) / 2;
     ctx.save();
@@ -9986,10 +10013,10 @@
     // A cool wash unifies the plates with the slate foreground and leaves the brightest marks to the route.
     ctx.fillStyle = "rgba(25, 43, 56, 0.17)";
     ctx.fillRect(0, 0, W, H);
-    const scene = ROOM_PAINTINGS[roomIndex];
+    const scene = ROOM_PAINTINGS[index];
     ctx.translate(left + width * scene.moonX, top + height * scene.moonY);
     ctx.fillStyle = atmosphere.moon;
-    ctx.globalAlpha = opacity * (roomIndex >= 8 ? 0.78 : 0.38);
+    ctx.globalAlpha = opacity * (index >= 8 ? 0.78 : 0.38);
     ctx.beginPath();
     ctx.moveTo(3, -10);
     ctx.bezierCurveTo(-12, -6, -11, 10, 3, 11);
@@ -10750,7 +10777,7 @@
         surface.translate(0, 6);
         if (useLandmark) paintLandmarkLedge(surface, run, TILE, image);
         else paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image);
-        applyTerrainLight(surface, width, TILE, roomIndex);
+        applyTerrainLight(surface, width, TILE, roomIndex, run);
         cached = { image, sprite };
         ledgeSprites.set(run, cached);
       }
@@ -10766,7 +10793,7 @@
   }
 
   function drawSpike(x, y, tile, chapter) {
-    const variant = (x + y * 2) % 3;
+    const variant = spikeVariantAt(x, y);
     const key = roomIndex * 3 + variant;
     let sprite = spikeSprites.get(key);
     if (!sprite) {

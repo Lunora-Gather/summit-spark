@@ -22,6 +22,7 @@ const csp = [
   "worker-src 'none'"
 ].join("; ");
 const types = {
+  ".webp": "image/webp",
   ".jpg": "image/jpeg",
   ".png": "image/png",
   ".svg": "image/svg+xml",
@@ -31,6 +32,7 @@ const types = {
   ".mjs": "text/javascript; charset=utf-8"
 };
 const publicFiles = new Map([
+  ["/assets/abutments.webp", path.join("public", "assets", "abutments.webp")],
   ["/assets/ledges.png", path.join("public", "assets", "ledges.png")],
   ["/assets/lumens.png", path.join("public", "assets", "lumens.png")],
   ["/assets/moonlit-pass.jpg", path.join("public", "assets", "moonlit-pass.jpg")],

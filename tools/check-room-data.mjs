@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
-import { rockMaterials, rockRuns } from "../public/modules/game/terrain-art.mjs";
+import { rockMaterials, rockRuns, terrainAbutments } from "../public/modules/game/terrain-art.mjs";
 import {
   CHAPTER_EXPERIENCE,
   CHAPTER_START_ROOMS,
@@ -101,9 +101,18 @@ for (const kind of CHAPTER_SURFACE_KINDS) {
   await access(new URL(`../public/assets/terrain/${rockMaterials[kind].file}.jpg`, import.meta.url));
 }
 const landmarkFrames = new Set();
+const supportFrames = new Set();
 for (const [roomIndex, rows] of maps.entries()) {
   const coverage = rows.map(row => Array(row.length).fill(0));
   const runs = rockRuns(rows, roomIndex);
+  const supports = terrainAbutments(rows, roomIndex);
+  assert.ok(supports.length >= 3, "each room should have multiple anchored landforms");
+  assert.ok(supports.some(s => s.left < 30) && (rows[0].length <= 30 || supports.some(s => s.left + s.width > 30)),
+    "the composed terrain should continue across the scrolling room");
+  for (const support of supports) {
+    assert.ok(support.height > 0 && support.width > 0);
+    supportFrames.add(support.frame);
+  }
   const landmarks = runs.filter(run => run.frame !== undefined);
   assert.ok(landmarks.length >= 2, `R${roomIndex + 1} should retain painted landmarks along the route`);
   for (const run of landmarks) {
@@ -120,6 +129,7 @@ for (const [roomIndex, rows] of maps.entries()) {
   }
   assert.deepEqual(coverage, rows.map(row => [...row].map(cell => Number(cell === "#"))), "painted runs must cover every solid cell exactly once");
 }
+assert.equal(supportFrames.size, 8, "all eight abutment paintings should reach actual shelves");
 assert.equal(landmarkFrames.size, 8, "all eight terrain silhouettes should appear on walkable ledges");
 assert.deepEqual(
   CHAPTER_SURFACE_FEEDBACK.map((feedback) => feedback.kind),

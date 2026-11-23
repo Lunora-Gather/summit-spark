@@ -22,6 +22,67 @@ const landmarks = [
   [[0,9,cornice], [10,7,cornice], [18,14,cornice], [35,12,basalt], [36,3,cornice]]
 ];
 
+// Each back wall starts inside a real shelf. Its painted foot recedes into the valley.
+// Entries are socket column, shelf row, artwork, foot row and signed width in map cells.
+const wooded = 0, masonry = 1, columns = 2, snow = 3, timber = 4, bluff = 5, crag = 6, granite = 7;
+const sockets = [.67, .73, .62, .70, .74, .70, .65, .63];
+const abutments = [
+  [[8,10,wooded,16.6,5.0], [18,6,crag,13.5,4.1], [25,4,wooded,13.8,-6.4]],
+  [[1,9,timber,16.3,3.0], [11,9,timber,14.8,-3.8], [24,7,wooded,16,-5.7], [16,3,wooded,10,4.7]],
+  [[1,6,crag,16,7.0], [16,9,wooded,16.5,4.7], [24,6,crag,15,-5.5]],
+  [[1,9,masonry,16.3,3.4], [14,4,bluff,12.8,5.7], [24,3,masonry,10.2,-3.9], [7,13,bluff,17.5,4.7], [33,9,masonry,15.5,3.7], [42,6,bluff,15,-6.0]],
+  [[1,8,bluff,16.6,5.6], [10,10,bluff,16.2,4.6], [21,5,bluff,14,-6.2], [34,6,masonry,12.5,3.5], [42,9,bluff,16.4,-4.7]],
+  [[2,9,masonry,16.5,3.5], [13,9,masonry,16,3.8], [23,3,masonry,8.8,-3.2], [24,7,bluff,16,-7.1], [37,6,masonry,12.7,3.4], [41,2,bluff,12.8,-6.0]],
+  [[2,11,crag,17,4.6], [10,4,columns,13.8,5.5], [24,7,columns,16,-5.8], [34,5,crag,15.3,5.9], [42,12,columns,17,-3.8]],
+  [[3,10,crag,16.8,5.2], [16,4,columns,11.8,4.2], [24,7,crag,15,-5.6], [34,11,columns,17,4.5], [38,4,columns,12.5,-4.8]],
+  [[2,8,snow,16.2,5.4], [13,10,granite,16.7,5.1], [23,2,snow,11,-5.8], [34,11,granite,17,4.8], [41,6,snow,15.6,-7.0]],
+  [[2,9,granite,16.6,5.2], [12,7,snow,15.6,6.2], [21,14,granite,17.3,-4.1], [32,9,snow,16,4.5], [38,3,granite,13.5,-7.0]]
+];
+
+export function terrainAbutments(rows, index) {
+  return (abutments[index] || []).flatMap(([col, row, frame, foot, span]) => {
+    if (rows[row]?.[col] !== "#" || rows[row + 1]?.[col] === "#") return [];
+    const width = Math.abs(span);
+    const flipped = span < 0;
+    const left = col + .5 - width * (flipped ? 1 - sockets[frame] : sockets[frame]);
+    return [{ left, top: row + .28, width, height: foot - row - .28, frame, flipped }];
+  });
+}
+
+export function paintAbutments(g, supports, sheet, tile, viewLeft, viewWidth) {
+  const sw = sheet.naturalWidth / 4, sh = sheet.naturalHeight / 2;
+  for (const { left, top, width, height, frame, flipped } of supports) {
+    const x = left * tile, w = width * tile;
+    if (x + w < viewLeft || x > viewLeft + viewWidth) continue;
+    g.save();
+    g.translate(flipped ? x + w : x, top * tile);
+    if (flipped) g.scale(-1, 1);
+    g.drawImage(sheet, (frame % 4) * sw, Math.floor(frame / 4) * sh, sw, sh, 0, 0, w, height * tile);
+    g.restore();
+  }
+}
+
+// Colors sampled from diffuse sky and distant rock in each room painting.
+// Source-atop keeps gaps in bridge trusses, ice ends and spike tips transparent.
+const terrainLight = [
+  ["#88b7a9", "#80a8a2"], ["#c1ccbf", "#749384"], ["#bc9fb3", "#ad9ab4"],
+  ["#be879a", "#ab7e95"], ["#b99297", "#ad7d65"], ["#c07c76", "#996980"],
+  ["#8aadb3", "#769ca2"], ["#91aacc", "#87adba"], ["#6d7bc8", "#5f6aa2"], ["#8293c4", "#7488d3"]
+];
+
+export function applyTerrainLight(g, width, tile, index) {
+  const [sky, rock] = terrainLight[index];
+  const light = g.createLinearGradient(0, 0, 0, tile + 5);
+  light.addColorStop(0, sky + "18");
+  light.addColorStop(.42, sky + "2f");
+  light.addColorStop(1, rock + "4e");
+  g.save();
+  g.globalCompositeOperation = "source-atop";
+  g.fillStyle = light;
+  g.fillRect(0, -6, width, tile + 18);
+  g.restore();
+}
+
 // Split only where a face becomes exposed. Interior seams of stacked rock stay flush.
 export function rockRuns(rows, roomIndex) {
   const runs = [];
@@ -34,7 +95,7 @@ export function rockRuns(rows, roomIndex) {
       const bottom = rows[y + 1]?.[x] !== "#";
       x += 1;
       while (row[x] === "#" && (rows[y - 1]?.[x] !== "#") === top && (rows[y + 1]?.[x] !== "#") === bottom) x += 1;
-      runs.push({ x: start, y, length: x - start, top, bottom, left: row[start - 1] !== "#", right: row[x] !== "#" });
+      runs.push({ x: start, y, length: x - start, floor: y === rows.length - 1, top, bottom, left: row[start - 1] !== "#", right: row[x] !== "#" });
     }
   });
   for (const [x, y, frame] of landmarks[roomIndex] || []) {
@@ -105,6 +166,43 @@ export function paintLandmarkLedge(g, run, tile, sheet) {
   g.restore();
 }
 
+const seamlessStone = new WeakMap();
+
+// Overlap opposite edges of the texture, preserving the direction of the painted strata.
+function wrapStoneEdge(source, horizontal) {
+  const overlap = Math.round((horizontal ? source.width : source.height) / 6);
+  const dx = horizontal ? overlap : 0, dy = horizontal ? 0 : overlap;
+  const tile = document.createElement("canvas");
+  tile.width = source.width - dx;
+  tile.height = source.height - dy;
+  const pen = tile.getContext("2d");
+  pen.drawImage(source, -dx, -dy);
+  const strip = document.createElement("canvas");
+  strip.width = horizontal ? dx : tile.width;
+  strip.height = horizontal ? tile.height : dy;
+  const feather = strip.getContext("2d");
+  feather.drawImage(source, 0, 0);
+  feather.globalCompositeOperation = "destination-in";
+  const fade = feather.createLinearGradient(0, 0, dx, dy);
+  fade.addColorStop(0, "transparent");
+  fade.addColorStop(1, "#000");
+  feather.fillStyle = fade;
+  feather.fillRect(0, 0, strip.width, strip.height);
+  pen.drawImage(strip, tile.width - strip.width, tile.height - strip.height);
+  return tile;
+}
+
+function continuousStone(image) {
+  if (seamlessStone.has(image)) return seamlessStone.get(image);
+  const swatch = document.createElement("canvas");
+  swatch.width = Math.min(512, image.naturalWidth);
+  swatch.height = Math.round(swatch.width * image.naturalHeight / image.naturalWidth);
+  swatch.getContext("2d").drawImage(image, 0, 0, swatch.width, swatch.height);
+  const tile = wrapStoneEdge(wrapStoneEdge(swatch, true), false);
+  seamlessStone.set(image, tile);
+  return tile;
+}
+
 export function paintLedge(g, run, tile, material, index, image) {
   const width = run.length * tile;
   const seed = index * 439 + run.x * 31 + run.y * 17;
@@ -114,7 +212,7 @@ export function paintLedge(g, run, tile, material, index, image) {
     paintBridge(g, width, seed);
     return;
   }
-  const isolated = run.bottom;
+  const isolated = run.bottom && !run.floor;
   const bevel = kind === "sandstone" ? 4 : 7;
   const left = run.left ? 1 : 0, right = run.right ? 1 : 0;
   const lowerCut = isolated ? Math.min(width / 5, bevel + n(1)*10) : 2;
@@ -165,19 +263,25 @@ export function paintLedge(g, run, tile, material, index, image) {
   g.fillStyle = material.stone;
   g.fillRect(0, 0, width, tile + 12);
   if (image) {
-    // Anchor the painting in world space so vertically stacked rows and split runs share one face.
-    const periodX = 294, periodY = periodX * image.naturalHeight / image.naturalWidth;
-    const worldX = run.x * tile + index * 71, worldY = run.y * tile + index * 39;
-    for (let cy = Math.floor(worldY / periodY); cy * periodY < worldY + tile + 12; cy++) {
-      for (let cx = Math.floor(worldX / periodX); cx * periodX < worldX + width; cx++) {
-        const flipX = cx % 2, flipY = cy % 2;
-        g.save();
-        g.translate((cx + flipX) * periodX - worldX, (cy + flipY) * periodY - worldY);
-        g.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-        g.drawImage(image, 0, 0, periodX, periodY);
-        g.restore();
+    g.save();
+    g.globalAlpha *= .84;
+    if (isolated && run.top && run.left && run.right) {
+      // Sample one piece of strata: the grain keeps its natural direction through the entire ledge.
+      const sw = Math.min(image.naturalWidth, width * 3.3);
+      const sh = Math.min(image.naturalHeight, (tile + 12) * 3.3);
+      const sx = n(91) * (image.naturalWidth - sw), sy = n(92) * (image.naturalHeight - sh);
+      g.drawImage(image, sx, sy, sw, sh, 0, 0, width, tile + 12);
+    } else {
+      // One continuous exposure for the foundation and stacked rock, including split runs.
+      const swatch = continuousStone(image);
+      const periodX = 224, periodY = periodX * swatch.height / swatch.width;
+      const xOffset = (run.x * tile + 71 * index) % periodX;
+      const yOffset = (run.y * tile + 39 * index) % periodY;
+      for (let y = -yOffset; y < tile + 12; y += periodY) {
+        for (let x = -xOffset; x < width; x += periodX) g.drawImage(swatch, x, y, periodX, periodY);
       }
     }
+    g.restore();
   } else {
     for (let x = -12, i = 0; x < width; i++) {
       const span = 16 + n(i)*26;
@@ -194,19 +298,27 @@ export function paintLedge(g, run, tile, material, index, image) {
     g.fillRect(0, 0, width, tile+12);
   }
   if (run.top) {
-    // Each material breaks the lower edge of its walkable lip differently.
+    // A thin irregular weathered rim catches light along the actual landing plane.
     let x = 0;
-    for (let i=0; x < width; i++) {
-      const span = Math.min(width-x, 13 + n(i+61)*27);
-      const depth = kind === "glacier" ? 3 + n(i+12)*6 : 2 + n(i+12)*4;
-      const end = x+span;
-      polygon(g, material.edge, [x,0, end,0, end,depth*.6+1, x+span*.64,depth+2, x,depth+1]);
-      polygon(g, material.lip, [x,0, end,0, end,depth*.5, x+span*.64,depth, x,depth*.75]);
-      if (kind === "sandstone") {
-        polygon(g, "#967255", [end-2,0, end,0, end-1,depth, end-4,depth+2]);
-      } else if (kind === "moss") {
-        polygon(g, "#899857", [x,2, x+span*.3,1, x+span*.57,3, x+span*.38,depth+2, x+2,depth+1]);
-      }
+    for (let i = 0; x < width; i++) {
+      const span = Math.min(width - x, 16 + n(i + 61) * 33);
+      const end = x + span;
+      const frost = kind === "glacier";
+      const depth = (frost ? 2.6 : 1.2) + n(i + 12) * (frost ? 3.8 : 2.5);
+      g.fillStyle = material.edge;
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(end, 0);
+      g.lineTo(end, 2);
+      g.quadraticCurveTo(x + span * .57, depth + 2, x, 2);
+      g.fill();
+      g.fillStyle = material.lip;
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(end, 0);
+      g.lineTo(end, .9);
+      g.quadraticCurveTo(x + span * .60, depth + 1.1, x, .9);
+      g.fill();
       x = end;
     }
   }

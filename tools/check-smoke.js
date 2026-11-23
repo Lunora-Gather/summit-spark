@@ -81,6 +81,10 @@ async function verifyServerBoundary(baseUrl) {
   expectHeader(rootResponse, "x-frame-options", "DENY");
   expectHeader(rootResponse, "permissions-policy", "camera=()");
 
+  const supports = await request(baseUrl + "/assets/abutments.webp", { method: "HEAD" });
+  if (supports.status !== 200 || supports.headers["content-type"] !== "image/webp") {
+    errors.push("cliff and pier painting must be served to the playfield as WebP");
+  }
   const ledges = await request(baseUrl + "/assets/ledges.png", { method: "HEAD" });
   if (ledges.status !== 200 || ledges.headers["content-type"] !== "image/png") {
     errors.push("painted ledges must be available to the game as a PNG");

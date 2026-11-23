@@ -65,7 +65,7 @@
       roomEntrySpawnData,
       roomWorldData
     },
-    { rockMaterials, rockRuns, paintLedge, paintLandmarkLedge, paintSpikes, iceVariants, paintFracturedIce, paintIceStress },
+    { rockMaterials, rockRuns, terrainAbutments, paintAbutments, applyTerrainLight, paintLedge, paintLandmarkLedge, paintSpikes, iceVariants, paintFracturedIce, paintIceStress },
     {
       effectQueueLimit,
       enforceEffectQueueBudget
@@ -202,21 +202,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261123-p321"),
-    import("./modules/core/math.mjs?v=20261123-p321"),
-    import("./modules/game/room-data.mjs?v=20261123-p321"),
-    import("./modules/game/world-model.mjs?v=20261123-p321"),
-    import("./modules/game/terrain-art.mjs?v=20261123-p321"),
-    import("./modules/game/effect-budget.mjs?v=20261123-p321"),
-    import("./modules/game/landmark-progress.mjs?v=20261123-p321"),
-    import("./modules/game/audio-cues.mjs?v=20261123-p321"),
-    import("./modules/game/lumen-progress.mjs?v=20261123-p321"),
-    import("./modules/systems/storage.mjs?v=20261123-p321"),
-    import("./modules/systems/cloud-save.mjs?v=20261123-p321"),
-    import("./modules/systems/input.mjs?v=20261123-p321"),
-    import("./modules/training/state.mjs?v=20261123-p321"),
-    import("./modules/training/replay.mjs?v=20261123-p321"),
-    import("./modules/ui/presentation.mjs?v=20261123-p321")
+    import("./modules/core/format.mjs?v=20261123-p322"),
+    import("./modules/core/math.mjs?v=20261123-p322"),
+    import("./modules/game/room-data.mjs?v=20261123-p322"),
+    import("./modules/game/world-model.mjs?v=20261123-p322"),
+    import("./modules/game/terrain-art.mjs?v=20261123-p322"),
+    import("./modules/game/effect-budget.mjs?v=20261123-p322"),
+    import("./modules/game/landmark-progress.mjs?v=20261123-p322"),
+    import("./modules/game/audio-cues.mjs?v=20261123-p322"),
+    import("./modules/game/lumen-progress.mjs?v=20261123-p322"),
+    import("./modules/systems/storage.mjs?v=20261123-p322"),
+    import("./modules/systems/cloud-save.mjs?v=20261123-p322"),
+    import("./modules/systems/input.mjs?v=20261123-p322"),
+    import("./modules/training/state.mjs?v=20261123-p322"),
+    import("./modules/training/replay.mjs?v=20261123-p322"),
+    import("./modules/ui/presentation.mjs?v=20261123-p322")
   ]);
 
   const canvas = document.getElementById("game");
@@ -671,11 +671,11 @@
   let menuScenePainted = false;
   let mountainRoom = -1;
   let mountainLayers;
-  const materialImages = new Map();
-  let ledgeSheet = null;
+  const terrainImages = new Map();
   let ledgeSprites = new WeakMap();
   const spikeSprites = new Map();
   const cachedCrumbleTiles = new Map();
+  const lightPools = new Map();
 
   function assertMaps() {
     maps.forEach((room, roomIndex) => {
@@ -1895,6 +1895,7 @@
 
     const visualGroups = {
       ledges: rockRuns(rows, index),
+      abutments: terrainAbutments(rows, index),
       dashGateColumns: dashGateColumns(entities.dashGates),
       phaseRuns: phaseBlockRuns(entities.phaseBlocks)
     };
@@ -8616,6 +8617,8 @@
     const offset = shakeOffset();
     ctx.save();
     ctx.translate(offset.x - cameraX, offset.y);
+    const abutments = terrainImages.get("assets/abutments.webp");
+    if (abutments) paintAbutments(ctx, room.visualGroups.abutments, abutments, TILE, cameraX, W);
     drawHazardFields(time);
     drawObstacleArchitecture(time);
     drawTiles();
@@ -10604,20 +10607,8 @@
     if (dir === "<") ctx.rotate(-Math.PI / 2);
     if (dir === ">") ctx.rotate(Math.PI / 2);
     ctx.translate(-TILE / 2, -TILE / 2);
-    const field = ctx.createLinearGradient(0, TILE, 0, 2);
-    field.addColorStop(0, `rgba(255, 92, 108, ${0.2 + pulse * 0.08})`);
-    field.addColorStop(0.56, `rgba(255, 92, 108, ${0.08 + pulse * 0.08})`);
-    field.addColorStop(1, "rgba(255, 92, 108, 0)");
-    ctx.fillStyle = field;
-    ctx.fillRect(-4, -1, TILE + 8, TILE + 6);
-    ctx.strokeStyle = `rgba(255, 240, 160, ${0.18 + pulse * 0.2})`;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 5]);
-    ctx.beginPath();
-    ctx.moveTo(2, TILE - 10);
-    ctx.lineTo(TILE - 2, TILE - 10);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // Warm reflected light hugs the base; the sharp silhouette marks the dangerous edge.
+    drawLightPool(TILE / 2, TILE - 3, TILE * .58, TILE * .52, "#de6d6a", .20 + pulse * .08);
     ctx.restore();
   }
 
@@ -10722,20 +10713,15 @@
   }
 
   function requestTerrainMaterial(index) {
-    if (!ledgeSheet) {
-      const sheet = new Image();
-      ledgeSheet = sheet;
-      sheet.decoding = "async";
-      sheet.src = "assets/ledges.png";
-      sheet.decode().catch(() => { ledgeSheet = null; });
-    }
     const kind = CHAPTER_SURFACE_KINDS[chapterIndexForRoom(index)];
-    if (materialImages.has(kind)) return;
-    const image = new Image();
-    materialImages.set(kind, null);
-    image.decoding = "async";
-    image.src = `assets/terrain/${rockMaterials[kind].file}.jpg`;
-    image.decode().then(() => materialImages.set(kind, image)).catch(() => materialImages.delete(kind));
+    for (const url of ["assets/ledges.png", "assets/abutments.webp", `assets/terrain/${rockMaterials[kind].file}.jpg`]) {
+      if (terrainImages.has(url)) continue;
+      const image = new Image();
+      terrainImages.set(url, null);
+      image.decoding = "async";
+      image.src = url;
+      image.decode().then(() => terrainImages.set(url, image)).catch(() => terrainImages.delete(url));
+    }
   }
 
   function createSpriteSurface(width = TILE, height = TILE) {
@@ -10751,8 +10737,8 @@
   function drawTiles() {
     const chapter = chapterIndexForRoom(roomIndex);
     const kind = CHAPTER_SURFACE_KINDS[chapter];
-    const material = materialImages.get(kind) || null;
-    const sheet = ledgeSheet?.complete && ledgeSheet.naturalWidth ? ledgeSheet : null;
+    const material = terrainImages.get(`assets/terrain/${rockMaterials[kind].file}.jpg`) || null;
+    const sheet = terrainImages.get("assets/ledges.png");
     for (const run of room.visualGroups.ledges) {
       const left = run.x * TILE, width = run.length * TILE;
       if (left + width < cameraX || left > cameraX + W) continue;
@@ -10764,6 +10750,7 @@
         surface.translate(0, 6);
         if (useLandmark) paintLandmarkLedge(surface, run, TILE, image);
         else paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image);
+        applyTerrainLight(surface, width, TILE, roomIndex);
         cached = { image, sprite };
         ledgeSprites.set(run, cached);
       }
@@ -10780,11 +10767,12 @@
 
   function drawSpike(x, y, tile, chapter) {
     const variant = (x + y * 2) % 3;
-    const key = chapter * 3 + variant;
+    const key = roomIndex * 3 + variant;
     let sprite = spikeSprites.get(key);
     if (!sprite) {
       const buffer = createSpriteSurface();
       paintSpikes(buffer.surface, chapter, variant);
+      applyTerrainLight(buffer.surface, TILE, TILE, roomIndex);
       sprite = buffer.sprite;
       spikeSprites.set(key, sprite);
     }
@@ -10798,10 +10786,11 @@
   }
 
   function crumbleTileSprite(variant, left, right) {
-    const key = variant * 4 + Number(left) * 2 + Number(right);
+    const key = (roomIndex * iceVariants + variant) * 4 + Number(left) * 2 + Number(right);
     if (cachedCrumbleTiles.has(key)) return cachedCrumbleTiles.get(key);
     const { sprite, surface } = createSpriteSurface();
     paintFracturedIce(surface, variant, left, right);
+    applyTerrainLight(surface, TILE, TILE, roomIndex);
     cachedCrumbleTiles.set(key, sprite);
     return sprite;
   }
@@ -11572,7 +11561,35 @@
     pen.restore();
   }
 
+  function drawLightPool(x, y, rx, ry, color, opacity) {
+    let pool = lightPools.get(color);
+    if (!pool) {
+      pool = document.createElement("canvas");
+      pool.width = pool.height = 80;
+      const pen = pool.getContext("2d");
+      const light = pen.createRadialGradient(40, 40, 0, 40, 40, 40);
+      light.addColorStop(0, color);
+      light.addColorStop(1, color + "00");
+      pen.fillStyle = light;
+      pen.fillRect(0, 0, 80, 80);
+      lightPools.set(color, pool);
+    }
+    ctx.save();
+    ctx.globalAlpha *= opacity;
+    ctx.drawImage(pool, x - rx, y - ry, rx * 2, ry * 2);
+    ctx.restore();
+  }
+
+  // Only a nearby solid receiver catches the light. A broken ice cell immediately loses it.
+  function drawPickupReflection(entity, warm) {
+    const col = Math.floor(entity.x / TILE), row = Math.floor(entity.y / TILE) + 1;
+    const floor = room.tiles[row]?.[col];
+    if (floor !== "#" && floor !== "C") return;
+    drawLightPool(entity.x, row * TILE + 2.4, 13, 2.4, warm ? "#ffd380" : "#9fe8db", .62);
+  }
+
   function drawLumen(lumen, time) {
+    drawPickupReflection(lumen, true);
     const quiet = prefersReducedMotion || settings.lowPerformance;
     const y = lumen.y + (quiet ? 0 : Math.sin(lumen.bob) * 2);
     const chapter = chapterIndexForRoom(roomIndex);
@@ -11593,6 +11610,7 @@
   }
 
   function drawRefill(refill) {
+    if (refill.ready) drawPickupReflection(refill, false);
     const y = refill.y + (refill.ready && !prefersReducedMotion ? Math.sin(refill.bob) * 2 : 0);
     ctx.save();
     ctx.translate(refill.x, y);
@@ -11747,6 +11765,7 @@
   }
 
   function drawRelay(relay, time) {
+    if (relay.ready) drawPickupReflection(relay, false);
     const motion = prefersReducedMotion ? 0 : time;
     const pulse = Math.min(1, relay.pulse / 0.3);
     const y = relay.y + (prefersReducedMotion ? 0 : Math.sin(relay.bob) * 2);
@@ -11780,6 +11799,7 @@
   }
 
   function drawPrism(prism, time) {
+    if (prism.ready) drawPickupReflection(prism, true);
     const pulse = Math.min(1, prism.pulse / 0.5);
     const motion = prefersReducedMotion || settings.calmEffects ? 0 : Math.sin(time * 1.3) * 0.07;
     const y = prism.y + (prefersReducedMotion ? 0 : Math.sin(prism.bob) * 2);

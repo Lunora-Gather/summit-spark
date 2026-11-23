@@ -9,7 +9,8 @@ const run = promisify(execFile);
 function observePage() {
   const scene = new URLSearchParams(location.search).get("native-ios");
   if (!scene) return;
-  let last = "";
+  let reporting = false;
+  let navigating = false;
   let touch;
   let tapped;
   document.addEventListener("pointerdown", event => {
@@ -29,8 +30,8 @@ function observePage() {
 
   const insets = document.createElement("div");
   insets.style.cssText = "position:fixed;pointer-events:none;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
-  setInterval(() => {
-    if (!document.documentElement.classList.contains("app-ready")) return;
+  setInterval(async () => {
+    if (reporting || navigating || !document.documentElement.classList.contains("app-ready")) return;
     const viewport = visualViewport;
     const gate = document.getElementById("entryGate");
     const account = document.getElementById("settingsPanel");
@@ -79,10 +80,19 @@ function observePage() {
           below: viewport.offsetTop + viewport.height - rect.bottom };
       });
     }
-    const report = JSON.stringify(state);
-    if (report !== last) {
-      last = report;
-      void fetch("/__ios_state?scene=" + scene + "&state=" + encodeURIComponent(report));
+    // Keep one request in flight and repeat the snapshot if Mobile Safari briefly drops the connection.
+    reporting = true;
+    try {
+      const response = await fetch("/__ios_state?scene=" + scene + "&state=" + encodeURIComponent(JSON.stringify(state)), {cache: "no-store"});
+      if (response.status === 200) {
+        const nextScene = await response.text();
+        navigating = true;
+        location.replace("/?native-ios=" + encodeURIComponent(nextScene));
+      }
+    } catch {
+      // The next report also polls for a scene change.
+    } finally {
+      reporting = false;
     }
   }, 150);
 }
@@ -91,7 +101,11 @@ async function checkIOSSafari(fixture, udid) {
   let currentScene;
   let state;
   fixture.routes.set("/__ios_state", (url, response) => {
-    if (url.searchParams.get("scene") === currentScene) state = JSON.parse(url.searchParams.get("state"));
+    if (url.searchParams.get("scene") !== currentScene) {
+      response.writeHead(200, { "Content-Type": "text/plain", "Cache-Control": "no-store" }).end(currentScene);
+      return;
+    }
+    state = JSON.parse(url.searchParams.get("state"));
     response.writeHead(204, { "Cache-Control": "no-store" }).end();
   });
   fixture.scripts.set("ios", "(" + observePage.toString() + ")();");
@@ -105,9 +119,11 @@ async function checkIOSSafari(fixture, udid) {
     throw new Error(label + ": " + JSON.stringify(state));
   }
   async function openScene(scene) {
+    const firstPage = !currentScene;
     currentScene = scene;
     state = undefined;
-    await run("xcrun", ["simctl", "openurl", udid, fixture.url + "/?native-ios=" + scene]);
+    // Use the same tab for the whole run, including the transition away from the open keyboard.
+    if (firstPage) await run("xcrun", ["simctl", "openurl", udid, fixture.url + "/?native-ios=" + scene]);
     await waitFor("Load " + scene + " in Mobile Safari", report => report.target.visible, 60000);
   }
   async function locateViewport() {

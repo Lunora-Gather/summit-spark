@@ -354,7 +354,7 @@ if (!runtimeSource.includes('import("./modules/training/replay.mjs?v=')
   || !runtimeSource.includes("replayGhostStateData(ghost)")) {
   fail("practice replay must distinguish PB/current paths and explain bounded action transitions");
 }
-if (!runtimeSource.includes('import("./modules/game/terrain-art.mjs?v=') || !runtimeSource.includes("ledges: rockRuns(rows)") || !runtimeSource.includes("paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image)")) {
+if (!runtimeSource.includes('import("./modules/game/terrain-art.mjs?v=') || !runtimeSource.includes("ledges: rockRuns(rows, index)") || !runtimeSource.includes("paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image)")) {
   fail("playable terrain should group the collision map into painted chapter ledges");
 }
 if (!runtimeSource.includes("CHAPTER_SURFACE_FEEDBACK[chapter]")

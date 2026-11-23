@@ -6,8 +6,24 @@ export const rockMaterials = {
   "star-etched": { file: "glacier", stone: "#635b79", shade: "#383950", face: "#9b8caa", lip: "#ece8f0", edge: "#b9b5d2" }
 };
 
+// Coordinates mark distinct landmarks along the route, including the second screens.
+// Frame order follows the two columns and four rows of the terrain painting.
+const root = 0, trestle = 1, schist = 2, arch = 3, strata = 4, corbel = 5, basalt = 6, cornice = 7;
+const landmarks = [
+  [[7,10,root], [17,6,root]],
+  [[0,9,trestle], [8,9,trestle], [23,12,root]],
+  [[0,6,schist], [13,9,schist], [23,11,root]],
+  [[0,9,arch], [19,3,arch], [21,7,corbel], [3,13,arch], [30,9,arch], [39,13,corbel]],
+  [[0,8,strata], [7,10,strata], [16,5,strata], [20,13,corbel], [34,11,strata], [39,7,corbel]],
+  [[0,9,corbel], [10,9,corbel], [19,3,arch], [21,7,corbel], [35,6,arch], [36,11,corbel]],
+  [[0,11,basalt], [9,4,basalt], [17,12,schist], [22,7,basalt], [32,5,basalt], [41,12,schist]],
+  [[0,10,schist], [14,4,basalt], [14,11,basalt], [22,13,schist], [36,4,basalt], [38,13,basalt]],
+  [[0,8,cornice], [9,10,schist], [20,7,cornice], [33,11,schist], [39,2,cornice]],
+  [[0,9,cornice], [10,7,cornice], [18,14,cornice], [35,12,basalt], [36,3,cornice]]
+];
+
 // Split only where a face becomes exposed. Interior seams of stacked rock stay flush.
-export function rockRuns(rows) {
+export function rockRuns(rows, roomIndex) {
   const runs = [];
   rows.forEach((row, y) => {
     let x = 0;
@@ -21,6 +37,10 @@ export function rockRuns(rows) {
       runs.push({ x: start, y, length: x - start, top, bottom, left: row[start - 1] !== "#", right: row[x] !== "#" });
     }
   });
+  for (const [x, y, frame] of landmarks[roomIndex] || []) {
+    const run = runs.find(run => run.x === x && run.y === y && run.top && run.bottom && run.left && run.right);
+    if (run) run.frame = frame;
+  }
   return runs;
 }
 
@@ -70,6 +90,21 @@ function paintBridge(g, width, seed) {
   }
 }
 
+export function paintLandmarkLedge(g, run, tile, sheet) {
+  const width = run.length * tile;
+  const cellW = sheet.naturalWidth / 2, cellH = sheet.naturalHeight / 4;
+  // Reuse a full span, a broken end or a single shoulder. Wide decks keep their long arch.
+  const section = (run.x + 2 * run.y) % 3;
+  const crop = run.length >= 7 || section === 0 ? 1 : section === 1 ? .77 : .61;
+  const offset = section === 1 ? 0 : 1 - crop;
+  const height = Math.min(tile + 8, Math.max(tile * .86, width * .20 / crop));
+  const sourceX = ((run.frame % 2) + offset) * cellW;
+  g.save();
+  if ((run.x + run.y) % 2) { g.translate(width, 0); g.scale(-1, 1); }
+  g.drawImage(sheet, sourceX, Math.floor(run.frame / 2) * cellH, cellW * crop, cellH, 0, 0, width, height);
+  g.restore();
+}
+
 export function paintLedge(g, run, tile, material, index, image) {
   const width = run.length * tile;
   const seed = index * 439 + run.x * 31 + run.y * 17;
@@ -95,12 +130,27 @@ export function paintLedge(g, run, tile, material, index, image) {
   }
   g.lineTo(width-right*lowerCut, tile);
   if (isolated) {
-    // A wedged foot, uneven ledges or split columns interrupt the straight underside.
-    for (let x = width-20, i=0; x > 16; x -= 17 + n(i+9)*16, i++) {
-      const depth = kind === "basalt" ? 3+n(i+30)*7 : n(i+30)*6;
-      g.lineTo(x+4, tile-2);
-      g.lineTo(x, tile+depth);
-      g.lineTo(x-7, tile+depth-1);
+    // Bedrock stays flush at a shared face. Erosion cuts back into the exposed shelf.
+    for (let x = width - 16, i = 0; x > 14; i++) {
+      const t = x / width;
+      const taper = Math.sin(Math.PI * t) * (0.45 + n(12) * 0.55);
+      const depth = tile - (1 - taper) * 10;
+      const layer = 17 + n(i + 31) * 17;
+      if (kind === "basalt") {
+        g.lineTo(x, depth - 3);
+        g.lineTo(x - 1, depth + n(i + 15) * 9);
+        g.lineTo(Math.max(6, x - layer * .54), depth + 4);
+      } else if (kind === "sandstone") {
+        const bed = depth - 5 * Math.sin(t * 6 + n(11) * 4);
+        g.lineTo(x, bed);
+        g.lineTo(Math.max(5, x - layer * .62), bed);
+        g.lineTo(Math.max(4, x - layer * .72), bed - 4);
+      } else {
+        g.lineTo(x + 3, depth - 5);
+        g.lineTo(x - 3, depth + n(i + 19) * 6);
+        g.lineTo(Math.max(5, x - layer * .58), depth + 1);
+      }
+      x -= layer;
     }
   }
   g.lineTo(left*lowerCut, tile);
@@ -175,22 +225,7 @@ export function paintLedge(g, run, tile, material, index, image) {
       }
     }
   }
-  if (isolated && (kind === "glacier" || kind === "moss")) {
-    for (let x = 15+n(74)*24, i = 0; x < width-10; x += 42+n(i+79)*25, i++) {
-      const h = 3+n(i+78)*(index === 9 ? 8 : 5);
-      if (kind === "glacier") {
-        polygon(g, "#a4adce", [x-2,tile-3, x+4,tile-3, x+1,tile+h]);
-        polygon(g, "#d4d9e9", [x-2,tile-3, x,tile-2, x+1,tile+h]);
-      } else {
-        g.strokeStyle = "#596444";
-        g.lineWidth = 1.3;
-        g.beginPath();
-        g.moveTo(x, tile-3);
-        g.quadraticCurveTo(x-3, tile+3, x+1, tile+h);
-        g.stroke();
-      }
-    }
-  }
+
 }
 
 // Room-specific construction interrupts the rhythm of the natural shelves on the ascent.
@@ -206,18 +241,6 @@ function paintLedgeFeature(g, index, row, width, seed) {
     for (let i=0; i<3; i++) {
       const x = 7 + (width-15)*noise(seed, i+31);
       polygon(g, "#9ab3a2", [x-5,3, x+5,3, x+2,6, x+1,15+i*2, x-1,8]);
-    }
-  } else if (index >= 3 && index <= 5 && row % 3 === index % 3) {
-    const radius = 10 + index;
-    for (let center=18; center < width-12; center+=radius*2+7) {
-      g.beginPath();
-      g.arc(center, 33, radius, Math.PI, 0);
-      g.fillStyle = "#5e4035";
-      g.fill();
-      g.strokeStyle = "#c49b75";
-      g.lineWidth = 3.5;
-      g.stroke();
-      polygon(g, "#dfb687", [center-3,29-radius, center+3,29-radius, center+2,35-radius, center-2,35-radius]);
     }
   } else if (index >= 6 && (row + index) % 3 === 0) {
     // Mineral lenses lie inside the rock face. Their broad facets read at phone scale.
@@ -235,43 +258,92 @@ const spikeColors = [
 ];
 export function paintSpikes(g, chapter, variant) {
   const [dark, middle, light] = spikeColors[chapter];
-  const points = [[8,17,26],[5,19,28],[10,21,30],[5,17,26]][chapter];
-  const soles = [0,10,21,32];
-  for (let i = 0; i < 3; i++) {
-    const a = soles[i], b = soles[i+1], foot = (a+b)*0.5;
-    const tip = Math.min(31, Math.max(1, points[i]+((variant+i)%3)-1));
-    const h = 1 + (i === variant%3 ? 0 : 3+(i+variant)%6);
-    const bend = chapter === 0 ? a+1 : chapter === 2 ? foot-4 : foot-2;
+  // A dominant point and a shorter companion give each hazardous cell a clear direction.
+  const split = [17, 13, 20][variant];
+  const lean = [4, -2, 6, 1][chapter];
+  for (let i = 0; i < 2; i++) {
+    const a = i === 0 ? 0 : split - 2, b = i === 0 ? split + 3 : 32;
+    const foot = (a + b) / 2;
+    const tip = Math.max(2, Math.min(30, foot + lean + (i === 0 ? 2 : -2)));
+    const h = i === variant % 2 ? 1 : 6 + variant;
     if (chapter === 0) {
-      // Bent thorns with a hooked outer edge.
       g.fillStyle = dark;
       g.beginPath();
-      g.moveTo(a, 32);
-      g.quadraticCurveTo(a-1, 15, tip, h);
-      g.quadraticCurveTo(foot, 15, b, 26);
+      g.moveTo(a, 31);
+      g.quadraticCurveTo(a + 1, 13, tip, h);
+      g.quadraticCurveTo(foot, 14, b, 26);
       g.lineTo(b, 32);
       g.fill();
-    } else if (chapter === 2) {
-      polygon(g, dark, [a,32, a+1,19, tip,h, tip-2,15, b-1,24, b,32]);
+      polygon(g, middle, [a+1,29, a+4,17, tip,h, foot,18, foot+2,25]);
+      polygon(g, light, [a+4,18, tip,h, foot+1,11, a+5,20]);
+      polygon(g, middle, [foot-2,26, a,16, foot+2,22]);
     } else {
-      polygon(g, dark, [a,31, a,23, bend,15, tip,h, b-2,19, b,29, b,32]);
+      const knee = chapter === 2 ? foot - 6 : foot - 3;
+      polygon(g, dark, [a,30, a+1,21, knee,15, tip,h, b-2,21, b,31]);
+      polygon(g, middle, [a+1,27, knee+1,16, tip,h+1, foot+2,21, foot,30]);
+      polygon(g, light, [knee+1,16, tip,h, foot+1,18, foot,22]);
+      if (chapter === 1) polygon(g, "#754646", [a+2,23, foot+1,20, b-1,24, b-2,27, foot,24, a,26]);
+      if (chapter === 3) polygon(g, "#d8bfd6", [tip,h+2, b-2,18, foot+2,21]);
     }
-    polygon(g, middle, [a+1,27, bend+1,16, tip,h+1, foot+2,21, foot,30]);
-    polygon(g, light, [bend+1,16, tip,h, foot+1,19, foot,23]);
-    if (chapter === 0) polygon(g, middle, [foot-2,24, a-1,16, foot+2,21]);
-    if (chapter === 3) polygon(g, "#d5bbd6", [tip,h+1, b-2,17, foot+1,20]);
-    polygon(g, "#ffc5ae", [tip,h, tip+1.4,h+4, bend+1,15]);
   }
-  polygon(g, dark, [0,28, 7,26, 14,29, 22,26, 32,28, 32,32, 0,32]);
+  polygon(g, dark, [0,28, 6,25, 14,29, 22,25, 32,28, 32,32, 0,32]);
 }
 
-export function paintFracturedIce(g, variant) {
-  const split = [11,18,14][variant], joint = [18,12,20][variant];
-  polygon(g, "#3d6476", [1,2, 29,0, 32,4, 30,23, 24,30, 16,28, 12,32, 3,28, 0,19]);
-  polygon(g, "#aad5d7", [1,2, split-1,0, joint-2,12, 7,18, 1,15]);
-  polygon(g, "#73abb8", [split+2,1, 29,0, 31,4, 25,15, joint+1,12]);
-  polygon(g, "#77a4b2", [2,17, 7,19, joint-1,15, 13,24, 9,29, 4,26]);
-  polygon(g, "#5c8499", [joint+2,15, 25,17, 30,8, 28,24, 24,28, 15,26]);
-  polygon(g, "#e0faf4", [1,1, split-1,0, joint-3,8, split-2,3, 2,5]);
-  polygon(g, "#d2f5f0", [split+2,0, 29,0, 26,3, split+4,4]);
+// Neighboring 32px slices share the same depth and bedding at their common boundary.
+const iceBedding = [12, 15, 11, 14, 10];
+const iceKeel = [25, 27, 24, 29, 26];
+export const iceVariants = iceKeel.length;
+
+export function paintFracturedIce(g, variant, joinedLeft, joinedRight) {
+  const next = (variant + 1) % iceVariants;
+  const a = iceBedding[variant], b = iceBedding[next];
+  const left = joinedLeft ? 0 : 3, right = joinedRight ? 32 : 29;
+  const keelA = joinedLeft ? iceKeel[variant] : 20, keelB = joinedRight ? iceKeel[next] : 19;
+  const elbow = 10 + variant * 2;
+  polygon(g, "#476e81", [0,1, 32,1, 32,keelB-5, right,keelB, elbow+2,30-variant, left,keelA, 0,keelA-5]);
+  polygon(g, "#80b3bf", [0,2, 32,2, 32,b, elbow+5,a+4, elbow-2,a, 0,a]);
+  polygon(g, "#accfd5", [0,2, 32,2, 32,5, elbow+5,7, elbow-3,6, 0,5]);
+  polygon(g, "#cfe6e7", [0,0, 32,0, 32,2, elbow+8,3, elbow+2,2, 0,2]);
+  polygon(g, "#6595a7", [left,a+3, elbow-2,a+2, elbow+5,a+6, right,b+2, right,keelB-3, elbow,keelA-2, left,keelA-4]);
+  polygon(g, "#d4e9e7", [0,a-1, elbow-2,a-1, elbow+5,a+3, 32,b-1, 32,b+.5, elbow+4,a+5, elbow-3,a+1, 0,a+.5]);
+  if (!joinedLeft) polygon(g, "#c2e0e0", [0,1, 2,2, 4,9, 2,13, 4,20, 0,15]);
+  if (!joinedRight) polygon(g, "#365e72", [31,2, 32,2, 32,16, 29,20, 30,14, 28,10]);
+}
+
+export function paintIceStress(g, variant, queued, fracture, direction) {
+  if (queued <= 0 && fracture <= 0) return;
+  const elbow = 10 + variant * 2;
+  g.save();
+  if (direction < 0) { g.translate(32, 0); g.scale(-1, 1); }
+  const joint = 11 + variant % 3;
+  const progress = fracture > 0 ? 1 : queued;
+  g.beginPath();
+  g.rect(0, 0, 32 * progress, 32);
+  g.clip();
+  g.lineJoin = "bevel";
+  g.strokeStyle = fracture > 0 ? "#663e4f" : "#e0f9f4";
+  g.lineWidth = fracture > 0 ? 1.5 + 3 * fracture : 1.7;
+  g.beginPath();
+  g.moveTo(0, 12);
+  g.lineTo(elbow - 4, joint + 2);
+  g.lineTo(elbow + 2, joint - 2);
+  g.lineTo(24, joint + 3);
+  g.lineTo(32, 12);
+  g.stroke();
+  if (fracture > 0) {
+    g.strokeStyle = "#ffe1b1";
+    g.lineWidth = 1;
+    g.stroke();
+    g.strokeStyle = "#593848";
+    g.lineWidth = 1.4 + fracture * 1.8;
+    g.beginPath();
+    g.moveTo(elbow + 2, joint - 2);
+    g.lineTo(elbow + 5, joint - 4 - fracture * 3);
+    g.lineTo(elbow + 3 + fracture * 4, (joint - 5) * (1 - fracture));
+    g.moveTo(24, joint + 3);
+    g.lineTo(21, joint + 5 + fracture * 3);
+    g.lineTo(24 + fracture * 2, joint + 6 + fracture * 8);
+    g.stroke();
+  }
+  g.restore();
 }

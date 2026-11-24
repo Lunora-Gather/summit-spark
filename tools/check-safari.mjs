@@ -163,13 +163,31 @@ try {
     await keyEvent(code, "keydown");
     await keyEvent(code, "keyup");
   }
-  async function waitForMenuTarget(button) {
-    await driver.wait(() => driver.executeScript(el => {
-      el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
-      const rect = el.getBoundingClientRect();
-      return !el.disabled && !el.closest("[inert]") && rect.height > 0
-        && el.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
-    }, button), 6000, "The menu action must be visible at its click point");
+  async function clickMenuTarget(button) {
+    await driver.executeScript(el => el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" }), button);
+    let previousPoint;
+    const point = await driver.wait(async () => {
+      const current = await driver.executeScript(el => {
+        const rect = el.getBoundingClientRect();
+        const x = Math.round((Math.max(0, rect.left) + Math.min(innerWidth, rect.right)) / 2);
+        const y = Math.round((Math.max(0, rect.top) + Math.min(innerHeight, rect.bottom)) / 2);
+        return !el.disabled && !el.closest("[inert]") && rect.height > 0 && el.contains(document.elementFromPoint(x, y))
+          ? { x, y } : null;
+      }, button);
+      const settled = current && previousPoint && current.x === previousPoint.x && current.y === previousPoint.y;
+      previousPoint = current;
+      return settled && current;
+    }, 6000, "The menu action must settle under the pointer", 60);
+    // A WebElement click can scroll again. Send a native click to the point that passed hit testing.
+    await driver.executeScript(expected => {
+      window.menuClickTarget = null;
+      document.addEventListener("click", event => {
+        window.menuClickTarget = { matched: expected.contains(event.target), id: event.target.closest("button")?.id, x: event.clientX, y: event.clientY };
+      }, { capture: true, once: true });
+    }, button);
+    await driver.actions().move({ ...point, duration: 0 }).click().perform();
+    const delivered = await driver.executeScript(() => window.menuClickTarget);
+    assert.ok(delivered?.matched, "Safari pointer delivery " + JSON.stringify({ point, delivered }));
   }
   const adviceButton = await driver.wait(until.elementLocated(By.css(".finish-summary .primary-review")), 8000);
   const recommendationFits = await driver.executeScript(() => {
@@ -182,8 +200,7 @@ try {
       && bounds.bottom <= progress.top + 1 && button.height >= 44;
   });
   assert.ok(recommendationFits, "The summit card must contain the advice and clear the progress row");
-  await waitForMenuTarget(adviceButton);
-  await adviceButton.click();
+  await clickMenuTarget(adviceButton);
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden") && /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
   await driver.executeScript('localStorage.setItem("summit-spark-room-focus", JSON.stringify({schemaVersion:1,rooms:[{faults:4,fall:4,drills:1,cleanWins:0}]}))');
@@ -208,8 +225,7 @@ try {
 
   await driver.manage().window().setRect({ width: 690, height: 850 });
   const accountButton = await driver.findElement(By.id("startAccountButton"));
-  await waitForMenuTarget(accountButton);
-  await accountButton.click();
+  await clickMenuTarget(accountButton);
   const panel = await driver.findElement(By.id("settingsPanel"));
   await driver.wait(until.elementIsVisible(panel), 10000, "Account sheet should open from the launch menu");
   const form = await driver.executeScript(() => {
@@ -221,9 +237,15 @@ try {
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
   const openPractice = await driver.findElement(By.id("openTrainingButton"));
-  await waitForMenuTarget(openPractice);
-  await openPractice.click();
-  await driver.wait(until.elementIsVisible(panel), 10000, "Practice sheet should open after closing Account");
+  await clickMenuTarget(openPractice);
+  let practicePanelState;
+  await driver.wait(async () => {
+    practicePanelState = await driver.executeScript(el => ({
+      classes: el.className, hidden: el.getAttribute("aria-hidden"), focus: document.activeElement.id,
+      height: el.getBoundingClientRect().height, status: document.querySelector("#gameStatus").textContent
+    }), panel);
+    return practicePanelState.hidden === "false" && practicePanelState.classes.includes("mode-practice") && practicePanelState.height > 0;
+  }, 10000, () => "Practice sheet should open after closing Account " + JSON.stringify(practicePanelState));
   const spaceAboveLaunch = await driver.executeScript(() => {
     const lastGroup = document.querySelector(".settings-group-training").getBoundingClientRect();
     const dock = document.querySelector("#practiceLaunchDock").getBoundingClientRect();
@@ -308,8 +330,7 @@ try {
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
-  await waitForMenuTarget(resume);
-  await resume.click();
+  await clickMenuTarget(resume);
   await driver.wait(() => driver.executeScript('return /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   const recoveryErrors = await checkStorageRecovery(
     (readPage) => driver.executeScript(readPage),

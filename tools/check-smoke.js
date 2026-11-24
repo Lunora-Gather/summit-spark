@@ -85,6 +85,10 @@ async function verifyServerBoundary(baseUrl) {
   if (supports.status !== 200 || supports.headers["content-type"] !== "image/webp") {
     errors.push("cliff and pier painting must be served to the playfield as WebP");
   }
+  const relayLedges = await request(baseUrl + "/assets/terrain/relay-ledges.webp", { method: "HEAD" });
+  if (relayLedges.status !== 200 || relayLedges.headers["content-type"] !== "image/webp") {
+    errors.push("the three relay crossing rock faces must be served as WebP");
+  }
   const ledges = await request(baseUrl + "/assets/ledges.png", { method: "HEAD" });
   if (ledges.status !== 200 || ledges.headers["content-type"] !== "image/png") {
     errors.push("painted ledges must be available to the game as a PNG");

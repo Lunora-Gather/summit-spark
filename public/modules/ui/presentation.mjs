@@ -695,6 +695,7 @@ export function runReportTextData(input = {}) {
     `构建：${reportLineText(input.build, "dev")}`,
     `结果：${complete ? "完整登顶" : `部分路线 ${visitedRooms}/${totalRooms} 房`}`,
     `总时间：${reportLineText(input.totalTime, "0:00.00")} / 失误 ${Math.floor(nonNegativeNumber(input.mistakes))} / 微光 ${lumens.label} / 最长连锁 ${Math.floor(nonNegativeNumber(input.relayChain))} 环 / Flow ${Math.floor(nonNegativeNumber(input.flow))}`,
+    ...(input.lumenReview ? [reportLineText(input.lumenReview)] : []),
     `辅助：${input.assistUsed === true ? "舒缓模式，本轮不计纪录" : "关闭"}`,
     "",
     "分幕：",

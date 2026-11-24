@@ -39,6 +39,16 @@ export const CHAPTER_AUDIO_PROFILES = deepFreeze([
   }
 ]);
 
+// Two separate strikes fall a fourth, using the final note and instrument of the act's arrival.
+export const LUMEN_PICKUP_SOUNDS = deepFreeze(CHAPTER_AUDIO_PROFILES.map((profile) => {
+  const high = profile.arrival.at(-1) * 2;
+  const low = high * 0.75;
+  return [
+    { type: profile.waveform, from: high, to: high, gain: 0.030, time: 0.052, delay: 0 },
+    { type: profile.waveform, from: low, to: low, gain: 0.024, time: 0.12, delay: 0.080 }
+  ];
+}));
+
 export function ambientChapterCueData(chapterIndex, step, flowScore = 0) {
   if (!Number.isInteger(chapterIndex) || chapterIndex < 0 || chapterIndex >= CHAPTER_AUDIO_PROFILES.length) return null;
   const profile = CHAPTER_AUDIO_PROFILES[chapterIndex];

@@ -28,7 +28,8 @@ const wooded = 0, masonry = 1, columns = 2, snow = 3, timber = 4, bluff = 5, cra
 const sockets = [.67, .73, .62, .70, .74, .70, .65, .63];
 const abutments = [
   [[4,14,wooded,16.2,2.7], [11,12,crag,16.7,-3.3], [8,10,wooded,16.6,5.0], [18,6,crag,13.5,4.1], [25,4,wooded,13.8,-6.4]],
-  [[1,9,timber,16.3,3.0], [11,9,timber,14.8,-3.8], [24,7,wooded,16,-5.7], [16,3,wooded,10,4.7]],
+  [[1,9,timber,16.3,3.0], [11,9,timber,14.8,-3.8], [20,9,crag,15.2,-3.2],
+    [24,7,wooded,15.8,-5.2], [16,3,columns,9.7,3.7]],
   [[1,6,crag,16,7.0], [16,9,wooded,16.5,4.7], [27,6,crag,15,-5.5]],
   [[1,9,masonry,16.3,3.4], [14,4,bluff,12.8,5.7], [24,3,masonry,10.2,-3.9], [7,13,bluff,17.5,4.7], [33,9,masonry,15.5,3.7], [42,6,bluff,15,-6.0]],
   [[1,8,bluff,16.6,5.6], [10,10,bluff,16.2,4.6], [21,5,bluff,14,-6.2], [34,6,masonry,12.5,3.5], [42,9,bluff,16.4,-4.7]],
@@ -79,6 +80,19 @@ export function paintAbutments(g, supports, sheet, tile, viewLeft, viewWidth, in
       surface.globalCompositeOperation = "source-atop";
       surface.fillStyle = wash;
       surface.fillRect(0, 0, art.width, h);
+      if (index === 1 && frame !== timber) {
+        // The cold contact shadow stays on the wall beneath the projecting rock.
+        surface.save();
+        surface.scale(1, .43);
+        const socket = sockets[frame] * art.width;
+        const contact = surface.createRadialGradient(socket, 0, 0, socket, 0, art.width * .60);
+        contact.addColorStop(0, "#25382fb0");
+        contact.addColorStop(.48, "#37483d64");
+        contact.addColorStop(1, "#37483d00");
+        surface.fillStyle = contact;
+        surface.fillRect(0, 0, art.width, art.width);
+        surface.restore();
+      }
       const fade = surface.createLinearGradient(0, h * .42, 0, h);
       fade.addColorStop(0, "#fff");
       fade.addColorStop(1, "#ffffff58");
@@ -156,6 +170,13 @@ export function rockRuns(rows, roomIndex) {
     if (run) {
       run.frame = frame;
       if (profile) run.profile = profile;
+    }
+  }
+  if (roomIndex === 1) {
+    // The pocket step, the high rooted shoulder and the summit perch each meet a different wall.
+    for (const [i, [x, y]] of [[19, 9], [22, 7], [14, 3]].entries()) {
+      const run = runs.find(r => r.x === x && r.y === y && r.top && r.bottom);
+      if (run) run.relayFace = i;
     }
   }
   return runs;
@@ -335,6 +356,12 @@ function paintBridge(g, width, seed) {
 
 export function paintLandmarkLedge(g, run, tile, sheet) {
   const width = run.length * tile;
+  if (run.relayFace !== undefined) {
+    const row = sheet.naturalHeight / 3;
+    const depth = [.73, 1.05, .98][run.relayFace] * tile;
+    g.drawImage(sheet, 0, row * run.relayFace, sheet.naturalWidth, row, 0, -.75, width, depth);
+    return;
+  }
   const cellW = sheet.naturalWidth / 2, cellH = sheet.naturalHeight / 4;
   if (run.profile === "broken-deck") {
     // Erosion exposed a cantilever at the left. The old paving still leads to the rock shoulder on the right.

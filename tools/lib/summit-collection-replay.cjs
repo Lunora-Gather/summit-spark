@@ -88,6 +88,10 @@ function startCollectionReplay(route) {
     for (let i = 0; i < route.length; i++) {
       const number = i + 1;
       verify(room() === number, "Expected to enter R" + number);
+      const cue = document.getElementById("portraitRoomGoal");
+      if (cue.clientWidth) {
+        verify(cue.scrollWidth <= cue.clientWidth + 1, "Portrait room instruction was clipped in R" + number);
+      }
       visited.push(number);
       if (number === 2) {
         verify(!document.querySelector("#gameTip.lumen:not(.hidden)"), "Previous pickup still covers the new room");
@@ -131,6 +135,8 @@ function startCollectionReplay(route) {
       item.querySelector("em").textContent, item.querySelector("strong").textContent
     ]));
     const fullRun = document.querySelector(".finish-line")?.textContent.startsWith("新的山径纪录");
+    verify(!document.querySelector("[data-find-lumens]") && document.querySelector(".finish-lumen-review")?.textContent.includes("全部收齐"),
+      "A full collection should celebrate the completed route");
     verify(fullRun && read("finishTitle") === "登顶" && stats["微光"] === "12/12" && stats["失误"] === "0" &&
       parseInt(stats["最长连锁"], 10) > 0, "Missing full-collection summit result " + JSON.stringify(stats));
     return {rooms: visited.length, collected, frames: frame, time: stats["用时"], chain: stats["最长连锁"]};

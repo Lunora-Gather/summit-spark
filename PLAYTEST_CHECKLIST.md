@@ -48,6 +48,8 @@ During the route, judge these chapter-level questions:
 - Attempt the R4–R10 Lumen detours once: do low Relay, switchback, spring/Relay, updraft, Prism/crumble, Echo recall and finale callback feel like seven different risks rather than the same upper-right pickup?
 - After collecting one current-room Lumen, die or retry before crossing the room boundary. Confirm the pickup returns and the unspent bonus dash is gone; then carry it across the boundary and confirm later retries preserve the banked count.
 - From a later room, briefly walk back across a left boundary. Confirm the previous room opens a fresh Clean attempt, a prior room mistake does not leak into that attempt, and a Lumen already carried across the boundary remains after a subsequent death.
+- At the R3–R4 pass, read the outgoing and incoming titles, then read the R4 route cue as movement resumes. Walk back and cross again while holding a direction. Judge whether either crossing interrupts your next jump.
+- At the summit, compare a direct run with a full collection run. From the direct run, use the missing-lumen button and decide whether the hint gives enough direction while leaving the discovery to you.
 - Compare ordinary completion with the tighter Pace/Expert route. The safe line should remain readable, while the mastery line should demand cleaner execution without feeling like hidden timing.
 - Do existing in-world landmarks, material particles, Relay threads, updraft wakes, Echo rings and the constellation clarify the route without becoming a second HUD?
 - Does the classic small climber remain readable at desktop and portrait sizes, with the same fixed dark-blue hair throughout every state?

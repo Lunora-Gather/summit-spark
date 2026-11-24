@@ -34,6 +34,7 @@ const types = {
 const publicFiles = new Map([
   ["/assets/abutments.webp", path.join("public", "assets", "abutments.webp")],
   ["/assets/ledges.png", path.join("public", "assets", "ledges.png")],
+  ["/assets/terrain/relay-ledges.webp", path.join("public", "assets", "terrain", "relay-ledges.webp")],
   ["/assets/lumens.png", path.join("public", "assets", "lumens.png")],
   ["/assets/moonlit-pass.jpg", path.join("public", "assets", "moonlit-pass.jpg")],
   ["/assets/trail-contours.svg", path.join("public", "assets", "trail-contours.svg")],

@@ -44,16 +44,16 @@ export const CHAPTER_SURFACE_FEEDBACK = [
 ];
 
 export const ROOM_WHISPERS = [
-    "先迈出第一步，山会回应。",
+    "向右跳过山隙，落在对岸。",
     "冲过桥头青环，断桥会浮起光阶。",
-    "借雾抬升，不必急着冲。",
-    "旧路不会替你选择。",
-    "折返，也是一种向上。",
-    "出口藏在节奏之后。",
-    "风开始说话。",
-    "越快，越要看清落点。",
-    "回声记得你来过。",
-    "把所有微光带到山顶。"
+    "踩下层弹簧，向右接第二级。",
+    "沿青环加速，冲开金门。",
+    "沿中间岩脊折返，等光台亮起。",
+    "踩入口弹簧，落在亮起的光阶上。",
+    "借风升高，趁冰面开裂时起跳。",
+    "冲过棱镜，再找冰层尽头的实岩。",
+    "先点亮回声，再借风上中层。",
+    "冲过山顶青环，踏光阶登顶。"
   ];
 
 export const ROOM_SKILLS = [
@@ -136,7 +136,7 @@ export const ROOM_STYLE_TRIALS = [
     { kind: "timing", label: "弹簧节拍", goal: "串起两级弹簧，在顶点冲刺并用 Spark 省掉等待", clean: true, tech: ["spring", "springApex", "spark"], timeScale: 1.5 },
     { kind: "chain", label: "连锁破门", goal: "把三段光继接到一次冲刺破门", clean: false, tech: ["relayChain", "gate"], timeScale: 1.45 },
     { kind: "route", label: "相位路线", goal: "中棱折返后用 Wall Spark 跳过一次相位等待", clean: true, tech: ["wallSpark", "phase"], timeScale: 1.45 },
-    { kind: "exit", label: "长廊节拍", goal: "六枚光继接三级弹簧，并在破门后踩准相位台", clean: true, tech: ["relay", "spring", "springApex", "gate", "phase"], timeScale: 1.4 },
+    { kind: "exit", label: "长廊节拍", goal: "六枚光继接三级弹簧，借顶点冲刺，破门后落上相位台", clean: true, tech: ["relay", "spring", "springApex", "gatePhaseLanding"], distinct: { relay: 6, spring: 3 }, timeScale: 1.4 },
     { kind: "terrain", label: "轨迹风险", goal: "脆冰只借一步，借风穿过巡游晶核", clean: false, tech: ["crumble", "updraft", "drift"], timeScale: 1.35 },
     { kind: "risk", label: "过载组合", goal: "棱镜过载后破门，并跳过相位等待穿越晶核", clean: false, tech: ["prism", "prismSpark", "crumble", "gate", "phase", "drift"], timeScale: 1.35 },
     { kind: "reading", label: "回声读图", goal: "先建回声锚点，再借相位与晶核空档召回重接", clean: false, tech: ["echo", "recall", "phase", "drift"], timeScale: 1.55 },
@@ -172,6 +172,7 @@ export const EXPERT_REQUIREMENT_LABELS = {
   crumble: "脆冰",
   gate: "破门",
   phase: "相位台",
+  gatePhaseLanding: "破门后落上相位台",
   drift: "巡游晶核"
 };
 

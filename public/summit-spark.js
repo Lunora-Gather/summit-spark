@@ -79,9 +79,11 @@
     {
       ambientChapterCueData,
       chapterEntryCueData,
+      LUMEN_PICKUP_SOUNDS,
       summitCueData
     },
     {
+      missedRoomLumensData,
       resetRoomLumenProgressData,
       restoreRoomLumenCheckpointData,
       roomLumenCheckpointData
@@ -204,21 +206,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261125-p328"),
-    import("./modules/core/math.mjs?v=20261125-p328"),
-    import("./modules/game/room-data.mjs?v=20261125-p328"),
-    import("./modules/game/world-model.mjs?v=20261125-p328"),
-    import("./modules/game/terrain-art.mjs?v=20261125-p328"),
-    import("./modules/game/effect-budget.mjs?v=20261125-p328"),
-    import("./modules/game/landmark-progress.mjs?v=20261125-p328"),
-    import("./modules/game/audio-cues.mjs?v=20261125-p328"),
-    import("./modules/game/lumen-progress.mjs?v=20261125-p328"),
-    import("./modules/systems/storage.mjs?v=20261125-p328"),
-    import("./modules/systems/cloud-save.mjs?v=20261125-p328"),
-    import("./modules/systems/input.mjs?v=20261125-p328"),
-    import("./modules/training/state.mjs?v=20261125-p328"),
-    import("./modules/training/replay.mjs?v=20261125-p328"),
-    import("./modules/ui/presentation.mjs?v=20261125-p328")
+    import("./modules/core/format.mjs?v=20261125-p329"),
+    import("./modules/core/math.mjs?v=20261125-p329"),
+    import("./modules/game/room-data.mjs?v=20261125-p329"),
+    import("./modules/game/world-model.mjs?v=20261125-p329"),
+    import("./modules/game/terrain-art.mjs?v=20261125-p329"),
+    import("./modules/game/effect-budget.mjs?v=20261125-p329"),
+    import("./modules/game/landmark-progress.mjs?v=20261125-p329"),
+    import("./modules/game/audio-cues.mjs?v=20261125-p329"),
+    import("./modules/game/lumen-progress.mjs?v=20261125-p329"),
+    import("./modules/systems/storage.mjs?v=20261125-p329"),
+    import("./modules/systems/cloud-save.mjs?v=20261125-p329"),
+    import("./modules/systems/input.mjs?v=20261125-p329"),
+    import("./modules/training/state.mjs?v=20261125-p329"),
+    import("./modules/training/replay.mjs?v=20261125-p329"),
+    import("./modules/ui/presentation.mjs?v=20261125-p329")
   ]);
 
   const canvas = document.getElementById("game");
@@ -786,6 +788,7 @@
   let bestRoomPaths = readRoomPaths();
   let bestFlow = readBestFlow();
   let profile = readProfile();
+  let practiceKnownLumens = new Set();
   let collected = new Set();
   let debugVisible = false;
   let hitStopTimer = 0;
@@ -888,6 +891,7 @@
   let roomIntroTimer = ROOM_INTRO_TIME;
   let openingGuideActive = false;
   let chapterTransitionTicks = 0;
+  let chapterTransitionLength = 0;
   let chapterTransitionChapter = 0;
   let chapterTransitionFromChapter = -1;
   let chapterTransitionFromResult = null;
@@ -1898,7 +1902,8 @@
           tiles[y][x] = ".";
         }
         if (tile === "L") {
-          entities.lumens.push({ id: `${index}:${x}:${y}`, x: cx, y: cy, taken: collected.has(`${index}:${x}:${y}`), bob: Math.random() * 6 });
+          const id = `${index}:${x}:${y}`;
+          entities.lumens.push({ id, x: cx, y: cy, taken: collected.has(id) || practiceKnownLumens.has(id), bob: Math.random() * 6 });
           tiles[y][x] = ".";
         }
         if (tile === "R") {
@@ -1963,7 +1968,7 @@
           });
         }
         if (tile === "T") {
-          entities.springs.push({ x: x * TILE, y: y * TILE + 18, w: TILE, h: 14, pulse: 0 });
+          entities.springs.push({ x: x * TILE, y: y * TILE + 18, w: TILE, h: 14, pulse: 0, used: false });
           tiles[y][x] = ".";
         }
         if (tile === "H") {
@@ -2040,6 +2045,7 @@
 
   function resetToStart(index) {
     roomStartedAtEntry = true;
+    chapterTransitionChapter = chapterIndexForRoom(index);
     roomIndex = index;
     room = parseRoom(roomIndex);
     resetRoomTech();
@@ -2391,6 +2397,7 @@
   }
 
   function hardReset(options = {}) {
+    practiceKnownLumens.clear();
     collected = new Set();
     deathCount = 0;
     deathReasons = createDeathReasons();
@@ -2443,12 +2450,7 @@
       keepFeel: Boolean(options.keepFeel)
     });
     resetActionPulses();
-    overlay.classList.remove("finish-overlay");
-    overlay.classList.add("hidden");
-    overlay.removeAttribute("role");
-    overlay.removeAttribute("aria-modal");
-    overlay.removeAttribute("aria-labelledby");
-    overlay.scrollTop = 0;
+    closeRunOverlay();
     syncGameplayAccessibility();
     resetToStart(0);
     startOpeningGuide();
@@ -2459,11 +2461,21 @@
     focusGame();
   }
 
+  function closeRunOverlay() {
+    overlay.classList.remove("finish-overlay");
+    overlay.classList.add("hidden");
+    overlay.removeAttribute("role");
+    overlay.removeAttribute("aria-modal");
+    overlay.removeAttribute("aria-labelledby");
+    overlay.scrollTop = 0;
+  }
+
   function jumpToRoom(index, options = {}) {
     if (canvasContextLost) {
       setGameStatus("画面正在恢复 · 请稍候");
       return;
     }
+    practiceKnownLumens = new Set(options.knownLumens);
     collected = new Set();
     deathCount = 0;
     deathReasons = createDeathReasons();
@@ -2514,7 +2526,7 @@
       keepFeel: Boolean(options.keepFeel)
     });
     resetActionPulses();
-    overlay.classList.add("hidden");
+    closeRunOverlay();
     started = true;
     syncGameplayAccessibility();
     resetToStart(index);
@@ -3152,7 +3164,7 @@
         player.lumenReserve = player.dashes > 1;
         player.dashCooldown = 0;
         addFlow(18, "lumen");
-        playSound("refill", 0.65);
+        playSound("lumen", 0.65);
         const name = LUMEN_NAMES[chapterIndexForRoom(roomIndex)];
         let benefit = player.lumenReserve ? "已储备第二次冲刺" : "冲刺已恢复";
         if (collected.size === 1 && !player.lumenReserve) benefit += "，满冲刺拾取可多储备一次";
@@ -3356,6 +3368,7 @@
         player.wasGrounded = false;
         player.vy = -720;
         player.springLaunchTimer = SPRING_APEX_WINDOW;
+        spring.used = true;
         markRoomTech("spring");
         showMechanicFirstTouchCue("spring");
         restoreDashCharge();
@@ -3513,18 +3526,27 @@
       total: totalLumens,
       completeWhisper: CHAPTER_EXPERIENCE.at(-1)?.resolve
     });
-    const review = summitReviewCardsHtml();
+    const availableProgress = new Set([...practiceKnownLumens, ...collected]);
+    const missedRooms = missedRoomLumensData(maps, availableProgress, runRoomTimes, roomIndex);
+    const firstMiss = missedRooms[0];
+    const lumenReview = missedRooms.length
+      ? "已走房间漏收：" + missedRooms.map(item => `R${item.index + 1}（${item.locations.length} 枚）`).join("、")
+      : "已走房间的微光全部收齐";
+    const returnButton = firstMiss
+      ? `<button class="finish-lumen-return" type="button" data-find-lumens aria-label="R${firstMiss.index + 1} 寻光练习 · 缺 ${firstMiss.locations.length} 枚，前往${escapeHtml(ROOM_NAMES[firstMiss.index])}自由寻找微光"><span>R${firstMiss.index + 1} 寻光练习</span> <small>缺 ${firstMiss.locations.length} 枚</small><span aria-hidden="true">→</span></button>`
+      : "";
+    const review = summitReviewCardsHtml(lumenReview);
     const finishStatus = recordNote
       ? recordNote.replace(/^ · /, "")
       : isBest ? "新的山径纪录" : "完整路线";
-    overlay.innerHTML = `<section class="finish-sheet"><div class="finish-top"><header class="finish-hero"><span class="finish-eyebrow">山巅微光 · 旅程完成</span><h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p></header><div class="finish-summary"><div class="finish-stats" aria-label="本轮概览"><span><em>用时</em><strong>${formatTime(runTime)}</strong></span><span><em>失误</em><strong>${deathCount}</strong></span><span><em>微光</em><strong>${escapeHtml(lumens.label)}</strong></span><span><em>最长连锁</em><strong>${bestRelayChain} 环</strong></span></div><p class="finish-line">${escapeHtml(finishStatus)}${lumens.rewardLabel ? ` · ${escapeHtml(lumens.rewardLabel)}` : ""}</p>${review.lead}</div></div>${review.details}<button class="primary" id="restartButton" type="button">再来一次</button></section>`;
+    overlay.innerHTML = `<section class="finish-sheet"><div class="finish-top"><header class="finish-hero"><span class="finish-eyebrow">山巅微光 · 旅程完成</span><h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p>${returnButton}</header><div class="finish-summary"><div class="finish-stats" aria-label="本轮概览"><span><em>用时</em><strong>${formatTime(runTime)}</strong></span><span><em>失误</em><strong>${deathCount}</strong></span><span><em>微光</em><strong>${escapeHtml(lumens.label)}</strong></span><span><em>最长连锁</em><strong>${bestRelayChain} 环</strong></span></div><p class="finish-line">${escapeHtml(finishStatus)}${lumens.rewardLabel ? ` · ${escapeHtml(lumens.rewardLabel)}` : ""}</p>${review.lead}</div></div>${review.details}<button class="primary" id="restartButton" type="button">再来一次</button></section>`;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");
     overlay.classList.add("finish-overlay");
     overlay.classList.remove("hidden");
     syncGameplayAccessibility();
-    bindFinishReviewActions();
+    bindFinishReviewActions(firstMiss, lumenReview, availableProgress);
     document.getElementById("finishTitle")?.focus({ preventScroll: true });
   }
 
@@ -3808,6 +3830,12 @@
             burst(player.x + player.w / 2, shelf.y, "#ccefd6", 4, 58);
           }
           if (step > 0) {
+            // Only the first downward contact with an active top face is a landing.
+            if (!onLightStep && !player.wasGrounded && roomTech.gate && !roomTech.gatePhaseLanding
+              && room.entities.phaseBlocks.some(block => block.active && feet > block.y && feet - move <= block.y
+                && player.x + player.w > block.x && player.x < block.x + block.w)) {
+              markRoomTech("gatePhaseLanding");
+            }
             player.onGround = true;
             player.stamina = MAX_STAMINA;
             restoreGroundDashCharge();
@@ -3887,7 +3915,8 @@
     const duration = prefersReducedMotion
       ? chapterTransitionFromChapter >= 0 ? 1.2 : 0.9
       : CHAPTER_TRANSITION_TIME;
-    chapterTransitionTicks = Math.round(duration / FIXED_PHYSICS_STEP);
+    chapterTransitionLength = Math.round(duration / FIXED_PHYSICS_STEP);
+    chapterTransitionTicks = chapterTransitionLength;
     clearAmbientVoices();
     ambientStep = 0;
     ambientNextTime = (audioContext?.currentTime || 0) + duration * 0.58;
@@ -3898,6 +3927,13 @@
     const fromChapter = chapterIndexForRoom(fromRoom);
     const toChapter = chapterIndexForRoom(toRoom);
     if (toChapter === fromChapter) return;
+    // This climb has already introduced the country on the other side of the pass.
+    if (toChapter <= chapterTransitionChapter) {
+      clearAmbientVoices();
+      ambientStep = 0;
+      ambientNextTime = audioContext?.currentTime || 0;
+      return;
+    }
     beginChapterEntry(toRoom, fromChapter);
   }
 
@@ -4301,6 +4337,7 @@
       recall: false,
       crumble: false,
       gate: false,
+      gatePhaseLanding: false,
       phase: false,
       drift: false
     };
@@ -4468,8 +4505,34 @@
     return Array.isArray(trial.tech) ? trial.tech : [];
   }
 
+  function distinctStyleCount(key) {
+    if (key === "relay") return room.entities.relays.filter(relay => relay.awakened).length;
+    if (key === "spring") return room.entities.springs.filter(spring => spring.used).length;
+    return 0;
+  }
+
+  function styleRequirementProgress(index, key) {
+    const required = styleTrialForRoom(index).distinct?.[key];
+    if (required) return `${expertRequirementLabel(key)} ${distinctStyleCount(key)}/${required}`;
+    if (key === "springApex") return "顶点冲刺";
+    if (key === "gatePhaseLanding") return roomTech.gate ? "落上相位台" : "破门后落上相位台";
+    return expertRequirementLabel(key);
+  }
+
   function missingStyleRequirements(index) {
-    return styleTrialTech(index).filter((key) => !roomTech[key]);
+    const counts = styleTrialForRoom(index).distinct;
+    return styleTrialTech(index).filter(key => !roomTech[key] || (counts?.[key] && distinctStyleCount(key) < counts[key]));
+  }
+
+  function activeStyleProgress() {
+    const counts = styleTrialForRoom(roomIndex).distinct;
+    if (activeDrill?.mode !== "style" || !counts) return "";
+    const parts = Object.keys(counts).map(key => styleRequirementProgress(roomIndex, key));
+    const missing = missingStyleRequirements(roomIndex);
+    const move = missing.find(key => !counts[key]);
+    if (move) parts.push(styleRequirementProgress(roomIndex, move));
+    else if (!missing.length) parts.push("前往出口");
+    return parts.join(" · ");
   }
 
   function styleTrialObjective(index) {
@@ -4543,7 +4606,7 @@
   }
 
   function routeCueActive() {
-    return routeCueTimer > 0 || Boolean(activeDrill && activeDrill.room === roomIndex);
+    return chapterTransitionTicks === 0 && (routeCueTimer > 0 || Boolean(activeDrill && activeDrill.room === roomIndex));
   }
 
   function armRouteCue(reason = "路线", slot = null, duration = ROUTE_CUE_TIME) {
@@ -4557,6 +4620,13 @@
     const cx = player.x + player.w / 2;
     const cy = player.y + player.h / 2;
     const points = [];
+    if (activeDrill?.mode === "style" && styleTrialForRoom(roomIndex).distinct) {
+      const missing = missingStyleRequirements(roomIndex);
+      const targets = missing.flatMap(key => requirementBeaconPoints(key));
+      if (!targets.length) return { x: roomWorldWidth() + 4, y: room.exits[0].y * TILE, label: "出口" };
+      return targets.reduce((nearest, point) => Math.hypot(point.x - cx, point.y - cy)
+        < Math.hypot(nearest.x - cx, nearest.y - cy) ? point : nearest);
+    }
     const add = (x, y, label, weight = 0) => {
       if (Number.isFinite(x) && Number.isFinite(y)) points.push({ x, y, label, weight });
     };
@@ -4908,7 +4978,10 @@
       const missing = missingStyleRequirements(drill.room);
       const limit = styleTrialTimeLimit(drill.room);
       if (trial.clean && !clean) return `${styleTrialLabel(drill.room)} 要求无失误 / ${next}`;
-      if (missing.length) return `缺类型动作：${missing.map(expertRequirementLabel).join("+")} / ${next}`;
+      if (missing.length) {
+        const remaining = missing.map(key => styleRequirementProgress(drill.room, key)).join("、");
+        return trial.distinct ? `未完成：${remaining}` : `缺类型动作：${remaining} / ${next}`;
+      }
       if (limit > 0 && elapsed > limit) return `慢 ${formatDelta(elapsed - limit)} / ${next}`;
       return styleTrialObjective(drill.room);
     }
@@ -7919,6 +7992,10 @@
     return runStartedAsFullRoute && !trainingSessionActive();
   }
 
+  function roomActionHint() {
+    return roomStartedAtEntry ? ROOM_WHISPERS[roomIndex] : "已回到出口，可向左探索。";
+  }
+
   function roomIntroTitle() {
     const name = `R${roomIndex + 1} ${ROOM_NAMES[roomIndex] || "Summit"}`;
     if (entryBestGain >= 0.005 && campaignRoomIntro() && roomIntroTimer > 0) {
@@ -8204,7 +8281,7 @@
         return;
       }
       if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
-      const preset = SOUND_PRESETS[name] || SOUND_PRESETS.ui;
+      const preset = name === "lumen" ? LUMEN_PICKUP_SOUNDS[chapterIndexForRoom(roomIndex)] : SOUND_PRESETS[name] || SOUND_PRESETS.ui;
       const now = audioContext.currentTime;
       const cooldown = name === "wind"
         ? 0.28
@@ -8379,7 +8456,7 @@
     recallCooldown = Math.max(0, recallCooldown - dt);
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
     echoLessonTimer = Math.max(0, echoLessonTimer - dt);
-    roomIntroTimer = Math.max(0, roomIntroTimer - dt);
+    if (!chapterBreathing) roomIntroTimer = Math.max(0, roomIntroTimer - dt);
     if (openingGuideActive && (roomIndex !== 0 || (player.onGround && player.x >= FIRST_GAP_LANDING_X))) {
       openingGuideActive = false;
     }
@@ -8897,6 +8974,11 @@
     if (player.deadTimer <= 0) drawPlayer(time);
     ctx.restore();
     drawFlowAtmosphere(time);
+    if (chapterTransitionTicks > 0) {
+      drawChapterTransition(time);
+      drawVignette();
+      return;
+    }
     drawTimingGateCue(time);
     drawRoomIntro(time);
     drawRouteFocusCue(time);
@@ -8909,7 +8991,6 @@
     drawDrillHud(time);
     drawActiveChallengeHud(time);
     drawPaceRibbon(time);
-    drawChapterTransition(time);
     drawSummitReveal(time);
     drawVignette();
   }
@@ -9158,19 +9239,17 @@
 
   function drawRouteFocusCue(time) {
     if (!started || won || player.deadTimer > 0 || !routeCueActive()) return;
-    if (activeDrill && activeDrill.room === roomIndex) return;
-    if (gameTipVisible("death")) return;
-    const active = activeDrill && activeDrill.room === roomIndex;
-    if (!active && roomIntroTimer > 0.18) return;
+    if (campaignRoomIntro() || (activeDrill && activeDrill.room === roomIndex)) return;
+    if (gameTipVisible("death") || roomIntroTimer > 0.18) return;
     const data = routeFocusData(roomIndex);
     const compact = isCompactCanvas();
-    const fade = active ? 0.78 : Math.min(1, routeCueTimer / ROUTE_CUE_TIME);
+    const fade = Math.min(1, routeCueTimer / ROUTE_CUE_TIME);
     const alpha = Math.min(1, fade * 1.45);
     if (alpha <= 0) return;
     const width = compact ? 680 : 372;
     const height = compact ? 78 : 76;
     const x = compact ? W / 2 - width / 2 : W - width - 18;
-    const y = compact || (active && roomIntroTimer > 0) ? H - 124 : active ? 128 : 86;
+    const y = compact ? H - 124 : 86;
     void time;
 
     ctx.save();
@@ -9455,10 +9534,7 @@
     const previousChapter = chapterTransitionFromChapter >= 0
       ? CHAPTER_EXPERIENCE[chapterTransitionFromChapter] || null
       : null;
-    const duration = prefersReducedMotion
-      ? previousChapter ? 1.2 : 0.9
-      : CHAPTER_TRANSITION_TIME;
-    const progress = 1 - chapterTransitionTicks * FIXED_PHYSICS_STEP / duration;
+    const progress = 1 - chapterTransitionTicks / chapterTransitionLength;
     const alpha = Math.max(0, Math.min(1, progress * 10, (1 - progress) * 7));
     const atmosphere = roomAtmosphere();
     const compact = isCompactCanvas();
@@ -9484,36 +9560,19 @@
     ctx.globalAlpha = alpha;
     ctx.fillStyle = line;
     ctx.fillRect(W / 2 - lineWidth / 2, centerY - 39, lineWidth, 1.5);
-    const previousAlpha = previousChapter
-      ? alpha * Math.max(0, Math.min(1, (0.58 - progress) * 7))
-      : 0;
-    const nextAlpha = previousChapter
-      ? alpha * Math.max(0, Math.min(1, (progress - 0.34) * 7))
-      : alpha;
-    if (previousAlpha > 0.01) {
-      drawChapterTransitionCopy({
-        title: `${previousChapter.title} · 已越`,
-        detail: previousChapter.resolve,
-        focus: chapterTransitionResultText(chapterTransitionFromResult),
-        alpha: previousAlpha,
-        centerY,
-        drift: -drift * 0.35,
-        compact,
-        atmosphere
-      });
-    }
-    if (nextAlpha > 0.01) {
-      drawChapterTransitionCopy({
-        title: chapter.title,
-        detail: chapter.vow,
-        focus: chapter.focus,
-        alpha: nextAlpha,
-        centerY,
-        drift,
-        compact,
-        atmosphere
-      });
-    }
+    // Fade the text through clear space while the painted band remains in place.
+    const closing = previousChapter && progress < 0.46;
+    const textAlpha = previousChapter ? Math.min(1, Math.abs(progress - 0.46) / 0.09) : 1;
+    drawChapterTransitionCopy({
+      title: closing ? `${previousChapter.title} · 已越` : chapter.title,
+      detail: closing ? previousChapter.resolve : chapter.vow,
+      focus: closing ? chapterTransitionResultText(chapterTransitionFromResult) : chapter.focus,
+      alpha: alpha * textAlpha,
+      centerY,
+      drift: closing ? -drift * 0.35 : drift,
+      compact,
+      atmosphere
+    });
     ctx.restore();
   }
 
@@ -9621,21 +9680,11 @@
     ctx.fillText(fitText(roomIntroTitle(), width - 16), 0, 13);
     ctx.fillStyle = "rgba(50, 75, 80, 0.76)";
     ctx.font = `600 ${introCompact ? 11 : 10}px system-ui, sans-serif`;
-    const openingChapter = CHAPTER_START_ROOMS[0] === roomIndex
-      ? CHAPTER_EXPERIENCE[chapterIndexForRoom(roomIndex)]
-      : null;
-    const chapterRampLine = roomIndex === 6
-      ? "风场先熟悉升势，再接碎冰"
-      : roomIndex === 7
-        ? "棱镜强化冲刺，也会放大失误"
-        : "";
+    const openingChapter = roomStartedAtEntry && CHAPTER_START_ROOMS[0] === roomIndex
+      ? CHAPTER_EXPERIENCE[chapterIndexForRoom(roomIndex)] : null;
     const subline = trainingActive
       ? `${ROOM_CHAPTER_LABELS[roomIndex] || "山巅"} · 目标 ${formatTime(introTarget)}`
-      : chapterRampLine
-        ? chapterRampLine
-      : openingChapter
-        ? `${openingChapter.title} · ${openingChapter.vow}`
-        : ROOM_WHISPERS[roomIndex] || "继续向上。";
+      : openingChapter ? `${openingChapter.title} · ${openingChapter.vow}` : roomActionHint();
     ctx.fillText(fitText(subline, width - 18), 0, 27);
     ctx.restore();
   }
@@ -9733,11 +9782,11 @@
     };
   }
 
-  function buildRunReport() {
+  function buildRunReport(lumenReview) {
     const build = document.querySelector('meta[name="build-version"]')?.content || "dev";
     const chapters = runChapterSplits();
     const visitedRooms = runRoomTimes.filter((seconds) => seconds > 0).length;
-    const complete = won && visitedRooms === maps.length;
+    const complete = won && runStartedAsFullRoute && visitedRooms === maps.length;
     const text = runReportTextData({
       build,
       complete,
@@ -9746,6 +9795,7 @@
       totalTime: formatTime(runTime),
       mistakes: deathCount,
       foundLumens: collected.size,
+      lumenReview,
       totalLumens,
       flow: flowPeak,
       relayChain: bestRelayChain,
@@ -9767,8 +9817,8 @@
     return text;
   }
 
-  async function copyRunReport(button) {
-    const text = buildRunReport();
+  async function copyRunReport(button, lumenReview) {
+    const text = buildRunReport(lumenReview);
     const build = document.querySelector('meta[name="build-version"]')?.content || "dev";
     const copied = await copyTextWithDownloadFallback(text, `summit-spark-run-${build}.txt`);
     const verb = copied ? "已复制" : "已下载";
@@ -9829,7 +9879,7 @@
       + `</div>`;
   }
 
-  function summitReviewCardsHtml() {
+  function summitReviewCardsHtml(lumenReview) {
     const runPlan = currentRunReviewData();
     const next = runPlan?.recommendation?.index ?? recommendedPracticeRoom();
     const nextMode = runPlan?.recommendation?.mode || resolveDrillMode(next);
@@ -9869,12 +9919,25 @@
       + (lastRouteContractResult ? routeContractCard : "");
     const lead = `<div class="review-grid review-grid-primary">${primaryCard}</div>`
       + `<div class="finish-progress" aria-label="长期进度"><span><em>章节掌握</em><strong>${escapeHtml(chapterText)}</strong></span><span><em>长期挑战</em><strong>${challengeSummary.wins}/${challengeSummary.total}</strong></span></div>`;
-    const details = `<div class="finish-disclosures"><details class="review-more"><summary aria-expanded="false"><span>完整复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><p class="finish-mastery">本轮 Flow 峰值 ${Math.floor(flowPeak)} · ${escapeHtml(masterySummary())}</p><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-actions review-actions-secondary">${styleButton}${lossButton}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>复制本轮分段、失误、微光、最长连锁与 Flow。</small></div></details>`
+    const details = `<div class="finish-disclosures"><details class="review-more"><summary aria-expanded="false"><span>完整复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><p class="finish-mastery">本轮 Flow 峰值 ${Math.floor(flowPeak)} · ${escapeHtml(masterySummary())}</p><p class="finish-lumen-review">${escapeHtml(lumenReview)}</p><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-actions review-actions-secondary">${styleButton}${lossButton}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>复制本轮分段、失误、微光、最长连锁与 Flow。</small></div></details>`
       + `<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>训练路线</span><span class="review-more-chevron" aria-hidden="true">›</span></summary>${reviewRoadmapHtml()}</details></div>`;
     return { lead, details };
   }
 
-  function bindFinishReviewActions() {
+  function bindFinishReviewActions(firstMiss, lumenReview, availableProgress) {
+    overlay.querySelector("[data-find-lumens]")?.addEventListener("click", () => {
+      if (canvasContextLost) {
+        setGameStatus("画面正在恢复 · 请稍候");
+        return;
+      }
+      clearTransientTrainingResults();
+      const knownLumens = roomLumenCheckpointData(availableProgress, firstMiss.index, maps[firstMiss.index]);
+      jumpToRoom(firstMiss.index, { knownLumens });
+      const title = `R${firstMiss.index + 1} · 自由寻光`;
+      const detail = `上次漏收 ${firstMiss.locations.length} 枚 · ${[...new Set(firstMiss.locations)].join("、")}`;
+      setGameStatus(`${title} · ${detail}`);
+      showGameTip(title, detail, "lumen", 4, 2);
+    });
     overlay.querySelectorAll("[data-finish-drill]").forEach((button) => {
       button.addEventListener("click", () => {
         const target = Number(button.getAttribute("data-finish-drill"));
@@ -9886,7 +9949,7 @@
     });
     const copyButton = overlay.querySelector("[data-copy-run-report]");
     copyButton?.addEventListener("click", () => {
-      copyRunReport(copyButton).catch(() => {
+      copyRunReport(copyButton, lumenReview).catch(() => {
         setGameStatus("本轮报告复制失败，请重试");
       });
     });
@@ -9941,7 +10004,7 @@
     const mode = drillModeLabel(activeDrill.mode);
     const timeLabel = limit > 0 ? ` ${formatTime(limit)}` : "";
     const text = `R${roomIndex + 1} · ${mode}${timeLabel}${current ? ` · 失误 ${current}` : ""}`;
-    const hudObjective = activeDrill.mode === "clean" ? routeLineCore(roomIndex, 0) : activeDrill.objective;
+    const hudObjective = activeDrill.mode === "clean" ? routeLineCore(roomIndex, 0) : activeStyleProgress() || activeDrill.objective;
     const detail = [hudObjective].filter(Boolean).join(" · ");
     const y = 70;
     void time;
@@ -10992,7 +11055,9 @@
 
   function requestTerrainMaterial(index) {
     const kind = CHAPTER_SURFACE_KINDS[chapterIndexForRoom(index)];
-    for (const url of ["assets/ledges.png", "assets/abutments.webp", `assets/terrain/${rockMaterials[kind].file}.jpg`]) {
+    const urls = ["assets/ledges.png", "assets/abutments.webp", `assets/terrain/${rockMaterials[kind].file}.jpg`];
+    if (index === 1) urls.push("assets/terrain/relay-ledges.webp");
+    for (const url of urls) {
       if (terrainImages.has(url)) continue;
       const image = new Image();
       terrainImages.set(url, null);
@@ -11017,16 +11082,17 @@
     const kind = CHAPTER_SURFACE_KINDS[chapter];
     const material = terrainImages.get(`assets/terrain/${rockMaterials[kind].file}.jpg`) || null;
     const sheet = terrainImages.get("assets/ledges.png");
+    const relaySheet = terrainImages.get("assets/terrain/relay-ledges.webp");
     for (const run of room.visualGroups.ledges) {
       const left = run.x * TILE, width = run.length * TILE;
       if (left + width < cameraX || left > cameraX + W) continue;
-      const useLandmark = run.frame !== undefined && sheet;
-      const image = useLandmark ? sheet : material;
+      const landmark = run.relayFace !== undefined ? relaySheet : run.frame !== undefined && sheet;
+      const image = landmark || material;
       let cached = ledgeSprites.get(run);
       if (!cached || cached.image !== image) {
         const { sprite, surface } = createSpriteSurface(width, TILE + 18);
         surface.translate(0, 6);
-        if (useLandmark) paintLandmarkLedge(surface, run, TILE, image);
+        if (landmark) paintLandmarkLedge(surface, run, TILE, image);
         else paintLedge(surface, run, TILE, rockMaterials[kind], roomIndex, image);
         applyTerrainLight(surface, width, TILE, roomIndex, run);
         cached = { image, sprite };
@@ -11152,14 +11218,27 @@
       }));
     }
     if (key === "relay" || key === "relayChain") {
-      return room.entities.relays.map((relay, index) => ({
+      const relays = activeDrill?.mode === "style" && styleTrialForRoom(roomIndex).distinct?.relay
+        ? room.entities.relays.filter(relay => !relay.awakened) : room.entities.relays;
+      return relays.map((relay, index) => ({
         x: relay.x,
         y: relay.y - 28,
         label: key === "relayChain" ? `x${index + 1}` : expertRequirementLabel(key)
       }));
     }
-    if (key === "spring") {
-      return room.entities.springs.map((spring) => ({
+    if (key === "gatePhaseLanding") {
+      const groups = roomTech.gate ? room.visualGroups.phaseRuns : room.visualGroups.dashGateColumns;
+      return groups.map(blocks => {
+        const middle = blocks[Math.floor(blocks.length / 2)];
+        return { x: middle.x + TILE / 2, y: middle.y - 12, label: roomTech.gate ? "相位落点" : "冲刺破门" };
+      });
+    }
+    if (key === "spring" || key === "springApex") {
+      const required = activeDrill?.mode === "style" && styleTrialForRoom(roomIndex).distinct?.spring;
+      // Unused springs already carry a beacon. Show the apex reminder there once the count is complete.
+      if (key === "springApex" && (!required || distinctStyleCount("spring") < required)) return [];
+      const springs = key === "spring" && required ? room.entities.springs.filter(spring => !spring.used) : room.entities.springs;
+      return springs.map((spring) => ({
         x: spring.x + spring.w / 2,
         y: spring.y - 14,
         label: expertRequirementLabel(key)
@@ -11215,7 +11294,12 @@
       if (seen.has(key)) return;
       seen.add(key);
       const color = requirementBeaconColor(key);
-      const points = requirementBeaconPoints(key).slice(0, key === "relayChain" ? 4 : 3);
+      const candidates = requirementBeaconPoints(key);
+      if (activeDrill.mode === "style" && styleTrialForRoom(roomIndex).distinct?.[key]) {
+        const distance = point => Math.hypot(point.x - player.x - player.w / 2, point.y - player.y - player.h / 2);
+        candidates.sort((a, b) => distance(a) - distance(b));
+      }
+      const points = candidates.slice(0, key === "relayChain" ? 4 : 3);
       points.forEach((point) => {
         drawRequirementBeacon(point.x, point.y, point.label, color, time, ordinal);
         ordinal += 1;
@@ -12814,9 +12898,9 @@
       : `R${target + 1} · ${ROOM_NAMES[target] || "Summit"}`);
     const firstTouchClimb = openingGuideActive && !startContext && target === 0
       && gameplayInputSource() === "touch";
-    const goal = firstTouchClimb
-      ? "向右走，到第一道山隙按「跳」"
-      : (startContext ? ROOM_PURPOSES[target] : ROOM_GUIDES[target]) || "向右寻找山径路标。";
+    let goal = startContext ? ROOM_PURPOSES[target] : ROOM_GUIDES[target];
+    if (started && !won && campaignRoomIntro()) goal = roomActionHint();
+    if (firstTouchClimb) goal = "向右走，到第一道山隙按「跳」";
     setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(resolveDrillMode(target))} · ` : ""}${goal}`);
   }
 

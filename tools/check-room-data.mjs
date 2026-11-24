@@ -134,6 +134,13 @@ for (const [roomIndex, rows] of maps.entries()) {
 }
 assert.equal(supportFrames.size, 8, "all eight abutment paintings should reach actual shelves");
 assert.equal(landmarkFrames.size, 8, "all eight terrain silhouettes should appear on walkable ledges");
+const relayOutcrops = rockRuns(maps[1], 1).filter(run => run.relayFace !== undefined);
+assert.deepEqual(new Set(relayOutcrops.map(run => run.relayFace)), new Set([0, 1, 2]));
+for (const run of relayOutcrops) {
+  assert.ok(terrainAbutments(maps[1], 1).some(wall => Math.floor(wall.top) === run.y &&
+    wall.left < run.x + run.length && wall.left + wall.width > run.x),
+  "each special R2 rock face should meet a painted wall on its own row");
+}
 
 for (const [room, rows] of maps.entries()) {
   rows.forEach((row, y) => [...row].forEach((cell, x) => {
@@ -257,6 +264,8 @@ assert.match(ROOM_PURPOSES[5], /六枚光继.*三级弹簧/, "Old Peak purpose s
 assert.match(ROOM_ROUTE_LINES[5][0], /六枚光继.*三级弹簧/, "Old Peak safe line should match the authored mechanic counts");
 assert.match(ROOM_STYLE_TRIALS[5].goal, /六枚光继.*三级弹簧/, "Old Peak style goal should match the authored mechanic counts");
 assert.ok(ROOM_STYLE_TRIALS[2].tech.includes("springApex"), "Gate capstone Style should recognize the taught spring-apex dash");
+assert.deepEqual(ROOM_STYLE_TRIALS[5].distinct, { relay: 6, spring: 3 }, "Old Peak Style should count distinct devices");
+assert.ok(ROOM_STYLE_TRIALS[5].tech.includes("gatePhaseLanding"), "Old Peak Style should require a landing after breaking the gate");
 assert.ok(ROOM_STYLE_TRIALS[5].tech.includes("springApex"), "Old Peak capstone Style should recover the spring-apex dash");
 assert.ok(ROOM_STYLE_TRIALS[9].tech.includes("springApex"), "Summit finale Style should synthesize the spring-apex dash");
 assert.equal(EXPERT_REQUIREMENT_LABELS.springApex, "弹簧顶点", "spring-apex mastery should have one canonical label");

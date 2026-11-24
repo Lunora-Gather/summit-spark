@@ -1,10 +1,32 @@
 import assert from "node:assert/strict";
 import {
+  missedRoomLumensData,
   resetRoomLumenProgressData,
   restoreRoomLumenCheckpointData,
   roomLumenCheckpointData
 } from "../public/modules/game/lumen-progress.mjs";
 import { maps } from "../public/modules/game/room-data.mjs";
+
+const allLumenIds = new Set();
+for (const [index, rows] of maps.entries()) {
+  rows.forEach((row, y) => [...row].forEach((tile, x) => {
+    if (tile === "L") allLumenIds.add(`${index}:${x}:${y}`);
+  }));
+}
+const fullSplits = maps.map(() => 1);
+assert.deepEqual(missedRoomLumensData(maps, allLumenIds, fullSplits, 9), []);
+const missingSome = new Set(allLumenIds);
+missingSome.delete("1:15:7");
+missingSome.delete("2:20:2");
+missingSome.delete("2:25:10");
+missingSome.add("1:99:99");
+assert.deepEqual(missedRoomLumensData(maps, missingSome, fullSplits, 9), [
+  { index: 1, locations: ["中段中层"] },
+  { index: 2, locations: ["后段高处", "后段中层"] }
+], "A different pickup in the same room cannot cover a missed map tile");
+assert.deepEqual(missedRoomLumensData(maps, new Set(), [], 9), [
+  { index: 9, locations: ["前段高处"] }
+], "A partial summit can only guide the player to rooms they visited");
 
 const attempt = resetRoomLumenProgressData(new Set([
   "2:20:2",

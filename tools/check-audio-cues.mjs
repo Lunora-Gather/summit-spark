@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import {
   CHAPTER_AUDIO_PROFILES,
+  LUMEN_PICKUP_SOUNDS,
   ambientChapterCueData,
   chapterEntryCueData,
   summitCueData
@@ -16,6 +17,23 @@ for (const profile of CHAPTER_AUDIO_PROFILES) {
   assert.ok(Object.isFrozen(profile.chords));
   assert.equal(profile.chords.length, 2);
   assert.equal(profile.arrival.length, 3);
+}
+
+assert.equal(LUMEN_PICKUP_SOUNDS.length, CHAPTER_AUDIO_PROFILES.length);
+for (const [chapter, voices] of LUMEN_PICKUP_SOUNDS.entries()) {
+  assert.equal(voices.length, 2);
+  const [first, answer] = voices;
+  assert.equal(first.delay, 0);
+  assert.equal(first.to, CHAPTER_AUDIO_PROFILES[chapter].arrival.at(-1) * 2);
+  assert.equal(answer.to, first.to * 0.75, "all acts use the same descending fourth");
+  assert.ok(first.time + 0.025 <= answer.delay, "the first oscillator stops before the answer starts");
+  assert.ok(answer.delay + answer.time <= 0.2);
+  for (const voice of voices) {
+    assert.equal(voice.from, voice.to, "the collectible has two struck pitches, distinct from a refill glide");
+    assert.equal(voice.type, CHAPTER_AUDIO_PROFILES[chapter].waveform);
+    assert.ok(voice.gain > 0 && voice.gain <= 0.034, "neither strike exceeds the refill's peak");
+    assert.ok(Object.isFrozen(voice));
+  }
 }
 
 const gateFirst = ambientChapterCueData(0, 0, 0);
@@ -47,4 +65,4 @@ for (const cue of [gateFirst, directEntry, actTransition, summitCueData()]) {
 }
 assert.equal(summitCueData().voices.length, 4);
 
-console.log("Audio cue checks passed: four chapter identities, two-part transitions and summit cadence.");
+console.log("Audio cue checks passed: four chapter identities, collectible strikes, two-part transitions and summit cadence.");

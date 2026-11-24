@@ -15,6 +15,10 @@ for (const [index, rows] of maps.entries()) {
 }
 const fullSplits = maps.map(() => 1);
 assert.deepEqual(missedRoomLumensData(maps, allLumenIds, fullSplits, 9), []);
+assert.deepEqual(missedRoomLumensData(maps, new Set(), fullSplits, 9).map(room => room.locations), [
+  ["后段高处"], ["中段高处", "中段中层"], ["后段高处", "后段中层"], ["前段低处"], ["后段中层"],
+  ["中段低处"], ["后段中层"], ["中段低处"], ["前段低处"], ["前段高处"]
+], "Search hints describe the centers of all twelve pickups, including the R4 and R6 low shelves");
 const missingSome = new Set(allLumenIds);
 missingSome.delete("1:15:7");
 missingSome.delete("2:20:2");

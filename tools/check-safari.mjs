@@ -178,16 +178,26 @@ try {
       previousPoint = current;
       return settled && current;
     }, 6000, "The menu action must settle under the pointer", 60);
-    // A WebElement click can scroll again. Send a native click to the point that passed hit testing.
+    // Capture before the app's handlers can open/close a panel and change hit testing.
     await driver.executeScript(expected => {
-      window.menuClickTarget = null;
-      document.addEventListener("click", event => {
-        window.menuClickTarget = { matched: expected.contains(event.target), id: event.target.closest("button")?.id, x: event.clientX, y: event.clientY };
-      }, { capture: true, once: true });
+      const describe = el => el && (el.id ? "#" + el.id : el.localName + (el.className ? "." + el.className : ""));
+      window.menuPointerEvents = [];
+      for (const type of ["pointerdown", "pointerup", "click"]) {
+        window.addEventListener(type, event => {
+          const { x, y, width, height } = expected.getBoundingClientRect();
+          window.menuPointerEvents.push({ type, trusted: event.isTrusted, matched: expected.contains(event.target),
+            expected: describe(expected), target: describe(event.target), hit: describe(document.elementFromPoint(event.clientX, event.clientY)),
+            x: event.clientX, y: event.clientY, rect: { x, y, width, height }, focus: describe(document.activeElement),
+            panel: document.getElementById("settingsPanel").className });
+        }, { capture: true, once: true });
+      }
     }, button);
+    // A WebElement click can scroll again. Click once at the exact point that passed hit testing.
     await driver.actions().move({ ...point, duration: 0 }).click().perform();
-    const delivered = await driver.executeScript(() => window.menuClickTarget);
-    assert.ok(delivered?.matched, "Safari pointer delivery " + JSON.stringify({ point, delivered }));
+    const events = await driver.executeScript(() => window.menuPointerEvents);
+    assert.deepEqual(events.map(e => e.type), ["pointerdown", "pointerup", "click"], JSON.stringify({ point, events }));
+    assert.ok(events.every(e => e.trusted && e.matched && e.x === point.x && e.y === point.y),
+      "Safari pointer delivery " + JSON.stringify({ point, events }));
   }
   const adviceButton = await driver.wait(until.elementLocated(By.css(".finish-summary .primary-review")), 8000);
   const recommendationFits = await driver.executeScript(() => {
@@ -234,8 +244,10 @@ try {
       fontSize: parseFloat(getComputedStyle(document.querySelector("#accountEmail")).fontSize) };
   });
   assert.ok(form.width <= 430 && Math.abs(form.centerOffset) <= 1 && form.fontSize >= 16, JSON.stringify(form));
-  await driver.findElement(By.id("settingsClose")).click();
+  await clickMenuTarget(await driver.findElement(By.id("settingsClose")));
   await driver.wait(until.elementIsNotVisible(panel), 5000);
+  assert.ok(await driver.executeScript(el => document.activeElement === el && !el.closest("[inert]"), accountButton),
+    "Closing Account must restore its launch button and release the menu before the next click");
   const openPractice = await driver.findElement(By.id("openTrainingButton"));
   await clickMenuTarget(openPractice);
   let practicePanelState;

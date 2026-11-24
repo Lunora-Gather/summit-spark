@@ -40,8 +40,10 @@ export function missedRoomLumensData(maps, collected, roomTimes, currentRoom) {
     for (const [y, row] of rows.entries()) {
       for (let x = 0; x < row.length; x++) {
         if (row[x] === "L" && !collected.has(`${index}:${x}:${y}`)) {
-          const section = x < row.length / 3 ? "前段" : x < row.length * 2 / 3 ? "中段" : "后段";
-          const height = y < rows.length / 3 ? "高处" : y < rows.length * 2 / 3 ? "中层" : "低处";
+          const cx = (x + 0.5) / row.length;
+          const cy = (y + 0.5) / rows.length;
+          const section = cx < 1 / 3 ? "前段" : cx < 2 / 3 ? "中段" : "后段";
+          const height = cy < 1 / 3 ? "高处" : cy < 2 / 3 ? "中层" : "低处";
           locations.push(section + height);
         }
       }

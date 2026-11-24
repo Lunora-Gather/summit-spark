@@ -62,4 +62,59 @@ function replayOldPeakStyle(route) {
   };
 }
 
-module.exports = { routes, replayOldPeakStyle };
+// Isolate the clock/clean boundary from the movement replay above.
+function checkOldPeakStyleGuidance() {
+  for (const [elapsed, clean] of [[35, true], [35.001, true], [20, false]]) {
+    startRoomDrill(5, "style");
+    if (!clean) quickRetry();
+    const attempt = room;
+    const before = drillContractStats(5, "style").wins;
+    roomTime = elapsed;
+    update(1 / 120);
+    if (room !== attempt || activeDrill?.mode !== "style") throw Error("R6 practice interrupted before the exit");
+    roomTime = elapsed;
+    const eligible = elapsed <= 35 && clean;
+    const partialTarget = routeCompassTarget();
+    const partialBeacons = activeRequirementKeys();
+    if (eligible !== Boolean(partialTarget) || partialTarget?.label === "出口" || eligible !== Boolean(partialBeacons.length)
+      || (!eligible && !activeStyleProgress().includes("重练"))) {
+      throw Error(`R6 unfinished at ${elapsed}s, clean=${clean}: compass ${partialTarget?.label}, beacons ${partialBeacons}`);
+    }
+    for (const relay of room.entities.relays) relay.awakened = true;
+    for (const spring of room.entities.springs) spring.used = true;
+    Object.assign(roomTech, { relay: true, spring: true, springApex: true, gate: true, gatePhaseLanding: true });
+    const progress = activeStyleProgress();
+    const target = routeCompassTarget();
+    if (eligible ? !progress.includes("前往出口") || target?.label !== "出口"
+      : !progress.includes("重练") || progress.includes("出口") || target) {
+      throw Error(`R6 completed actions at ${elapsed}s, clean=${clean}: ${progress}, compass ${target?.label}`);
+    }
+    player.x = roomWorldWidth() + 4;
+    resolveRoomTransition();
+    if (drillContractStats(5, "style").wins !== before + Number(eligible) || roomIndex !== (eligible ? 6 : 5)) {
+      throw Error(`R6 exit disagrees with guidance at ${elapsed}s, clean=${clean}`);
+    }
+  }
+}
+
+function checkOldPeakCampHint() {
+  hardReset();
+  resetToStart(5);
+  updatePortraitBrief();
+  const entrance = portraitRoomGoal.textContent;
+  const camp = room.entities.waypoints[0];
+  player.x = camp.x - player.w / 2;
+  player.y = camp.y - player.h / 2;
+  updateEntities(0, { x: 0, y: 0 });
+  quickRetry();
+  const retry = portraitRoomGoal.textContent;
+  if (Math.abs(player.x + player.w / 2 - camp.x) > 1 || retry.includes("入口") || !retry.includes("破门")) {
+    throw Error(`R6 camp retry should guide the player through the gate: ${retry}`);
+  }
+  restartCurrentRoom();
+  if (!entrance.includes("入口弹簧") || portraitRoomGoal.textContent !== entrance) {
+    throw Error(`R6 room restart should restore the entrance hint: ${portraitRoomGoal.textContent}`);
+  }
+}
+
+module.exports = { routes, replayOldPeakStyle, checkOldPeakStyleGuidance, checkOldPeakCampHint };

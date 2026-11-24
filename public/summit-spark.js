@@ -3524,6 +3524,7 @@
     const lumens = lumenRunSummaryData({
       found: collected.size,
       total: totalLumens,
+      fullRoute: !partial,
       completeWhisper: CHAPTER_EXPERIENCE.at(-1)?.resolve
     });
     const availableProgress = new Set([...practiceKnownLumens, ...collected]);
@@ -4524,9 +4525,17 @@
     return styleTrialTech(index).filter(key => !roomTech[key] || (counts?.[key] && distinctStyleCount(key) < counts[key]));
   }
 
+  function styleAttemptRetryReason(index, clean, elapsed) {
+    if (styleTrialForRoom(index).clean && !clean) return "本轮有失误";
+    const limit = styleTrialTimeLimit(index);
+    return limit <= 0 || elapsed <= limit ? "" : "本轮已超时";
+  }
+
   function activeStyleProgress() {
     const counts = styleTrialForRoom(roomIndex).distinct;
     if (activeDrill?.mode !== "style" || !counts) return "";
+    const reason = styleAttemptRetryReason(roomIndex, roomAttemptClean, roomTime);
+    if (reason) return `${reason} · 可继续练习，过房重练`;
     const parts = Object.keys(counts).map(key => styleRequirementProgress(roomIndex, key));
     const missing = missingStyleRequirements(roomIndex);
     const move = missing.find(key => !counts[key]);
@@ -4621,9 +4630,11 @@
     const cy = player.y + player.h / 2;
     const points = [];
     if (activeDrill?.mode === "style" && styleTrialForRoom(roomIndex).distinct) {
+      if (styleAttemptRetryReason(roomIndex, roomAttemptClean, roomTime)) return null;
       const missing = missingStyleRequirements(roomIndex);
+      if (!missing.length) return { x: roomWorldWidth() + 4, y: room.exits[0].y * TILE, label: "出口" };
       const targets = missing.flatMap(key => requirementBeaconPoints(key));
-      if (!targets.length) return { x: roomWorldWidth() + 4, y: room.exits[0].y * TILE, label: "出口" };
+      if (!targets.length) return null;
       return targets.reduce((nearest, point) => Math.hypot(point.x - cx, point.y - cy)
         < Math.hypot(nearest.x - cx, nearest.y - cy) ? point : nearest);
     }
@@ -4962,11 +4973,7 @@
   }
 
   function styleTrialSucceeded(index, clean, elapsed) {
-    const trial = styleTrialForRoom(index);
-    const limit = styleTrialTimeLimit(index);
-    if (trial.clean && !clean) return false;
-    if (missingStyleRequirements(index).length > 0) return false;
-    return limit <= 0 || elapsed <= limit;
+    return !styleAttemptRetryReason(index, clean, elapsed) && !missingStyleRequirements(index).length;
   }
 
   function drillFailureText(drill, clean, elapsed) {
@@ -7993,7 +8000,9 @@
   }
 
   function roomActionHint() {
-    return roomStartedAtEntry ? ROOM_WHISPERS[roomIndex] : "已回到出口，可向左探索。";
+    if (!roomStartedAtEntry) return "已回到出口，可向左探索。";
+    if (roomIndex === 5 && room.entities.waypoints.some(isActiveCamp)) return "从营灯向右，跃起冲刺破门，再落上相位台。";
+    return ROOM_WHISPERS[roomIndex];
   }
 
   function roomIntroTitle() {
@@ -11193,7 +11202,10 @@
 
   function activeRequirementKeys() {
     if (!activeDrill || activeDrill.room !== roomIndex || won) return [];
-    if (activeDrill.mode === "style") return missingStyleRequirements(roomIndex);
+    if (activeDrill.mode === "style") {
+      if (styleTrialForRoom(roomIndex).distinct && styleAttemptRetryReason(roomIndex, roomAttemptClean, roomTime)) return [];
+      return missingStyleRequirements(roomIndex);
+    }
     if (activeDrill.mode === "expert") return missingExpertRequirements(roomIndex);
     return [];
   }

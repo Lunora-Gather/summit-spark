@@ -10,7 +10,7 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const errors = [];
 const { checkStorageRecovery } = require("./check-storage-recovery.cjs");
-const { routes: oldPeakRoutes, replayOldPeakStyle } = require("./lib/old-peak-style-replay.cjs");
+const { routes: oldPeakRoutes, replayOldPeakStyle, checkOldPeakStyleGuidance, checkOldPeakCampHint } = require("./lib/old-peak-style-replay.cjs");
 
 // Preserve the existing account failure/slow-write fixtures while modeling
 // staged writes separately from committed state.
@@ -396,6 +396,8 @@ async function runLightStepSmoke(browser, upstream) {
   const instrumented = original.replace("  function update(dt, clockDt = dt) {",
     "  window.checkMissedPair = " + checkMissedPair.toString() + ";\n" +
     "  window.replayOldPeakStyle = " + replayOldPeakStyle.toString() + ";\n" +
+    "  window.checkOldPeakStyleGuidance = " + checkOldPeakStyleGuidance.toString() + ";\n" +
+    "  window.checkOldPeakCampHint = " + checkOldPeakCampHint.toString() + ";\n" +
     "  window.replayLightStep = " + replay.toString() + ";\n  window.checkRunChain = " + checkRunChain.toString() +
     ";\n  window.checkChapterClock = " + checkChapterClock.toString() + ";\n  window.checkJumpRelease = " + checkJumpRelease.toString() +
     ";\n  window.checkRecallInput = " + checkRecallInput.toString() + ";\n  function update(dt, clockDt = dt) {");
@@ -433,6 +435,8 @@ async function runLightStepSmoke(browser, upstream) {
         errors.push(`R6 Style ${route} should distinguish unique devices and the order of landings: ${JSON.stringify(result)}`);
       }
     }
+    await browser.evaluate("checkOldPeakStyleGuidance()");
+    await browser.evaluate("checkOldPeakCampHint()");
     const jump = await browser.evaluate("checkJumpRelease()");
     if (!(jump.rising < -120 && jump.stillHolding === jump.rising &&
       jump.released > jump.rising && jump.released < 0 && jump.afterStrayRelease === jump.released)) {

@@ -175,7 +175,15 @@ try {
     await keyEvent(code, "keyup");
   }
   async function clickMenuTarget(button) {
-    await driver.executeScript(el => el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" }), button);
+    // Move the native pointer before measuring. A move after the measurement can
+    // scroll a nested drawer or settle its restored layout on the host display.
+    await driver.executeScript(el => {
+      const r = el.getBoundingClientRect();
+      if (r.bottom <= 0 || r.top >= innerHeight || r.right <= 0 || r.left >= innerWidth) {
+        el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+      }
+    }, button);
+    await driver.actions().move({ origin: button, duration: 120 }).perform();
     let previousPoint;
     const point = await driver.wait(async () => {
       const current = await driver.executeScript(el => {

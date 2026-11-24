@@ -139,7 +139,7 @@ routeLines.forEach((lines, index) => {
   });
 });
 const styleKinds = new Set();
-const allowedStyleTech = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "relayLanding", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "phase", "drift"]);
+const allowedStyleTech = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "relayLanding", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "gatePhaseLanding", "phase", "drift"]);
 styleTrials.forEach((trial, index) => {
   if (!trial || typeof trial !== "object") errors.push("room " + (index + 1) + " style trial must be an object");
   if (isTooShortText(trial?.label, 7, 2)) errors.push("room " + (index + 1) + " style label is too short");
@@ -473,7 +473,7 @@ if (!js.includes("routeFocusData")) errors.push("route focus data helper is miss
 if (!js.includes("routeCompassTarget")) errors.push("route compass target helper is missing");
 if (!js.includes("drawRouteCompass")) errors.push("in-room route compass renderer is missing");
 if (!js.includes('ctx.setLineDash([6, 7])') || !js.includes('ctx.moveTo(-5, -5)') || !js.includes('ctx.fillStyle = CANVAS_PANEL_BG') || js.includes('ctx.fillStyle = "rgba(7,12,20,0.68)"')) errors.push("route compass should use a thin non-glowing chevron and mist label instead of a bright dashed arrow with a black tag");
-if (js.includes('!${') || !js.includes('` · 失误 ${current}`') || !js.includes('filter(Boolean).join(" · ")') || !js.includes("function drillPresentation(index, mode = \"auto\")") || !uiPresentationModule.includes('brief = `${target} · 路线：${routeCore(0)}`') || !js.includes('drillPresentation(target, "clean").brief') || !js.includes('const hudObjective = activeDrill.mode === "clean" ? routeLineCore(roomIndex, 0) : activeDrill.objective')) errors.push("player-facing training status should use natural mistake wording, separate target conditions from route advice, and avoid duplicate or contradictory clean claims");
+if (js.includes('!${') || !js.includes('` · 失误 ${current}`') || !js.includes('filter(Boolean).join(" · ")') || !js.includes("function drillPresentation(index, mode = \"auto\")") || !uiPresentationModule.includes('brief = `${target} · 路线：${routeCore(0)}`') || !js.includes('drillPresentation(target, "clean").brief') || !js.includes('const hudObjective = activeDrill.mode === "clean" ? routeLineCore(roomIndex, 0) : activeStyleProgress() || activeDrill.objective')) errors.push("player-facing training status should use natural mistake wording, separate target conditions from route advice, and avoid duplicate or contradictory clean claims");
 if (!js.includes("drawRouteFocusCue")) errors.push("route focus cue renderer is missing");
 if (!js.includes("showMasteryPopup")) errors.push("room mastery completion popup helper is missing");
 if (!js.includes("drawMasteryPopup")) errors.push("room mastery popup renderer is missing");

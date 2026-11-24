@@ -91,7 +91,13 @@ assert.deepEqual(lumenRunSummaryData({ found: 5, total: 12 }), {
   rewardLabel: "",
   whisper: "山没有变轻，是你学会了继续向上。"
 });
-assert.deepEqual(lumenRunSummaryData({ found: 99, total: 12 }), {
+for (const fullRoute of [false, undefined]) {
+  const practice = lumenRunSummaryData({ found: 12, total: 12, fullRoute });
+  assert.equal(practice.label, "12/12");
+  assert.equal(practice.rewardLabel, "", "A practice climb must not receive the campaign's collection ending");
+  assert.equal(practice.whisper, "山没有变轻，是你学会了继续向上。");
+}
+assert.deepEqual(lumenRunSummaryData({ found: 99, total: 12, fullRoute: true }), {
   found: 12,
   total: 12,
   complete: true,
@@ -101,7 +107,7 @@ assert.deepEqual(lumenRunSummaryData({ found: 99, total: 12 }), {
 });
 assert.equal(lumenRunSummaryData({ found: 0, total: 0 }).complete, false, "an empty route must not count as full Lumen collection");
 assert.equal(
-  lumenRunSummaryData({ found: 2, total: 2, completeWhisper: "第四幕收束" }).whisper,
+  lumenRunSummaryData({ found: 2, total: 2, fullRoute: true, completeWhisper: "第四幕收束" }).whisper,
   "第四幕收束",
   "the full-Lumen ending should accept canonical act-resolution copy"
 );
@@ -610,6 +616,9 @@ const runReport = runReportTextData({
   ]
 });
 assert.match(runReport, /结果：完整登顶/);
+const practiceReport = runReportTextData({ complete: false, visitedRooms: 10, totalRooms: 10, foundLumens: 12, totalLumens: 12 });
+assert.match(practiceReport, /结果：练习登顶 10\/10 房/);
+assert.match(practiceReport, /微光 12\/12/);
 assert.match(runReport, /总时间：0:18\.00 \/ 失误 1 \/ 微光 2\/3 \/ 最长连锁 3 环 \/ Flow 42/);
 assert.match(runReport, /第一幕：0:18\.00 \/ 失误 1 \/ 房间 2\/2/);
 assert.match(runReport, /R2 光继横桥：0:10\.00 \/ 失误 1/);

@@ -417,15 +417,18 @@
     {
       "kind": "exit",
       "label": "长廊节拍",
-      "goal": "六枚光继接三级弹簧，并在破门后踩准相位台",
+      "goal": "六枚光继接三级弹簧，借顶点冲刺，破门后落上相位台",
       "clean": true,
       "tech": [
         "relay",
         "spring",
         "springApex",
-        "gate",
-        "phase"
+        "gatePhaseLanding"
       ],
+      "distinct": {
+        "relay": 6,
+        "spring": 3
+      },
       "timeScale": 1.4
     },
     {
@@ -565,6 +568,7 @@
     "crumble": "脆冰",
     "gate": "破门",
     "phase": "相位台",
+    "gatePhaseLanding": "破门后落上相位台",
     "drift": "巡游晶核"
   },
   "routeContracts": [

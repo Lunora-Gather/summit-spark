@@ -68,7 +68,12 @@ try {
   ({ driver, service } = await createSafariSession());
   const url = `http://127.0.0.1:${port}/`;
   await driver.wait(async () => { try { return (await fetch(url)).ok; } catch { return false; } }, 10000);
-  await driver.manage().window().setRect({ width: 1280, height: 800 });
+  // Do not put part of the window outside the hosted Mac's display: Safari may
+  // move or resize it on the very next native pointer event.
+  const screenSize = await driver.executeScript('return { width: screen.availWidth, height: screen.availHeight, x: screen.availLeft || 0, y: screen.availTop || 0 }');
+  const desktopWindow = { x: screenSize.x, y: screenSize.y, width: Math.min(1280, screenSize.width), height: Math.min(800, screenSize.height) };
+  const readViewport = () => driver.executeScript('return [innerWidth, innerHeight]');
+  await driver.manage().window().setRect(desktopWindow);
   await driver.get(url);
   const ready = () => driver.executeScript('return document.documentElement.classList.contains("app-ready")');
   await driver.wait(ready, 10000);
@@ -153,6 +158,12 @@ try {
   assert.equal(await resumePlay.getText(), "继续攀登");
   await resumePlay.click();
   await driver.wait(() => driver.executeScript('return settingsPanel.classList.contains("hidden")'), 5000);
+  const initialDesktop = await readViewport();
+  async function restoreDesktopWindow() {
+    await driver.manage().window().setRect(desktopWindow);
+    await driver.wait(async () => (await readViewport()).every((size, i) => Math.abs(size - initialDesktop[i]) <= 1),
+      8000, "Wait for the game to regain its measured desktop viewport");
+  }
   await driver.manage().window().setRect({ width: 390, height: 820 });
   for (const code of ["F3", "Digit0"]) {
     await keyEvent(code, "keydown");
@@ -164,7 +175,15 @@ try {
     await keyEvent(code, "keyup");
   }
   async function clickMenuTarget(button) {
-    await driver.executeScript(el => el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" }), button);
+    // Move the native pointer before measuring. A move after the measurement can
+    // scroll a nested drawer or settle its restored layout on the host display.
+    await driver.executeScript(el => {
+      const r = el.getBoundingClientRect();
+      if (r.bottom <= 0 || r.top >= innerHeight || r.right <= 0 || r.left >= innerWidth) {
+        el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+      }
+    }, button);
+    await driver.actions().move({ origin: button, duration: 120 }).perform();
     let previousPoint;
     const point = await driver.wait(async () => {
       const current = await driver.executeScript(el => {
@@ -178,16 +197,28 @@ try {
       previousPoint = current;
       return settled && current;
     }, 6000, "The menu action must settle under the pointer", 60);
-    // A WebElement click can scroll again. Send a native click to the point that passed hit testing.
+    // Capture before the app's handlers can open/close a panel and change hit testing.
     await driver.executeScript(expected => {
-      window.menuClickTarget = null;
-      document.addEventListener("click", event => {
-        window.menuClickTarget = { matched: expected.contains(event.target), id: event.target.closest("button")?.id, x: event.clientX, y: event.clientY };
-      }, { capture: true, once: true });
+      const describe = el => el && (el.id ? "#" + el.id : el.localName + (el.className ? "." + el.className : ""));
+      window.menuPointerEvents = [];
+      for (const type of ["pointerdown", "pointerup", "click"]) {
+        window.addEventListener(type, event => {
+          const { x, y, width, height } = expected.getBoundingClientRect();
+          window.menuPointerEvents.push({ type, trusted: event.isTrusted, matched: expected.contains(event.target),
+            expected: describe(expected), target: describe(event.target), hit: describe(document.elementFromPoint(event.clientX, event.clientY)),
+            x: event.clientX, y: event.clientY, rect: { x, y, width, height }, focus: describe(document.activeElement),
+            panel: document.getElementById("settingsPanel").className, stage: document.querySelector(".stage").className,
+            viewport: [innerWidth, innerHeight, scrollX, scrollY, visualViewport.offsetLeft, visualViewport.offsetTop],
+            visible: getComputedStyle(expected).visibility, pointerEvents: getComputedStyle(expected).pointerEvents });
+        }, { capture: true, once: true });
+      }
     }, button);
+    // A WebElement click can scroll again. Click once at the exact point that passed hit testing.
     await driver.actions().move({ ...point, duration: 0 }).click().perform();
-    const delivered = await driver.executeScript(() => window.menuClickTarget);
-    assert.ok(delivered?.matched, "Safari pointer delivery " + JSON.stringify({ point, delivered }));
+    const events = await driver.executeScript(() => window.menuPointerEvents);
+    assert.deepEqual(events.map(e => e.type), ["pointerdown", "pointerup", "click"], JSON.stringify({ point, events }));
+    assert.ok(events.every(e => e.trusted && e.matched && e.x === point.x && e.y === point.y),
+      "Safari pointer delivery " + JSON.stringify({ point, events }));
   }
   const adviceButton = await driver.wait(until.elementLocated(By.css(".finish-summary .primary-review")), 8000);
   const recommendationFits = await driver.executeScript(() => {
@@ -202,7 +233,7 @@ try {
   assert.ok(recommendationFits, "The summit card must contain the advice and clear the progress row");
   await clickMenuTarget(adviceButton);
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden") && /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
-  await driver.manage().window().setRect({ width: 1280, height: 800 });
+  await restoreDesktopWindow();
   await driver.executeScript('localStorage.setItem("summit-spark-room-focus", JSON.stringify({schemaVersion:1,rooms:[{faults:4,fall:4,drills:1,cleanWins:0}]}))');
   await driver.executeScript('sessionStorage.removeItem("summit-spark-entry-mode")');
   const previousPage = await driver.findElement(By.css("html"));
@@ -234,8 +265,10 @@ try {
       fontSize: parseFloat(getComputedStyle(document.querySelector("#accountEmail")).fontSize) };
   });
   assert.ok(form.width <= 430 && Math.abs(form.centerOffset) <= 1 && form.fontSize >= 16, JSON.stringify(form));
-  await driver.findElement(By.id("settingsClose")).click();
+  await clickMenuTarget(await driver.findElement(By.id("settingsClose")));
   await driver.wait(until.elementIsNotVisible(panel), 5000);
+  assert.ok(await driver.executeScript(el => document.activeElement === el && !el.closest("[inert]"), accountButton),
+    "Closing Account must restore its launch button and release the menu before the next click");
   const openPractice = await driver.findElement(By.id("openTrainingButton"));
   await clickMenuTarget(openPractice);
   let practicePanelState;
@@ -329,7 +362,7 @@ try {
   assert.ok(target.startsWith("目标：") && (await launch.getAttribute("title")).startsWith(target));
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
-  await driver.manage().window().setRect({ width: 1280, height: 800 });
+  await restoreDesktopWindow();
   await clickMenuTarget(resume);
   await driver.wait(() => driver.executeScript('return /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   const recoveryErrors = await checkStorageRecovery(

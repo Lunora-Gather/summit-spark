@@ -280,7 +280,7 @@ const requirementTiles = {
   phase: "E",
   drift: "K"
 };
-const allowedRequirements = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "relayLanding", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "phase", "drift"]);
+const allowedRequirements = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "relayLanding", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "gatePhaseLanding", "phase", "drift"]);
 expertRequirements.forEach((requirements, roomIndex) => {
   if (!Array.isArray(requirements)) {
     errors.push("expert requirements for room " + (roomIndex + 1) + " must be an array");
@@ -316,6 +316,13 @@ styleTrials.forEach((trial, roomIndex) => {
   if (!(Number(trial.timeScale) > 1)) errors.push("room " + (roomIndex + 1) + " style timeScale should exceed 1");
   const tech = Array.isArray(trial.tech) ? trial.tech : [];
   if (!Array.isArray(trial.tech)) errors.push("room " + (roomIndex + 1) + " style tech must be an array");
+  for (const [key, count] of Object.entries(trial.distinct || {})) {
+    const tile = { relay: "A", spring: "T" }[key];
+    const available = tile ? [...maps[roomIndex].join("")].filter(value => value === tile).length : 0;
+    if (!tech.includes(key) || !Number.isInteger(count) || count < 1 || count > available) {
+      errors.push("room " + (roomIndex + 1) + " has an invalid distinct " + key + " Style target");
+    }
+  }
   if (tech.includes("relayLanding") && (maps[roomIndex].join("").match(/A/g) || []).length < 2) {
     errors.push("room " + (roomIndex + 1) + " needs distinct relays for its landing trial");
   }

@@ -10,6 +10,7 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const errors = [];
 const { checkStorageRecovery } = require("./check-storage-recovery.cjs");
+const { routes: oldPeakRoutes, replayOldPeakStyle, checkOldPeakStyleGuidance, checkOldPeakCampHint } = require("./lib/old-peak-style-replay.cjs");
 
 // Preserve the existing account failure/slow-write fixtures while modeling
 // staged writes separately from committed state.
@@ -197,6 +198,55 @@ async function runSummitCollection(browser, upstream) {
 async function runLightStepSmoke(browser, upstream) {
   // Expose observations only in this local test response. Use normal key events
   // and the game's full frame loop from each authored room entrance.
+  function checkMissedPair(knownId) {
+    jumpToRoom(9);
+    collected.add(knownId);
+    runRoomTimes[1] = 6;
+    showFinishOverlay(false, false, true);
+    const find = overlay.querySelector("[data-find-lumens]");
+    if (!find?.textContent.includes("R2 寻光练习")) throw Error("Missing the R2 free practice action");
+    find.click();
+    const available = () => room.entities.lumens.filter(lumen => !lumen.taken).map(lumen => lumen.id);
+    const target = available();
+    const touch = id => {
+      const item = room.entities.lumens.find(lumen => lumen.id === id);
+      player.x = item.x - player.w / 2;
+      player.y = item.y - player.h / 2;
+      updateEntities(0, { x: 0, y: 0 });
+    };
+    if (roomIndex !== 1 || activeDrill || runStartedAsFullRoute || target.length !== 1 || target[0] === knownId || collected.size) {
+      throw Error("R2 must offer only the missed pickup and start its own unscored run");
+    }
+    const originalText = ctx.fillText;
+    const routeCards = [];
+    ctx.fillText = function(text, ...rest) {
+      if (this.globalAlpha > 0.01 && /下一房|待练/.test(text)) routeCards.push(text);
+      return originalText.call(this, text, ...rest);
+    };
+    try {
+      for (let tick = 0; tick < 150; tick++) frame(lastTime + 1000 / 60);
+    } finally {
+      ctx.fillText = originalText;
+    }
+    if (!gameTipVisible("lumen") || routeCards.length) throw Error("Route advice covered the free search directions");
+    touch(knownId);
+    if (collected.size) throw Error("The previous pickup awarded credit twice");
+    touch(target[0]);
+    if (collected.size !== 1 || !collected.has(target[0])) throw Error("The missed pickup did not count");
+    respawn();
+    if (collected.size || available().join() !== target[0]) throw Error("A death restored the wrong pickup");
+    restartCurrentRoom();
+    if (collected.size || available().join() !== target[0]) throw Error("Room restart restored the wrong pickup");
+    touch(target[0]);
+    player.x = roomWorldWidth() + 4;
+    resolveRoomTransition();
+    if (roomIndex !== 2 || available().length !== 2 || !collected.has(target[0])) throw Error("The next room lost its normal pickup rules");
+    hardReset();
+    if (!runStartedAsFullRoute || parseRoom(1).entities.lumens.some(item => item.taken) || collected.size) {
+      throw Error("A new full climb inherited this hunt");
+    }
+    return true;
+  }
   function replay(index, jumpFrames, dashFrames, stop, limit, style = false) {
     if (style) startRoomDrill(index, "style");
     else jumpToRoom(index);
@@ -246,6 +296,7 @@ async function runLightStepSmoke(browser, upstream) {
     const tick = seconds => frame(lastTime + seconds * 1000);
     tick(1 / 60); // The first physics tick crosses the boundary, the second belongs to the new chapter.
     const initial = chapterTransitionTicks;
+    const introAtEntry = roomIntroTimer;
     const startX = player.x;
     const entered = roomIndex === index && roomTime === 0;
     focusPaused = true;
@@ -254,17 +305,35 @@ async function runLightStepSmoke(browser, upstream) {
     focusPaused = false;
     // Stop at the last display frame with at least one locked simulation tick remaining.
     const frames = Math.ceil(initial * hz / 120) - 1;
-    for (let i = 0; i < frames; i++) tick(1 / hz);
+    const seenChapters = new Set();
+    let mixedTitles = false;
+    let frameTitles = [];
+    const paint = ctx.fillText;
+    ctx.fillText = function(text, ...args) {
+      if (/^第[一二三四]幕 ·/.test(text) && this.globalAlpha > 0.01) frameTitles.push(text);
+      return paint.call(this, text, ...args);
+    };
+    try {
+      for (let i = 0; i < frames; i++) {
+        frameTitles = [];
+        tick(1 / hz);
+        for (const title of frameTitles) seenChapters.add(title);
+        if (frameTitles.length > 1) mixedTitles = true;
+      }
+    } finally {
+      ctx.fillText = paint;
+    }
     const left = chapterTransitionTicks;
     const stayed = player.x === startX && roomTime === 0;
     // Finish the lock, then advance exactly two ticks. A half-step must stay in the accumulator.
     tick(left / 120 - physicsAccumulator);
     const atBoundary = chapterTransitionTicks === 0 && roomTime === 0;
+    const introPreserved = roomIntroTimer === introAtEntry && roomIntroTimer > 1;
     tick(1 / 240);
     const half = roomTime;
     tick(1 / 240);
     tick(1 / 120);
-    return { entered, initial, frozen, left, stayed, atBoundary, half, playable: roomTime };
+    return { entered, initial, frozen, left, stayed, atBoundary, introPreserved, mixedTitles, titles: [...seenChapters], half, playable: roomTime };
   }
   function checkJumpRelease() {
     jumpToRoom(0);
@@ -325,6 +394,10 @@ async function runLightStepSmoke(browser, upstream) {
   const file = "/summit-spark.js";
   const original = require("node:fs").readFileSync(path.join(root, "public", file.slice(1)), "utf8");
   const instrumented = original.replace("  function update(dt, clockDt = dt) {",
+    "  window.checkMissedPair = " + checkMissedPair.toString() + ";\n" +
+    "  window.replayOldPeakStyle = " + replayOldPeakStyle.toString() + ";\n" +
+    "  window.checkOldPeakStyleGuidance = " + checkOldPeakStyleGuidance.toString() + ";\n" +
+    "  window.checkOldPeakCampHint = " + checkOldPeakCampHint.toString() + ";\n" +
     "  window.replayLightStep = " + replay.toString() + ";\n  window.checkRunChain = " + checkRunChain.toString() +
     ";\n  window.checkChapterClock = " + checkChapterClock.toString() + ";\n  window.checkJumpRelease = " + checkJumpRelease.toString() +
     ";\n  window.checkRecallInput = " + checkRecallInput.toString() + ";\n  function update(dt, clockDt = dt) {");
@@ -347,6 +420,23 @@ async function runLightStepSmoke(browser, upstream) {
       crossings[2].room !== 6 || !crossings[2].tech.includes("spring")) {
       errors.push("the bridge, gold gate and spring entrances should lead onto usable light steps: " + JSON.stringify(crossings));
     }
+    for (const [route, keys] of Object.entries(oldPeakRoutes)) {
+      const result = await browser.evaluate(`replayOldPeakStyle(${JSON.stringify(keys)})`);
+      const complete = route === "complete";
+      const shortcut = route === "shortcut";
+      if (result.deaths || result.elapsed <= 0 || result.elapsed >= 35 || !result.gate || !result.apex || !result.nearPhase
+        || result.relays !== (shortcut ? 1 : 6) || result.springs !== (shortcut ? 1 : 3)
+        || result.landed !== (complete || shortcut) || result.earlyLanding !== (route === "earlyLanding")
+        || result.wins !== Number(complete) || result.retries !== Number(!complete) || result.nextRoom !== (complete ? 7 : 6)
+        || (complete && !result.progress.includes("前往出口"))
+        || (!complete && !result.nextProgress.includes("光继 0/6 · 弹簧 0/3"))
+        || (shortcut && !result.feedback.includes("光继 1/6、弹簧 1/3"))
+        || (!complete && !shortcut && !result.feedback.includes("落上相位台"))) {
+        errors.push(`R6 Style ${route} should distinguish unique devices and the order of landings: ${JSON.stringify(result)}`);
+      }
+    }
+    await browser.evaluate("checkOldPeakStyleGuidance()");
+    await browser.evaluate("checkOldPeakCampHint()");
     const jump = await browser.evaluate("checkJumpRelease()");
     if (!(jump.rising < -120 && jump.stillHolding === jump.rising &&
       jump.released > jump.rising && jump.released < 0 && jump.afterStrayRelease === jump.released)) {
@@ -370,11 +460,15 @@ async function runLightStepSmoke(browser, upstream) {
     if (chain.afterRetry[0] !== 3 || chain.afterRetry[1] !== 0 || chain.afterPracticeStart !== 0 || chain.afterNewRun !== 0) {
       errors.push("relay peak should survive room retries and clear for a new run or practice session: " + JSON.stringify(chain));
     }
+    for (const id of ["1:17:2", "1:15:7"]) {
+      await browser.evaluate(`checkMissedPair(${JSON.stringify(id)})`);
+    }
     const locked = await browser.evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches ? 144 : 216");
     for (const [index, origin, hz] of [[3,100,60], [3,65536,60], [6,65536,120], [8,65536,240]]) {
       const clock = await browser.evaluate(`checkChapterClock(${index},${origin},${hz})`);
       if (!clock.entered || clock.initial !== locked - 1 || !clock.frozen || clock.left !== 1 ||
-          !clock.stayed || !clock.atBoundary || clock.half !== 0 || Math.abs(clock.playable - 1 / 60) > 1e-9) {
+          !clock.stayed || !clock.atBoundary || !clock.introPreserved || clock.mixedTitles || clock.titles.length !== 2 ||
+          clock.half !== 0 || Math.abs(clock.playable - 1 / 60) > 1e-9) {
         errors.push(`R${index + 1} chapter lock at ${hz}Hz miscounted a boundary step: ` + JSON.stringify(clock));
       }
     }
@@ -658,19 +752,26 @@ async function runBackwardTransitionSmoke(browser, baseUrl) {
     errors.push("returning across the exit after a checkpoint retry changed a PB, replay or clear count");
   }
 
-  // R4 -> R3 additionally proves a backward act boundary restores the
-  // existing chapter transition cue instead of silently changing ambience.
+  // Turning back at the pass or immediately re-entering must keep the player moving.
   await keyTap(browser, "Digit4", "4");
   await waitUntil("backward probe reaches R4", () => browser.evaluate(`/room 4\\/10/.test(document.querySelector("#debugPanel").textContent)`));
   await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
-  const actBoundary = await waitUntil("backward act transition restores chapter cue", () => browser.evaluate(`(() => {
+  const firstRoomFrame = room => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
-    return /room 3\\/10/.test(text) && /act 0\\.\\d+/.test(text) && /attempt clean 1/.test(text)
-      ? { text }
-      : null;
-  })()`), 3500, 20);
-  if (!/room 3\/10/.test(actBoundary.text) || !/attempt clean 1/.test(actBoundary.text)) {
-    errors.push("backward chapter crossing should retain the normal transition cue and fresh Clean attempt: " + actBoundary.text);
+    return text.includes("room ${room}/10") ? { text } : null;
+  })()`);
+  const actBoundary = await waitUntil("walk back into the preceding act", () => firstRoomFrame(3), 3500, 20);
+  if (!/act 0\.000/.test(actBoundary.text) || !/attempt clean 1/.test(actBoundary.text)) {
+    errors.push("backward chapter crossing should preserve control and a fresh Clean attempt: " + actBoundary.text);
+  }
+  await keyDown(browser, "KeyD", "d");
+  try {
+    const reentry = await waitUntil("re-enter the introduced act", () => firstRoomFrame(4), 3000, 20);
+    if (!/act 0\.000/.test(reentry.text)) {
+      errors.push("returning to an introduced chapter should keep control: " + reentry.text);
+    }
+  } finally {
+    await keyUp(browser, "KeyD", "d");
   }
 }
 
@@ -1231,11 +1332,24 @@ async function runDesktopSmoke(browser, baseUrl) {
       || !/R10 星顶终线：0:/.test(runReport.text)
       || !/R1 起势山门：—/.test(runReport.text)
       || !/微光 0\/12/.test(runReport.text)
+      || !/已走房间漏收：R10（1 枚）(?:\n|$)/.test(runReport.text)
       || !/重点：最慢 R10 星顶终线 0:/.test(runReport.text)
       || !/不含身份、设备名称、输入历史或路线坐标/.test(runReport.text)
       || /userAgent|@/.test(runReport.text)
       || runReport.text.length > 4000) {
       errors.push("current-run report should be bounded, useful and privacy-labelled: " + JSON.stringify(runReport));
+    }
+    const returnLink = await browser.evaluate(`document.querySelector("[data-find-lumens]")?.textContent || ""`);
+    if (!returnLink.includes("R10 寻光练习 缺 1 枚")) errors.push("Partial summit should offer the visited room's missing Lumen");
+    await clickSelector(browser, "[data-find-lumens]");
+    const freeHunt = await browser.evaluate(`({
+      free: document.querySelector(".stage").classList.contains("free-play"),
+      retired: document.querySelector("#overlay").hidden && !document.querySelector("#overlay").hasAttribute("aria-modal"),
+      focused: document.activeElement === document.querySelector("#game"),
+      room: document.querySelector("#roomCount").textContent, tip: document.querySelector("#gameTip").textContent
+    })`);
+    if (!freeHunt.free || !freeHunt.retired || !freeHunt.focused || !freeHunt.room.startsWith("R10/") || !freeHunt.tip.includes("上次漏收 1 枚 · 前段高处")) {
+      errors.push("Returning to a missing Lumen must begin free exploration with its location: " + JSON.stringify(freeHunt));
     }
   }
   await navigateApp(browser, baseUrl, "desktop reset");

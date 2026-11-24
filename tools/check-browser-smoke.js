@@ -3,6 +3,7 @@
 
 const childProcess = require("child_process");
 const http = require("http");
+const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
 const net = require("net");
 const path = require("path");
 
@@ -5387,7 +5388,6 @@ async function installRuntimeFixture(browser) {
 }
 
 async function runNativeSafari({ motionOnly = false, mobile = false, extended = false } = {}) {
-  const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
   const port = await findFreePort();
   const upstream = "http://127.0.0.1:" + port;
   const server = childProcess.spawn(process.execPath, ["game-server.js"], {
@@ -5421,7 +5421,7 @@ async function runNativeSafari({ motionOnly = false, mobile = false, extended = 
     const scenarioGroups = [
       [ // Gameplay and save imports
         runRetryAndTouchAimSmoke,
-        (browser) => runLightStepSmoke(browser, upstream),
+        async function lightStepCrossings(browser) { await runLightStepSmoke(browser, upstream); },
         runBootFailureSmoke,
         ...(extended ? [runDesktopSmoke] : []),
         runMenuScaleSmoke,

@@ -283,7 +283,6 @@ canvas:focus {
 }
 
 .opening-guide strong { font-size: 14px; }
-.opening-guide strong span { margin-inline-start: 8px; color: #416169; font-weight: 500; }
 #openingGuideControls {
   display: flex;
   justify-content: center;
@@ -8849,8 +8848,11 @@ textarea,
   }
 }
 
-@media (max-height: 520px) and (orientation: landscape) {
+@media (orientation: landscape) {
   .touch .touch-system { display: none; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
   .stage .opening-guide:not([hidden]) {
     top: max(48px, calc(env(safe-area-inset-top, 0px) + 38px));
     bottom: auto;

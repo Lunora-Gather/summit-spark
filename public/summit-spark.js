@@ -46,6 +46,7 @@
       ROOM_CHAPTER_LABELS,
       ROOM_GUIDES,
       ROOM_LANDMARKS,
+      ROOM_LIGHT_STEPS,
       ROOM_NAMES,
       ROOM_PURPOSES,
       ROOM_ROUTE_LINES,
@@ -203,21 +204,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261124-p326"),
-    import("./modules/core/math.mjs?v=20261124-p326"),
-    import("./modules/game/room-data.mjs?v=20261124-p326"),
-    import("./modules/game/world-model.mjs?v=20261124-p326"),
-    import("./modules/game/terrain-art.mjs?v=20261124-p326"),
-    import("./modules/game/effect-budget.mjs?v=20261124-p326"),
-    import("./modules/game/landmark-progress.mjs?v=20261124-p326"),
-    import("./modules/game/audio-cues.mjs?v=20261124-p326"),
-    import("./modules/game/lumen-progress.mjs?v=20261124-p326"),
-    import("./modules/systems/storage.mjs?v=20261124-p326"),
-    import("./modules/systems/cloud-save.mjs?v=20261124-p326"),
-    import("./modules/systems/input.mjs?v=20261124-p326"),
-    import("./modules/training/state.mjs?v=20261124-p326"),
-    import("./modules/training/replay.mjs?v=20261124-p326"),
-    import("./modules/ui/presentation.mjs?v=20261124-p326")
+    import("./modules/core/format.mjs?v=20261124-p327"),
+    import("./modules/core/math.mjs?v=20261124-p327"),
+    import("./modules/game/room-data.mjs?v=20261124-p327"),
+    import("./modules/game/world-model.mjs?v=20261124-p327"),
+    import("./modules/game/terrain-art.mjs?v=20261124-p327"),
+    import("./modules/game/effect-budget.mjs?v=20261124-p327"),
+    import("./modules/game/landmark-progress.mjs?v=20261124-p327"),
+    import("./modules/game/audio-cues.mjs?v=20261124-p327"),
+    import("./modules/game/lumen-progress.mjs?v=20261124-p327"),
+    import("./modules/systems/storage.mjs?v=20261124-p327"),
+    import("./modules/systems/cloud-save.mjs?v=20261124-p327"),
+    import("./modules/systems/input.mjs?v=20261124-p327"),
+    import("./modules/training/state.mjs?v=20261124-p327"),
+    import("./modules/training/replay.mjs?v=20261124-p327"),
+    import("./modules/ui/presentation.mjs?v=20261124-p327")
   ]);
 
   const canvas = document.getElementById("game");
@@ -263,7 +264,8 @@
   positionOpeningGuide();
   portraitGuideSpace.addEventListener("change", positionOpeningGuide);
   const openingGuideKeys = document.querySelectorAll("#openingGuideControls kbd");
-  const openingGuideRestart = document.getElementById("openingGuideRestart");
+  const pauseTerrain = document.getElementById("pauseTerrain");
+  const pauseRetries = document.getElementById("pauseRetries");
   const coarsePointerQuery = window.matchMedia?.("(pointer: coarse)");
   const gameTip = document.getElementById("gameTip");
   const gameTipTitle = document.getElementById("gameTipTitle");
@@ -471,7 +473,7 @@
   const NEAR_MISS_COOLDOWN = 0.48;
   const ECHO_RECALL_COOLDOWN = 0.32;
   const ROOM_INTRO_TIME = 1.2;
-  const OPENING_GUIDE_TIME = 3.6;
+  const FIRST_GAP_LANDING_X = 14 * TILE;
   const CHAPTER_RAMP_INTRO_TIME = 2.1;
   const CHAPTER_RAMP_ROOMS = new Set([6, 7]);
   const RESPAWN_RECOVERY_TIME = 0.34;
@@ -884,7 +886,7 @@
   let echoLessonTimer = 0;
   let echoLessonShown = false;
   let roomIntroTimer = ROOM_INTRO_TIME;
-  let openingGuideTimer = 0;
+  let openingGuideActive = false;
   let chapterTransitionTimer = 0;
   let chapterTransitionChapter = 0;
   let chapterTransitionFromChapter = -1;
@@ -1620,6 +1622,18 @@
     event.preventDefault();
     event.stopPropagation();
   });
+  pauseTerrain.addEventListener("click", () => {
+    openPanel("practice");
+    roomSelect.value = String(roomIndex);
+    const group = roomTerrain.closest(".settings-group");
+    group.open = true;
+    syncSettingsGroupDisclosure(group);
+    roomTerrain.open = true;
+    updateRoomBrief();
+    updatePracticeCoach();
+    roomTerrain.querySelector("summary").focus({ preventScroll: true });
+    roomTerrain.scrollIntoView({ block: "nearest" });
+  });
   roomTerrain.addEventListener("toggle", drawRoomTerrainPreview);
   roomTerrain.closest(".settings-group").addEventListener("toggle", drawRoomTerrainPreview);
   roomSelect?.addEventListener("change", () => {
@@ -1812,15 +1826,20 @@
     button.addEventListener("pointerleave", releasePointer);
   });
 
-  document.querySelectorAll("[data-touch-command]").forEach((button) => {
+  document.querySelectorAll("[data-touch-command], [data-pause-retry]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       if (!started) {
         begin();
         return;
       }
-      lastGameplayInput = "touch";
-      const command = button.getAttribute("data-touch-command");
+      if (pauseRetries.contains(button)) {
+        if (!settingsVisible || won) return;
+        closeSettings();
+      } else {
+        lastGameplayInput = "touch";
+      }
+      const command = button.dataset.touchCommand || button.dataset.pauseRetry;
       if (command === "retry") {
         if (won) hardReset();
         else quickRetry();
@@ -1962,7 +1981,12 @@
       dashGateColumns: dashGateColumns(entities.dashGates),
       phaseRuns: phaseBlockRuns(entities.phaseBlocks)
     };
-    return { tiles, entities, visualGroups, exits: roomExitLandingsData(rows), cols, worldWidth: world.width, dynamicTime: 0 };
+    const crossing = ROOM_LIGHT_STEPS[index];
+    const lightStep = crossing ? {
+      x: crossing.x * TILE, y: crossing.y * TILE, w: crossing.width * TILE, landed: false, litAt: 0,
+      ring: entities.relays.find(relay => relay.x === (crossing.ringX + 0.5) * TILE && relay.y === (crossing.ringY + 0.5) * TILE)
+    } : null;
+    return { tiles, entities, visualGroups, lightStep, exits: roomExitLandingsData(rows), cols, worldWidth: world.width, dynamicTime: 0 };
   }
 
   function roomWorldWidth() {
@@ -2067,7 +2091,7 @@
     clearGrabToggle();
     resetActionVisuals();
     triggerActionVisual("spawn", 0.32);
-    openingGuideTimer = 0;
+    openingGuideActive = false;
     roomIntroTimer = roomIntroDuration(index);
     routeCueTimer = 0;
     routeCueReason = "";
@@ -2108,21 +2132,21 @@
 
   function restartControlHint(source, bindings = effectiveBindings()) {
     if (source === "gamepad") return "View 回到检查点 · 双摇杆按下 重开本房";
-    if (source === "touch") return "↻ 回到检查点 · 房 重开本房";
+    if (source === "touch") return "暂停可回到检查点或重开本房";
     return `${keyCodeLabel(bindings.retry)} 回到检查点 · ${keyCodeLabel(bindings.roomRestart)} 重开本房`;
   }
 
   function startOpeningGuide() {
     if (activeDrill || activeChallenge || activeRouteContract || activeFeelFixture || !needsOpeningControlsHint()) return;
-    openingGuideTimer = OPENING_GUIDE_TIME;
+    openingGuideActive = true;
     roomIntroTimer = 0;
   }
 
   function syncOpeningGuide() {
-    const hidden = !started || won || roomIndex !== 0 || openingGuideTimer <= 0
+    const hidden = !started || won || roomIndex !== 0 || !openingGuideActive
       || settingsVisible || gameTipVisible();
     const source = hidden ? "" : gameplayInputSource();
-    const show = source === "keyboard" || source === "gamepad";
+    const show = Boolean(source) && (source !== "touch" || !portraitGuideSpace.matches);
     if (openingGuide.hidden === show) {
       openingGuide.hidden = !show;
       if (show) canvas.setAttribute("aria-describedby", openingGuide.id);
@@ -2131,13 +2155,9 @@
     if (!show) return;
 
     const bindings = effectiveBindings();
-    const key = (action) => keyCodeLabel(bindings[action]);
-    const movement = ["up", "left", "down", "right"].map(key).join("/");
-    const labels = source === "gamepad"
-      ? ["左摇杆", "A", "B", "肩键"]
-      : [movement, key("jump"), key("dash"), key("grab")];
+    const labels = source === "gamepad" ? ["左摇杆", "A"] : source === "touch" ? ["›", "跳"]
+      : [keyCodeLabel(bindings.right), keyCodeLabel(bindings.jump)];
     openingGuideKeys.forEach((cap, index) => setElementText(cap, labels[index]));
-    setElementText(openingGuideRestart, restartControlHint(source, bindings));
   }
 
   function canStartFromMenu() {
@@ -3190,6 +3210,7 @@
         markRoomTech("relay");
         showMechanicFirstTouchCue("relay");
         if (chain >= 3) markRoomTech("relayChain");
+        if (!relay.awakened && room.lightStep?.ring === relay) room.lightStep.litAt = room.dynamicTime;
         relay.awakened = true;
         relay.ready = false;
         relay.timer = RELAY_RESET_TIME;
@@ -3751,7 +3772,12 @@
       }
 
       if (player.dashTimer > 0) breakDashGates(getPlayerBox());
-      if (collidesSolid(getPlayerBox())) {
+      const shelf = room.lightStep;
+      const feet = player.y + player.h;
+      const onLightStep = axis === "y" && step > 0 && shelf?.ring.awakened
+        && feet - move <= shelf.y && feet >= shelf.y
+        && player.x + player.w > shelf.x && player.x < shelf.x + shelf.w;
+      if (onLightStep || collidesSolid(getPlayerBox())) {
         if (axis === "x") {
           if (player.dashTimer > 0 && tryDashCornerCorrection()) {
             remaining -= move;
@@ -3764,7 +3790,12 @@
             remaining -= move;
             continue;
           }
-          player.y -= move;
+          player.y = onLightStep ? shelf.y - player.h : player.y - move;
+          if (onLightStep && !shelf.landed) {
+            shelf.landed = true;
+            playSound("lightStep", 0.65);
+            burst(player.x + player.w / 2, shelf.y, "#ccefd6", 4, 58);
+          }
           if (step > 0) {
             player.onGround = true;
             player.stamina = MAX_STAMINA;
@@ -4021,7 +4052,6 @@
 
   function respawn(options = {}) {
     roomIndex = player.respawnRoom;
-    openingGuideTimer = 0;
     resetCurrentRoomLumenAttempt();
     restoreRespawnLumenSnapshot();
     room = parseRoom(roomIndex);
@@ -6277,6 +6307,19 @@
       paintExitSign(pen, chapterIndexForRoom(index));
       pen.restore();
     }
+    const crossing = ROOM_LIGHT_STEPS[index];
+    if (crossing) {
+      mechanics.add("G");
+      pen.save();
+      pen.strokeStyle = mapMechanics.G[1];
+      pen.lineWidth = 0.1;
+      pen.setLineDash([0.18, 0.2]);
+      pen.beginPath(); pen.moveTo(crossing.ringX + 0.5, crossing.ringY + 0.5);
+      pen.lineTo(crossing.x, crossing.y); pen.stroke();
+      pen.setLineDash([]); pen.lineWidth = 0.18;
+      pen.beginPath(); pen.moveTo(crossing.x, crossing.y); pen.lineTo(crossing.x + crossing.width, crossing.y); pen.stroke();
+      pen.restore();
+    }
     const legend = document.getElementById("terrainMechanics");
     legend.replaceChildren(...Object.entries(mapMechanics).filter(([symbol]) => mechanics.has(symbol)).map(([symbol, [label]]) => {
       const item = document.createElement("span");
@@ -7776,6 +7819,8 @@
     const pausedRun = settingsVisible && started && !won && !practiceMode && !accountFocused;
     const pauseRoom = document.getElementById("pauseRoom");
     pauseRoom.hidden = !pausedRun;
+    pauseRetries.hidden = !pausedRun;
+    pauseTerrain.hidden = !pausedRun || roomMistakes[roomIndex] < 2;
     if (pausedRun) setElementText(pauseRoom, `R${roomIndex + 1} · ${ROOM_NAMES[roomIndex]}　${formatTime(roomTime)}`);
     settingsCloseButton?.classList.toggle("resume-run", pausedRun);
     setElementText(settingsCloseButton, pausedRun ? "继续攀登" : "×");
@@ -7971,6 +8016,8 @@
     spark: [{ type: "triangle", from: 520, to: 920, gain: 0.043, time: 0.14 }],
     wallSpark: [{ type: "triangle", from: 420, to: 760, gain: 0.04, time: 0.13 }, { type: "sine", from: 260, to: 360, gain: 0.018, time: 0.12 }],
     prismSpark: [{ type: "sawtooth", from: 720, to: 1180, gain: 0.038, time: 0.16 }, { type: "triangle", from: 360, to: 520, gain: 0.019, time: 0.15 }],
+    lightStep: [{ type: "sine", from: 523, to: 523, gain: 0.036, time: 0.14 },
+        { type: "sine", from: 784, to: 784, gain: 0.023, time: 0.22, delay: 0.07 }],
     relay: [{ type: "sine", from: 640, to: 980, gain: 0.042, time: 0.13 }],
     chain: [{ type: "triangle", from: 760, to: 1240, gain: 0.052, time: 0.16 }],
     prism: [{ type: "sawtooth", from: 360, to: 860, gain: 0.045, time: 0.18 }],
@@ -8127,7 +8174,7 @@
       if (Number.isFinite(soundCooldowns[name]) && now - soundCooldowns[name] < cooldown) return;
       soundCooldowns[name] = now;
       audioMaster.gain.setTargetAtTime(Math.max(0, Math.min(0.7, settings.audioVolume)), now, 0.01);
-      preset.forEach((voice, index) => playTone(voice, now + index * 0.012, intensity));
+      preset.forEach((voice, index) => playTone(voice, now + (voice.delay ?? index * 0.012), intensity));
     } catch {
       discardAudioContext();
     }
@@ -8289,8 +8336,9 @@
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
     echoLessonTimer = Math.max(0, echoLessonTimer - dt);
     roomIntroTimer = Math.max(0, roomIntroTimer - dt);
-    if (roomIndex !== 0) openingGuideTimer = 0;
-    else if (timingArmed && openingGuideTimer > 0) openingGuideTimer = Math.max(0, openingGuideTimer - dt);
+    if (openingGuideActive && (roomIndex !== 0 || (player.onGround && player.x >= FIRST_GAP_LANDING_X))) {
+      openingGuideActive = false;
+    }
     splitPopupTimer = Math.max(0, splitPopupTimer - (chapterBreathing ? 0 : dt));
     feelCueTimer = Math.max(0, feelCueTimer - dt);
     routeCueTimer = Math.max(0, routeCueTimer - (chapterBreathing ? 0 : dt));
@@ -8785,6 +8833,7 @@
     drawHazardFields(time);
     drawObstacleArchitecture(time);
     drawTiles();
+    drawResonantStep();
     drawBestRoomPath(time);
     drawCurrentRoomPath(time);
     drawBestRoomGhost(time);
@@ -10162,6 +10211,14 @@
     // A cool wash unifies the plates with the slate foreground and leaves the brightest marks to the route.
     ctx.fillStyle = "rgba(25, 43, 56, 0.17)";
     ctx.fillRect(0, 0, W, H);
+    if (index === 5) {
+      const haze = ctx.createRadialGradient(left + width * 0.78, top + height * 0.23, 0,
+        left + width * 0.78, top + height * 0.23, width * 0.32);
+      haze.addColorStop(0, "rgba(175, 144, 151, 0.39)");
+      haze.addColorStop(1, "rgba(175, 144, 151, 0)");
+      ctx.fillStyle = haze;
+      ctx.fillRect(left, top, width, height);
+    }
     const scene = ROOM_PAINTINGS[index];
     ctx.translate(left + width * scene.moonX, top + height * scene.moonY);
     ctx.fillStyle = atmosphere.moon;
@@ -11600,6 +11657,53 @@
     ctx.restore();
   }
 
+  function drawResonantStep() {
+    const step = room.lightStep;
+    if (!step || step.x + step.w < cameraX || step.x > cameraX + W) return;
+    const { x, y, w, ring } = step;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.lineCap = "round";
+    if (!ring.awakened) {
+      // Two stone sockets hint at a missing span without drawing a walkable edge.
+      ctx.fillStyle = "#465959";
+      ctx.strokeStyle = "#b8d7ca";
+      for (const end of [2, w - 2]) {
+        ctx.beginPath();
+        ctx.moveTo(end - 3, 5); ctx.lineTo(end, 1); ctx.lineTo(end + 3, 5);
+        ctx.lineTo(end, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+    } else {
+      const chapter = chapterIndexForRoom(roomIndex);
+      const stone = chapter === 1 ? "#736b61" : chapter === 3 ? "#63647e" : "#496b69";
+      ctx.fillStyle = stone;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(w, 0); ctx.lineTo(w - 5, 5);
+      ctx.quadraticCurveTo(w * 0.52, 13, 5, 5); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#e3fff1";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(1, 0); ctx.lineTo(w - 1, 0); ctx.stroke();
+      ctx.strokeStyle = chapter === 1 ? "#c4ac85" : "#a0c7bc";
+      ctx.lineWidth = 1;
+      for (let seam = 15; seam < w - 6; seam += 24) {
+        ctx.beginPath(); ctx.moveTo(seam + 3, 2); ctx.lineTo(seam, 4);
+        ctx.lineTo(seam - 5, 4); ctx.lineTo(seam - 7, 7); ctx.stroke();
+      }
+      // Collision starts as soon as the rim appears; the inlay follows one beat later.
+      const age = room.dynamicTime - step.litAt;
+      if (age < 0.38 && !prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance) {
+        const progress = Math.min(1, age / 0.28);
+        ctx.globalAlpha = Math.min(0.72, (0.38 - age) * 4);
+        ctx.strokeStyle = "#b7ffed";
+        ctx.beginPath(); ctx.moveTo(ring.x - x, ring.y - y);
+        ctx.quadraticCurveTo((ring.x - x) / 2, -9, 0, 0);
+        ctx.lineTo(w * progress, 0); ctx.stroke();
+        ctx.fillStyle = "#ffedbd";
+        ctx.fillRect(w * progress - 2, 0, 4, 2);
+      }
+    }
+    ctx.restore();
+  }
+
   function drawActiveRelayThread(time) {
     if (relayChainPath.length < 2 || relayChainTimer <= 0) return;
     const life = Math.max(0, Math.min(1, relayChainTimer / RELAY_CHAIN_TIME));
@@ -11899,6 +12003,15 @@
     const y = relay.y + (prefersReducedMotion ? 0 : Math.sin(relay.bob) * 2);
     ctx.save();
     ctx.translate(relay.x, y);
+    if (room.lightStep?.ring === relay) {
+      ctx.strokeStyle = relay.awakened ? "#e6fff1" : "#b1d9c8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (const side of [-1, 1]) {
+        ctx.moveTo(side * 13, 4); ctx.lineTo(side * 17, 8); ctx.lineTo(side * 13, 12);
+      }
+      ctx.stroke();
+    }
     ctx.save();
     ctx.rotate(motion * (settings.calmEffects ? 0.32 : 0.75));
     ctx.lineCap = "round";
@@ -12612,10 +12725,10 @@
       ? `${hasProgress ? "上次训练" : "攀登起点"} · ${chapter}`
       : chapter);
     setElementText(portraitRoomTitle, `R${target + 1} · ${ROOM_NAMES[target] || "Summit"}`);
-    const firstTouchClimb = openingGuideTimer > 0 && !startContext && target === 0
+    const firstTouchClimb = openingGuideActive && !startContext && target === 0
       && gameplayInputSource() === "touch";
     const goal = firstTouchClimb
-      ? "按住方向键，上滑再按冲刺可斜向上"
+      ? "向右走，到第一道山隙按「跳」"
       : (startContext ? ROOM_PURPOSES[target] : ROOM_GUIDES[target]) || "向右寻找山径路标。";
     setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(resolveDrillMode(target))} · ` : ""}${goal}`);
   }

@@ -3,6 +3,7 @@
 
 const childProcess = require("child_process");
 const http = require("http");
+const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
 const net = require("net");
 const path = require("path");
 
@@ -168,6 +169,64 @@ async function navigateApp(browser, baseUrl, label = "app") {
   await browser.navigate(url);
   await waitUntil(label + " navigation", () => browser.evaluate(`location.href === ${JSON.stringify(url)}`), 7000);
   await waitForAppReady(browser);
+}
+
+async function runLightStepSmoke(browser, upstream) {
+  // Expose observations only in this local test response. Use normal key events
+  // and the game's full frame loop from each authored room entrance.
+  function replay(index, jumpFrames, dashFrames, stop, limit) {
+    jumpToRoom(index);
+    const tick = () => frame(lastTime + 1000 / 60);
+    const bindings = effectiveBindings();
+    const key = (action, down) => window.dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", {
+      code: bindings[action], bubbles: true, cancelable: true
+    }));
+    tick();
+    const shelf = room.lightStep;
+    const observed = new Set();
+    key("right", true);
+    for (let n = 0; n < limit && roomIndex === index && !deathCount; n++) {
+      if (jumpFrames.includes(n)) key("jump", true);
+      if (jumpFrames.includes(n - 10)) key("jump", false);
+      if (dashFrames.includes(n)) key("dash", true);
+      if (dashFrames.includes(n - 2)) key("dash", false);
+      if (n === stop) key("right", false);
+      tick();
+      if (roomIndex === index) {
+        for (const [name, used] of Object.entries(roomTech)) if (used) observed.add(name);
+      }
+    }
+    for (const action of ["right", "jump", "dash"]) key(action, false);
+    return { room: roomIndex, lit: shelf.ring.awakened, landed: shelf.landed, deaths: deathCount, tech: [...observed] };
+  }
+  const fixture = await startFixture(upstream);
+  const file = "/summit-spark.js";
+  const original = require("node:fs").readFileSync(path.join(root, "public", file.slice(1)), "utf8");
+  const instrumented = original.replace("  function update(dt, clockDt = dt) {",
+    "  window.replayLightStep = " + replay.toString() + ";\n  function update(dt, clockDt = dt) {");
+  fixture.routes.set(file, (_request, response) => response.writeHead(200, {
+    "Content-Type": "application/javascript", "Cache-Control": "no-store"
+  }).end(instrumented));
+  try {
+    await navigateApp(browser, fixture.url, "light-step crossings");
+    const crossings = await browser.evaluate(`(() => {
+      document.querySelector("#guestEntryButton").click();
+      document.querySelector("#startButton").click();
+      const hops = (first, spacing) => Array.from({length: 12}, (_, i) => first + i * spacing);
+      return [
+        replayLightStep(1, [14], [31, 56], 82, 96),
+        replayLightStep(3, hops(60, 72), [19, 32], -1, 620),
+        replayLightStep(5, hops(90, 54), [], -1, 620)
+      ];
+    })()`);
+    if (crossings.some(row => !row.lit || !row.landed || row.deaths) ||
+      crossings[1].room !== 4 || !crossings[1].tech.includes("gate") ||
+      crossings[2].room !== 6 || !crossings[2].tech.includes("spring")) {
+      errors.push("the bridge, gold gate and spring entrances should lead onto usable light steps: " + JSON.stringify(crossings));
+    }
+  } finally {
+    await fixture.close();
+  }
 }
 
 async function runBootFailureSmoke(browser, baseUrl) {
@@ -3698,8 +3757,7 @@ async function runKeyboardSettingsSmoke(browser, baseUrl) {
     return !guide.hidden
       && parseFloat(style.fontSize) >= 13
       && document.querySelector("#game").getAttribute("aria-describedby") === guide.id
-      && Array.from(document.querySelectorAll("#openingGuideControls kbd"), cap => cap.textContent).slice(1).join(" ") === "C X Z"
-      && document.querySelector("#openingGuideRestart").textContent === "R 回到检查点 · T 重开本房";
+      && Array.from(document.querySelectorAll("#openingGuideControls kbd"), cap => cap.textContent).at(-1) === "C";
   })()`));
   await sleep(3800);
   const stillReading = await browser.evaluate(`!document.querySelector("#openingGuide").hidden && document.querySelector("#runTime").textContent === "0:00.00"`);
@@ -3710,9 +3768,10 @@ async function runKeyboardSettingsSmoke(browser, baseUrl) {
   await browser.evaluate(`window.__summitMockPadState.axes[0] = 0`);
   await keyTap(browser, "KeyC", "c");
   await waitUntil("keyboard action restores the classic guide", () => browser.evaluate(`/C 跳跃/.test(document.querySelector("#openingGuideControls").textContent)`));
-  await waitUntil("moving removes the opening guide and canvas description", () => browser.evaluate(`
-    document.querySelector("#openingGuide").hidden && !document.querySelector("#game").hasAttribute("aria-describedby")
-  `), 6000);
+  await sleep(3800);
+  if (await browser.evaluate('document.querySelector("#openingGuide").hidden')) errors.push("the first landing lesson should survive a jump at spawn");
+  await keyTap(browser, "KeyR", "r");
+  await waitUntil("retry keeps the first landing lesson", () => browser.evaluate('!document.querySelector("#openingGuide").hidden'));
 
 }
 
@@ -4760,6 +4819,7 @@ async function runMobileSmoke(browser, baseUrl) {
   await waitUntil("active portrait settings closes", () => browser.evaluate(`document.querySelector("#settingsPanel").classList.contains("hidden")`));
   await tapSelector(browser, '[data-touch-command="retry"]');
   await waitUntil("portrait touch quick retry responds", () => browser.evaluate(`/快速重开/.test(document.querySelector("#gameStatus")?.textContent || "")`));
+  await tapSelector(browser, "#settingsButton");
   await tapSelector(browser, '[data-touch-command="roomRestart"]');
   await waitUntil("portrait touch room restart responds", () => browser.evaluate(`/房间重开/.test(document.querySelector("#gameStatus")?.textContent || "")`));
   const largeTouchUi = await browser.evaluate(`(() => {
@@ -5063,7 +5123,7 @@ async function runMobileLandscapeSmoke(browser, baseUrl) {
     return {
       visible: getComputedStyle(touch).display === "flex",
       buttonCount: buttons.length,
-      commandCount: touch.querySelectorAll("[data-touch-command]").length,
+      commandCount: buttons.filter(button => button.hasAttribute("data-touch-command")).length,
       openingGuideHidden: document.querySelector("#openingGuide").hidden,
       allLarge: buttons.every((button) => {
         const rect = button.getBoundingClientRect();
@@ -5073,7 +5133,7 @@ async function runMobileLandscapeSmoke(browser, baseUrl) {
       backdrop: getComputedStyle(buttons[0]).backdropFilter || ""
     };
   })()`);
-  if (!landscapeTouch.visible || !landscapeTouch.openingGuideHidden || landscapeTouch.buttonCount !== 9 || landscapeTouch.commandCount !== 2 || !landscapeTouch.allLarge || landscapeTouch.backgroundAlpha > 0.34 || !/blur\(4px\)/.test(landscapeTouch.backdrop)) {
+  if (!landscapeTouch.visible || landscapeTouch.buttonCount !== 7 || landscapeTouch.commandCount !== 0 || !landscapeTouch.allLarge || landscapeTouch.backgroundAlpha > 0.34 || !/blur\(4px\)/.test(landscapeTouch.backdrop)) {
     errors.push("mobile landscape touch controls should remain usable without obscuring terrain: " + JSON.stringify(landscapeTouch));
   }
   await browser.setViewport(568, 320, { mobile: true });
@@ -5328,7 +5388,6 @@ async function installRuntimeFixture(browser) {
 }
 
 async function runNativeSafari({ motionOnly = false, mobile = false, extended = false } = {}) {
-  const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
   const port = await findFreePort();
   const upstream = "http://127.0.0.1:" + port;
   const server = childProcess.spawn(process.execPath, ["game-server.js"], {
@@ -5362,6 +5421,7 @@ async function runNativeSafari({ motionOnly = false, mobile = false, extended = 
     const scenarioGroups = [
       [ // Gameplay and save imports
         runRetryAndTouchAimSmoke,
+        async function lightStepCrossings(browser) { await runLightStepSmoke(browser, upstream); },
         runBootFailureSmoke,
         ...(extended ? [runDesktopSmoke] : []),
         runMenuScaleSmoke,

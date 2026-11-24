@@ -774,7 +774,7 @@ if (!roomData.includes("export const ROOM_CHAPTER_INDEXES = [0, 0, 0, 1, 1, 1, 2
   || !roomData.includes("export const CHAPTER_START_ROOMS = [0, 3, 6, 8];")
   || !js.includes("const chapter = ROOM_CHAPTER_INDEXES[index];")
   || !js.includes("roomIntroTimer = roomIntroDuration(0);\n    startOpeningGuide();\n    clearTransientTrainingResults();")
-  || !js.includes("openingGuideTimer = 0;\n    roomIntroTimer = roomIntroDuration(index);\n    routeCueTimer = 0;")
+  || !js.includes("openingGuideActive = false;\n    roomIntroTimer = roomIntroDuration(index);\n    routeCueTimer = 0;")
   || !js.includes('function openingActStatus(prefix = "游戏开始")')
   || !js.includes('setGameStatus(openingActStatus("游戏重开"));')
   || !js.includes("CHAPTER_START_ROOMS[0] === roomIndex")
@@ -922,7 +922,7 @@ if (!js.includes("if (!airborne) {") || !js.includes('ctx.fillStyle = "rgba(23,4
 if (!js.includes("const ROOM_INTRO_TIME = 1.2") || !js.includes("const introAlpha = Math.min(1, t * 2.4)") || !js.includes('ctx.fillStyle = "rgba(224, 234, 225, 0.72)"') || !js.includes('ctx.fillStyle = "rgba(50, 75, 80, 0.76)"') || !js.includes('const width = introCompact ? 250 : 218') || js.includes('ctx.fillStyle = "rgba(12, 12, 13, 0.58)"')) errors.push("room entry feedback should remain a brief compact mist-light chapter card with a stable readable hold rather than a large dark or prematurely fading banner");
 if (!indexHtml.includes('id="openingGuide" hidden')
   || !browserSmoke.includes("first-time players should be able to read the guide before starting the run clock")
-  || !browserSmoke.includes("moving removes the opening guide and canvas description")
+  || !browserSmoke.includes("retry keeps the first landing lesson")
   || !browserSmoke.includes("first gamepad action updates the guide")) {
   errors.push("the first-room guide must stay readable before movement and follow actual input");
 }
@@ -952,7 +952,7 @@ if (!js.includes("function drawObstacleArchitecture(time)")
   || !js.includes("function drawPhaseRails(time)")
   || !js.includes('crumbleTileSprite(variant, row[gx - 1] === "C", row[gx + 1] === "C")')
   || !js.includes("const visualGroups = {")
-  || !js.includes("return { tiles, entities, visualGroups, exits: roomExitLandingsData(rows), cols, worldWidth: world.width, dynamicTime: 0 };")
+  || !js.includes("return { tiles, entities, visualGroups, lightStep, exits: roomExitLandingsData(rows), cols, worldWidth: world.width, dynamicTime: 0 };")
   || !js.includes("drawHazardFields(time);\n    drawObstacleArchitecture(time);\n    drawTiles();")
   || !js.includes("function drawWaypointCamp(waypoint, time, active)")) {
   errors.push("late-room mechanisms should compose repeated tiles into coherent gates, phase rails and crumble bridges, with a readable midpoint camp");

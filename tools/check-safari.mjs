@@ -68,7 +68,12 @@ try {
   ({ driver, service } = await createSafariSession());
   const url = `http://127.0.0.1:${port}/`;
   await driver.wait(async () => { try { return (await fetch(url)).ok; } catch { return false; } }, 10000);
-  await driver.manage().window().setRect({ width: 1280, height: 800 });
+  // Do not put part of the window outside the hosted Mac's display: Safari may
+  // move or resize it on the very next native pointer event.
+  const screenSize = await driver.executeScript('return { width: screen.availWidth, height: screen.availHeight, x: screen.availLeft || 0, y: screen.availTop || 0 }');
+  const desktopWindow = { x: screenSize.x, y: screenSize.y, width: Math.min(1280, screenSize.width), height: Math.min(800, screenSize.height) };
+  const readViewport = () => driver.executeScript('return [innerWidth, innerHeight]');
+  await driver.manage().window().setRect(desktopWindow);
   await driver.get(url);
   const ready = () => driver.executeScript('return document.documentElement.classList.contains("app-ready")');
   await driver.wait(ready, 10000);
@@ -153,6 +158,12 @@ try {
   assert.equal(await resumePlay.getText(), "继续攀登");
   await resumePlay.click();
   await driver.wait(() => driver.executeScript('return settingsPanel.classList.contains("hidden")'), 5000);
+  const initialDesktop = await readViewport();
+  async function restoreDesktopWindow() {
+    await driver.manage().window().setRect(desktopWindow);
+    await driver.wait(async () => (await readViewport()).every((size, i) => Math.abs(size - initialDesktop[i]) <= 1),
+      8000, "Wait for the game to regain its measured desktop viewport");
+  }
   await driver.manage().window().setRect({ width: 390, height: 820 });
   for (const code of ["F3", "Digit0"]) {
     await keyEvent(code, "keydown");
@@ -188,7 +199,9 @@ try {
           window.menuPointerEvents.push({ type, trusted: event.isTrusted, matched: expected.contains(event.target),
             expected: describe(expected), target: describe(event.target), hit: describe(document.elementFromPoint(event.clientX, event.clientY)),
             x: event.clientX, y: event.clientY, rect: { x, y, width, height }, focus: describe(document.activeElement),
-            panel: document.getElementById("settingsPanel").className });
+            panel: document.getElementById("settingsPanel").className, stage: document.querySelector(".stage").className,
+            viewport: [innerWidth, innerHeight, scrollX, scrollY, visualViewport.offsetLeft, visualViewport.offsetTop],
+            visible: getComputedStyle(expected).visibility, pointerEvents: getComputedStyle(expected).pointerEvents });
         }, { capture: true, once: true });
       }
     }, button);
@@ -212,7 +225,7 @@ try {
   assert.ok(recommendationFits, "The summit card must contain the advice and clear the progress row");
   await clickMenuTarget(adviceButton);
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden") && /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
-  await driver.manage().window().setRect({ width: 1280, height: 800 });
+  await restoreDesktopWindow();
   await driver.executeScript('localStorage.setItem("summit-spark-room-focus", JSON.stringify({schemaVersion:1,rooms:[{faults:4,fall:4,drills:1,cleanWins:0}]}))');
   await driver.executeScript('sessionStorage.removeItem("summit-spark-entry-mode")');
   const previousPage = await driver.findElement(By.css("html"));
@@ -341,7 +354,7 @@ try {
   assert.ok(target.startsWith("目标：") && (await launch.getAttribute("title")).startsWith(target));
   await driver.findElement(By.id("settingsClose")).click();
   await driver.wait(until.elementIsNotVisible(panel), 5000);
-  await driver.manage().window().setRect({ width: 1280, height: 800 });
+  await restoreDesktopWindow();
   await clickMenuTarget(resume);
   await driver.wait(() => driver.executeScript('return /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   const recoveryErrors = await checkStorageRecovery(

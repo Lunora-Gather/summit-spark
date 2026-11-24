@@ -1983,7 +1983,7 @@
     };
     const crossing = ROOM_LIGHT_STEPS[index];
     const lightStep = crossing ? {
-      x: crossing.x * TILE, y: crossing.y * TILE, w: crossing.width * TILE, landed: false,
+      x: crossing.x * TILE, y: crossing.y * TILE, w: crossing.width * TILE, landed: false, litAt: 0,
       ring: entities.relays.find(relay => relay.x === (crossing.ringX + 0.5) * TILE && relay.y === (crossing.ringY + 0.5) * TILE)
     } : null;
     return { tiles, entities, visualGroups, lightStep, exits: roomExitLandingsData(rows), cols, worldWidth: world.width, dynamicTime: 0 };
@@ -3210,6 +3210,7 @@
         markRoomTech("relay");
         showMechanicFirstTouchCue("relay");
         if (chain >= 3) markRoomTech("relayChain");
+        if (!relay.awakened && room.lightStep?.ring === relay) room.lightStep.litAt = room.dynamicTime;
         relay.awakened = true;
         relay.ready = false;
         relay.timer = RELAY_RESET_TIME;
@@ -11673,21 +11674,31 @@
         ctx.lineTo(end, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
       }
     } else {
-      ctx.fillStyle = "#476e70";
+      const chapter = chapterIndexForRoom(roomIndex);
+      const stone = chapter === 1 ? "#736b61" : chapter === 3 ? "#63647e" : "#496b69";
+      ctx.fillStyle = stone;
       ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(w, 0); ctx.lineTo(w - 5, 5);
       ctx.quadraticCurveTo(w * 0.52, 13, 5, 5); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = "#e3fff1";
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(1, 0); ctx.lineTo(w - 1, 0); ctx.stroke();
-      ctx.strokeStyle = "#9fcec0"; ctx.lineWidth = 1;
+      ctx.strokeStyle = chapter === 1 ? "#c4ac85" : "#a0c7bc";
+      ctx.lineWidth = 1;
       for (let seam = 15; seam < w - 6; seam += 24) {
-        ctx.beginPath(); ctx.moveTo(seam, 2); ctx.lineTo(seam - 4, 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(seam + 3, 2); ctx.lineTo(seam, 4);
+        ctx.lineTo(seam - 5, 4); ctx.lineTo(seam - 7, 7); ctx.stroke();
       }
-      if (ring.pulse > 0 && !prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance) {
-        ctx.globalAlpha = Math.min(0.54, ring.pulse * 2);
+      // Collision starts as soon as the rim appears; the inlay follows one beat later.
+      const age = room.dynamicTime - step.litAt;
+      if (age < 0.38 && !prefersReducedMotion && !settings.calmEffects && !settings.lowPerformance) {
+        const progress = Math.min(1, age / 0.28);
+        ctx.globalAlpha = Math.min(0.72, (0.38 - age) * 4);
         ctx.strokeStyle = "#b7ffed";
         ctx.beginPath(); ctx.moveTo(ring.x - x, ring.y - y);
-        ctx.quadraticCurveTo((ring.x - x) / 2, -9, 0, 0); ctx.lineTo(w, 0); ctx.stroke();
+        ctx.quadraticCurveTo((ring.x - x) / 2, -9, 0, 0);
+        ctx.lineTo(w * progress, 0); ctx.stroke();
+        ctx.fillStyle = "#ffedbd";
+        ctx.fillRect(w * progress - 2, 0, 4, 2);
       }
     }
     ctx.restore();

@@ -123,7 +123,6 @@ async function createSafariSession(deviceUDID) {
 
 async function launchSafari(fixture, deviceUDID) {
   const { driver, service } = await createSafariSession(deviceUDID);
-  let initSequence = 0;
   const finger = new Pointer("smoke-finger", Pointer.Type.TOUCH);
   return {
     async evaluate(expression) {
@@ -136,7 +135,7 @@ async function launchSafari(fixture, deviceUDID) {
     navigate(url) { return driver.get(url); },
     reload() { return driver.navigate().refresh(); },
     addInitScript({source}) {
-      const id = ++initSequence;
+      const id = Symbol();
       fixture.scripts.set(id, source);
       return id;
     },

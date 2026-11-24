@@ -280,7 +280,7 @@ const requirementTiles = {
   phase: "E",
   drift: "K"
 };
-const allowedRequirements = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "phase", "drift"]);
+const allowedRequirements = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "relayLanding", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "phase", "drift"]);
 expertRequirements.forEach((requirements, roomIndex) => {
   if (!Array.isArray(requirements)) {
     errors.push("expert requirements for room " + (roomIndex + 1) + " must be an array");
@@ -316,6 +316,9 @@ styleTrials.forEach((trial, roomIndex) => {
   if (!(Number(trial.timeScale) > 1)) errors.push("room " + (roomIndex + 1) + " style timeScale should exceed 1");
   const tech = Array.isArray(trial.tech) ? trial.tech : [];
   if (!Array.isArray(trial.tech)) errors.push("room " + (roomIndex + 1) + " style tech must be an array");
+  if (tech.includes("relayLanding") && (maps[roomIndex].join("").match(/A/g) || []).length < 2) {
+    errors.push("room " + (roomIndex + 1) + " needs distinct relays for its landing trial");
+  }
   for (const requirement of tech) {
     if (!allowedRequirements.has(requirement)) {
       errors.push("room " + (roomIndex + 1) + " has unknown style requirement " + requirement);

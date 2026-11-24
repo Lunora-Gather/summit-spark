@@ -15,7 +15,7 @@ const landmarks = [
   [[0,6,schist], [13,9,schist], [23,11,root]],
   [[0,9,arch], [19,3,arch], [21,7,corbel], [3,13,arch], [30,9,arch], [39,13,corbel]],
   [[0,8,strata], [7,10,strata], [16,5,strata], [20,13,corbel], [34,11,strata], [39,7,corbel]],
-  [[0,9,corbel], [10,9,corbel], [19,3,arch], [21,7,corbel], [35,6,arch], [36,11,corbel]],
+  [[0,9,strata], [10,9,corbel], [19,3,strata,"broken-deck"], [35,6,arch], [36,11,corbel]],
   [[0,11,basalt], [9,4,basalt], [17,12,schist], [22,7,basalt], [32,5,basalt], [41,12,schist]],
   [[0,10,schist], [14,4,basalt], [14,11,basalt], [22,13,schist], [36,4,basalt], [38,13,basalt]],
   [[0,8,cornice], [9,10,schist], [20,7,cornice], [33,11,schist], [39,2,cornice]],
@@ -32,7 +32,7 @@ const abutments = [
   [[1,6,crag,16,7.0], [16,9,wooded,16.5,4.7], [27,6,crag,15,-5.5]],
   [[1,9,masonry,16.3,3.4], [14,4,bluff,12.8,5.7], [24,3,masonry,10.2,-3.9], [7,13,bluff,17.5,4.7], [33,9,masonry,15.5,3.7], [42,6,bluff,15,-6.0]],
   [[1,8,bluff,16.6,5.6], [10,10,bluff,16.2,4.6], [21,5,bluff,14,-6.2], [34,6,masonry,12.5,3.5], [42,9,bluff,16.4,-4.7]],
-  [[2,9,masonry,16.5,3.5], [13,9,masonry,16,3.8], [23,3,masonry,8.8,-3.2], [24,7,bluff,16,-7.1], [37,6,masonry,12.7,3.4], [41,2,bluff,12.8,-6.0]],
+  [[1,9,bluff,16.1,4.5], [15,9,masonry,14.5,-2.7], [25,3,bluff,8.5,3.9], [22,7,bluff,12.8,-3.0], [37,6,masonry,12.7,3.4], [41,2,bluff,12.8,-6.0]],
   [[2,11,crag,17,4.6], [10,4,columns,13.8,5.5], [24,7,columns,16,-5.8], [34,5,crag,15.3,5.9], [42,12,columns,17,-3.8]],
   [[3,10,crag,16.8,5.2], [16,4,columns,11.8,4.2], [24,7,crag,15,-5.6], [34,11,columns,17,4.5], [38,4,columns,12.5,-4.8]],
   [[2,8,snow,16.2,5.4], [13,10,granite,16.7,5.1], [23,2,snow,11,-5.8], [34,11,granite,17,4.8], [41,6,snow,15.6,-7.0]],
@@ -119,6 +119,15 @@ export function applyTerrainLight(g, width, tile, index, face) {
   light.addColorStop(tile / (tile + 5), face?.bottom === false ? bed : rock + "4e");
   g.save();
   g.globalCompositeOperation = "source-atop";
+  if (index === 5 && face?.frame === strata) {
+    // The bluff and its exposed beds share the rose-grey sandstone of the pass.
+    const bedding = g.createLinearGradient(0, 0, 0, tile);
+    bedding.addColorStop(0, "#ac8b7428");
+    bedding.addColorStop(.18, "#ac8b745e");
+    bedding.addColorStop(1, "#7e627d85");
+    g.fillStyle = bedding;
+    g.fillRect(0, 0, width, tile + 10);
+  }
   g.fillStyle = light;
   g.fillRect(0, -6, width, tile + 18);
   g.restore();
@@ -142,9 +151,12 @@ export function rockRuns(rows, roomIndex) {
       runs.push({ x: start, y, length: x - start, floor: y === rows.length - 1, top, bottom, left, right, bankLeft, bankRight });
     }
   });
-  for (const [x, y, frame] of landmarks[roomIndex] || []) {
+  for (const [x, y, frame, profile] of landmarks[roomIndex] || []) {
     const run = runs.find(run => run.x === x && run.y === y && run.top && run.bottom && run.left && run.right);
-    if (run) run.frame = frame;
+    if (run) {
+      run.frame = frame;
+      if (profile) run.profile = profile;
+    }
   }
   return runs;
 }
@@ -196,6 +208,8 @@ export function paintMapMechanic(g, symbol, x, y, exposed = true) {
   g.fillStyle = g.strokeStyle;
   g.beginPath();
   switch (symbol) {
+    case "G":
+      g.moveTo(-7,-2); g.lineTo(7,-2); g.lineTo(4,2); g.lineTo(-4,2); g.closePath(); break;
     case "C":
     case "D":
     case "E":
@@ -206,9 +220,7 @@ export function paintMapMechanic(g, symbol, x, y, exposed = true) {
       }
       g.lineWidth = 1.8;
       g.strokeStyle = symbol === "D" ? "#674c38" : "#354f63";
-      if (symbol === "G") {
-    g.beginPath(); g.moveTo(-7, -2); g.lineTo(7, -2); g.lineTo(4, 2); g.lineTo(-4, 2); g.closePath(); g.stroke();
-  } else if (symbol === "C") {
+      if (symbol === "C") {
         g.moveTo(-8,0); g.lineTo(-3,2); g.lineTo(1,-2); g.lineTo(8,0);
       } else if (symbol === "D") {
         g.moveTo(-4,-4); g.lineTo(0,0); g.lineTo(-4,4);
@@ -324,6 +336,22 @@ function paintBridge(g, width, seed) {
 export function paintLandmarkLedge(g, run, tile, sheet) {
   const width = run.length * tile;
   const cellW = sheet.naturalWidth / 2, cellH = sheet.naturalHeight / 4;
+  if (run.profile === "broken-deck") {
+    // Erosion exposed a cantilever at the left. The old paving still leads to the rock shoulder on the right.
+    g.save();
+    g.beginPath();
+    g.moveTo(0,0); g.lineTo(width,0); g.lineTo(width,32);
+    g.lineTo(width*.90,40); g.lineTo(width*.69,36); g.lineTo(width*.63,26);
+    g.lineTo(width*.53,24); g.lineTo(width*.49,17); g.lineTo(width*.30,17);
+    g.lineTo(width*.26,11); g.lineTo(width*.07,12); g.lineTo(0,6);
+    g.closePath(); g.clip();
+    g.drawImage(sheet, 0, cellH * 2, cellW, cellH, 0, 0, width, 42);
+    g.restore();
+    // Only the segment borne by the bluff retains its dressed capstones.
+    g.drawImage(sheet, cellW * 1.14, cellH, cellW * .80, cellH * .15, width * .61, 0, width * .39, 6);
+    polygon(g, "#d6baa0", [0,0, width*.61,0, width*.60,1.4, width*.35,.9, width*.08,1.9]);
+    return;
+  }
   // Reuse a full span, a broken end or a single shoulder. Wide decks keep their long arch.
   const section = (run.x + 2 * run.y) % 3;
   const crop = run.length >= 7 || section === 0 ? 1 : section === 1 ? .77 : .61;

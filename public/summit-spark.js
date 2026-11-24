@@ -204,21 +204,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261124-p327"),
-    import("./modules/core/math.mjs?v=20261124-p327"),
-    import("./modules/game/room-data.mjs?v=20261124-p327"),
-    import("./modules/game/world-model.mjs?v=20261124-p327"),
-    import("./modules/game/terrain-art.mjs?v=20261124-p327"),
-    import("./modules/game/effect-budget.mjs?v=20261124-p327"),
-    import("./modules/game/landmark-progress.mjs?v=20261124-p327"),
-    import("./modules/game/audio-cues.mjs?v=20261124-p327"),
-    import("./modules/game/lumen-progress.mjs?v=20261124-p327"),
-    import("./modules/systems/storage.mjs?v=20261124-p327"),
-    import("./modules/systems/cloud-save.mjs?v=20261124-p327"),
-    import("./modules/systems/input.mjs?v=20261124-p327"),
-    import("./modules/training/state.mjs?v=20261124-p327"),
-    import("./modules/training/replay.mjs?v=20261124-p327"),
-    import("./modules/ui/presentation.mjs?v=20261124-p327")
+    import("./modules/core/format.mjs?v=20261125-p328"),
+    import("./modules/core/math.mjs?v=20261125-p328"),
+    import("./modules/game/room-data.mjs?v=20261125-p328"),
+    import("./modules/game/world-model.mjs?v=20261125-p328"),
+    import("./modules/game/terrain-art.mjs?v=20261125-p328"),
+    import("./modules/game/effect-budget.mjs?v=20261125-p328"),
+    import("./modules/game/landmark-progress.mjs?v=20261125-p328"),
+    import("./modules/game/audio-cues.mjs?v=20261125-p328"),
+    import("./modules/game/lumen-progress.mjs?v=20261125-p328"),
+    import("./modules/systems/storage.mjs?v=20261125-p328"),
+    import("./modules/systems/cloud-save.mjs?v=20261125-p328"),
+    import("./modules/systems/input.mjs?v=20261125-p328"),
+    import("./modules/training/state.mjs?v=20261125-p328"),
+    import("./modules/training/replay.mjs?v=20261125-p328"),
+    import("./modules/ui/presentation.mjs?v=20261125-p328")
   ]);
 
   const canvas = document.getElementById("game");
@@ -768,7 +768,6 @@
   let summitChapterResult = null;
   let lastTime = performance.now();
   let physicsAccumulator = 0;
-  let pendingClockDt = 0;
   let deathCount = 0;
   let deathReasons = createDeathReasons();
   let roomMistakes = createRoomCounters();
@@ -817,6 +816,7 @@
   let splitPopupTimer = 0;
   let splitPopupText = "";
   let splitPopupAhead = true;
+  let entryBestGain = 0;
   let feelCueTimer = 0;
   let feelCueMax = FEEL_CUE_TIME;
   let feelCueText = "";
@@ -887,7 +887,7 @@
   let echoLessonShown = false;
   let roomIntroTimer = ROOM_INTRO_TIME;
   let openingGuideActive = false;
-  let chapterTransitionTimer = 0;
+  let chapterTransitionTicks = 0;
   let chapterTransitionChapter = 0;
   let chapterTransitionFromChapter = -1;
   let chapterTransitionFromResult = null;
@@ -1074,9 +1074,8 @@
   });
 
   window.addEventListener("keyup", (event) => {
-    if (isSettingsInputTarget(event.target)) return;
-    releaseInput(keys, event.code);
-    if (isActionCode(event.code, "jump")) cutJump();
+    const released = releaseInput(keys, event.code);
+    if (released && isActionCode(event.code, "jump")) cutJump();
   });
 
   if (["127.0.0.1", "localhost"].includes(window.location.hostname)) {
@@ -1273,7 +1272,8 @@
 
   function releaseAllInputs() {
     releaseInputState({
-      heldSets: [keys, gamepadHeld],
+      // The next device poll must still recognize a button held across a panel or focus change.
+      heldSets: [keys],
       pressedSets: [pressed, touchPressed, gamepadPressed],
       digitalStates: [touch, gamepadInput]
     });
@@ -1316,7 +1316,6 @@
     focusPaused = true;
     releaseAllInputs();
     physicsAccumulator = 0;
-    pendingClockDt = 0;
     lastTime = performance.now();
     setGameStatus("画面暂时失去绘制上下文 · 正在恢复");
   });
@@ -1346,7 +1345,7 @@
   const canvasLayoutObserver = new ResizeObserver(() => configureCanvasBuffer());
   canvasLayoutObserver.observe(canvas);
   startButton.addEventListener("click", begin);
-  guestEntryButton?.addEventListener("click", () => resolveEntryMode("guest"));
+  guestEntryButton?.addEventListener("click", startGuestClimb);
   window.addEventListener("keydown", () => {
     entryGate?.classList.remove("entry-initial-focus");
   }, { capture: true, once: true });
@@ -2146,12 +2145,11 @@
     const hidden = !started || won || roomIndex !== 0 || !openingGuideActive
       || settingsVisible || gameTipVisible();
     const source = hidden ? "" : gameplayInputSource();
-    const show = Boolean(source) && (source !== "touch" || !portraitGuideSpace.matches);
-    if (openingGuide.hidden === show) {
-      openingGuide.hidden = !show;
-      if (show) canvas.setAttribute("aria-describedby", openingGuide.id);
-      else canvas.removeAttribute("aria-describedby");
-    }
+    const useRoomBrief = source === "touch" && portraitViewport.matches;
+    const show = Boolean(source) && !useRoomBrief;
+    if (openingGuide.hidden === show) openingGuide.hidden = !show;
+    if (source) setElementAttribute(canvas, "aria-describedby", useRoomBrief ? portraitRoomGoal.id : openingGuide.id);
+    else if (canvas.hasAttribute("aria-describedby")) canvas.removeAttribute("aria-describedby");
     if (!show) return;
 
     const bindings = effectiveBindings();
@@ -2169,6 +2167,10 @@
       setGameStatus("画面正在恢复 · 请稍候");
       return;
     }
+    // The confirmation button can share a binding with jump or dash.
+    clearInputEdges(pressed, touchPressed, gamepadPressed);
+    clearInputBuffers(player);
+    resetActionPulses();
     started = true;
     focusPaused = false;
     roomIntroTimer = roomIntroDuration(0);
@@ -2264,23 +2266,24 @@
     startRoomDrill(target, mode);
   }
 
-  function openStartTrainingPanel() {
+  function openStartTrainingPanel(event) {
     accountFocused = false;
-    openPanel("practice");
+    openPanel("practice", event?.currentTarget);
   }
 
-  function openSettingsPanel() {
+  function openSettingsPanel(event) {
     accountFocused = false;
     document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
       group.open = false;
       syncSettingsGroupDisclosure(group);
     });
-    openPanel("settings");
+    openPanel("settings", event?.currentTarget);
   }
 
   function openAccountPanel(event) {
     accountFocused = true;
-    openPanel("settings");
+    const trigger = event?.currentTarget;
+    openPanel("settings", trigger instanceof HTMLButtonElement ? trigger : document.activeElement);
     if (!accountSdk) loadAppwriteSdk();
     if (accountGroup) {
       document.querySelectorAll(".settings-group.settings-only").forEach((group) => {
@@ -2309,13 +2312,13 @@
     }
   }
 
-  function openPanel(mode = "settings") {
+  function openPanel(mode = "settings", trigger = document.activeElement) {
     if (!settingsVisible
-      && document.activeElement instanceof HTMLElement
-      && document.activeElement !== document.body
-      && document.activeElement !== document.documentElement
-      && !settingsPanel?.contains(document.activeElement)) {
-      panelReturnFocus = document.activeElement;
+      && trigger instanceof HTMLElement
+      && trigger !== document.body
+      && trigger !== document.documentElement
+      && !settingsPanel?.contains(trigger)) {
+      panelReturnFocus = trigger;
     } else if (!settingsVisible) {
       panelReturnFocus = null;
     }
@@ -2402,7 +2405,7 @@
     clearMasteryPopup();
     runTime = 0;
     roomTime = 0;
-    chapterTransitionTimer = 0;
+    chapterTransitionTicks = 0;
     chapterTransitionFromChapter = -1;
     chapterTransitionFromResult = null;
     clearAmbientVoices();
@@ -2425,8 +2428,8 @@
     recentPath.length = 0;
     clearRoomPath();
     pathSampleTimer = 0;
-    relayChain = 0;
-    relayChainTimer = 0;
+    resetRelayChain();
+    bestRelayChain = 0;
     clearSplitPopup();
     resetFlow();
     echoAnchor = null;
@@ -2475,7 +2478,7 @@
     clearMasteryPopup();
     runTime = 0;
     roomTime = 0;
-    chapterTransitionTimer = 0;
+    chapterTransitionTicks = 0;
     chapterTransitionFromChapter = -1;
     chapterTransitionFromResult = null;
     clearAmbientVoices();
@@ -2495,8 +2498,8 @@
     recentPath.length = 0;
     clearRoomPath();
     pathSampleTimer = 0;
-    relayChain = 0;
-    relayChainTimer = 0;
+    resetRelayChain();
+    bestRelayChain = 0;
     clearSplitPopup();
     resetFlow();
     echoAnchor = null;
@@ -2544,7 +2547,6 @@
   function resetFrameClock() {
     lastTime = performance.now();
     physicsAccumulator = 0;
-    pendingClockDt = 0;
   }
 
   function runtimeCriticalStateFinite() {
@@ -2633,6 +2635,25 @@
     if (canvasContextLost) return;
     const elapsed = Math.max(0, (now - lastTime) / 1000);
     lastTime = now;
+    if (elapsed > 0 && elapsed < 1) fps = fps * 0.9 + (1 / elapsed) * 0.1;
+    const menuFrame = !started;
+    let inputEdgesConsumed = menuFrame;
+    if (menuFrame) {
+      updateGamepad();
+      if (canStartFromMenu() && (gamepadPressed.has("jump") || gamepadPressed.has("dash"))) {
+        begin();
+      } else if (!settingsVisible && gamepadPressed.has("jump") && entryGate && !entryGate.classList.contains("hidden")) {
+        startGuestClimb();
+      }
+      if (!started) {
+        // The illustrated menu only needs input, transient notices and its cached fallback.
+        updateGameTip(Math.min(elapsed, MAX_PHYSICS_FRAME));
+        render(0);
+        clearInputEdges(pressed, touchPressed, gamepadPressed);
+        scheduleFrame();
+        return;
+      }
+    }
     const fixedFrame = fixedStepFrameData({
       elapsed,
       accumulator: physicsAccumulator,
@@ -2641,7 +2662,6 @@
       maxSteps: MAX_PHYSICS_STEPS
     });
     physicsAccumulator = fixedFrame.remainder;
-    if (elapsed > 0 && elapsed < 1) fps = fps * 0.9 + (1 / elapsed) * 0.1;
     // Guard the frame boundary as well as the physics step. This keeps a
     // damaged transient collection from reaching pause/HUD/render branches
     // that intentionally run outside update().
@@ -2651,49 +2671,31 @@
       scheduleFrame();
       return;
     }
-    let paused = isGamePaused();
-    let inputEdgesConsumed = false;
-    if (paused) {
-      updateGamepad();
-      inputEdgesConsumed = true;
-      paused = isGamePaused();
-    }
+    // A display frame owns one physical sample, even if it advances multiple physics steps.
+    if (!menuFrame) updateGamepad();
+    const paused = isGamePaused();
+    if (paused || won) inputEdgesConsumed = true;
     updateGlobalEffects(paused ? 0 : fixedFrame.frameDt);
     updateAmbientMusic(paused);
-    if (!started || won) {
-      updateGamepad();
-      inputEdgesConsumed = true;
-      if (canStartFromMenu() && (gamepadPressed.has("jump") || gamepadPressed.has("dash"))) {
-        begin();
-      } else if (!started && !settingsVisible && gamepadPressed.has("jump")
-        && entryGate && !entryGate.classList.contains("hidden")) {
-        resolveEntryMode("guest");
-      }
-    }
 
     if (started && !won && !paused) {
-      if (chapterTransitionTimer > 0) {
-        pendingClockDt = 0;
-        physicsAccumulator = 0;
-        updateBuffers(fixedFrame.frameDt);
-        inputEdgesConsumed = true;
-        updateParticles(fixedFrame.frameDt * 0.22);
-        updateHair(fixedFrame.frameDt);
-      } else {
-        pendingClockDt += fixedFrame.elapsed;
-        for (let stepIndex = 0; stepIndex < fixedFrame.steps; stepIndex += 1) {
-          const clockDt = stepIndex === 0 ? pendingClockDt : 0;
-          update(assistActive() ? fixedFrame.step * ASSIST_SPEED : fixedFrame.step, clockDt);
-          if (stepIndex === 0) {
-            pendingClockDt = 0;
-            clearInputEdges(pressed, touchPressed, gamepadPressed);
-            inputEdgesConsumed = true;
-          }
+      for (let stepIndex = 0; stepIndex < fixedFrame.steps; stepIndex += 1) {
+        if (chapterTransitionTicks > 0) {
+          chapterTransitionTicks -= 1;
+          updateBuffers(fixedFrame.step);
+          updateParticles(fixedFrame.step * 0.22);
+          updateHair(fixedFrame.step);
+        } else {
+          update(assistActive() ? fixedFrame.step * ASSIST_SPEED : fixedFrame.step, fixedFrame.stepClockDt);
         }
+        if (stepIndex === 0) {
+          clearInputEdges(pressed, touchPressed, gamepadPressed);
+          inputEdgesConsumed = true;
+        }
+        if (won) break;
       }
       updateHud();
     } else {
-      pendingClockDt = 0;
       physicsAccumulator = 0;
       updateParticles(paused ? fixedFrame.frameDt * 0.25 : fixedFrame.frameDt);
       updateGhosts(paused ? 0 : fixedFrame.frameDt);
@@ -2731,7 +2733,6 @@
       if (canvasContextLost) {
         releaseAllInputs();
         physicsAccumulator = 0;
-        pendingClockDt = 0;
         lastTime = performance.now();
         return;
       }
@@ -2744,7 +2745,6 @@
       console.error("[summit-spark] frame recovered", error);
       releaseAllInputs();
       physicsAccumulator = 0;
-      pendingClockDt = 0;
       lastTime = timestamp;
       let stateRecovered = false;
       try {
@@ -2773,6 +2773,10 @@
     updateActionVisuals(dt);
 
     if (hitStopTimer > 0) {
+      // Device edges last one physics step. Keep a tapped move until the freeze lifts,
+      // just as the keyboard and touch handlers do when the input reaches them.
+      if (gamepadPressed.has("jump")) setInputBuffer(player, "jump", JUMP_BUFFER_TIME);
+      if (gamepadPressed.has("dash")) setInputBuffer(player, "dash", DASH_BUFFER_TIME);
       hitStopTimer = Math.max(0, hitStopTimer - dt);
       updateParticles(dt * 0.3);
       updateGhosts(dt);
@@ -2880,6 +2884,11 @@
       respawnRecoveryTimer = Math.max(respawnRecoveryTimer, 0.12);
       setGameStatus("落点已校正 · 继续前进");
     }
+    if (roomIndex === 1 && !player.wasGrounded && player.onGround) {
+      for (const relay of room.entities.relays) {
+        if (relay.awakened) relay.followedByLanding = true;
+      }
+    }
     if (!player.wasGrounded && player.onGround && fallSpeed > 420) {
       triggerActionVisual("land", 0.18);
       playSound("land", 1);
@@ -2901,7 +2910,6 @@
   }
 
   function updateBuffers(dt) {
-    updateGamepad();
     tickInputBuffers(player, dt);
 
     if (justPressedAny(actionCodes("jump")) || touchPressed.has("jump") || gamepadPressed.has("jump")) {
@@ -3208,6 +3216,9 @@
       if (relay.ready && charged && distRectPoint(box, relay.x, relay.y) < 26) {
         const chain = scoreRelayChain(relay);
         markRoomTech("relay");
+        if (roomIndex === 1 && room.entities.relays.some(other => other !== relay && other.followedByLanding)) {
+          markRoomTech("relayLanding");
+        }
         showMechanicFirstTouchCue("relay");
         if (chain >= 3) markRoomTech("relayChain");
         if (!relay.awakened && room.lightStep?.ring === relay) room.lightStep.litAt = room.dynamicTime;
@@ -3502,12 +3513,11 @@
       total: totalLumens,
       completeWhisper: CHAPTER_EXPERIENCE.at(-1)?.resolve
     });
-    const lumenStatus = escapeHtml(`微光 ${lumens.label}`);
     const review = summitReviewCardsHtml();
     const finishStatus = recordNote
       ? recordNote.replace(/^ · /, "")
       : isBest ? "新的山径纪录" : "完整路线";
-    overlay.innerHTML = `<section class="finish-sheet"><div class="finish-top"><header class="finish-hero"><span class="finish-eyebrow">山巅微光 · 旅程完成</span><h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p></header><div class="finish-summary"><div class="finish-stats" aria-label="本轮概览"><span><em>用时</em><strong>${formatTime(runTime)}</strong></span><span><em>失误</em><strong>${deathCount}</strong></span><span><em>微光</em><strong>${escapeHtml(lumens.label)}</strong></span><span><em>Flow</em><strong>${Math.floor(flowPeak)}</strong></span></div><p class="finish-line">${escapeHtml(finishStatus)} · ${lumenStatus}${lumens.rewardLabel ? ` · ${escapeHtml(lumens.rewardLabel)}` : ""} · 光继连锁 ${bestRelayChain}</p>${review.lead}</div></div>${review.details}<button class="primary" id="restartButton" type="button">再来一次</button></section>`;
+    overlay.innerHTML = `<section class="finish-sheet"><div class="finish-top"><header class="finish-hero"><span class="finish-eyebrow">山巅微光 · 旅程完成</span><h1 class="finish-title" id="finishTitle" tabindex="-1">登顶</h1><p class="finish-whisper">${escapeHtml(lumens.whisper)}</p></header><div class="finish-summary"><div class="finish-stats" aria-label="本轮概览"><span><em>用时</em><strong>${formatTime(runTime)}</strong></span><span><em>失误</em><strong>${deathCount}</strong></span><span><em>微光</em><strong>${escapeHtml(lumens.label)}</strong></span><span><em>最长连锁</em><strong>${bestRelayChain} 环</strong></span></div><p class="finish-line">${escapeHtml(finishStatus)}${lumens.rewardLabel ? ` · ${escapeHtml(lumens.rewardLabel)}` : ""}</p>${review.lead}</div></div>${review.details}<button class="primary" id="restartButton" type="button">再来一次</button></section>`;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-labelledby", "finishTitle");
@@ -3710,6 +3720,7 @@
   }
 
   function clearSplitPopup() {
+    entryBestGain = 0;
     splitPopupTimer = 0;
     splitPopupText = "";
   }
@@ -3873,12 +3884,13 @@
     chapterTransitionFromResult = chapterTransitionFromChapter >= 0
       ? chapterResultForTransition(chapterTransitionFromChapter)
       : null;
-    chapterTransitionTimer = prefersReducedMotion
+    const duration = prefersReducedMotion
       ? chapterTransitionFromChapter >= 0 ? 1.2 : 0.9
       : CHAPTER_TRANSITION_TIME;
+    chapterTransitionTicks = Math.round(duration / FIXED_PHYSICS_STEP);
     clearAmbientVoices();
     ambientStep = 0;
-    ambientNextTime = (audioContext?.currentTime || 0) + chapterTransitionTimer * 0.58;
+    ambientNextTime = (audioContext?.currentTime || 0) + duration * 0.58;
     playChapterEntrySound(chapterTransitionChapter, chapterTransitionFromChapter);
   }
 
@@ -3919,6 +3931,7 @@
   }
 
   function resetCrossingEffects() {
+    clearGameTip("lumen");
     particles.length = 0;
     ghosts.length = 0;
     lightTrails.length = 0;
@@ -3929,10 +3942,12 @@
   function resolveRoomTransition() {
     if (player.x > roomWorldWidth() + 3 && roomIndex < maps.length - 1) {
       const clearedRoom = roomIndex;
+      entryBestGain = 0;
       if (roomStartedAtEntry) {
         const clearedClean = roomAttemptClean;
         const masteryBefore = roomMasteryScore(clearedRoom);
         const roomResult = recordRoomBest(clearedRoom);
+        if (roomResult?.kind === "pb") entryBestGain = -roomResult.delta;
         markRoomClear(clearedRoom);
         const drillMode = activeDrill && activeDrill.room === clearedRoom ? activeDrill.mode : "";
         const drillResult = completeDrill(clearedRoom, clearedClean);
@@ -3971,6 +3986,7 @@
     }
     if (player.x < -player.w - 3 && roomIndex > 0) {
       const returnedFromRoom = roomIndex;
+      entryBestGain = 0;
       const backtrackedDrill = activeDrill && activeDrill.room === returnedFromRoom
         ? { ...activeDrill }
         : null;
@@ -4275,6 +4291,7 @@
       wallSpark: false,
       prismSpark: false,
       relay: false,
+      relayLanding: false,
       relayChain: false,
       spring: false,
       springApex: false,
@@ -5844,7 +5861,9 @@
     if (!settingsVisible && resolved.status.activeActions.some((action) => !gamepadInput[action])) {
       lastGameplayInput = "gamepad";
     }
+    const releasedJump = gamepadInput.jump && !resolved.input.jump;
     Object.assign(gamepadInput, resolved.input);
+    if (releasedJump && resolved.status.connected) cutJump();
     lastGamepadStatus = resolved.status;
     updateGamepadStatusOutput();
     if (resolved.status.activeActions.length > 0) resumeGameplayFromInput();
@@ -6453,7 +6472,7 @@
         worldWidth: roomWorldWidth(),
         cameraX: Math.round(cameraX * 10) / 10,
         chapter: chapterIndexForRoom(roomIndex) + 1,
-        chapterTransition: chapterTransitionTimer > 0,
+        chapterTransition: chapterTransitionTicks > 0,
         summitReveal: summitRevealTimer > 0,
         deaths: deathCount,
         runtimeRecoveries: runtimeRecoveryCount,
@@ -6648,6 +6667,10 @@
       startPanel?.classList.add("entry-pending");
       return;
     }
+    if (hasTrainingProgress()) {
+      resolveEntryMode("guest");
+      return;
+    }
     entryMode = "";
     revealEntryGate();
   }
@@ -6665,6 +6688,12 @@
       if (!shouldFocus || settingsVisible || entryGate?.classList.contains("hidden")) return;
       guestEntryButton?.focus({ preventScroll: true });
     });
+  }
+
+  function startGuestClimb() {
+    if (started || settingsVisible || entryGate.classList.contains("hidden")) return;
+    resolveEntryMode("guest", false);
+    begin();
   }
 
   function resolveEntryMode(mode, focus = true) {
@@ -7735,13 +7764,12 @@
     resumeGameplayFromInput();
     setGameStatus(closingPractice ? "练习面板已关闭" : "设置已关闭");
     if (!restoreFocus) return;
-    if (returnTarget instanceof HTMLElement && returnTarget.isConnected && !returnTarget.hasAttribute("disabled")) {
+    if (returnTarget instanceof HTMLElement && returnTarget.isConnected && !returnTarget.hasAttribute("disabled") && returnTarget.getClientRects().length) {
       returnTarget.focus({ preventScroll: true });
-    } else if (!overlay.classList.contains("hidden")) {
-      focusVisibleOverlaySurface();
-    } else {
-      focusGame();
+      if (document.activeElement === returnTarget) return;
     }
+    if (!overlay.classList.contains("hidden")) focusVisibleOverlaySurface();
+    else focusGame();
   }
 
   function closeSettingsFromTouch(event) {
@@ -7883,8 +7911,24 @@
     return !runUsedAssist && !assistActive();
   }
 
+  function trainingSessionActive() {
+    return Boolean(activeDrill || activeChallenge || activeRouteContract || activeFeelFixture);
+  }
+
+  function campaignRoomIntro() {
+    return runStartedAsFullRoute && !trainingSessionActive();
+  }
+
+  function roomIntroTitle() {
+    const name = `R${roomIndex + 1} ${ROOM_NAMES[roomIndex] || "Summit"}`;
+    if (entryBestGain >= 0.005 && campaignRoomIntro() && roomIntroTimer > 0) {
+      return `${name} · 上一房快了 ${entryBestGain.toFixed(2)} 秒`;
+    }
+    return name;
+  }
+
   function syncPlayModeClass() {
-    const trainingActive = Boolean(activeDrill || activeChallenge || activeRouteContract || activeFeelFixture);
+    const trainingActive = trainingSessionActive();
     stage?.classList.toggle("run-started", started && !won);
     stage?.classList.toggle("free-play", started && !won && !trainingActive);
     stage?.classList.toggle("training-active", started && !won && trainingActive);
@@ -8303,7 +8347,8 @@
   }
 
   function cutJump() {
-    if (player.vy < -120 && player.dashTimer <= 0 && player.deadTimer <= 0) {
+    if (!jumpHeld() && started && !won && !isGamePaused()
+      && player.vy < -120 && player.dashTimer <= 0 && player.deadTimer <= 0) {
       player.vy *= JUMP_CUT_MULTIPLIER;
     }
   }
@@ -8329,8 +8374,7 @@
       if (debugVisible) updateDebug();
       return;
     }
-    const chapterBreathing = chapterTransitionTimer > 0;
-    chapterTransitionTimer = Math.max(0, chapterTransitionTimer - dt);
+    const chapterBreathing = chapterTransitionTicks > 0;
     nearMissCooldown = Math.max(0, nearMissCooldown - dt);
     recallCooldown = Math.max(0, recallCooldown - dt);
     recallPulseTimer = Math.max(0, recallPulseTimer - dt);
@@ -8857,8 +8901,10 @@
     drawRoomIntro(time);
     drawRouteFocusCue(time);
     drawFeelCue(time);
-    drawMasteryPopup(time);
-    drawSplitPopup(time);
+    if (!campaignRoomIntro()) {
+      drawMasteryPopup(time);
+      drawSplitPopup(time);
+    }
     drawFocusPopup(time);
     drawDrillHud(time);
     drawActiveChallengeHud(time);
@@ -9007,7 +9053,7 @@
       || splitPopupTimer > 0
       || masteryPopupTimer > 0
       || focusPopupTimer > 0
-      || chapterTransitionTimer > 0
+      || chapterTransitionTicks > 0
       || summitRevealTimer > 0) return;
     const t = Math.max(0, Math.min(1, feelCueTimer / feelCueMax));
     ctx.save();
@@ -9404,7 +9450,7 @@
   }
 
   function drawChapterTransition(time) {
-    if (chapterTransitionTimer <= 0 || !started || won) return;
+    if (chapterTransitionTicks <= 0 || !started || won) return;
     const chapter = CHAPTER_EXPERIENCE[chapterTransitionChapter] || CHAPTER_EXPERIENCE[0];
     const previousChapter = chapterTransitionFromChapter >= 0
       ? CHAPTER_EXPERIENCE[chapterTransitionFromChapter] || null
@@ -9412,7 +9458,7 @@
     const duration = prefersReducedMotion
       ? previousChapter ? 1.2 : 0.9
       : CHAPTER_TRANSITION_TIME;
-    const progress = 1 - chapterTransitionTimer / duration;
+    const progress = 1 - chapterTransitionTicks * FIXED_PHYSICS_STEP / duration;
     const alpha = Math.max(0, Math.min(1, progress * 10, (1 - progress) * 7));
     const atmosphere = roomAtmosphere();
     const compact = isCompactCanvas();
@@ -9539,13 +9585,15 @@
   function drawRoomIntro(time) {
     void time;
     if (roomIntroTimer <= 0) return;
-    if (chapterTransitionTimer > 0) return;
+    if (chapterTransitionTicks > 0) return;
     if (!started || (overlay && !overlay.classList.contains("hidden"))) return;
     if (gameTipVisible("death")) return;
+    const campaign = campaignRoomIntro();
+    if (campaign && isPortraitViewport()) return; // The room brief sits above the portrait playfield.
     const t = roomIntroTimer / roomIntroDuration(roomIndex);
     const introAlpha = Math.min(1, t * 2.4);
     const introTarget = ROOM_TARGETS[roomIndex] || 0;
-    const trainingActive = Boolean(activeDrill || activeChallenge || activeRouteContract || activeFeelFixture);
+    const trainingActive = trainingSessionActive();
     const introCompact = isCompactCanvas();
     const scale = introCompact ? Math.max(1, H / Math.max(1, canvas.clientHeight)) : 1;
     const width = introCompact ? 250 : 218;
@@ -9553,7 +9601,8 @@
     const x = -width / 2;
     ctx.save();
     // Keep the card below the fixed-height HUD when the canvas shrinks.
-    ctx.translate(W / 2, introCompact ? 72 * scale : 70);
+    const centerX = campaign ? (16 + width / 2) * scale : W / 2;
+    ctx.translate(centerX, introCompact ? 72 * scale : 70);
     ctx.scale(scale, scale);
     ctx.globalAlpha = introAlpha * 0.9;
     ctx.fillStyle = "rgba(224, 234, 225, 0.72)";
@@ -9569,7 +9618,7 @@
     ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(37, 59, 67, 0.96)";
     ctx.font = `700 ${introCompact ? 13 : 12}px system-ui, sans-serif`;
-    ctx.fillText(`R${roomIndex + 1} ${ROOM_NAMES[roomIndex] || "Summit"}`, 0, 13);
+    ctx.fillText(fitText(roomIntroTitle(), width - 16), 0, 13);
     ctx.fillStyle = "rgba(50, 75, 80, 0.76)";
     ctx.font = `600 ${introCompact ? 11 : 10}px system-ui, sans-serif`;
     const openingChapter = CHAPTER_START_ROOMS[0] === roomIndex
@@ -9699,6 +9748,7 @@
       foundLumens: collected.size,
       totalLumens,
       flow: flowPeak,
+      relayChain: bestRelayChain,
       assistUsed: runUsedAssist,
       chapters: chapters.map((chapter) => ({
         ...chapter,
@@ -9819,7 +9869,7 @@
       + (lastRouteContractResult ? routeContractCard : "");
     const lead = `<div class="review-grid review-grid-primary">${primaryCard}</div>`
       + `<div class="finish-progress" aria-label="长期进度"><span><em>章节掌握</em><strong>${escapeHtml(chapterText)}</strong></span><span><em>长期挑战</em><strong>${challengeSummary.wins}/${challengeSummary.total}</strong></span></div>`;
-    const details = `<div class="finish-disclosures"><details class="review-more"><summary aria-expanded="false"><span>完整复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><p class="finish-mastery">${escapeHtml(masterySummary())}</p><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-actions review-actions-secondary">${styleButton}${lossButton}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>仅含本轮时间、失误、微光与 Flow；不含身份和路线坐标，不会上传。</small></div></details>`
+    const details = `<div class="finish-disclosures"><details class="review-more"><summary aria-expanded="false"><span>完整复盘</span><span class="review-more-chevron" aria-hidden="true">›</span></summary><p class="finish-mastery">本轮 Flow 峰值 ${Math.floor(flowPeak)} · ${escapeHtml(masterySummary())}</p><div class="review-grid review-grid-extra">${extraCards}</div><div class="review-actions review-actions-secondary">${styleButton}${lossButton}</div><div class="review-run-export"><button class="review-button" type="button" data-copy-run-report>复制本轮</button><small>复制本轮分段、失误、微光、最长连锁与 Flow。</small></div></details>`
       + `<details class="review-more review-roadmap-panel"><summary aria-expanded="false"><span>训练路线</span><span class="review-more-chevron" aria-hidden="true">›</span></summary>${reviewRoadmapHtml()}</details></div>`;
     return { lead, details };
   }
@@ -11657,6 +11707,29 @@
     ctx.restore();
   }
 
+  // The broken stone collar appears on both the key ring and its two bridge seats.
+  function drawRelayCollar(lit) {
+    ctx.save();
+    ctx.fillStyle = lit ? "#547673" : "#586760";
+    ctx.strokeStyle = "#304748";
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(-18, 1); ctx.lineTo(-17, 8); ctx.lineTo(-10, 16); ctx.lineTo(-3, 18);
+    ctx.lineTo(-3, 12); ctx.lineTo(-8, 10); ctx.lineTo(-13, 4); ctx.lineTo(-14, 0); ctx.closePath();
+    ctx.moveTo(18, 1); ctx.lineTo(17, 8); ctx.lineTo(10, 16); ctx.lineTo(3, 18);
+    ctx.lineTo(3, 12); ctx.lineTo(8, 10); ctx.lineTo(13, 4); ctx.lineTo(14, 0); ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = lit ? "#dbf9dc" : "#c5c9a4";
+    ctx.lineWidth = 2.3;
+    ctx.beginPath();
+    ctx.moveTo(-15.5, 4); ctx.lineTo(-11, 11); ctx.lineTo(-5, 14);
+    ctx.moveTo(15.5, 4); ctx.lineTo(11, 11); ctx.lineTo(5, 14);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawResonantStep() {
     const step = room.lightStep;
     if (!step || step.x + step.w < cameraX || step.x > cameraX + W) return;
@@ -11664,16 +11737,22 @@
     ctx.save();
     ctx.translate(x, y);
     ctx.lineCap = "round";
-    if (!ring.awakened) {
-      // Two stone sockets hint at a missing span without drawing a walkable edge.
-      ctx.fillStyle = "#465959";
-      ctx.strokeStyle = "#b8d7ca";
-      for (const end of [2, w - 2]) {
-        ctx.beginPath();
-        ctx.moveTo(end - 3, 5); ctx.lineTo(end, 1); ctx.lineTo(end + 3, 5);
-        ctx.lineTo(end, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
-      }
-    } else {
+    const seatScale = roomIndex === 1 ? 0.61 : 0.43;
+    const inset = 18 * seatScale;
+    for (const seatX of [inset, w - inset]) {
+      ctx.save();
+      ctx.translate(seatX, 0);
+      ctx.scale(seatScale, seatScale);
+      // A tapered heel supports the inlay without closing the open lip above it.
+      ctx.fillStyle = "#52605a";
+      ctx.beginPath();
+      ctx.moveTo(-16, 4); ctx.lineTo(-8, 12); ctx.lineTo(8, 12); ctx.lineTo(16, 4);
+      ctx.lineTo(12, 15); ctx.lineTo(4, 22); ctx.lineTo(-6, 20); ctx.lineTo(-13, 14);
+      ctx.closePath(); ctx.fill();
+      drawRelayCollar(ring.awakened);
+      ctx.restore();
+    }
+    if (ring.awakened) {
       const chapter = chapterIndexForRoom(roomIndex);
       const stone = chapter === 1 ? "#736b61" : chapter === 3 ? "#63647e" : "#496b69";
       ctx.fillStyle = stone;
@@ -12003,15 +12082,7 @@
     const y = relay.y + (prefersReducedMotion ? 0 : Math.sin(relay.bob) * 2);
     ctx.save();
     ctx.translate(relay.x, y);
-    if (room.lightStep?.ring === relay) {
-      ctx.strokeStyle = relay.awakened ? "#e6fff1" : "#b1d9c8";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (const side of [-1, 1]) {
-        ctx.moveTo(side * 13, 4); ctx.lineTo(side * 17, 8); ctx.lineTo(side * 13, 12);
-      }
-      ctx.stroke();
-    }
+    if (room.lightStep?.ring === relay) drawRelayCollar(relay.awakened);
     ctx.save();
     ctx.rotate(motion * (settings.calmEffects ? 0.32 : 0.75));
     ctx.lineCap = "round";
@@ -12559,10 +12630,24 @@
       ctx.stroke();
     }
 
-    const packX = player.facing > 0 ? x + 2.4 : x + 12.4;
-    ctx.fillStyle = "#41677a";
-    roundRect(ctx, packX, y + 11.5, 5.2, 8.8, 2.6);
+    ctx.save();
+    ctx.translate(cx - 7.5 * player.facing, y + 11.5);
+    ctx.scale(player.facing, 1);
+    ctx.fillStyle = "#334f5a";
+    roundRect(ctx, -3.7, -0.8, 8, 11.4, 3.2);
     ctx.fill();
+    // Two seed-shaped lenses share the brass clasp. The second opens as the reserve fills.
+    ctx.fillStyle = player.dashes > 1 ? "#ffe09b" : "#69766e";
+    ctx.beginPath();
+    ctx.moveTo(-2.9, 4.2);
+    if (player.dashes > 1) ctx.quadraticCurveTo(-4.2, -0.5, 1.9, 0);
+    else ctx.lineTo(1.9, 2.7);
+    ctx.quadraticCurveTo(1.3, 4.8, -2.9, 4.2); ctx.fill();
+    ctx.fillStyle = player.dashes > 0 ? "#bcf3e7" : "#526670";
+    ctx.beginPath();
+    ctx.moveTo(-2.9, 5.5); ctx.quadraticCurveTo(0, 5, 2.1, 6.2);
+    ctx.quadraticCurveTo(1.8, 9, -2.3, 9.4); ctx.closePath(); ctx.fill();
+    ctx.restore();
 
     const backArmX = cx - player.facing * 2;
     const backHandX = walling ? cx + player.wallDir * 12 : cx - player.facing * (7 + dashPulse * 2);
@@ -12724,7 +12809,9 @@
     setElementText(portraitChapter, startContext
       ? `${hasProgress ? "上次训练" : "攀登起点"} · ${chapter}`
       : chapter);
-    setElementText(portraitRoomTitle, `R${target + 1} · ${ROOM_NAMES[target] || "Summit"}`);
+    setElementText(portraitRoomTitle, started && !won && campaignRoomIntro()
+      ? roomIntroTitle()
+      : `R${target + 1} · ${ROOM_NAMES[target] || "Summit"}`);
     const firstTouchClimb = openingGuideActive && !startContext && target === 0
       && gameplayInputSource() === "touch";
     const goal = firstTouchClimb
@@ -12793,7 +12880,7 @@
       `vel ${player.vx.toFixed(1)}, ${player.vy.toFixed(1)}`,
       `ground ${player.onGround ? 1 : 0}  wall ${player.wallDir}  wc ${player.wallCoyote.toFixed(3)}`,
       `coyote ${player.coyote.toFixed(3)}  jbuf ${player.jumpBuffer.toFixed(3)}`,
-      `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${chapterTransitionTimer.toFixed(3)}`,
+      `dash ${player.dashes}  dbuf ${player.dashBuffer.toFixed(3)}  dt ${player.dashTimer.toFixed(3)}  dead ${player.deadTimer.toFixed(3)}  act ${(chapterTransitionTicks * FIXED_PHYSICS_STEP).toFixed(3)}`,
       `pause focus ${focusPaused ? 1 : 0}  settings ${settingsVisible ? 1 : 0}  hidden ${document.hidden ? 1 : 0}  canvas ${canvasContextLost ? 0 : 1}`,
       `respawn ${player.respawnX.toFixed(1)}, ${player.respawnY.toFixed(1)}  overlap ${collidesSolid(getPlayerBox()) ? 1 : 0}  recover ${runtimeRecoveryCount}  faults ${frameFaultCount}`,
       `spark ${player.sparkHopTimer.toFixed(3)}  spring apex ${player.springLaunchTimer.toFixed(3)} hit ${visualRatio("springApex", 0.34).toFixed(3)}  lock ${player.wallJumpLock.toFixed(3)}  over ${player.overdrive.toFixed(3)}  recharge ${visualRatio("recharge", 0.26).toFixed(3)}`,

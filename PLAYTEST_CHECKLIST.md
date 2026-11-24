@@ -15,7 +15,7 @@ This checklist begins only after `npm run check` and `npm run browser-smoke` pas
 - Start from a clean profile without opening Settings or Practice first.
 - Confirm the start choice and primary action are obvious at normal viewing distance.
 - With a clean profile, wait at the R1 start and read the keyboard or gamepad guide. Walk into the gap before jumping. Verify the lesson returns after respawn and retires after landing on the far side. Open Pause and distinguish checkpoint retry from a whole-room restart. Once the guide disappears, check that no redundant Move → Jump → Dash strip or routine coaching cards appear. The labelled touch controls remain the only persistent input labels during touch play.
-- In R2, dash through the notched relay. Read the new edge, jump through from below, land on it and try for the hanging lumen. Repeat at the R4 gate and follow the R6 spring; retry each room to see the span return to its unlit sockets.
+- Before moving in R2, identify the relay and the two stone sockets that share the same carving. Dash through the relay, read the new edge, jump through from below, land on it and try for the hanging lumen. Repeat at the R4 gate and follow the R6 spring; retry each room to see the span return to its unlit sockets.
 - Confirm free play remains visually quiet: no training report, split analysis or extra cards compete with the route.
 - Note the first death, the first point of uncertainty and any place where the player pauses for more than 20 seconds.
 - Open and close Settings and Practice once. Judge discoverability and visual weight; deterministic focus and click-through behavior is already covered by browser smoke.
@@ -51,7 +51,8 @@ During the route, judge these chapter-level questions:
 - Compare ordinary completion with the tighter Pace/Expert route. The safe line should remain readable, while the mastery line should demand cleaner execution without feeling like hidden timing.
 - Do existing in-world landmarks, material particles, Relay threads, updraft wakes, Echo rings and the constellation clarify the route without becoming a second HUD?
 - Does the classic small climber remain readable at desktop and portrait sizes, with the same fixed dark-blue hair throughout every state?
-- Does the summit review identify a useful next practice step without feeling like a dashboard?
+- Check the pack clasp with zero, one and two dash charges at normal play size. Spend a reserve in mid-air and verify the second petal goes dark.
+- Does the summit review identify a useful next practice step? Compare the longest relay chain for this run with the next run after restarting.
 
 ## Training And Recovery
 

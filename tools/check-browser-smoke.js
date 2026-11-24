@@ -171,11 +171,37 @@ async function navigateApp(browser, baseUrl, label = "app") {
   await waitForAppReady(browser);
 }
 
+async function runSummitCollection(browser, upstream) {
+  const {collectorRoute, installCollectionClock, startCollectionReplay} = require("./lib/summit-collection-replay.cjs");
+  const fixture = await startFixture(upstream);
+  fixture.scripts.set("collection-clock", "(" + installCollectionClock.toString() + ")();");
+  try {
+    await navigateApp(browser, fixture.url, "fresh summit collection");
+    await browser.evaluate("stepCollectionFrame()");
+    await clickSelector(browser, "#guestEntryButton");
+    await browser.evaluate("(" + startCollectionReplay.toString() + ")(" + JSON.stringify(collectorRoute) + ")");
+    // Bound the work per script call on the slower hosted Mac display.
+    for (let frames = 0; frames < 6000; frames += 48) {
+      const result = await browser.evaluate("runCollectionBatch(48)");
+      if (result) {
+        console.log("Safari summit collection " + JSON.stringify(result));
+        return;
+      }
+    }
+    throw Error("Summit collection exceeded its frame limit");
+  } finally {
+    await fixture.close();
+  }
+}
+
 async function runLightStepSmoke(browser, upstream) {
   // Expose observations only in this local test response. Use normal key events
   // and the game's full frame loop from each authored room entrance.
-  function replay(index, jumpFrames, dashFrames, stop, limit) {
-    jumpToRoom(index);
+  function replay(index, jumpFrames, dashFrames, stop, limit, style = false) {
+    if (style) startRoomDrill(index, "style");
+    else jumpToRoom(index);
+    const attempt = room;
+    const winsBefore = drillContractStats(index, "style").wins;
     const tick = () => frame(lastTime + 1000 / 60);
     const bindings = effectiveBindings();
     const key = (action, down) => window.dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", {
@@ -185,7 +211,7 @@ async function runLightStepSmoke(browser, upstream) {
     const shelf = room.lightStep;
     const observed = new Set();
     key("right", true);
-    for (let n = 0; n < limit && roomIndex === index && !deathCount; n++) {
+    for (let n = 0; n < limit && room === attempt && !deathCount; n++) {
       if (jumpFrames.includes(n)) key("jump", true);
       if (jumpFrames.includes(n - 10)) key("jump", false);
       if (dashFrames.includes(n)) key("dash", true);
@@ -197,13 +223,111 @@ async function runLightStepSmoke(browser, upstream) {
       }
     }
     for (const action of ["right", "jump", "dash"]) key(action, false);
-    return { room: roomIndex, lit: shelf.ring.awakened, landed: shelf.landed, deaths: deathCount, tech: [...observed] };
+    return { room: roomIndex, lit: shelf.ring.awakened, landed: shelf.landed, deaths: deathCount, tech: [...observed],
+      distinctRelays: attempt.entities.relays.filter(relay => relay.awakened).length,
+      styleWins: drillContractStats(index, "style").wins - winsBefore };
+  }
+  function checkRunChain() {
+    hardReset();
+    for (let i = 0; i < 3; i++) scoreRelayChain();
+    quickRetry();
+    const afterRetry = [bestRelayChain, relayChain];
+    jumpToRoom(1);
+    const afterPracticeStart = bestRelayChain;
+    scoreRelayChain();
+    hardReset();
+    return { afterRetry, afterPracticeStart, afterNewRun: bestRelayChain };
+  }
+  function checkChapterClock(index, origin, hz) {
+    jumpToRoom(index - 1);
+    lastTime = origin;
+    physicsAccumulator = 0;
+    player.x = roomWorldWidth() + 4;
+    const tick = seconds => frame(lastTime + seconds * 1000);
+    tick(1 / 60); // The first physics tick crosses the boundary, the second belongs to the new chapter.
+    const initial = chapterTransitionTicks;
+    const startX = player.x;
+    const entered = roomIndex === index && roomTime === 0;
+    focusPaused = true;
+    tick(.1);
+    const frozen = chapterTransitionTicks === initial && roomTime === 0;
+    focusPaused = false;
+    // Stop at the last display frame with at least one locked simulation tick remaining.
+    const frames = Math.ceil(initial * hz / 120) - 1;
+    for (let i = 0; i < frames; i++) tick(1 / hz);
+    const left = chapterTransitionTicks;
+    const stayed = player.x === startX && roomTime === 0;
+    // Finish the lock, then advance exactly two ticks. A half-step must stay in the accumulator.
+    tick(left / 120 - physicsAccumulator);
+    const atBoundary = chapterTransitionTicks === 0 && roomTime === 0;
+    tick(1 / 240);
+    const half = roomTime;
+    tick(1 / 240);
+    tick(1 / 120);
+    return { entered, initial, frozen, left, stayed, atBoundary, half, playable: roomTime };
+  }
+  function checkJumpRelease() {
+    jumpToRoom(0);
+    const tick = () => frame(lastTime + 1000 / 60);
+    const key = (type) => window.dispatchEvent(new KeyboardEvent(type, {
+      code: effectiveBindings().jump, bubbles: true
+    }));
+    for (let i = 0; i < 4; i++) tick();
+    key("keydown");
+    for (let i = 0; i < 4; i++) tick();
+    const rising = player.vy;
+    const button = document.querySelector('[data-touch="jump"]');
+    const touch = (type) => button.dispatchEvent(new PointerEvent(type, {
+      pointerId: 23, pointerType: "touch", bubbles: true, cancelable: true
+    }));
+    touch("pointerdown");
+    key("keyup");
+    const stillHolding = player.vy;
+    touch("pointerup");
+    const released = player.vy;
+    key("keyup");
+    return {rising, stillHolding, released, afterStrayRelease: player.vy};
+  }
+  function checkRecallInput(source, action) {
+    jumpToRoom(8);
+    const tick = () => frame(lastTime + 1000 / 120);
+    const key = (name, down) => window.dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", {
+      code: effectiveBindings()[name], bubbles: true, cancelable: true
+    }));
+    key("right", true);
+    for (let i = 0; i < 80 && !echoAnchor; i++) tick();
+    key("right", false);
+    if (!echoAnchor) throw new Error("Did not reach the R9 entry anchor");
+    key("recall", true);
+    key("recall", false);
+    if (hitStopTimer <= 1 / 120) throw new Error("Recall did not start its impact pause");
+    const buttons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
+    const button = buttons[action === "jump" ? 0 : 1];
+    const previous = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+    Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => [{ connected: true, axes: [0, 0], buttons }] });
+    try {
+      const tap = down => source === "keyboard" ? key(action, down) : Object.assign(button, { pressed: down, value: down ? 1 : 0 });
+      tap(true); tick();
+      tap(false); tick();
+      const buffered = hasInputBuffer(player, action);
+      // The recalled player can settle on the ledge one step after time resumes.
+      for (let i = 0; i < 6; i++) {
+        tick();
+        if (action === "jump" ? player.vy < -200 : player.dashTimer > 0) return { buffered, performed: true };
+      }
+      return { buffered, performed: false };
+    } finally {
+      if (previous) Object.defineProperty(navigator, "getGamepads", previous);
+      else delete navigator.getGamepads;
+    }
   }
   const fixture = await startFixture(upstream);
   const file = "/summit-spark.js";
   const original = require("node:fs").readFileSync(path.join(root, "public", file.slice(1)), "utf8");
   const instrumented = original.replace("  function update(dt, clockDt = dt) {",
-    "  window.replayLightStep = " + replay.toString() + ";\n  function update(dt, clockDt = dt) {");
+    "  window.replayLightStep = " + replay.toString() + ";\n  window.checkRunChain = " + checkRunChain.toString() +
+    ";\n  window.checkChapterClock = " + checkChapterClock.toString() + ";\n  window.checkJumpRelease = " + checkJumpRelease.toString() +
+    ";\n  window.checkRecallInput = " + checkRecallInput.toString() + ";\n  function update(dt, clockDt = dt) {");
   fixture.routes.set(file, (_request, response) => response.writeHead(200, {
     "Content-Type": "application/javascript", "Cache-Control": "no-store"
   }).end(instrumented));
@@ -211,7 +335,6 @@ async function runLightStepSmoke(browser, upstream) {
     await navigateApp(browser, fixture.url, "light-step crossings");
     const crossings = await browser.evaluate(`(() => {
       document.querySelector("#guestEntryButton").click();
-      document.querySelector("#startButton").click();
       const hops = (first, spacing) => Array.from({length: 12}, (_, i) => first + i * spacing);
       return [
         replayLightStep(1, [14], [31, 56], 82, 96),
@@ -223,6 +346,37 @@ async function runLightStepSmoke(browser, upstream) {
       crossings[1].room !== 4 || !crossings[1].tech.includes("gate") ||
       crossings[2].room !== 6 || !crossings[2].tech.includes("spring")) {
       errors.push("the bridge, gold gate and spring entrances should lead onto usable light steps: " + JSON.stringify(crossings));
+    }
+    const jump = await browser.evaluate("checkJumpRelease()");
+    if (!(jump.rising < -120 && jump.stillHolding === jump.rising &&
+      jump.released > jump.rising && jump.released < 0 && jump.afterStrayRelease === jump.released)) {
+      errors.push("only releasing the last held jump should shorten an ascent: " + JSON.stringify(jump));
+    }
+    for (const source of ["keyboard", "gamepad"]) {
+      for (const action of ["jump", "dash"]) {
+        const result = await browser.evaluate(`checkRecallInput("${source}", "${action}")`);
+        if (!result.buffered || !result.performed) errors.push(`${source} ${action} tapped during recall should execute after hitstop: ${JSON.stringify(result)}`);
+      }
+    }
+    const chain = await browser.evaluate("checkRunChain()");
+    const [oneRing, twoRings] = await browser.evaluate(`[
+      replayLightStep(1, [14,86,158], [31,56], -1, 350, true),
+      replayLightStep(1, [14,119], [31,56,119], -1, 350, true)
+    ]`);
+    if (oneRing.room !== 1 || oneRing.deaths || oneRing.distinctRelays !== 1 || oneRing.styleWins !== 0 ||
+        twoRings.room !== 2 || twoRings.deaths || twoRings.distinctRelays !== 2 || twoRings.styleWins !== 1) {
+      errors.push("R2 Style must award a clean landing between distinct rings: " + JSON.stringify({oneRing, twoRings}));
+    }
+    if (chain.afterRetry[0] !== 3 || chain.afterRetry[1] !== 0 || chain.afterPracticeStart !== 0 || chain.afterNewRun !== 0) {
+      errors.push("relay peak should survive room retries and clear for a new run or practice session: " + JSON.stringify(chain));
+    }
+    const locked = await browser.evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches ? 144 : 216");
+    for (const [index, origin, hz] of [[3,100,60], [3,65536,60], [6,65536,120], [8,65536,240]]) {
+      const clock = await browser.evaluate(`checkChapterClock(${index},${origin},${hz})`);
+      if (!clock.entered || clock.initial !== locked - 1 || !clock.frozen || clock.left !== 1 ||
+          !clock.stayed || !clock.atBoundary || clock.half !== 0 || Math.abs(clock.playable - 1 / 60) > 1e-9) {
+        errors.push(`R${index + 1} chapter lock at ${hz}Hz miscounted a boundary step: ` + JSON.stringify(clock));
+      }
     }
   } finally {
     await fixture.close();
@@ -425,6 +579,17 @@ async function debugPosition(browser) {
   return pos;
 }
 
+function visibleStartSelector(browser) {
+  return browser.evaluate(`document.querySelector("#entryGate").classList.contains("hidden") ? "#startButton" : "#guestEntryButton"`);
+}
+
+async function clearGuestProgress(browser) {
+  await browser.evaluate(`(() => {
+    sessionStorage.removeItem("summit-spark-entry-mode");
+    for (const key of ["account-hint", "best-time", "room-bests", "room-focus"]) localStorage.removeItem("summit-spark-" + key);
+  })()`);
+}
+
 async function runMenuScaleSmoke(browser, baseUrl) {
   const samples = [];
   for (const [width, height] of [[960, 640], [1920, 1080]]) {
@@ -432,6 +597,8 @@ async function runMenuScaleSmoke(browser, baseUrl) {
     await navigateApp(browser, baseUrl, 'menu scale ' + width);
     if (await browser.evaluate('!document.querySelector("#entryGate").classList.contains("hidden")')) {
       await clickSelector(browser, "#guestEntryButton");
+      await waitUntil("new guest is playing", () => browser.evaluate('document.querySelector("#overlay").hidden'));
+      await navigateApp(browser, baseUrl, "returning guest menu");
     }
     await waitUntil("menu start is visible", () => browser.evaluate('document.querySelector("#startButton").getBoundingClientRect().width > 0'));
     samples.push(await browser.evaluate(`(() => {
@@ -449,15 +616,7 @@ async function runMenuScaleSmoke(browser, baseUrl) {
 async function runBackwardTransitionSmoke(browser, baseUrl) {
   await browser.setViewport(1280, 720);
   await navigateApp(browser, baseUrl, "backward transition");
-  const entryGateVisible = await browser.evaluate(`(() => {
-    const gate = document.querySelector("#entryGate");
-    return Boolean(gate && !gate.classList.contains("hidden"));
-  })()`);
-  if (entryGateVisible) {
-    await clickSelector(browser, "#guestEntryButton");
-    await waitUntil("backward transition guest entry", () => browser.evaluate(`document.querySelector("#entryGate").classList.contains("hidden")`));
-  }
-  await clickSelector(browser, "#startButton");
+  await clickSelector(browser, await visibleStartSelector(browser));
   await waitUntil("backward transition starts", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden")`));
   await enableDebugPanel(browser);
 
@@ -533,12 +692,6 @@ async function runDesktopSmoke(browser, baseUrl) {
   await navigateApp(browser, baseUrl, "desktop smoke");
   const bootRuntimeErrors = await browser.evaluate(`window.__summitEarlyRuntimeErrors || []`);
   if (bootRuntimeErrors.length) throw new Error("runtime error during boot: " + JSON.stringify(bootRuntimeErrors));
-  await browser.evaluate(`(() => {
-    window.__summitSmokeRuntimeErrors = [];
-    window.addEventListener("error", (event) => {
-      window.__summitSmokeRuntimeErrors.push(String(event.message || "unknown runtime error"));
-    });
-  })()`);
   await waitUntil("entry chooser after session check", () => browser.evaluate(`(() => {
     const gate = document.querySelector("#entryGate");
     const guest = document.querySelector("#guestEntryButton");
@@ -613,7 +766,7 @@ async function runDesktopSmoke(browser, baseUrl) {
     || entryChoice.focusOutlineStyle !== 'none'
     || entryChoice.focusShadow !== 'none'
     || /rgb\(0, 0, 0\)/.test(entryChoice.focusOutlineColor)
-    || !/仅保存在此设备/.test(entryChoice.guest)
+    || !/开始攀登/.test(entryChoice.guest) || !/仅保存在此设备/.test(entryChoice.guest)
     || !/云端保存/.test(entryChoice.account)
   ) {
     errors.push("entry should clearly offer adaptive guest and cloud-save choices: " + JSON.stringify(entryChoice));
@@ -643,7 +796,8 @@ async function runDesktopSmoke(browser, baseUrl) {
   const immediateAccountOpen = await browser.evaluate(`(() => {
     const panel = document.querySelector("#settingsPanel");
     const account = document.querySelector("#accountEntryButton");
-    account.focus({ preventScroll: true });
+    // Safari pointer activation can leave focus on the primary start button.
+    document.querySelector("#guestEntryButton").focus({ preventScroll: true });
     account.click();
     const opened = !panel.classList.contains("hidden") && !panel.hasAttribute("inert");
     const startPanel = document.querySelector("#startPanel");
@@ -709,7 +863,9 @@ async function runDesktopSmoke(browser, baseUrl) {
     errors.push("immediate outside account dismissal should stay on its visible entry trigger after delayed focus work: " + JSON.stringify({ entryAccountOutsideReturn, delayedAccountFocus }));
   }
   await clickSelector(browser, "#guestEntryButton");
-  await waitUntil("guest entry resolves", () => browser.evaluate(`document.querySelector("#entryGate").classList.contains("hidden") && !document.querySelector("#startPanel").classList.contains("entry-pending")`));
+  await waitUntil("one guest click starts R1", () => browser.evaluate(`document.querySelector("#overlay").hidden && document.activeElement.id === "game" && document.querySelector("#roomCount").textContent.startsWith("R1/")`));
+  await navigateApp(browser, baseUrl, "returning guest launch menu");
+  await waitUntil("remembered guest has the menu", () => browser.evaluate(`!document.querySelector("#overlay").hidden && document.querySelector("#startButton").getBoundingClientRect().width > 0`));
   const menuStyle = await browser.evaluate(`(() => {
     const title = getComputedStyle(document.querySelector('#startPanel h1'));
     const primary = getComputedStyle(document.querySelector('#startButton'));
@@ -983,7 +1139,7 @@ async function runDesktopSmoke(browser, baseUrl) {
   await waitUntil("summit room timing contributes to current-run evidence", () => browser.evaluate(`!/0:00\\.00$/.test(document.querySelector("#runTime").textContent)`));
   await keyTap(browser, "KeyR", "R");
   await waitUntil("summit route records a current-run mistake", () => browser.evaluate(`/快速重开 · R10/.test(document.querySelector("#gameStatus").textContent) && /失 1/.test(document.querySelector("#deathCount").textContent)`));
-  const earlyRuntimeErrors = await browser.evaluate(`window.__summitSmokeRuntimeErrors || []`);
+  const earlyRuntimeErrors = await browser.evaluate(`window.__summitEarlyRuntimeErrors || []`);
   if (earlyRuntimeErrors.length) throw new Error("runtime error stopped gameplay: " + JSON.stringify(earlyRuntimeErrors));
   await browser.evaluate(`window.addEventListener("error", (event) => { window.__summitRevealTestError = event.message || "unknown"; }, { once: true })`);
   await keyTap(browser, "KeyH", "H");
@@ -1010,6 +1166,8 @@ async function runDesktopSmoke(browser, baseUrl) {
   const finishProbe = await browser.evaluate(`({
     hasTitle: !!document.querySelector("#finishTitle"),
     line: document.querySelector(".finish-line")?.textContent || "",
+    facts: Object.fromEntries([...document.querySelectorAll(".finish-stats > span")].map(row =>
+      [row.querySelector("em").textContent, row.querySelector("strong").textContent])),
     whisper: document.querySelector(".finish-whisper")?.textContent || "",
     status: document.querySelector("#gameStatus").textContent,
     error: window.__summitRevealTestError || ""
@@ -1020,7 +1178,7 @@ async function runDesktopSmoke(browser, baseUrl) {
   if (finishProbe.hasTitle && !/练习登顶，不计总纪录/.test(finishProbe.line)) {
     errors.push("partial debug/Practice summit should be labelled as non-record full-run evidence: " + JSON.stringify(finishProbe));
   }
-  if (finishProbe.hasTitle && (!/微光 0\/12/.test(finishProbe.line) || finishProbe.whisper !== "山没有变轻，是你学会了继续向上。")) {
+  if (finishProbe.hasTitle && (finishProbe.facts["微光"] !== "0/12" || finishProbe.facts["最长连锁"] !== "0 环" || finishProbe.whisper !== "山没有变轻，是你学会了继续向上。")) {
     errors.push("summit review should close the current-run Lumen loop without granting the all-Lumen ending to a partial route: " + JSON.stringify(finishProbe));
   }
   const runEvidenceReview = finishProbe.hasTitle ? await browser.evaluate(`(() => {
@@ -2288,8 +2446,7 @@ async function runRetryAndTouchAimSmoke(browser, baseUrl) {
     await navigateApp(browser, isolated.origin, "retry and touch aim");
     const exercise = () => {
       const el = id => document.getElementById(id);
-      if (!el("entryGate").classList.contains("hidden")) el("guestEntryButton").click();
-      el("startButton").click();
+      el(el("entryGate").classList.contains("hidden") ? "startButton" : "guestEntryButton").click();
       const key = (code, type) => window.dispatchEvent(new KeyboardEvent(type, {code, bubbles: true}));
       key("F3", "keydown");
       key("F3", "keyup");
@@ -2406,10 +2563,7 @@ async function runGroundRechargeSmoke(browser, baseUrl) {
 }
 
 async function runFreshEntryImmediateSmoke(browser, baseUrl) {
-  await browser.evaluate(`(() => {
-    sessionStorage.removeItem("summit-spark-entry-mode");
-    localStorage.removeItem("summit-spark-account-hint");
-  })()`);
+  await clearGuestProgress(browser);
   const injected = await browser.addInitScript({
     source: `(() => {
       class Client {
@@ -2459,12 +2613,7 @@ async function runFreshEntryImmediateSmoke(browser, baseUrl) {
     })()`);
     await browser.evaluate(`document.querySelector("#guestEntryButton").focus()`);
     await keyTap(browser, "Space", " ");
-    if (await browser.evaluate(`document.querySelector("#overlay").hidden`)) {
-      errors.push("Space on the guest entry should choose guest without skipping the launch menu");
-    }
-    await waitUntil("guest entry after pre-start context restore", () => browser.evaluate(`document.querySelector("#entryGate")?.classList.contains("hidden")`));
-    await clickSelector(browser, "#startButton");
-    await waitUntil("start after pre-start context restore", () => browser.evaluate(`document.querySelector("#overlay")?.classList.contains("hidden")`));
+    await waitUntil("Space starts a fresh guest after pre-start context restore", () => browser.evaluate(`document.querySelector("#overlay").hidden && document.activeElement.id === "game"`));
     await enableDebugPanel(browser);
     const preStartBeforeMove = await debugPosition(browser);
     await keyHold(browser, "KeyD", "D", 90);
@@ -2478,10 +2627,7 @@ async function runFreshEntryImmediateSmoke(browser, baseUrl) {
 }
 
 async function runCloudSdkRetrySmoke(browser, baseUrl) {
-  await browser.evaluate(`(() => {
-    sessionStorage.removeItem("summit-spark-entry-mode");
-    localStorage.removeItem("summit-spark-account-hint");
-  })()`);
+  await clearGuestProgress(browser);
   browser.blockAsset("/vendor/appwrite-26.2.0.js");
   try {
     await navigateApp(browser, baseUrl, "blocked cloud SDK");
@@ -4260,12 +4406,7 @@ async function runCanvasDensitySmoke(browser, baseUrl) {
 async function runRestartSoakSmoke(browser, baseUrl) {
   await browser.setViewport(1280, 720);
   await navigateApp(browser, baseUrl, "restart soak");
-  const entryPending = await browser.evaluate(`!document.querySelector("#entryGate")?.classList.contains("hidden")`);
-  if (entryPending) {
-    await clickSelector(browser, "#guestEntryButton");
-    await waitUntil("restart soak guest entry", () => browser.evaluate(`document.querySelector("#entryGate").classList.contains("hidden")`));
-  }
-  await clickSelector(browser, "#startButton");
+  await clickSelector(browser, await visibleStartSelector(browser));
   await waitUntil("restart soak game start", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden")`));
   await enableDebugPanel(browser);
   let last = await debugPosition(browser);
@@ -4340,7 +4481,7 @@ async function runRestartSoakSmoke(browser, baseUrl) {
     }
   } catch (error) {
     const probe = await debugPosition(browser);
-    const runtimeErrors = await browser.evaluate(`window.__summitSmokeRuntimeErrors || []`);
+    const runtimeErrors = await browser.evaluate(`window.__summitEarlyRuntimeErrors || []`);
     errors.push(`damaged runtime collections probe failed: ${error.message}: ${JSON.stringify({ probe, runtimeErrors })}`);
   }
   await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "throwFrame" }))`);
@@ -4393,7 +4534,7 @@ async function runRestartSoakSmoke(browser, baseUrl) {
   if (afterContextRestoreMove.x <= afterFrameBoundaryMove.x) {
     errors.push("movement should resume after canvas context restoration: " + JSON.stringify({ contextRestored, afterContextRestore, afterContextRestoreMove }));
   }
-  const runtimeErrors = await browser.evaluate(`window.__summitSmokeRuntimeErrors || []`);
+  const runtimeErrors = await browser.evaluate(`window.__summitEarlyRuntimeErrors || []`);
   if (runtimeErrors.length) errors.push("restart soak should not emit runtime errors: " + JSON.stringify(runtimeErrors));
   if (!Number.isFinite(last.x) || !Number.isFinite(last.y)) errors.push("restart soak should finish with a finite debug position: " + JSON.stringify(last));
 }
@@ -5014,7 +5155,7 @@ async function runMobileSafeAreaSmoke(browser, baseUrl) {
   await browser.setViewport(390, 700, { mobile: true, pixelRatio: 3 });
   browser.setSafeAreaFixture({ top: 47, right: 0, bottom: 34, left: 0 });
   try {
-    await browser.evaluate(`sessionStorage.removeItem("summit-spark-entry-mode")`);
+    await clearGuestProgress(browser);
     await navigateApp(browser, baseUrl, "mobile safe-area entry");
     await waitUntil("safe-area entry chooser", () => browser.evaluate(`!document.querySelector("#entryGate")?.classList.contains("hidden")`), 7000);
     const entry = await browser.evaluate(`(() => {
@@ -5317,14 +5458,71 @@ async function runMobileLandscapeSmoke(browser, baseUrl) {
   }
 }
 
+async function runMenuFrameSmoke(browser, baseUrl) {
+  const clock = await installFrameClock(browser);
+  try {
+    await navigateApp(browser, baseUrl, "controller menu seed");
+    await clearGuestProgress(browser);
+    await navigateApp(browser, baseUrl, "controller menu frames");
+    function exercise() {
+      const read = navigator.getGamepads.bind(navigator);
+      let polls = 0;
+      Object.defineProperty(navigator, "getGamepads", { configurable: true, value() { polls++; return read(); } });
+      const pad = window.__summitMockPadState;
+      const panel = document.getElementById("settingsPanel");
+      const overlay = document.getElementById("overlay");
+      const game = document.getElementById("game");
+      const press = (index, down) => Object.assign(pad.buttons[index], { pressed: down, value: down ? 1 : 0 });
+      function step(frames, expectedPolls = frames) {
+        polls = 0;
+        for (let i = 0; i < frames; i++) window.stepGameFrame();
+        if (polls !== expectedPolls) throw new Error(`Expected ${expectedPolls} controller polls, received ${polls}`);
+      }
+      step(8);
+      game.dispatchEvent(new Event("contextlost", { cancelable: true }));
+      step(3, 0);
+      game.dispatchEvent(new Event("contextrestored"));
+      step(3);
+      press(9, true); step(1);
+      press(0, true); step(6);
+      if (panel.classList.contains("hidden") || overlay.hidden) throw new Error("Holding Menu must keep settings open and A must not start a run behind it");
+      press(9, false); press(0, false); step(1);
+      press(9, true); step(5);
+      if (!panel.classList.contains("hidden") || overlay.hidden) throw new Error("One new Menu press must close the panel once");
+      press(9, false); step(1);
+      press(0, true); step(1);
+      if (!overlay.hidden || document.activeElement !== game) throw new Error("One A press must enter gameplay in this frame");
+      press(0, false); step(2);
+      press(9, true); step(6);
+      if (panel.classList.contains("hidden")) throw new Error("Holding Menu during a run must keep it paused");
+      return true;
+    }
+    await browser.evaluate("(" + exercise.toString() + ")()");
+    await navigateApp(browser, baseUrl, "returning guest menu focus");
+    await browser.evaluate(`(() => {
+      for (const id of ["openTrainingButton", "startSettingsButton"]) {
+        const button = document.getElementById(id);
+        button.click();
+        window.dispatchEvent(new Event("blur"));
+        window.dispatchEvent(new Event("focus"));
+        window.stepGameFrame();
+        const panel = document.getElementById("settingsPanel");
+        if (!panel.contains(document.activeElement)) throw new Error(id + " failed to retain dialog focus");
+        document.getElementById("settingsClose").click();
+        if (document.activeElement !== button || !panel.classList.contains("hidden")) throw new Error(id + " failed to restore focus to the trigger");
+      }
+      return true;
+    })()`);
+  } finally {
+    await browser.removeInitScript(clock);
+  }
+}
+
 async function runGamepadSmoke(browser, baseUrl) {
   await browser.setViewport(1280, 720);
   await navigateApp(browser, baseUrl, "gamepad seed");
-  await browser.evaluate(`(() => {
-    sessionStorage.removeItem("summit-spark-entry-mode");
-    localStorage.removeItem("summit-spark-account-hint");
-    localStorage.setItem("summit-spark-settings", JSON.stringify({ gamepadDeadzone: 0.4, audioEnabled: false }));
-  })()`);
+  await clearGuestProgress(browser);
+  await browser.evaluate(`localStorage.setItem("summit-spark-settings", JSON.stringify({ gamepadDeadzone: 0.4, audioEnabled: false }))`);
   await navigateApp(browser, baseUrl, "gamepad clean");
   const holdPadJump = (pressed) => browser.evaluate(`(() => {
     const button = window.__summitMockPadState.buttons[0];
@@ -5332,15 +5530,7 @@ async function runGamepadSmoke(browser, baseUrl) {
     button.value = ${pressed ? 1 : 0};
   })()`);
   await holdPadJump(true);
-  await waitUntil("first gamepad press chooses guest and leaves the launch menu visible", () => browser.evaluate(`
-    document.querySelector("#entryGate").classList.contains("hidden")
-      && !document.querySelector("#startPanel").classList.contains("entry-pending")
-      && !document.querySelector("#overlay").hidden
-  `));
-  await holdPadJump(false);
-  await sleep(100);
-  await holdPadJump(true);
-  await waitUntil("second gamepad press starts the game", () => browser.evaluate(`document.querySelector("#overlay").hidden`), 5000);
+  await waitUntil("one gamepad press starts a new guest run", () => browser.evaluate(`document.querySelector("#overlay").hidden && document.activeElement.id === "game"`));
   await holdPadJump(false);
   const gamepadErrorsBeforeThrow = await browser.evaluate(`window.__earlyRuntimeErrors?.length || window.__summitEarlyRuntimeErrors?.length || 0`);
   await browser.evaluate(`window.__summitMockPadState.throw = true`);
@@ -5422,6 +5612,7 @@ async function runNativeSafari({ motionOnly = false, mobile = false, extended = 
       [ // Gameplay and save imports
         runRetryAndTouchAimSmoke,
         async function lightStepCrossings(browser) { await runLightStepSmoke(browser, upstream); },
+        async function summitCollection(browser) { await runSummitCollection(browser, upstream); },
         runBootFailureSmoke,
         ...(extended ? [runDesktopSmoke] : []),
         runMenuScaleSmoke,
@@ -5447,6 +5638,7 @@ async function runNativeSafari({ motionOnly = false, mobile = false, extended = 
         ...(extended ? [runRestartSoakSmoke] : [])
       ],
       [ // Controller entry and account restoration
+        runMenuFrameSmoke,
         runGamepadSmoke,
         ...(extended ? [runFreshEntryImmediateSmoke] : []),
         runCloudSdkRetrySmoke,

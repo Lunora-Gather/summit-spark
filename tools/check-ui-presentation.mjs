@@ -599,6 +599,7 @@ const runReport = runReportTextData({
   foundLumens: 2,
   totalLumens: 3,
   flow: 42.9,
+  relayChain: 3,
   assistUsed: false,
   chapters: [
     { label: "第一幕", time: "0:18.00", mistakes: 1, visited: 2, rooms: 2 }
@@ -609,11 +610,11 @@ const runReport = runReportTextData({
   ]
 });
 assert.match(runReport, /结果：完整登顶/);
-assert.match(runReport, /总时间：0:18\.00 \/ 失误 1 \/ 微光 2\/3 \/ Flow 42/);
+assert.match(runReport, /总时间：0:18\.00 \/ 失误 1 \/ 微光 2\/3 \/ 最长连锁 3 环 \/ Flow 42/);
 assert.match(runReport, /第一幕：0:18\.00 \/ 失误 1 \/ 房间 2\/2/);
 assert.match(runReport, /R2 光继横桥：0:10\.00 \/ 失误 1/);
 assert.match(runReport, /重点：最慢 R2 光继横桥 0:10\.00 \/ 失误最多 R2 光继横桥 1/);
-assert.match(runReport, /仅包含本轮分幕\/分房时间、失误、微光、Flow、辅助状态与构建号/);
+assert.match(runReport, /仅包含本轮分幕\/分房时间、失误、微光、最长连锁、Flow、辅助状态与构建号/);
 assert.match(runReport, /不含身份、设备名称、输入历史或路线坐标/);
 assert.deepEqual(runRoomReviewData({ rooms: [
   { index: 0, label: "先", seconds: 12, time: "0:12.00", mistakes: 0, visited: true },

@@ -46,6 +46,9 @@ export function fixedStepFrameData({
     frameDt,
     step: safeStep,
     steps,
+    // Leave fractional time in the accumulator. If rendering stalled, spread its wall time
+    // across the simulated ticks so each active tick gets its share and a locked tick gets none.
+    stepClockDt: steps ? safeStep + (safeElapsed - frameDt + dropped) / steps : 0,
     remainder,
     dropped
   };

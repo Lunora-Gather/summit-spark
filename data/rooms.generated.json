@@ -315,7 +315,7 @@
     ],
     [
       "安全线：两颗光继之间先稳落点",
-      "进阶线：保持冲刺速度连续触发",
+      "进阶线：穿过上环，在桥面落稳，再向下环续跃",
       "高手线：把双光继带到补给前"
     ],
     [
@@ -376,7 +376,7 @@
       "goal": "双光继之间稳住一次落点",
       "clean": true,
       "tech": [
-        "relay"
+        "relayLanding"
       ],
       "timeScale": 1.45
     },
@@ -555,6 +555,7 @@
     "prismSpark": "Prism Spark",
     "relay": "光继",
     "relayChain": "连锁x3",
+    "relayLanding": "两环间落地",
     "spring": "弹簧",
     "springApex": "弹簧顶点",
     "updraft": "风",

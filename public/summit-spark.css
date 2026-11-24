@@ -1844,10 +1844,10 @@ canvas:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* Keep the launch targets in place while the account or practice drawer owns focus. */
+/* Keep the painted cover, but retire the controls' hit regions while a drawer owns it. */
 .stage.settings-open .overlay:not(.hidden) .start-panel {
+  display: none;
   visibility: hidden;
-  pointer-events: none;
 }
 
 .stage:has(.overlay:not(.hidden)) .settings-panel.account-focused {

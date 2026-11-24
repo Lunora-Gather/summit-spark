@@ -95,8 +95,14 @@ try {
     } catch { done(false); }
   });
   assert.ok(titleArtReady, "The painted title scene must load from the game directory");
-  await driver.findElement(By.id("guestEntryButton")).click();
-  const start = await driver.findElement(By.id("startButton"));
+  const start = await driver.findElement(By.id("guestEntryButton"));
+  assert.match(await start.getText(), /开始攀登/);
+  const accountOpener = await driver.findElement(By.id("accountEntryButton"));
+  await driver.executeScript(button => button.click(), accountOpener);
+  await driver.findElement(By.id("settingsClose")).click();
+  await driver.wait(() => driver.executeScript(
+    "return document.activeElement.id === 'accountEntryButton' && !document.querySelector('#overlay').hidden"
+  ), 5000, "Closing Account must return to its actual trigger before play");
   await driver.wait(until.elementIsVisible(start), 10000);
   await driver.wait(until.elementIsEnabled(start), 10000);
   // Observe the canvas itself so a download without an actual draw cannot pass.
@@ -181,6 +187,7 @@ try {
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden") && /Drill/.test(document.querySelector("#gameStatus").textContent)'), 5000);
   await driver.manage().window().setRect({ width: 1280, height: 800 });
   await driver.executeScript('localStorage.setItem("summit-spark-room-focus", JSON.stringify({schemaVersion:1,rooms:[{faults:4,fall:4,drills:1,cleanWins:0}]}))');
+  await driver.executeScript('sessionStorage.removeItem("summit-spark-entry-mode")');
   const previousPage = await driver.findElement(By.css("html"));
   await driver.navigate().refresh();
   await driver.wait(until.stalenessOf(previousPage), 10000, "Wait for the practice page to reload");
@@ -240,6 +247,13 @@ try {
   assert.ok(await driver.findElement(By.id("terrainCampKey")).isDisplayed());
   assert.match(await terrain.getAttribute("aria-label"), /光继/);
   assert.match(await driver.findElement(By.id("terrainMechanics")).getText(), /光继/);
+  const lightStepInk = await driver.executeScript(() => {
+    const key = Array.from(document.querySelectorAll("#terrainMechanics > span")).find(item => item.textContent === "光阶");
+    const icon = key?.querySelector("canvas");
+    return icon && icon.getContext("2d").getImageData(0, 0, icon.width, icon.height).data
+      .some((value, index) => index % 4 === 3 && value > 32);
+  });
+  assert.ok(lightStepInk, "The light-step legend needs a visible bridge silhouette");
   const zoom = await driver.findElement(By.id("terrainZoom"));
   await zoom.click();
   assert.equal(await zoom.getAttribute("aria-pressed"), "true");

@@ -52,7 +52,11 @@ assert.equal(idle.status.connected, false);
 assert.deepEqual(idle.heldActions, []);
 assert.ok(Object.values(idle.input).every((value) => value === false));
 
+const unplugged = { ...pad({ buttons: { 0: { pressed: true } } }), connected: false };
+assert.deepEqual(resolveGamepadState([null, unplugged], { supported: true, deadzone: 0.28 }), idle);
+
 const axes = resolveGamepadState([
+  unplugged,
   pad({ axes: [-0.6, 0.7] }),
   pad({ mapping: "xinput" })
 ], { supported: true, deadzone: 0.28 });

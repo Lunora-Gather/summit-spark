@@ -10,7 +10,7 @@ function gamepadButtonPressed(pad, index, threshold = 0.5) {
 }
 
 export function resolveGamepadState(pads, { supported, deadzone }) {
-  const connectedPads = Array.from(pads || []).filter(Boolean);
+  const connectedPads = Array.from(pads || []).filter(pad => pad && pad.connected !== false);
   const pad = connectedPads[0] || null;
   const input = Object.fromEntries(GAMEPAD_ACTIONS.map((action) => [action, false]));
 

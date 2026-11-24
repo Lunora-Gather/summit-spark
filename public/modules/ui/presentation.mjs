@@ -694,7 +694,7 @@ export function runReportTextData(input = {}) {
     "山巅微光 · 本轮报告",
     `构建：${reportLineText(input.build, "dev")}`,
     `结果：${complete ? "完整登顶" : `部分路线 ${visitedRooms}/${totalRooms} 房`}`,
-    `总时间：${reportLineText(input.totalTime, "0:00.00")} / 失误 ${Math.floor(nonNegativeNumber(input.mistakes))} / 微光 ${lumens.label} / Flow ${Math.floor(nonNegativeNumber(input.flow))}`,
+    `总时间：${reportLineText(input.totalTime, "0:00.00")} / 失误 ${Math.floor(nonNegativeNumber(input.mistakes))} / 微光 ${lumens.label} / 最长连锁 ${Math.floor(nonNegativeNumber(input.relayChain))} 环 / Flow ${Math.floor(nonNegativeNumber(input.flow))}`,
     `辅助：${input.assistUsed === true ? "舒缓模式，本轮不计纪录" : "关闭"}`,
     "",
     "分幕：",
@@ -705,6 +705,6 @@ export function runReportTextData(input = {}) {
     "",
     focusLine,
     "",
-    "隐私：仅包含本轮分幕/分房时间、失误、微光、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
+    "隐私：仅包含本轮分幕/分房时间、失误、微光、最长连锁、Flow、辅助状态与构建号；不含身份、设备名称、输入历史或路线坐标。"
   ].join("\n");
 }

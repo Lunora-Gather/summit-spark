@@ -41,6 +41,7 @@ const requiredTools = [
   "tools/export-room-data.js",
   "tools/report-room-data.js",
   "tools/lib/read-summit-data.js",
+  "tools/lib/summit-collection-replay.cjs",
   "tools/lib/validate-room-data.js"
 ];
 

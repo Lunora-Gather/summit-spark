@@ -8312,16 +8312,6 @@ textarea,
   text-shadow: 0 2px 0 #293f50, 0 10px 28px rgba(15, 30, 41, 0.28);
 }
 
-.stage .entry-gate .entry-prompt {
-  max-width: 100%;
-  margin: -12px 0 4px;
-  color: #dce7e3;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  line-height: 1.5;
-}
-
 .stage .launch-surface .entry-options,
 .stage .launch-surface .start-actions {
   display: grid;
@@ -8693,7 +8683,6 @@ textarea,
 @media (max-height: 520px) and (orientation: landscape) {
   .stage .overlay .launch-surface { padding-block: 8px; gap: 8px; }
   .stage .overlay .launch-surface h1 { font-size: 38px; margin-bottom: 4px; }
-  .stage .entry-gate .entry-prompt { margin: 0; }
   .stage .launch-surface .entry-options { width: min(420px, 100%); grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stage .launch-surface .entry-option { min-height: 78px; padding: 10px; }
   .stage .overlay:not(.finish-overlay) {

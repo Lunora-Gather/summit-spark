@@ -38,14 +38,13 @@ function observePage() {
     const field = document.getElementById("accountEmail");
     const accountOpen = account.classList.contains("account-focused");
     const playing = document.querySelector(".stage").classList.contains("run-started");
-    const guestMenu = gate.classList.contains("hidden");
     const target = scene === "keyboard"
       ? (accountOpen ? field : document.getElementById("accountEntryButton"))
-      : document.getElementById(guestMenu ? "startButton" : "guestEntryButton");
+      : document.getElementById("guestEntryButton");
     const box = target.getBoundingClientRect();
     const x = box.left + box.width / 2, y = box.top + box.height / 2;
     const state = {
-      screen: { width: screen.width, height: screen.height }, touch, tapped, guestMenu, playing, height: viewport.height,
+      screen: { width: screen.width, height: screen.height }, touch, tapped, playing, height: viewport.height,
       target: { x: (x - viewport.offsetLeft) * viewport.scale, y: (y - viewport.offsetTop) * viewport.scale,
         visible: box.width > 0 && box.height > 0 && target.contains(document.elementFromPoint(x, y)) }
     };
@@ -160,9 +159,7 @@ async function checkIOSSafari(fixture, udid) {
     await openScene("play");
     const playOrigin = await locateViewport();
     await tapTarget(playOrigin);
-    await waitFor("A native tap opens the guest menu", r => r.tapped === "guestEntryButton" && r.guestMenu && r.target.visible);
-    await tapTarget(playOrigin);
-    await waitFor("Portrait controls fit below the landing area", r => r.tapped === "startButton" && r.playing &&
+    await waitFor("One native tap starts the climb with portrait controls below the landing area", r => r.tapped === "guestEntryButton" && r.playing &&
       r.controls?.every(b => b.width >= 44 && b.height >= 44 && b.gap >= 0 && b.left >= -1 && b.right >= -1 && b.below >= -1));
     console.log("Native Safari passed entry, notch and portrait playfield checks", state.controls);
   } catch (error) {

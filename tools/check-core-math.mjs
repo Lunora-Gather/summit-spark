@@ -37,6 +37,10 @@ const stalled = fixedStepFrameData({ elapsed: 0.6, accumulator: 0 });
 assert.equal(stalled.frameDt, 0.1, "physics catch-up must be bounded after a main-thread stall");
 assert.equal(stalled.steps, 12, "bounded catch-up should consume the full 100 ms physics budget");
 assert.equal(stalled.elapsed, 0.6, "wall-clock timing must retain the real elapsed duration");
+assert.ok(Math.abs(stalled.stepClockDt * stalled.steps - .6) < 1e-10,
+  "bounded simulation must distribute real time over the steps that ran");
+assert.equal(highRefreshFirst.stepClockDt, 0);
+assert.equal(highRefreshSecond.stepClockDt, 1 / 120);
 
 const overloaded = fixedStepFrameData({ elapsed: 0.1, accumulator: 0.1, maxSteps: 4 });
 assert.equal(overloaded.steps, 4);

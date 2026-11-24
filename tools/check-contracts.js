@@ -215,8 +215,8 @@ if (!js.includes("respawn({ preserveInputBuffers: true });")
   || !js.includes("dead ${player.deadTimer.toFixed(3)}")) {
   errors.push("automatic death recovery must retain only late buffered actions while manual retries clear stale input");
 }
-if (!/if \(chapterTransitionTimer > 0\) \{[\s\S]{0,320}updateBuffers\(fixedFrame\.frameDt\);/.test(js)
-  || !js.includes("act ${chapterTransitionTimer.toFixed(3)}")) {
+if (!/if \(chapterTransitionTicks > 0\) \{[\s\S]{0,320}updateBuffers\(fixedFrame\.step\);/.test(js)
+  || !js.includes("act ${(chapterTransitionTicks * FIXED_PHYSICS_STEP).toFixed(3)}")) {
   errors.push("chapter transitions must keep shared input polling and normal buffer expiry active so stale actions expire while final-window actions connect");
 }
 if (!roomData.includes("export const CHAPTER_SURFACE_FEEDBACK = [")
@@ -325,7 +325,7 @@ if (!js.includes("function buildRunReport(")
   || !uiPresentationModule.includes("所有微光，都抵达了山顶。")
   || !js.includes("foundLumens: collected.size")
   || !js.includes("completeWhisper: CHAPTER_EXPERIENCE.at(-1)?.resolve")
-  || !js.includes("微光 ${lumens.label}")
+  || !js.includes("<em>微光</em><strong>${escapeHtml(lumens.label)}")
   || !js.includes("escapeHtml(lumens.whisper)")
   || !uiPresentationModule.includes("不含身份、设备名称、输入历史或路线坐标")) {
   errors.push("collapsed summit review must provide a bounded privacy-labelled current-run report without uploading it");
@@ -926,7 +926,7 @@ if (!indexHtml.includes('id="openingGuide" hidden')
   || !browserSmoke.includes("first gamepad action updates the guide")) {
   errors.push("the first-room guide must stay readable before movement and follow actual input");
 }
-if (!indexHtml.includes('id="portraitBrief"') || !indexHtml.includes('id="portraitRoomTitle"') || !indexHtml.includes('id="portraitRoomGoal"') || !js.includes("function updatePortraitBrief()") || !js.includes('hasProgress ? "上次训练" : "攀登起点"') || !js.includes("setElementText(portraitRoomTitle, `R${target + 1} · ${ROOM_NAMES[target]")) errors.push("portrait play should expose a context-aware start/current-room brief instead of contradictory or empty space");
+if (!indexHtml.includes('id="portraitBrief"') || !indexHtml.includes('id="portraitRoomTitle"') || !indexHtml.includes('id="portraitRoomGoal"') || !js.includes("function updatePortraitBrief()") || !js.includes('hasProgress ? "上次训练" : "攀登起点"') || !js.includes("setElementText(portraitRoomTitle, started && !won && campaignRoomIntro()") || !js.includes("if (campaign && isPortraitViewport()) return;") || !js.includes(": `R${target + 1} · ${ROOM_NAMES[target]")) errors.push("portrait play should expose a context-aware start/current-room brief instead of contradictory or empty space");
 if (indexHtml.includes('id="controlHint"')
   || css.includes(".control-hint")
   || css.includes(".game-tip.onboarding")

@@ -45,7 +45,7 @@ export const CHAPTER_SURFACE_FEEDBACK = [
 
 export const ROOM_WHISPERS = [
     "先迈出第一步，山会回应。",
-    "让微光接住你的速度。",
+    "冲过桥头青环，断桥会浮起光阶。",
     "借雾抬升，不必急着冲。",
     "旧路不会替你选择。",
     "折返，也是一种向上。",

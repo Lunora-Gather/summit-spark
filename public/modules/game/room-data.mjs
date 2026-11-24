@@ -119,7 +119,7 @@ export const ROOM_PURPOSES = [
 
 export const ROOM_ROUTE_LINES = [
     ["安全线：逐个平台稳定落点", "进阶线：每次落地后提前冲刺", "高手线：用 Spark 越过下方危险"],
-    ["安全线：两颗光继之间先稳落点", "进阶线：保持冲刺速度连续触发", "高手线：把双光继带到补给前"],
+    ["安全线：两颗光继之间先稳落点", "进阶线：穿过上环，在桥面落稳，再向下环续跃", "高手线：把双光继带到补给前"],
     ["安全线：看准错位双弹簧再分段上升", "进阶线：第一弹簧后短跳切向第二级", "高手线：用 Spark 省掉低位等待"],
     ["安全线：光继分段，破门前留一次冲刺", "进阶线：连锁后直接冲破金纹门", "高手线：带连锁下探微光，再不停顿破门"],
     ["安全线：中棱折返，等相位台亮起再落", "进阶线：光继后踩准两组相位台并保持高度", "高手线：Wall Spark 直切，跳过等待并上探微光"],
@@ -132,7 +132,7 @@ export const ROOM_ROUTE_LINES = [
 
 export const ROOM_STYLE_TRIALS = [
     { kind: "precision", label: "落点精度", goal: "干净落点后用 Spark 越过危险", clean: true, tech: ["spark"], timeScale: 1.55 },
-    { kind: "recovery", label: "恢复控制", goal: "双光继之间稳住一次落点", clean: true, tech: ["relay"], timeScale: 1.45 },
+    { kind: "recovery", label: "恢复控制", goal: "双光继之间稳住一次落点", clean: true, tech: ["relayLanding"], timeScale: 1.45 },
     { kind: "timing", label: "弹簧节拍", goal: "串起两级弹簧，在顶点冲刺并用 Spark 省掉等待", clean: true, tech: ["spring", "springApex", "spark"], timeScale: 1.5 },
     { kind: "chain", label: "连锁破门", goal: "把三段光继接到一次冲刺破门", clean: false, tech: ["relayChain", "gate"], timeScale: 1.45 },
     { kind: "route", label: "相位路线", goal: "中棱折返后用 Wall Spark 跳过一次相位等待", clean: true, tech: ["wallSpark", "phase"], timeScale: 1.45 },
@@ -162,6 +162,7 @@ export const EXPERT_REQUIREMENT_LABELS = {
     prismSpark: "Prism Spark",
     relay: "光继",
     relayChain: "连锁x3",
+    relayLanding: "两环间落地",
     spring: "弹簧",
     springApex: "弹簧顶点",
     updraft: "风",

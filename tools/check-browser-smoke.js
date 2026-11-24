@@ -197,8 +197,11 @@ async function runSummitCollection(browser, upstream) {
 async function runLightStepSmoke(browser, upstream) {
   // Expose observations only in this local test response. Use normal key events
   // and the game's full frame loop from each authored room entrance.
-  function replay(index, jumpFrames, dashFrames, stop, limit) {
-    jumpToRoom(index);
+  function replay(index, jumpFrames, dashFrames, stop, limit, style = false) {
+    if (style) startRoomDrill(index, "style");
+    else jumpToRoom(index);
+    const attempt = room;
+    const winsBefore = drillContractStats(index, "style").wins;
     const tick = () => frame(lastTime + 1000 / 60);
     const bindings = effectiveBindings();
     const key = (action, down) => window.dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", {
@@ -208,7 +211,7 @@ async function runLightStepSmoke(browser, upstream) {
     const shelf = room.lightStep;
     const observed = new Set();
     key("right", true);
-    for (let n = 0; n < limit && roomIndex === index && !deathCount; n++) {
+    for (let n = 0; n < limit && room === attempt && !deathCount; n++) {
       if (jumpFrames.includes(n)) key("jump", true);
       if (jumpFrames.includes(n - 10)) key("jump", false);
       if (dashFrames.includes(n)) key("dash", true);
@@ -220,7 +223,9 @@ async function runLightStepSmoke(browser, upstream) {
       }
     }
     for (const action of ["right", "jump", "dash"]) key(action, false);
-    return { room: roomIndex, lit: shelf.ring.awakened, landed: shelf.landed, deaths: deathCount, tech: [...observed] };
+    return { room: roomIndex, lit: shelf.ring.awakened, landed: shelf.landed, deaths: deathCount, tech: [...observed],
+      distinctRelays: attempt.entities.relays.filter(relay => relay.awakened).length,
+      styleWins: drillContractStats(index, "style").wins - winsBefore };
   }
   function checkRunChain() {
     hardReset();
@@ -354,6 +359,14 @@ async function runLightStepSmoke(browser, upstream) {
       }
     }
     const chain = await browser.evaluate("checkRunChain()");
+    const [oneRing, twoRings] = await browser.evaluate(`[
+      replayLightStep(1, [14,86,158], [31,56], -1, 350, true),
+      replayLightStep(1, [14,119], [31,56,119], -1, 350, true)
+    ]`);
+    if (oneRing.room !== 1 || oneRing.deaths || oneRing.distinctRelays !== 1 || oneRing.styleWins !== 0 ||
+        twoRings.room !== 2 || twoRings.deaths || twoRings.distinctRelays !== 2 || twoRings.styleWins !== 1) {
+      errors.push("R2 Style must award a clean landing between distinct rings: " + JSON.stringify({oneRing, twoRings}));
+    }
     if (chain.afterRetry[0] !== 3 || chain.afterRetry[1] !== 0 || chain.afterPracticeStart !== 0 || chain.afterNewRun !== 0) {
       errors.push("relay peak should survive room retries and clear for a new run or practice session: " + JSON.stringify(chain));
     }

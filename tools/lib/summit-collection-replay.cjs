@@ -89,6 +89,9 @@ function startCollectionReplay(route) {
       const number = i + 1;
       verify(room() === number, "Expected to enter R" + number);
       visited.push(number);
+      if (number === 2) {
+        verify(!document.querySelector("#gameTip.lumen:not(.hidden)"), "Previous pickup still covers the new room");
+      }
       if ([4, 7, 9].includes(number)) {
         const introFrames = matchMedia("(prefers-reduced-motion: reduce)").matches ? 72 : 108;
         for (let f = 0; f < introFrames; f++) yield;

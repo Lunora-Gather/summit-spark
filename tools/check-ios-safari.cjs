@@ -72,9 +72,13 @@ function observePage() {
       };
     } else if (playing && !document.getElementById("touchControls").hidden) {
       const stage = document.querySelector(".stage").getBoundingClientRect();
-      state.controls = ["left", "right", "jump", "dash"].map(action => {
-        const rect = document.querySelector('[data-touch="' + action + '"]').getBoundingClientRect();
-        return { action, width: rect.width, height: rect.height, gap: rect.top - stage.bottom,
+      const goal = document.getElementById("portraitRoomGoal");
+      state.firstJumpHint = document.getElementById("openingGuide").hidden &&
+        getComputedStyle(goal).visibility === "visible" && goal.getBoundingClientRect().height > 0 &&
+        goal.textContent.includes("第一道山隙") && document.getElementById("game").getAttribute("aria-describedby") === goal.id;
+      state.controls = [...document.querySelectorAll("#touchControls button")].filter(button => button.offsetHeight).map(button => {
+        const rect = button.getBoundingClientRect();
+        return { action: button.dataset.touch || button.dataset.touchCommand, width: rect.width, height: rect.height, gap: rect.top - stage.bottom,
           left: rect.left - viewport.offsetLeft, right: viewport.offsetLeft + viewport.width - rect.right,
           below: viewport.offsetTop + viewport.height - rect.bottom };
       });
@@ -156,11 +160,13 @@ async function checkIOSSafari(fixture, udid) {
       r.keyboard.scrolls && r.keyboard.visible && r.height < fullHeight - 80);
     console.log("Native Safari keyboard verified at viewport heights " + fullHeight + " → " + state.height);
 
+    fixture.setSafeAreaFixture({ top: 47, right: 0, bottom: 34, left: 0 });
     await openScene("play");
     const playOrigin = await locateViewport();
     await tapTarget(playOrigin);
-    await waitFor("One native tap starts the climb with portrait controls below the landing area", r => r.tapped === "guestEntryButton" && r.playing &&
-      r.controls?.every(b => b.width >= 44 && b.height >= 44 && b.gap >= 0 && b.left >= -1 && b.right >= -1 && b.below >= -1));
+    await waitFor("One native tap starts the climb with one portrait jump hint and controls below the landing area", r => r.tapped === "guestEntryButton" && r.playing && r.firstJumpHint &&
+      r.controls?.some(b => b.action === "up") && r.controls.some(b => b.action === "grab") &&
+      r.controls.every(b => b.width >= 44 && b.height >= 44 && b.gap >= 4 && b.left >= -1 && b.right >= -1 && b.below >= 33));
     console.log("Native Safari passed entry, notch and portrait playfield checks", state.controls);
   } catch (error) {
     if (process.env.RUNNER_TEMP) {

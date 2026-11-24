@@ -139,7 +139,7 @@ routeLines.forEach((lines, index) => {
   });
 });
 const styleKinds = new Set();
-const allowedStyleTech = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "phase", "drift"]);
+const allowedStyleTech = new Set(["spark", "wallSpark", "prismSpark", "relay", "relayChain", "relayLanding", "spring", "springApex", "updraft", "prism", "echo", "recall", "crumble", "gate", "phase", "drift"]);
 styleTrials.forEach((trial, index) => {
   if (!trial || typeof trial !== "object") errors.push("room " + (index + 1) + " style trial must be an object");
   if (isTooShortText(trial?.label, 7, 2)) errors.push("room " + (index + 1) + " style label is too short");

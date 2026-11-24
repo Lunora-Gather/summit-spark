@@ -2145,12 +2145,11 @@
     const hidden = !started || won || roomIndex !== 0 || !openingGuideActive
       || settingsVisible || gameTipVisible();
     const source = hidden ? "" : gameplayInputSource();
-    const show = Boolean(source) && (source !== "touch" || !portraitGuideSpace.matches);
-    if (openingGuide.hidden === show) {
-      openingGuide.hidden = !show;
-      if (show) canvas.setAttribute("aria-describedby", openingGuide.id);
-      else canvas.removeAttribute("aria-describedby");
-    }
+    const useRoomBrief = source === "touch" && portraitViewport.matches;
+    const show = Boolean(source) && !useRoomBrief;
+    if (openingGuide.hidden === show) openingGuide.hidden = !show;
+    if (source) setElementAttribute(canvas, "aria-describedby", useRoomBrief ? portraitRoomGoal.id : openingGuide.id);
+    else if (canvas.hasAttribute("aria-describedby")) canvas.removeAttribute("aria-describedby");
     if (!show) return;
 
     const bindings = effectiveBindings();
@@ -2885,6 +2884,11 @@
       respawnRecoveryTimer = Math.max(respawnRecoveryTimer, 0.12);
       setGameStatus("落点已校正 · 继续前进");
     }
+    if (roomIndex === 1 && !player.wasGrounded && player.onGround) {
+      for (const relay of room.entities.relays) {
+        if (relay.awakened) relay.followedByLanding = true;
+      }
+    }
     if (!player.wasGrounded && player.onGround && fallSpeed > 420) {
       triggerActionVisual("land", 0.18);
       playSound("land", 1);
@@ -3212,6 +3216,9 @@
       if (relay.ready && charged && distRectPoint(box, relay.x, relay.y) < 26) {
         const chain = scoreRelayChain(relay);
         markRoomTech("relay");
+        if (roomIndex === 1 && room.entities.relays.some(other => other !== relay && other.followedByLanding)) {
+          markRoomTech("relayLanding");
+        }
         showMechanicFirstTouchCue("relay");
         if (chain >= 3) markRoomTech("relayChain");
         if (!relay.awakened && room.lightStep?.ring === relay) room.lightStep.litAt = room.dynamicTime;
@@ -3924,6 +3931,7 @@
   }
 
   function resetCrossingEffects() {
+    clearGameTip("lumen");
     particles.length = 0;
     ghosts.length = 0;
     lightTrails.length = 0;
@@ -4283,6 +4291,7 @@
       wallSpark: false,
       prismSpark: false,
       relay: false,
+      relayLanding: false,
       relayChain: false,
       spring: false,
       springApex: false,

@@ -179,7 +179,7 @@ export function paintExitSign(g, chapter) {
 }
 
 export const mapMechanics = {
-  C: ["脆冰", "#80adb9"], D: ["冲刺门", "#b99358"], E: ["相位台", "#688595"],
+  G: ["光阶", "#abdfcd"], C: ["脆冰", "#80adb9"], D: ["冲刺门", "#b99358"], E: ["相位台", "#688595"],
   T: ["弹簧", "#a8e5ae"], A: ["光继", "#9ce5db"], R: ["补给", "#a5deeb"],
   U: ["风升", "#b5ebe3"], B: ["棱镜", "#ffd98c"], M: ["回声", "#e1c7fc"], K: ["巡游晶核", "#f6adab"]
 };
@@ -206,7 +206,9 @@ export function paintMapMechanic(g, symbol, x, y, exposed = true) {
       }
       g.lineWidth = 1.8;
       g.strokeStyle = symbol === "D" ? "#674c38" : "#354f63";
-      if (symbol === "C") {
+      if (symbol === "G") {
+    g.beginPath(); g.moveTo(-7, -2); g.lineTo(7, -2); g.lineTo(4, 2); g.lineTo(-4, 2); g.closePath(); g.stroke();
+  } else if (symbol === "C") {
         g.moveTo(-8,0); g.lineTo(-3,2); g.lineTo(1,-2); g.lineTo(8,0);
       } else if (symbol === "D") {
         g.moveTo(-4,-4); g.lineTo(0,0); g.lineTo(-4,4);
@@ -413,9 +415,11 @@ export function paintLedge(g, run, tile, material, index, image) {
       const depth = tile - (1 - taper) * 10;
       const layer = 17 + n(i + 31) * 17;
       if (kind === "basalt") {
-        g.lineTo(x, depth - 3);
-        g.lineTo(x - 1, depth + n(i + 15) * 9);
-        g.lineTo(Math.max(6, x - layer * .54), depth + 4);
+        // Broad, horizontal fractures distinguish safe basalt from pointed hazards.
+        const bed = depth + n(i + 15) * 3;
+        g.lineTo(x, bed);
+        g.lineTo(Math.max(6, x - layer * .64), bed);
+        g.lineTo(Math.max(5, x - layer * .8), bed - 3);
       } else if (kind === "sandstone") {
         const bed = depth - 5 * Math.sin(t * 6 + n(11) * 4);
         g.lineTo(x, bed);

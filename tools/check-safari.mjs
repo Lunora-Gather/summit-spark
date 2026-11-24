@@ -136,7 +136,7 @@ try {
   await driver.wait(() => driver.executeScript('return window.lastPaintedRoom === "gate.jpg" && window.lastPaintedMaterial === "moss.jpg" && window.lastLumenChapter === 0 && window.paintedLandmarks.has(0) && window.supportFrames.has(0)'), 5000);
   await driver.wait(() => driver.executeScript('return document.querySelector("#overlay").classList.contains("hidden")'), 5000);
   const guideKeys = await driver.findElements(By.css("#openingGuideControls kbd"));
-  assert.equal(guideKeys.length, 4);
+  assert.equal(guideKeys.length, 2);
   assert.ok((await guideKeys[1].getText()).length > 0);
   const keyEvent = (code, type) => driver.executeScript((code, type) =>
     window.dispatchEvent(new KeyboardEvent(type, {code, bubbles: true, cancelable: true})), code, type);

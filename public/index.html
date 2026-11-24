@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20261124-p326">
+  <meta name="build-version" content="20261124-p327">
   <title>山巅微光</title>
   <meta name="theme-color" content="#193b4a">
   <link rel="icon" type="image/svg+xml" href="assets/trail-mark.svg">
-  <link rel="stylesheet" href="summit-spark.css?v=20261124-p326">
+  <link rel="stylesheet" href="summit-spark.css?v=20261124-p327">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -46,9 +46,8 @@
       </div>
 
       <div class="opening-guide" id="openingGuide" hidden>
-        <strong>R1 · 起势山门 <span>向右越过断崖</span></strong>
-        <span id="openingGuideControls"><span><kbd></kbd> 移动／定向</span><span><kbd></kbd> 跳跃</span><span><kbd></kbd> 冲刺</span><span><kbd></kbd> 抓墙</span></span>
-        <span id="openingGuideRestart"></span>
+        <strong>越过第一道山隙</strong>
+        <span id="openingGuideControls"><span><kbd></kbd> 向右</span><span><kbd></kbd> 跳跃</span></span>
       </div>
 
       <pre class="debug-panel hidden" id="debugPanel" aria-hidden="true"></pre>
@@ -67,6 +66,11 @@
         </div>
         <div class="settings-body">
           <div class="settings-column settings-column-main">
+            <div id="pauseRetries" class="pause-retries" hidden>
+              <button type="button" class="mini-button" id="pauseTerrain" hidden>查看本房地形</button>
+              <button type="button" class="mini-button" data-pause-retry="retry">回到检查点</button>
+              <button type="button" class="mini-button" data-touch-command="roomRestart" title="回到房间起点">重开本房</button>
+            </div>
             <details class="settings-group settings-group-account settings-only">
               <summary aria-expanded="false"><span><svg class="settings-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17H6a4 4 0 0 1-.6-7.96A6 6 0 0 1 17 8a4.5 4.5 0 0 1 1 8.89M12 12v9m-3-6 3-3 3 3"/></svg>账号与云存档</span><small id="accountSummary">未登录</small><span class="settings-group-chevron" aria-hidden="true">›</span></summary>
               <div class="settings-group-body account-body">
@@ -447,7 +451,6 @@
       </div>
       <div class="touch-cluster touch-system" aria-label="重开">
         <button type="button" data-touch-command="retry" aria-label="回到检查点" title="回到检查点"><span>返回</span>检查点</button>
-        <button type="button" data-touch-command="roomRestart" aria-label="重开本房" title="回到房间起点"><span>重开</span>本房</button>
       </div>
     </div>
     <div id="portraitGuideDock"></div>
@@ -458,6 +461,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20261124-p326"></script>
+  <script src="summit-spark.js?v=20261124-p327"></script>
 </body>
 </html>

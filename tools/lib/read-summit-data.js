@@ -80,6 +80,7 @@ function buildRoomDataSnapshotFromSources(
     roomSkills: extractConst(roomDataSource, "ROOM_SKILLS", "["),
     skillLabels: extractConst(roomDataSource, "SKILL_LABELS", "{"),
     mechanicFirstTouchCues: extractConst(roomDataSource, "MECHANIC_FIRST_TOUCH_CUES", "{"),
+    roomLightSteps: extractConst(roomDataSource, "ROOM_LIGHT_STEPS", "{"),
     roomGuides: extractConst(roomDataSource, "ROOM_GUIDES", "["),
     roomPurposes: extractConst(roomDataSource, "ROOM_PURPOSES", "["),
     roomRouteLines: extractConst(roomDataSource, "ROOM_ROUTE_LINES", "["),

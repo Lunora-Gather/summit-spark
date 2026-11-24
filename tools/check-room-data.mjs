@@ -14,6 +14,7 @@ import {
   MECHANIC_FIRST_TOUCH_CUES,
   maps,
   ROOM_ATMOSPHERES,
+  ROOM_LIGHT_STEPS,
   ROOM_CHAPTER_INDEXES,
   ROOM_CHAPTER_LABELS,
   ROOM_GUIDES,
@@ -213,6 +214,13 @@ assert.equal(mechanicFirstTouchCueData("prism", { roomFocus: Array.from({ length
 assert.equal(mechanicFirstTouchCueData("prism", { bestRoomTimes: Array.from({ length: 8 }, (_, index) => index === 7 ? 18.4 : 0) }), null, "recorded teaching-room times should suppress first-touch cues");
 assert.equal(mechanicFirstTouchCueData("unknown"), null, "unknown mechanic cues should fail closed");
 assert.equal(mechanicFirstTouchCueData("__proto__"), null, "prototype-named mechanic cues should fail closed");
+for (const [index, crossing] of Object.entries(ROOM_LIGHT_STEPS)) {
+  const { ringX, ringY, x, y, width } = crossing;
+  const rows = maps[index];
+  assert.equal(rows[ringY][ringX], "A", "every light step must be paired with a playable relay");
+  assert.equal(rows[y].slice(x, x + width), ".".repeat(width), "light steps need clear space at the landing");
+  assert.ok(width >= 2 && rows[y - 1].slice(x, x + width).split("").every(tile => ".L".includes(tile)), "the full light step needs headroom");
+}
 assert.equal(ROOM_NAMES[0], "起势山门");
 assert.equal(ROOM_NAMES.at(-1), "星顶终线");
 assert.deepEqual(
@@ -229,7 +237,7 @@ const lumenCoordinates = maps.map((room) => {
 });
 assert.deepEqual(lumenCoordinates, [
   [[25, 3]],
-  [[17, 2], [26, 11]],
+  [[17, 2], [15, 7]],
   [[20, 2], [25, 10]],
   [[6, 11]],
   [[36, 10]],

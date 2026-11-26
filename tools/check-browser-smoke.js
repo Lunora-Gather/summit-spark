@@ -5,10 +5,12 @@ const childProcess = require("child_process");
 const http = require("http");
 const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
 const net = require("net");
+const { once } = require("node:events");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const errors = [];
+const {collectorRoute, installReplayClock, startCollectionReplay} = require("./lib/summit-collection-replay.cjs");
 const { checkStorageRecovery } = require("./check-storage-recovery.cjs");
 const { routes: oldPeakRoutes, replayOldPeakStyle, checkOldPeakStyleGuidance, checkOldPeakCampHint } = require("./lib/old-peak-style-replay.cjs");
 
@@ -83,63 +85,6 @@ function requestText(url, method = "GET") {
   });
 }
 
-function killProcess(child) {
-  if (!child) return Promise.resolve();
-  const closeHandles = () => {
-    child.stdin?.destroy();
-    child.stdout?.destroy();
-    child.stderr?.destroy();
-    child.unref?.();
-  };
-  if (child.exitCode !== null) {
-    closeHandles();
-    return Promise.resolve();
-  }
-  if (process.platform === "win32" && Number.isInteger(child.pid)) {
-    return new Promise((resolve) => {
-      let settled = false;
-      let timeoutId = null;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        if (timeoutId) clearTimeout(timeoutId);
-        try {
-          if (child.exitCode === null) child.kill();
-        } catch {
-          // The exact test process may already have exited.
-        }
-        closeHandles();
-        resolve();
-      };
-      const killer = childProcess.spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
-        windowsHide: true,
-        stdio: "ignore"
-      });
-      killer.once("exit", finish);
-      killer.once("error", finish);
-      timeoutId = setTimeout(() => {
-        try {
-          killer.kill();
-        } catch {
-          // Tree cleanup is best-effort after the exact timeout.
-        }
-        finish();
-      }, 2500);
-    });
-  }
-  return new Promise((resolve) => {
-    child.once("exit", () => {
-      closeHandles();
-      resolve();
-    });
-    child.kill();
-    setTimeout(() => {
-      closeHandles();
-      resolve();
-    }, 1200);
-  });
-}
-
 async function waitUntil(label, fn, timeout = 6000, pollInterval = 120) {
   const start = Date.now();
   let last = "";
@@ -173,12 +118,11 @@ async function navigateApp(browser, baseUrl, label = "app") {
 }
 
 async function runSummitCollection(browser, upstream) {
-  const {collectorRoute, installCollectionClock, startCollectionReplay} = require("./lib/summit-collection-replay.cjs");
   const fixture = await startFixture(upstream);
-  fixture.scripts.set("collection-clock", "(" + installCollectionClock.toString() + ")();");
+  fixture.scripts.set("collection-clock", "(" + installReplayClock.toString() + ")();");
   try {
     await navigateApp(browser, fixture.url, "fresh summit collection");
-    await browser.evaluate("stepCollectionFrame()");
+    await browser.evaluate("stepGameFrame()");
     await clickSelector(browser, "#guestEntryButton");
     await browser.evaluate("(" + startCollectionReplay.toString() + ")(" + JSON.stringify(collectorRoute) + ")");
     // Bound the work per script call on the slower hosted Mac display.
@@ -600,23 +544,15 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function keyDown(browser, code, key) {
+async function keyTap(browser, code, key) {
   await browser.keyDown(code, key);
-}
-
-async function keyUp(browser, code, key) {
   await browser.keyUp(code, key);
 }
 
-async function keyTap(browser, code, key) {
-  await keyDown(browser, code, key);
-  await keyUp(browser, code, key);
-}
-
 async function keyHold(browser, code, key, ms = 300) {
-  await keyDown(browser, code, key);
+  await browser.keyDown(code, key);
   await sleep(ms);
-  await keyUp(browser, code, key);
+  await browser.keyUp(code, key);
 }
 
 async function windowKeyHold(browser, code, key, ms = 300) {
@@ -708,70 +644,63 @@ async function runMenuScaleSmoke(browser, baseUrl) {
 }
 
 async function runBackwardTransitionSmoke(browser, baseUrl) {
-  await browser.setViewport(1280, 720);
-  await navigateApp(browser, baseUrl, "backward transition");
-  await clickSelector(browser, await visibleStartSelector(browser));
-  await waitUntil("backward transition starts", () => browser.evaluate(`document.querySelector("#overlay").classList.contains("hidden")`));
-  await enableDebugPanel(browser);
-
-  // R2 -> R1 exercises the same-act path. The local-only probe seeds a
-  // previous-room Lumen and an already-faulted current attempt, then crosses
-  // the actual left boundary on the next update.
-  await keyTap(browser, "Digit2", "2");
-  await waitUntil("backward probe reaches R2", () => browser.evaluate(`/room 2\\/10/.test(document.querySelector("#debugPanel").textContent)`));
-  await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
-  const sameAct = await waitUntil("backward R2 transition restores clean and carried Lumen", () => browser.evaluate(`(() => {
-    const text = document.querySelector("#debugPanel").textContent;
-    return /room 1\\/10/.test(text) && /attempt clean 1/.test(text) && /carry 1/.test(text) && /lumen 1\\//.test(text) && /drill 0/.test(text)
-      ? { text }
-      : null;
-  })()`), 3000, 20);
-  const sameActStatus = await browser.evaluate(`document.querySelector("#gameStatus")?.textContent || ""`);
-  if (!/attempt clean 1/.test(sameAct.text) || !/carry 1/.test(sameAct.text) || !/drill 0/.test(sameAct.text) || !/已回退 · 本房 Drill 已暂停/.test(sameActStatus)) {
-    errors.push("backward same-act transition should re-arm Clean, preserve banked Lumen and leave room training cleanly: " + JSON.stringify({ text: sameAct.text, status: sameActStatus }));
-  }
-
-  // A checkpoint retry on the exit shelf must still be a partial visit.
-  await keyTap(browser, "KeyR", "r");
-  const readRecords = `(() => {
-    const focus = JSON.parse(localStorage.getItem("summit-spark-room-focus") || "{}").rooms?.[0];
-    return JSON.stringify([
-      localStorage.getItem("summit-spark-room-bests"), localStorage.getItem("summit-spark-room-paths"),
-      focus?.clears || 0, focus?.clean || 0
-    ]);
-  })()`;
-  const beforeRecross = await browser.evaluate(readRecords);
-  await keyDown(browser, "KeyD", "d");
+  const clock = await installFrameClock(browser);
   try {
-    await waitUntil("walk back into R2 from the exit shelf", () =>
-      browser.evaluate(`document.querySelector("#debugPanel").textContent.includes("room 2/10")`), 6000, 40);
-  } finally {
-    await keyUp(browser, "KeyD", "d");
-  }
-  if (await browser.evaluate(readRecords) !== beforeRecross) {
-    errors.push("returning across the exit after a checkpoint retry changed a PB, replay or clear count");
-  }
+    await browser.setViewport(1280, 720);
+    await navigateApp(browser, baseUrl, "backward transition");
+    await clickSelector(browser, await visibleStartSelector(browser));
+    await enableDebugPanel(browser);
 
-  // Turning back at the pass or immediately re-entering must keep the player moving.
-  await keyTap(browser, "Digit4", "4");
-  await waitUntil("backward probe reaches R4", () => browser.evaluate(`/room 4\\/10/.test(document.querySelector("#debugPanel").textContent)`));
-  await browser.evaluate(`window.dispatchEvent(new CustomEvent("summit-spark:test-action", { detail: "prepareBackwardTransition" }))`);
-  const firstRoomFrame = room => browser.evaluate(`(() => {
-    const text = document.querySelector("#debugPanel").textContent;
-    return text.includes("room ${room}/10") ? { text } : null;
-  })()`);
-  const actBoundary = await waitUntil("walk back into the preceding act", () => firstRoomFrame(3), 3500, 20);
-  if (!/act 0\.000/.test(actBoundary.text) || !/attempt clean 1/.test(actBoundary.text)) {
-    errors.push("backward chapter crossing should preserve control and a fresh Clean attempt: " + actBoundary.text);
-  }
-  await keyDown(browser, "KeyD", "d");
-  try {
-    const reentry = await waitUntil("re-enter the introduced act", () => firstRoomFrame(4), 3000, 20);
-    if (!/act 0\.000/.test(reentry.text)) {
-      errors.push("returning to an introduced chapter should keep control: " + reentry.text);
+    // Advance the shipped frame loop while Safari holds a real keyboard key.
+    // Stop on the very first destination frame, before a bad intro can expire.
+    const arrival = number => browser.evaluate(`(() => {
+      const panel = document.getElementById("debugPanel");
+      for (let frame = 0; frame < 120; frame++) {
+        window.stepGameFrame();
+        if (panel.textContent.includes("room ${number}/10")) return panel.textContent;
+      }
+      throw Error("Did not reach R${number} in 120 frames: " + panel.textContent);
+    })()`);
+    async function walkTo(number, code, key) {
+      await browser.keyDown(code, key);
+      try {
+        return await arrival(number);
+      } finally {
+        await browser.keyUp(code, key);
+      }
     }
+
+    // The local fixture seeds an interrupted Drill and one banked R1 pickup.
+    await keyTap(browser, "Digit2", "2");
+    await arrival(2);
+    await browser.evaluate('window.dispatchEvent(new CustomEvent("summit-spark:test-action", {detail:"prepareBackwardTransition"}))');
+    const sameAct = await arrival(1);
+    const status = await browser.evaluate('document.getElementById("gameStatus").textContent');
+    if (!/attempt clean 1/.test(sameAct) || !/carry 1/.test(sameAct) || !/lumen 1\//.test(sameAct)
+      || !/drill 0/.test(sameAct) || !status.includes("已回退 · 本房 Drill 已暂停")) {
+      throw Error("R1 should restore the banked Lumen and end the interrupted Drill: " + status + " " + sameAct);
+    }
+
+    const readRecords = () => browser.evaluate(`(() => {
+      const focus = JSON.parse(localStorage.getItem("summit-spark-room-focus") || "{}").rooms?.[0];
+      return JSON.stringify([localStorage.getItem("summit-spark-room-bests"),
+        localStorage.getItem("summit-spark-room-paths"), focus?.clears || 0, focus?.clean || 0]);
+    })()`);
+    const beforeRetry = await readRecords();
+    await keyTap(browser, "KeyR", "r");
+    await walkTo(2, "KeyD", "d");
+    if (await readRecords() !== beforeRetry) throw Error("An exit-shelf retry or recross changed R1 records");
+
+    await keyTap(browser, "Digit4", "4");
+    await arrival(4);
+    const previous = await walkTo(3, "KeyA", "a");
+    if (!/act 0\.000/.test(previous) || !/attempt clean 1/.test(previous)) {
+      throw Error("Walking back from R4 should preserve control and re-arm Clean: " + previous);
+    }
+    const revisited = await walkTo(4, "KeyD", "d");
+    if (!/act 0\.000/.test(revisited)) throw Error("Re-entering R4 replayed its chapter intro: " + revisited);
   } finally {
-    await keyUp(browser, "KeyD", "d");
+    await browser.removeInitScript(clock);
   }
 }
 
@@ -2023,7 +1952,7 @@ async function runDesktopSmoke(browser, baseUrl) {
   if (Math.abs(r7PracticeEntry.x - 70.5) > 1 || Math.abs(r7PracticeEntry.y - 487) > 1 || !r7PracticeEntry.ground) {
     errors.push("direct R7 Practice should begin on the intended grounded Wind Gorge checkpoint: " + JSON.stringify(r7PracticeEntry));
   }
-  await keyDown(browser, "KeyD", "D");
+  await browser.keyDown("KeyD", "D");
   let r7WindWake;
   try {
     r7WindWake = await waitUntil("R7 floor route enters its authored updraft", () => browser.evaluate(`(() => {
@@ -2033,7 +1962,7 @@ async function runDesktopSmoke(browser, baseUrl) {
       return { x: Number(position[1]), y: Number(position[2]), debug };
     })()`), 3600, 20);
   } finally {
-    await keyUp(browser, "KeyD", "D");
+    await browser.keyUp("KeyD", "D");
   }
   await keyHold(browser, "KeyA", "A", 520);
   const r7WindExit = await waitUntil("R7 updraft wake clears after leaving the exact field", () => browser.evaluate(`(() => {
@@ -2181,7 +2110,7 @@ async function runOldPeakRelicSmoke(browser, baseUrl) {
     const text = document.querySelector("#debugPanel").textContent;
     return /room 5\\/10/.test(text) && /relays 5  gate 0\\.00  relic 0\\.00/.test(text) ? { text } : null;
   })()`), 3500);
-  await keyDown(browser, "KeyD", "D");
+  await browser.keyDown("KeyD", "D");
   const awakened = await waitUntil("R5 first Relay awakens its switchback relic", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
     const position = text.match(/pos ([\\d.-]+), ([\\d.-]+)/);
@@ -2189,7 +2118,7 @@ async function runOldPeakRelicSmoke(browser, baseUrl) {
       ? { x: Number(position[1]), y: Number(position[2]), text }
       : null;
   })()`), 1800, 20);
-  await keyUp(browser, "KeyD", "D");
+  await browser.keyUp("KeyD", "D");
   await sleep(4350);
   const afterCooldown = await browser.evaluate(`document.querySelector("#debugPanel").textContent`);
   await keyTap(browser, "KeyR", "R");
@@ -2301,7 +2230,7 @@ async function runMountainGateLandmarkSmoke(browser, baseUrl) {
           && /relays 2  gate 0\\.00  relic 0\\.00/.test(text);
       })()`), 3500, 20);
     }
-    await keyDown(browser, "KeyD", "D");
+    await browser.keyDown("KeyD", "D");
     try {
       try {
         await waitUntil("R2 real-input run-up reaches jump cue", () => browser.evaluate(`(() => {
@@ -2346,7 +2275,7 @@ async function runMountainGateLandmarkSmoke(browser, baseUrl) {
         r2AttemptSnapshots.push(await browser.evaluate(`document.querySelector("#debugPanel").textContent`));
       }
     } finally {
-      await keyUp(browser, "KeyD", "D");
+      await browser.keyUp("KeyD", "D");
     }
   }
   if (!r2Awake) throw new Error(`R2 first unique Relay wakes half the bridge failed after two bounded input attempts: ${JSON.stringify(r2AttemptSnapshots)}`);
@@ -2444,7 +2373,7 @@ async function runSpringApexSmoke(browser, baseUrl) {
   })()`), 4500, 20);
   let approach;
   let approachProbe = null;
-  await keyDown(browser, "KeyD", "D");
+  await browser.keyDown("KeyD", "D");
   try {
     approach = await waitUntil("R10 spring approach reaches the lower floor", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
@@ -2456,11 +2385,11 @@ async function runSpringApexSmoke(browser, baseUrl) {
   } catch {
     approachProbe = await debugPosition(browser);
   } finally {
-    await keyUp(browser, "KeyD", "D");
+    await browser.keyUp("KeyD", "D");
   }
   if (approachProbe) throw new Error("R10 spring approach missed lower-floor window: " + JSON.stringify(approachProbe));
   let launch;
-  await keyDown(browser, "KeyD", "D");
+  await browser.keyDown("KeyD", "D");
   try {
     launch = await waitUntil("R10 floor spring opens the apex window", () => browser.evaluate(`(() => {
       const text = document.querySelector("#debugPanel").textContent;
@@ -2471,7 +2400,7 @@ async function runSpringApexSmoke(browser, baseUrl) {
         : null;
     })()`), 1200, 20);
   } finally {
-    await keyUp(browser, "KeyD", "D");
+    await browser.keyUp("KeyD", "D");
   }
   const apex = await waitUntil("R10 spring reaches its authored apex timing", () => browser.evaluate(`(() => {
     const text = document.querySelector("#debugPanel").textContent;
@@ -2537,17 +2466,7 @@ async function runSpringApexSmoke(browser, baseUrl) {
 }
 
 function installFrameClock(browser) {
-  return browser.addInitScript({source: `(() => {
-    let pending = [];
-    let time;
-    window.requestAnimationFrame = callback => pending.push(callback);
-    window.stepGameFrame = () => {
-      time = (time ?? performance.now()) + 1000 / 60;
-      const callbacks = pending;
-      pending = [];
-      for (const callback of callbacks) callback(time);
-    };
-  })();`});
+  return browser.addInitScript({source: "(" + installReplayClock.toString() + ")();"});
 }
 
 async function runRetryAndTouchAimSmoke(browser, baseUrl) {
@@ -5794,7 +5713,15 @@ async function runNativeSafari({ motionOnly = false, mobile = false, extended = 
     try {
       await browser?.close();
     } finally {
-      try { await fixture?.close(); } finally { await killProcess(server); }
+      try {
+        await fixture?.close();
+      } finally {
+        if (server.exitCode === null && server.signalCode === null) {
+          const exited = once(server, "exit");
+          server.kill();
+          await exited;
+        }
+      }
     }
   }
   if (errors.length) throw new Error(errors.join("\n- "));

@@ -28,9 +28,6 @@ Explanation:
 
 - [ ] `npm run check`
 - [ ] `npm run browser-smoke`
-- [ ] `npm run route-audit`
-- [ ] `npm run state-check`
-- [ ] `node tools/export-room-data.js --check`
 - [ ] `git diff --check`
 - [ ] Manual `npm start`
 - [ ] Relevant room or R1–R10 playtest

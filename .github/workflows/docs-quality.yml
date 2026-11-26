@@ -22,18 +22,6 @@ jobs:
       - name: Parse GitHub YAML configuration
         run: ruby -r yaml -e 'Dir[".github/**/*.{yml,yaml}"].each { |file| Psych.parse_file(file) }'
 
-      - name: Check documentation surface
-        run: node tools/check-docs.js
-
-      - name: Check public surface
-        run: node tools/check-public-surface.js
-
-      - name: Check data contracts
-        run: node tools/check-data-contracts.js
-
-      - name: Verify room data export
-        run: node tools/export-room-data.js --check
-
       - name: Run default quality gate
         run: npm run check
 

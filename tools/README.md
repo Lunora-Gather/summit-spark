@@ -25,7 +25,7 @@
 
 ## 房间数据
 
-- `lib/read-summit-data.js`：唯一允许合并解析 `public/modules/game/room-data.mjs` 与主运行时训练夹具的共享读取器。
+- `lib/read-summit-data.js`：直接导入房间模块，提取主脚本中的 Route 和 Feel 训练夹具，供快照导出和校验使用。
 - `lib/validate-room-data.js`：地图、路线、Style/Expert 和 Feel 数据的共享验证器。
 - `export-room-data.js`：生成或核对 `data/rooms.generated.json`。
 - `report-room-data.js`：输出房间数据摘要，以及长房三个空间段的压力和微光所在屏。

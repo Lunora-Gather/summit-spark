@@ -1,200 +1,67 @@
-# 山巅微光
+# 山巅微光 · Summit Spark
 
-原创精密平台跳跃游戏原型。十个房间围绕跳跃、冲刺、攀墙、光继点、风升流、超载棱镜、回声锚点、脆冰、破门、相位台和巡游晶核展开；R4–R10 是带水平镜头跟随的长房间，并提供房间 PB、最佳路线影子、Focus 教练、Drill、Route contracts、Feel Lab、手柄与触控支持。
+一款用 JavaScript 和 Canvas 制作的精密平台跳跃游戏。穿过青环，断桥会亮成能落脚的光阶。四幕十个房间藏着 12 枚微光。冲刺已满时拾起微光，可以再存一次冲刺，试着够到更高的落点。
 
-在线试玩：<https://lunora-gather.github.io/summit-spark/>
+[在线试玩](https://lunora-gather.github.io/summit-spark/)
 
-工作区构建 `20261125-p329`。
+## 开始攀登
 
-首次点「开始攀登」即可从山门出发，回访可继续训练或自由攀登。首屏和主菜单共用月夜山口插画。十个房间各有一幅独立游玩远景，从松林与吊桥逐步进入旧峰遗迹、瀑布峡谷和云上雪脊。四幕的落脚材质和微光藏品也随山势变化，计数器与练习地图会显示本幕藏品。账号表单按内容自适应高度，保持对称留白和可读的提示。设计约定与视觉验收范围见 [UI_DESIGN.md](docs/UI_DESIGN.md)。
+首次点「开始攀登」即可以游客身份进入第一关。R4 起镜头随角色水平移动，点亮中段营灯后，失误可以从营灯再试。登顶时能看到用时、失误、微光和最长光继连锁。结算页也能带你回到漏收微光的房间。
+
+| 动作 | 舒适键位 | 经典键位 |
+| --- | --- | --- |
+| 方向 | WASD | 方向键 |
+| 跳跃 / 冲刺 / 抓墙 | 空格 / K / J | C / X / Z |
+| 回声召回 | Q | Q |
+| 回到检查点 / 重开本房 | R / T | R / T |
+| 暂停 / 练习 | Esc / P | Esc / P |
+
+支持手柄与触屏。触屏上可以横滑方向键转身，上下滑动选择斜向，再用另一根手指冲刺。设置里可以改键、调整触控大小、音量和辅助选项。
+
+练习面板提供选房、地形预览、分房个人最佳成绩和路线影子。进度默认保存在浏览器内，可以导出备份，也可以登录后使用 Appwrite 私有云存档。反馈时可在设置里复制本地诊断快照。
 
 ## 快速开始
 
-需要 Node.js 24。
+本地使用 Node.js 24，从仓库根目录启动静态服务器即可游玩。
 
-```bash
+```sh
 npm start
 ```
 
-打开：
-
-```text
-http://127.0.0.1:4173/
-```
-
-项目无安装依赖、无构建步骤。浏览器运行文件全部位于 `public/`。
-
-## 操作
-
-| 动作 | 键盘（舒适 / 经典） | 手柄 | 触控 |
-| --- | --- | --- | --- |
-| 移动/方向 | WASD / 方向键 | 左摇杆 / 十字键 | 方向组 |
-| 跳跃 | Space / C | A | 跳 |
-| 冲刺 | K / X | B / X / RT | 冲 |
-| 抓墙 | J / Z | 肩键 / LT | 抓 |
-| 快速下落 | S / ↓ | 下方向 | ↓ |
-| 回声召回 | Q | Y | 召（回声房出现） |
-| 快速重开 | R | View / Back | 竖屏点检查点；横屏在暂停中选择 |
-| 当前房重开 | T | L3 + R3 | 暂停 → 重开本房 |
-| 设置 | Esc（游玩中）/ O / 右上角暂停键 | Menu / Start | 右上角暂停键 |
-| 练习 | P / 右上角练习按钮 | — | 右上角练习按钮 |
-| 调试 | F3 | — | — |
-
-首次攀登的提示会留到越过山隙并落稳，跌落可继续学习。青环与断桥两端的石座带有相同的开口刻纹。高速穿过这种青环就能唤起光阶，从下方穿过，从上方落脚。光阶在本次尝试保持点亮。背包扣的两瓣灯显示剩余冲刺，满冲刺拾到微光会点亮第二瓣。触屏从左键滑到右键即可转身。按住左或右方向后，拇指上滑或下滑即可改变斜向，再用另一只手按冲刺。死亡演出中仍可按 R 或 T 立即重开，同一次失误只计一次。练习面板的「选择房间」内可展开地形图，查看平台、尖刺、起点、微光、营灯、出口和本关的移动机关。键盘放大地图后，左右方向键平移，Home / End 到达两端，Esc 收起地图。
-
-设置中可以：
-
-- 切换舒适/经典键位并自定义绑定；
-- 选择抓墙按住或切换模式；
-- 调整手柄死区、触控尺寸和低性能模式；
-- 调整音量、练习线和 ghost 透明度；
-- 开启“舒缓”辅助（85% 速度、双冲刺、无限体力）；辅助轮次不写入 PB、挑战、训练合同或长期纪录；
-- 收集微光会在当前房间提供一次额外冲刺，但本房奖励要跨过房间边界才算带回；回退到上一房时，已经带回的微光仍受保护，不会因回退后的死亡被错误抹掉；R4–R10 的中段营灯会在死亡/快速重开时保留营灯前已拿到的合法微光坐标和当时的分房用时，整房重开仍会清空本房临时奖励与计时，完整路线的最佳收集数记录在既有长期挑战中；
-- 从出口回看上一房时可以自由探索。整房重开会从入口重新计分，直接折返出口会继续行程并保留原房间纪录。
-- 在 Drill 中向左回退离开当前房间时，本房 Drill/Route/Feel 会明确暂停并回到普通游玩态；跨房挑战与已结算的长期进度不受影响。
-- 触控方向与动作按钮各自只接受第一根活动手指；多指误触或第二根手指提前松开不会再抢先释放正在使用的输入，失去 Pointer Capture 时仍会及时停下。
-- 首次选择和启动菜单保留中心视觉焦点，账号抽屉的标签、说明与输入字号在大屏和窄屏上保持可读；不增加额外页面层级，也不改变山景基调。
-- 从首屏点击“云存档”时，启动菜单会完全退出视觉层，账号面板居中成为唯一操作焦点；游戏进行中打开账号仍沿用右侧设置布局。
-- 自动重生会清除过期输入边沿、解除异常焦点暂停，并短暂保护重生落点不被同一帧的尖刺再次吞掉；重生状态会按最近使用的输入设备提示重开方式。R7/R8 进入时会多留一拍，让风场、碎冰与棱镜的组合先读清再加压；
-- 导出、导入和恢复本地存档；
-- 复制仅含版本、设置摘要、进度摘要和视口信息的本地诊断快照；
-- 使用邮箱 OTP 或密码登录并同步 Appwrite 私有云存档。
-
-## 当前范围
-
-- 10 个房间的 vertical slice，不是完整章节。
-- 登顶时可看到本轮用时、失误、微光与最长光继连锁。打开完整复盘还可查看 Flow 峰值和分房记录。
-- 普通游玩保持安静 HUD；练习首屏只保留选房和训练记录，路线、手感、档案与长期目标按需展开。
-- 存档以浏览器本地为主，登录后可同步到每用户私有 Appwrite 行；事务版本检查保护多设备并发上传，冲突时保留本地并重新选择。
-- 不上传诊断、备注、手柄 ID、输入历史或路线原始数据。
-- 暂不增加新房间、排行榜或第二套成就系统，先完成实体设备和完整通关验证。
-
-人工验证边界见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
+[打开本地游戏](http://127.0.0.1:4173/)
 
 ## 仓库结构
 
-```text
-public/                 可直接部署的唯一运行目录
-  index.html            唯一页面入口
-  summit-spark.css      UI、响应式与视觉
-  summit-spark.js       当前游戏运行时
-  modules/core/         有限化时间/差值、本地时间、安全文本与数学纯函数
-  modules/game/         十房内容、长房世界/预判镜头、微光营灯校验、章节声纹、地标进度与视觉预算
-  modules/systems/      存档规则、云端事务同步，以及手柄/键位输入映射
-  modules/training/     训练状态、房间推荐、三步计划与 PB 路线动作语义
-  modules/ui/           章节、Drill 目标/简报、路线标签、练习/设备摘要、预览与报告模型
-  vendor/               固定 Appwrite SDK 与许可证
-data/                   房间/训练数据验证快照
-tools/                  自动质量门和共享验证器
-docs/                   架构、数据、产品、质量和 Appwrite 文档
-.github/                Issue/PR 模板与 CI/Pages 工作流
-appwrite.config.json    云端资源和最小权限策略
-game-server.js          public 白名单本地服务器
-```
+| 位置 | 从这里改什么 |
+| --- | --- |
+| `public/index.html`、`public/summit-spark.css` | 菜单、HUD、表单和响应式布局 |
+| `public/summit-spark.js` | 输入事件、固定步长更新、碰撞、绘制与界面交互 |
+| `public/modules/game/` | 房间地图、光阶、镜头、地形绘制、营灯和微光规则 |
+| `public/modules/core/`、`public/modules/systems/` | 数学与格式化、输入映射、本地存档和云同步 |
+| `public/modules/training/`、`public/modules/ui/` | 练习目标、路线回放与界面展示数据 |
+| `public/assets/`、`public/vendor/` | 游戏美术、固定版本的 Appwrite SDK 和许可证 |
+| `data/`、`tools/` | 房间验证快照、导出工具、自动检查与 Safari 回放 |
 
-当前运行时主体仍是单体脚本；有限化时间/差值、本地云时间、安全文本、数学、只读房间内容、可变世界宽度、带速度预判的镜头安全区、相位/巡游轨迹、章节声纹、当前尝试地标进度、本房微光回滚与营灯快照校验、长局视觉效果预算、存档规则、设备无关的输入规则、训练状态、五类房间推荐与优先跨房的三步计划、PB 路线动作语义，以及章节成绩/收束和各类 UI 展示模型已迁入独立模块。物理碰撞、世界渲染与副作用编排仍留在主运行时。完整边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+修改关卡从 [room-data.mjs](public/modules/game/room-data.mjs) 入手。地图或训练合同有改动时，运行 `node tools/export-room-data.js --write` 更新快照。[架构说明](docs/ARCHITECTURE.md) · [房间数据契约](docs/DATA_CONTRACTS.md)
 
 ## 质量检查
 
-默认发布门：
-
-```bash
+```sh
 npm run check
 ```
 
-真实浏览器回归：
+默认检查覆盖房间快照、地图与路线、输入和存档规则、静态资源与本地 HTTP 服务。桌面浏览器回归使用 macOS 系统 Safari。在 Safari 开发者设置开启「允许远程自动化」后运行以下命令。
 
-```bash
-# Mac 上用系统 Safari 验证游客入场、重载推荐、进入训练和损坏存档恢复
-# 首次运行先执行 npm ci，并在 Safari 开发者设置中开启“允许远程自动化”
+```sh
+npm ci
 npm run test:safari
-
-# 系统 Safari 的账号、存档和玩法回归，也是 CI 和发布检查使用的入口
 npm run browser-smoke
-
-# 在系统 Safari 试跑仍在迁移的用例
-npm run browser-smoke -- --extended
 ```
 
-部署后逐文件核对线上版本：
-
-```bash
-npm run live-check
-```
-
-专项检查：
-
-```bash
-npm run smoke
-npm run route-audit
-npm run state-check
-npm run css-audit
-node tools/export-room-data.js --check
-node tools/report-room-data.js
-node tools/check-world-model.mjs
-```
-
-`npm run check` 覆盖语法、目录结构、CSP、Pages 发布边界、Appwrite 策略、GitHub Actions SHA 固定与原生 Node 24 发布链、地图、路线、训练状态、视觉效果压力预算、存档契约和本地 HTTP 安全边界。浏览器回归覆盖真实 UI、账号 mock、云冲突、1MB 存档、原子回滚、移动端、Canvas、手柄死区，以及隐藏设置/练习面板的零 DOM 抖动。
-
-详细说明见 [docs/QUALITY_GATES.md](docs/QUALITY_GATES.md)。
-发布前人工路径见 [PLAYTEST_CHECKLIST.md](PLAYTEST_CHECKLIST.md)。
-
-## 房间数据
-
-地图、目标、章节文案、路线说明和 Style/Expert 合同的唯一运行时源是 `public/modules/game/room-data.mjs`；Route 与 Feel 的有状态训练夹具暂留在 `public/summit-spark.js`。`data/rooms.generated.json` 是自动生成的合并验证快照，不会被线上页面加载。
-
-修改地图、路线或合同后：
-
-```bash
-node tools/export-room-data.js --write
-npm run check
-```
-
-不要手工编辑快照。契约见 [docs/DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md)。
-
-## 账号与云存档
-
-Appwrite 仅启用 Account、Database/TablesDB 和 REST：
-
-- 邮箱 OTP 与邮箱密码登录；
-- 用户 ID 作为存档行 ID；
-- read/update/delete 仅授权该用户；
-- 30 天会话、每账号最多 5 个会话；
-- 常见密码、个人信息和最近 3 次密码检查；
-- 新会话邮件提醒；
-- 客户端与云端存档上限 1MB。
-
-配置和发布方法见 [docs/APPWRITE_SETUP.md](docs/APPWRITE_SETUP.md)。
+Safari 回归包含十关连续全收集回放。实体设备的拇指触达、手柄手感和音量平衡由人工试玩核验。[质量检查说明](docs/QUALITY_GATES.md) · [试玩清单](PLAYTEST_CHECKLIST.md) · [已知限制](KNOWN_ISSUES.md)
 
 ## 发布
 
-推送 `main` 后，GitHub Pages workflow 会：
+合并到 `main` 后，GitHub Actions 先运行 Safari 回归和项目检查，再将 `public/` 发布到 GitHub Pages。部署步骤会执行 `npm run live-check`，逐文件核对线上资源与本地发布内容。游戏构建号可在 [页面入口](public/index.html) 的 `build-version` 查看。
 
-1. 运行文档、数据和完整质量门；
-2. 只把 `public/` 复制到 `_site`；
-3. 上传并部署 Pages artifact；
-4. 自动重试逐文件线上核验，失败时标记发布失败。
-
-PR 与每周计划执行 CodeQL 安全扫描，Dependabot 每周检查固定 SHA 的 Actions 更新。Appwrite 实际配置可用已登录 CLI 执行 `npm run appwrite-check` 只读核对。
-
-所有外部 GitHub Actions 固定到完整提交 SHA。发布前执行 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)，部署后运行 `npm run live-check`，确认线上构建与本地 `public/` 完全一致。
-
-## 文档
-
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)：当前边界与后续拆分顺序
-- [docs/CONTENT_BIBLE.md](docs/CONTENT_BIBLE.md)：产品定位、机制与内容规则
-- [docs/DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md)：地图和训练数据契约
-- [docs/QUALITY_GATES.md](docs/QUALITY_GATES.md)：自动、浏览器、人工与发布门
-- [docs/PLAYTEST_PROTOCOL.md](docs/PLAYTEST_PROTOCOL.md)：试玩记录方法
-- [docs/APPWRITE_SETUP.md](docs/APPWRITE_SETUP.md)：账号和云存档配置
-- [docs/OPTIMIZATION_ROADMAP.md](docs/OPTIMIZATION_ROADMAP.md)：尚未完成的优化路线
-- [CHANGELOG.md](CHANGELOG.md)：完整版本历史
-
-## 贡献
-
-提交前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，保持改动聚焦，并说明：
-
-- 是否改变玩法判定；
-- 是否改变存档 schema；
-- 运行了哪些质量门；
-- 是否需要实体设备或完整通关复核。
+[贡献指南](CONTRIBUTING.md) · [发布清单](RELEASE_CHECKLIST.md) · [版本记录](CHANGELOG.md) · [云存档配置](docs/APPWRITE_SETUP.md)

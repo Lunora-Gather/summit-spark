@@ -74,7 +74,6 @@ PR 描述必须写明：
 
 - `docs/ARCHITECTURE.md`：架构现状和目标结构。
 - `docs/CONTENT_BIBLE.md`：内容定位、机制边界、文案语气。
-- `docs/OPTIMIZATION_ROADMAP.md`：全面优化阶段路线。
 - `docs/PLAYTEST_PROTOCOL.md`：人工试玩记录方法。
 - `docs/DATA_CONTRACTS.md`：房间与训练数据契约。
 - `docs/QUALITY_GATES.md`：自动/人工/发布质量门。

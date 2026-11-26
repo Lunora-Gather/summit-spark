@@ -7,9 +7,8 @@ Use this before publishing a public demo update. Deterministic behavior belongs 
 1. Run `npm run check`.
 2. Enable Safari’s Allow Remote Automation on macOS and run `npm run browser-smoke`.
 3. Run `git diff --check`.
-4. Run `node tools/export-room-data.js --check`.
-5. Confirm `public/index.html` is the only HTML entry and its build meta, CSS query, main-script query and all runtime module queries use the intended release version.
-6. If Appwrite configuration changed, verify the live project and private save table against `appwrite.config.json` before pushing.
+4. Confirm `public/index.html` is the only HTML entry and its build meta, CSS query, main-script query and all runtime module queries use the intended release version.
+5. If Appwrite configuration changed, verify the live project and private save table against `appwrite.config.json` before pushing.
 
 The two automated gates already own deterministic coverage for controls, hidden-panel stability, account recovery, cloud conflicts, large archives, atomic save rollback, mobile safe areas, keyboard-resized forms, focus traps, disclosure semantics, real keyboard movement, mocked gamepad deadzones, reduced-motion preference, low-performance rendering, Route interruption/resume, Feel interruption, R1–R10 authored state transitions and the fixed climber-hair invariant. Do not repeat those cases manually unless the related implementation changed or automation reports a failure.
 

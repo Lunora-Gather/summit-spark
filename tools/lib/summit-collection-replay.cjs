@@ -39,7 +39,7 @@ const collectorRoute = [
 ];
 // These functions run in an isolated browser page. Only the display clock is
 // controlled; the shipped game owns its inputs, physics, renderer and save.
-function installCollectionClock() {
+function installReplayClock() {
   let time = 100;
   let nextId = 0;
   const callbacks = new Map();
@@ -49,7 +49,7 @@ function installCollectionClock() {
     return nextId;
   };
   window.cancelAnimationFrame = id => callbacks.delete(id);
-  window.stepCollectionFrame = () => {
+  window.stepGameFrame = () => {
     time += 1000 / 60;
     const pending = [...callbacks.values()];
     callbacks.clear();
@@ -146,7 +146,7 @@ function startCollectionReplay(route) {
     for (let i = 0; i < size; i++) {
       const next = playback.next();
       if (next.done) return next.value;
-      window.stepCollectionFrame();
+      window.stepGameFrame();
       frame++;
       verify(read("deathCount") === "失 0", "Collection route lost a life");
     }
@@ -154,4 +154,4 @@ function startCollectionReplay(route) {
   };
 }
 
-module.exports = {collectorRoute, installCollectionClock, startCollectionReplay};
+module.exports = {collectorRoute, installReplayClock, startCollectionReplay};

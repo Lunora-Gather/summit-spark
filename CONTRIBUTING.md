@@ -27,8 +27,6 @@ git diff --check
 
 ```bash
 npm run browser-smoke
-npm run route-audit
-npm run state-check
 ```
 
 ## 改动类型

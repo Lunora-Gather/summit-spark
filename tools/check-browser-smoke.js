@@ -651,24 +651,26 @@ async function runBackwardTransitionSmoke(browser, baseUrl) {
     await clickSelector(browser, await visibleStartSelector(browser));
     await enableDebugPanel(browser);
 
-    // Advance the shipped frame loop while Safari holds a real keyboard key.
-    // Stop on the very first destination frame, before a bad intro can expire.
-    const arrival = number => browser.evaluate(`(() => {
+    // Run keydown, physics and keyup in one page task so WebDriver latency
+    // cannot change which frame consumes a direction. Inspect the first arrival
+    // before a mistaken chapter intro has time to expire.
+    function reachRoom(number, direction) {
       const panel = document.getElementById("debugPanel");
-      for (let frame = 0; frame < 120; frame++) {
-        window.stepGameFrame();
-        if (panel.textContent.includes("room ${number}/10")) return panel.textContent;
-      }
-      throw Error("Did not reach R${number} in 120 frames: " + panel.textContent);
-    })()`);
-    async function walkTo(number, code, key) {
-      await browser.keyDown(code, key);
+      const key = type => window.dispatchEvent(new KeyboardEvent(type, {code: direction, bubbles: true}));
+      if (direction) key("keydown");
       try {
-        return await arrival(number);
+        for (let frame = 0; frame < 120; frame++) {
+          window.stepGameFrame();
+          if (panel.textContent.includes("room " + number + "/10")) return panel.textContent;
+        }
+        throw Error("Did not reach R" + number + " in 120 frames: " + panel.textContent);
       } finally {
-        await browser.keyUp(code, key);
+        if (direction) key("keyup");
       }
     }
+    const arrival = (number, direction = "") => browser.evaluate(
+      `(${reachRoom})(${number}, ${JSON.stringify(direction)})`
+    );
 
     // The local fixture seeds an interrupted Drill and one banked R1 pickup.
     await keyTap(browser, "Digit2", "2");
@@ -688,16 +690,16 @@ async function runBackwardTransitionSmoke(browser, baseUrl) {
     })()`);
     const beforeRetry = await readRecords();
     await keyTap(browser, "KeyR", "r");
-    await walkTo(2, "KeyD", "d");
+    await arrival(2, "KeyD");
     if (await readRecords() !== beforeRetry) throw Error("An exit-shelf retry or recross changed R1 records");
 
     await keyTap(browser, "Digit4", "4");
     await arrival(4);
-    const previous = await walkTo(3, "KeyA", "a");
+    const previous = await arrival(3, "KeyA");
     if (!/act 0\.000/.test(previous) || !/attempt clean 1/.test(previous)) {
       throw Error("Walking back from R4 should preserve control and re-arm Clean: " + previous);
     }
-    const revisited = await walkTo(4, "KeyD", "d");
+    const revisited = await arrival(4, "KeyD");
     if (!/act 0\.000/.test(revisited)) throw Error("Re-entering R4 replayed its chapter intro: " + revisited);
   } finally {
     await browser.removeInitScript(clock);

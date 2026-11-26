@@ -1,128 +1,30 @@
-# Architecture
+# 项目架构
 
-《山巅微光》是无构建步骤的 Canvas 静态应用。短期目标是保持公开版本稳定，同时让文件职责、发布边界和下一步拆分顺序清晰可审查。
+《山巅微光》是可直接部署的 Canvas 静态应用。浏览器从一个页面启动游戏。主运行时调度每一帧，各领域模块提供规则、数据、绘制函数与存档操作。
 
 ## 当前目录
 
-```text
-summit-spark/
-├─ public/                  # 唯一可部署目录
-│  ├─ index.html            # 唯一 HTML 入口
-│  ├─ summit-spark.css      # UI、响应式与视觉
-│  ├─ summit-spark.js       # 当前游戏运行时
-│  ├─ modules/core/
-│  │  ├─ format.mjs         # 无 DOM 的有限化计时/差值、本地时间、评级与安全文本纯函数
-│  │  └─ math.mjs           # 无状态的矩形判定、距离与数值逼近
-│  ├─ modules/game/
-│  │  ├─ room-data.mjs      # 递归冻结的地图、章节、路线、氛围、地标与机制教学内容
-│  │  ├─ world-model.mjs    # 可变房宽、镜头安全区、相位时序与巡游轨迹纯模型
-│  │  ├─ effect-budget.mjs  # 长局视觉效果队列预算与保留最新反馈的裁剪规则
-│  │  ├─ landmark-progress.mjs # 山门/旧峰当前尝试地标进度纯规则
-│  │  ├─ audio-cues.mjs     # 四幕环境和弦、两段式换幕与登顶声纹
-│  │  └─ lumen-progress.mjs # 本房微光在死亡/重试时的精确回滚规则
-│  ├─ modules/systems/
-│  │  ├─ storage.mjs        # 设置/存档迁移、精确同步比较、冲突保护、档案/备份与事务回滚
-│  │  ├─ cloud-save.mjs     # 注入 TablesDB 的事务上传、版本检查、冲突检测和回滚清理
-│  │  └─ input.mjs          # 三类设备状态、动作缓冲、手柄映射与键位规则
-│  ├─ modules/training/
-│  │  ├─ state.mjs          # Drill、Route、Feel、Focus、五类房间推荐、三步计划、挑战与转场纯规则
-│  │  └─ replay.mjs         # PB 路线动作切换点与移动影子状态语义
-│  ├─ modules/ui/
-│  │  └─ presentation.mjs   # 章节、Drill 目标/简报、路线标签、练习/设备/存档/反馈摘要与报告模型
-│  └─ vendor/               # 固定版本 Appwrite SDK 与许可证
-├─ data/
-│  └─ rooms.generated.json # 房间/训练数据验证快照，不参与运行
-├─ tools/                   # 可执行质量门和共享验证器
-├─ docs/                    # 长期有效的产品、架构、数据和发布文档
-├─ .github/                 # Issue/PR 模板与两个 CI 工作流
-├─ appwrite.config.json     # 可版本化的云端资源与最小权限策略
-├─ game-server.js           # 只服务 public 白名单的本地服务器
-└─ package.json             # 唯一命令入口
-```
-
-`src/` 空脚手架、双 HTML 入口、一次性迁移补丁和自动生成 PR 工作流已删除。目录只代表已经存在的代码，不再用空 README 假装模块化完成。
-
-## 运行边界
-
-- 浏览器只加载 `public/` 中的 HTML、CSS、JS 和固定 SDK。
-- GitHub Pages 只上传 `public/` 的暂存副本，不上传仓库、文档、配置或工具。
-- `game-server.js` 对外仍使用根路径 URL，但文件解析只能命中明确白名单。
-- Appwrite 只承担账号与每用户私有云存档；游戏玩法不依赖网络。
-- `data/rooms.generated.json` 是测试输入，不是线上数据源。
+| 入口 | 职责 |
+| --- | --- |
+| [index.html](../public/index.html)、[样式表](../public/summit-spark.css) | 启动界面、Canvas、HUD、练习与设置面板。CSS 处理布局、交互状态和设备尺寸。 |
+| [主运行时](../public/summit-spark.js) | 装载模块，持有本局状态，采集输入，推进物理和训练状态，将结果写入 Canvas、DOM、音频和存档。 |
+| [game](../public/modules/game/) | `room-data.mjs` 定义地图、光阶和挑战。`world-model.mjs` 提供镜头、出入口和动态机关规则。`terrain-art.mjs` 绘制地形、绘制地图机关并计算可见尖刺的命中区域。同目录还管理微光回滚、地标进度、音效数据和视觉效果预算。 |
+| [core](../public/modules/core/) | 固定步长预算、几何、计时与文本格式化。 |
+| [systems](../public/modules/systems/) | `input.mjs` 负责动作映射与缓冲，`storage.mjs` 负责存档校验与恢复，`cloud-save.mjs` 使用调用方提供的 TablesDB 客户端执行同步事务。 |
+| [training](../public/modules/training/)、[ui](../public/modules/ui/) | 计算练习状态、房间推荐、回放动作和展示数据。主运行时负责事件与实际界面更新。 |
+| [assets](../public/assets/)、[vendor](../public/vendor/) | 章节插画、材质与图标，以及随游戏发布的 Appwrite SDK 和许可证。 |
 
 ## 依赖方向
 
-```text
-public/index.html
-  ├─ public/summit-spark.css
-  ├─ public/vendor/appwrite-26.2.0.js（按需加载）
-  └─ public/summit-spark.js
-       ├─ public/modules/core/format.mjs
-       ├─ public/modules/core/math.mjs
-       ├─ public/modules/game/room-data.mjs
-       ├─ public/modules/game/world-model.mjs
-       ├─ public/modules/game/effect-budget.mjs
-       ├─ public/modules/game/landmark-progress.mjs
-       ├─ public/modules/game/audio-cues.mjs
-       ├─ public/modules/game/lumen-progress.mjs
-       ├─ public/modules/systems/storage.mjs
-       ├─ public/modules/systems/cloud-save.mjs
-       ├─ public/modules/systems/input.mjs
-       ├─ public/modules/training/state.mjs
-       ├─ public/modules/training/replay.mjs
-       ├─ public/modules/ui/presentation.mjs
-       ├─ Canvas / DOM / WebAudio / 输入
-       ├─ localStorage / sessionStorage
-       └─ Appwrite Account + TablesDB
-
-public/modules/game/room-data.mjs ─┐
-public/summit-spark.js（Route/Feel）├─ tools/export-room-data.js
-                                  └─ data/rooms.generated.json
-                                       └─ 数据、地图、路线质量门
-```
-
-生产代码不得反向依赖 `tools/`、`docs/` 或 `data/rooms.generated.json`。质量工具可以读取生产代码，但必须通过共享读取器，避免多套解析逻辑。
-
-## 当前单体边界
-
-界面视觉约定见 [UI_DESIGN.md](UI_DESIGN.md)。首屏与主菜单通过 `.launch-surface` 共用组件，账号聚焦页在 CSS 的 P308 组件区集中维护布局、滚动和语义状态；不再追加每版本覆盖。保留其他 HUD/练习样式，避免同时重写高耦合游戏界面。浏览器门禁校验实际计算样式，视觉截图仍需单独审查。
-
-`public/summit-spark.js` 仍包含输入事件编排、物理碰撞、世界渲染、训练副作用、存档 UI/云编排和账号逻辑。低风险切片已迁出有限化计时/差值、本地云时间、安全文本、数学、只读房间内容、可变房宽与镜头/动态障碍纯规则、章节声纹、当前尝试地标进度、视觉效果队列预算、存档规则与云冲突保护、输入状态/缓冲/映射、训练纯状态、PB 路线动作语义及 UI 展示模型，并由独立 Node 契约与浏览器回归保护；其余高耦合领域仍等待人工完整通关证据后逐步拆分。
-
-短期修改遵守：
-
-- 不在同一改动中同时移动代码并改变玩法。
-- 存档、输入、物理和云同步改动必须运行浏览器回归。
-- 只读数据和纯函数先拆；DOM、存档、输入、物理、渲染后拆。
-- 每次拆分必须有可单独回滚的提交。
+- **游玩**　页面加载主脚本，主脚本导入 `public/modules/`。输入缓冲进入固定步长更新，碰撞与机关更新本局状态，随后绘制场景和 HUD。
+- **存档**　进度先保存到浏览器。登录后可以按用户同步到 Appwrite 私有行，上传时检查版本，冲突时让玩家选择。游戏玩法不依赖网络。[云存档配置](APPWRITE_SETUP.md)
+- **关卡维护**　浏览器直接读取房间模块。导出器读取同一模块和主脚本中的 Route 与 Feel 训练夹具，生成 `data/rooms.generated.json`。地图检查、路线审计和数据报告消费这份快照。[数据契约](DATA_CONTRACTS.md)
+- **发布**　[本地服务器](../game-server.js)按白名单提供 `public/` 文件。Pages 工作流暂存和上传同一目录，部署后核对线上文件。[发布流程](../.github/workflows/pages.yml)
 
 ## 下一阶段拆分顺序
 
-只有真正开始迁移后续领域时才创建对应目录，目标位于 `public/modules/`：
-
-`core/format.mjs`、`core/math.mjs`、`game/room-data.mjs`、`game/world-model.mjs`、`game/effect-budget.mjs`、`game/landmark-progress.mjs`、`game/audio-cues.mjs`、`game/lumen-progress.mjs`、`systems/storage.mjs`、`training/state.mjs`、`training/replay.mjs` 与 `ui/presentation.mjs` 的首批低风险切片已完成；固定步长帧预算也已由 `core/math.mjs` 提供纯函数契约，主运行时只负责消费步数。p281–p307 的运行时收口继续把“重生可玩性”“响应式布局”“声音资源边界”“音频可用性反馈”“音频上下文生命周期”“长期奖励结算顺序”“手柄 API 异常恢复”“回归探针边界”“回退跨房状态”“房间训练中断”“帧循环错误边界”“触控中断释放”“多指触控归属”“竖屏弹层视口定位”“存档写入可见性”“面板关闭幂等性”“Canvas 上下文恢复”“启动失败恢复”“旋转/resize 竞态”“首启恢复”和“入口/账号视觉一致性”当成跨层契约：输入恢复、落点自愈、有限状态/集合恢复、回退时 Clean 尝试重新武装与已结算微光快照复用、跨章节回退的过渡演出恢复、离开 Drill 房间时 Route/Feel/训练 HUD 的清理、静音/暂停时的环境音回收、关闭/替换 AudioContext 时的旧时间基准与音频图清理、单帧音频异常后的安全丢弃、手柄轮询异常时按断开处理、单帧音频异常后的输入/调度清理、Pointer Capture 丢失后的数字输入释放、多指按钮只由第一根活动指针释放、运行中设置面板固定到视口并保持关闭入口可达、游玩中途存储不可写时的健康提示、重复关闭事件只执行一次并恢复入口焦点、Canvas 丢失/恢复时的暂停与缓冲重建、模块加载失败时的死操作隔离与安全重载、上下文丢失期间 resize 跳过并在恢复时强制重建、首启前失焦状态清理与未恢复上下文时安全等待、试听失败时不宣称成功只由主运行时编排，纯模块不读取 DOM；移动端位置、触控最小尺寸、长重启稳定性、非有限状态恢复、音频资源边界、音频上下文替换、长期奖励结算、手柄轮询异常、回归探针边界、回退跨房状态、房间训练中断、抛帧后重开路径、触控捕获中断、中途写入失败提示、设置面板双事件关闭、Canvas 合成丢失/恢复、丢失期间旋转、音频可用/不可用/替换恢复路径、首启故障注入与启动故障注入、多指触控归属、竖屏弹层视口定位、入口/账号卡片几何和单卡聚焦由同一套浏览器门禁验证。接下来的顺序是：
-
-1. `ui/`：只在有直接消费者与契约时继续迁移无副作用的面板/HUD 展示模型，DOM 事件仍留主运行时。
-2. `game/physics.mjs` 与 `render/`：最后移动，并要求完整人工通关。
-
-首次模块化应采用原生 ES modules，不引入构建器。若以后需要 TypeScript、打包或代码分割，先写独立架构决策并证明部署、源码映射和回滚路径。
+主脚本承担输入、碰撞、界面和存档的编排，是修改时最容易牵动多个系统的地方。改某个面板时，可以先将能独立验证的展示计算放入 `ui/`。涉及物理和渲染时，用同一条按键回放对照落点、失误和收集结果，再做对应房间的人工试玩。[质量门](QUALITY_GATES.md) · [试玩协议](PLAYTEST_PROTOCOL.md)
 
 ## 删除策略
 
-可以删除：
-
-- 没有运行时或质量门消费者的脚手架；
-- 只为保留旧接口名而存在的空状态、空绘制钩子和空兼容函数；
-- 已完成任务的一次性补丁和生成器；
-- 与 `CHANGELOG.md` 重复的 README 历史；
-- 重复入口和重复说明文档。
-
-暂不删除：
-
-- `CHANGELOG.md` 历史；
-- 人工试玩和已知问题清单；
-- 固定 SDK 的许可证；
-- 能捕获真实回归且由 `npm run check` 调用的工具。
-
-删除应通过 Git 完成，确保可恢复；删除后必须运行完整质量门并检查 Pages 暂存包。
-质量门应保护仍存在的用户行为，或明确阻止已废弃管线复活；不得要求无消费者的空函数、模块导入或只写不读的顶层可变状态继续存在。
+检查运行时导入、动态资源路径、服务器白名单、工具与工作流后再删除文件。关卡插画、回放夹具、许可证和已提交的快照各有独立消费者。维护工具的调整用快照导出和完整质量检查验证，游戏资源的调整还需核对实际绘制。[维护工具](../tools/README.md)

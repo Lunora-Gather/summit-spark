@@ -4,30 +4,16 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..", "..");
-const defaultRoomDataSourcePath = path.join(root, "public", "modules", "game", "room-data.mjs");
+const rooms = require("../../public/modules/game/room-data.mjs");
 const defaultRuntimeSourcePath = path.join(root, "public", "summit-spark.js");
 const defaultSnapshotPath = path.join(root, "data", "rooms.generated.json");
 
-function readSource(sourcePath = defaultRoomDataSourcePath) {
-  return fs.readFileSync(sourcePath, "utf8");
-}
-
-function hasGeneratedSnapshot(snapshotPath = defaultSnapshotPath) {
-  return fs.existsSync(snapshotPath);
-}
-
-function readGeneratedSnapshot(snapshotPath = defaultSnapshotPath) {
-  return JSON.parse(fs.readFileSync(snapshotPath, "utf8"));
-}
-
-function extractConst(source, name, expectedStart) {
+function extractTrainingArray(source, name) {
   const needle = `const ${name} = `;
   const start = source.indexOf(needle);
   if (start === -1) throw new Error(`Missing ${name}`);
-  const expressionStart = source.indexOf(expectedStart, start);
-  if (expressionStart === -1) throw new Error(`Missing ${expectedStart} for ${name}`);
-  const open = source[expressionStart];
-  const close = open === "[" ? "]" : "}";
+  const expressionStart = source.indexOf("[", start);
+  if (expressionStart === -1) throw new Error(`Missing array for ${name}`);
   let depth = 0;
   let inString = false;
   let quote = "";
@@ -50,8 +36,8 @@ function extractConst(source, name, expectedStart) {
       quote = ch;
       continue;
     }
-    if (ch === open) depth += 1;
-    if (ch === close) {
+    if (ch === "[") depth += 1;
+    if (ch === "]") {
       depth -= 1;
       if (depth === 0) {
         const expression = source.slice(expressionStart, i + 1);
@@ -62,57 +48,37 @@ function extractConst(source, name, expectedStart) {
   throw new Error(`Unclosed ${name}`);
 }
 
-function buildRoomDataSnapshotFromSources(
-  roomDataSource = readSource(defaultRoomDataSourcePath),
-  runtimeSource = readSource(defaultRuntimeSourcePath)
-) {
-  const maps = extractConst(roomDataSource, "maps", "[");
+function buildRoomDataSnapshot() {
+  const runtimeSource = fs.readFileSync(defaultRuntimeSourcePath, "utf8");
+  const { maps } = rooms;
   return {
     generatedFrom: "public/modules/game/room-data.mjs + public/summit-spark.js",
     generatedBy: "tools/export-room-data.js",
     note: "Generated validation snapshot; canonical room content lives in room-data.mjs while training fixtures remain in summit-spark.js.",
     roomCount: maps.length,
-    roomTargets: extractConst(roomDataSource, "ROOM_TARGETS", "["),
-    roomNames: extractConst(roomDataSource, "ROOM_NAMES", "["),
-    roomTiers: extractConst(roomDataSource, "ROOM_TIERS", "["),
-    chapterSurfaceKinds: extractConst(roomDataSource, "CHAPTER_SURFACE_KINDS", "["),
-    roomLandmarks: extractConst(roomDataSource, "ROOM_LANDMARKS", "["),
-    roomSkills: extractConst(roomDataSource, "ROOM_SKILLS", "["),
-    skillLabels: extractConst(roomDataSource, "SKILL_LABELS", "{"),
-    mechanicFirstTouchCues: extractConst(roomDataSource, "MECHANIC_FIRST_TOUCH_CUES", "{"),
-    roomLightSteps: extractConst(roomDataSource, "ROOM_LIGHT_STEPS", "{"),
-    roomGuides: extractConst(roomDataSource, "ROOM_GUIDES", "["),
-    roomPurposes: extractConst(roomDataSource, "ROOM_PURPOSES", "["),
-    roomRouteLines: extractConst(roomDataSource, "ROOM_ROUTE_LINES", "["),
-    roomStyleTrials: extractConst(roomDataSource, "ROOM_STYLE_TRIALS", "["),
-    expertRequirements: extractConst(roomDataSource, "EXPERT_REQUIREMENTS", "["),
-    expertRequirementLabels: extractConst(roomDataSource, "EXPERT_REQUIREMENT_LABELS", "{"),
-    routeContracts: extractConst(runtimeSource, "ROUTE_CONTRACTS", "["),
-    feelReplayFixtures: extractConst(runtimeSource, "FEEL_REPLAY_FIXTURES", "["),
+    roomTargets: rooms.ROOM_TARGETS,
+    roomNames: rooms.ROOM_NAMES,
+    roomTiers: rooms.ROOM_TIERS,
+    chapterSurfaceKinds: rooms.CHAPTER_SURFACE_KINDS,
+    roomLandmarks: rooms.ROOM_LANDMARKS,
+    roomSkills: rooms.ROOM_SKILLS,
+    skillLabels: rooms.SKILL_LABELS,
+    mechanicFirstTouchCues: rooms.MECHANIC_FIRST_TOUCH_CUES,
+    roomLightSteps: rooms.ROOM_LIGHT_STEPS,
+    roomGuides: rooms.ROOM_GUIDES,
+    roomPurposes: rooms.ROOM_PURPOSES,
+    roomRouteLines: rooms.ROOM_ROUTE_LINES,
+    roomStyleTrials: rooms.ROOM_STYLE_TRIALS,
+    expertRequirements: rooms.EXPERT_REQUIREMENTS,
+    expertRequirementLabels: rooms.EXPERT_REQUIREMENT_LABELS,
+    routeContracts: extractTrainingArray(runtimeSource, "ROUTE_CONTRACTS"),
+    feelReplayFixtures: extractTrainingArray(runtimeSource, "FEEL_REPLAY_FIXTURES"),
     maps
   };
 }
 
-function loadRoomDataSnapshot(options = {}) {
-  const {
-    preferGenerated = true,
-    snapshotPath = defaultSnapshotPath,
-    sourcePath = defaultRoomDataSourcePath,
-    runtimeSourcePath = defaultRuntimeSourcePath
-  } = options;
-
-  if (preferGenerated && hasGeneratedSnapshot(snapshotPath)) {
-    return readGeneratedSnapshot(snapshotPath);
-  }
-
-  return buildRoomDataSnapshotFromSources(readSource(sourcePath), readSource(runtimeSourcePath));
-}
-
-function buildRoomDataSnapshot(
-  roomDataSource = readSource(defaultRoomDataSourcePath),
-  runtimeSource = readSource(defaultRuntimeSourcePath)
-) {
-  return buildRoomDataSnapshotFromSources(roomDataSource, runtimeSource);
+function loadRoomDataSnapshot() {
+  return JSON.parse(fs.readFileSync(defaultSnapshotPath, "utf8"));
 }
 
 function normalizeSnapshot(value) {
@@ -121,15 +87,8 @@ function normalizeSnapshot(value) {
 
 module.exports = {
   root,
-  defaultRoomDataSourcePath,
-  defaultRuntimeSourcePath,
   defaultSnapshotPath,
-  readSource,
-  hasGeneratedSnapshot,
-  readGeneratedSnapshot,
-  extractConst,
   buildRoomDataSnapshot,
-  buildRoomDataSnapshotFromSources,
   loadRoomDataSnapshot,
   normalizeSnapshot
 };

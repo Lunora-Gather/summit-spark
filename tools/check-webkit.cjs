@@ -161,6 +161,58 @@ async function checkLandscapeGameTip(browser, url) {
   }
 }
 
+async function checkTouchSizeComfort(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 320, height: 480 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await page.goto(url);
+    await page.locator("#guestEntryButton").tap();
+    await page.locator("#settingsButton").tap();
+    const controls = page.locator(".settings-group-controls");
+    if (!await controls.evaluate(group => group.open)) await controls.locator(":scope > summary").tap();
+    await page.locator("#touchSizeSlider").evaluate(input => {
+      input.value = "64";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const setting = await page.evaluate(() => {
+      const slider = document.querySelector("#touchSizeSlider");
+      const touchButton = document.querySelector('#touchControls [data-touch="left"]');
+      const help = document.querySelector("#touchAimHelp");
+      return {
+        value: slider?.value,
+        describedBy: slider?.getAttribute("aria-describedby"),
+        help: help?.textContent || "",
+        renderedSize: Number.parseFloat(getComputedStyle(touchButton).width)
+      };
+    });
+    assert.equal(setting.value, "64", "The largest touch preference should remain selectable");
+    assert.equal(setting.describedBy, "touchAimHelp", "Touch sizing should expose its responsive behavior to assistive technology");
+    assert.match(setting.help, /窄屏.*自动收窄/);
+    assert.ok(setting.renderedSize >= 44 && setting.renderedSize < 64,
+      `320px portrait should fit the largest preference without shrinking below 44px: ${JSON.stringify(setting)}`);
+    await page.locator("#settingsClose").tap();
+    const layout = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll("#touchControls button")]
+        .map(button => button.getBoundingClientRect())
+        .filter(box => box.width > 0 && box.height > 0);
+      return {
+        buttonCount: buttons.length,
+        buttonsFit: buttons.every(box => box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight),
+        minimumSize: Math.min(...buttons.map(box => Math.min(box.width, box.height))),
+        touchBottom: document.querySelector("#touchControls").getBoundingClientRect().bottom
+      };
+    });
+    assert.equal(layout.buttonCount, 8, `Portrait touch controls should expose every action: ${JSON.stringify(layout)}`);
+    assert.ok(layout.buttonsFit, `Portrait touch controls should remain inside the viewport: ${JSON.stringify(layout)}`);
+    assert.ok(layout.minimumSize >= 44, `Portrait touch controls should retain the minimum target size: ${JSON.stringify(layout)}`);
+    assert.ok(layout.touchBottom <= 476, `Portrait touch controls should retain a lower safe margin: ${JSON.stringify(layout)}`);
+    assert.deepEqual(errors, [], "Touch sizing should run without page errors");
+  } finally {
+    await page.close();
+  }
+}
+
 async function run() {
   const browser = await webkit.launch({ headless: true });
   try {
@@ -171,6 +223,7 @@ async function run() {
       url = `http://127.0.0.1:${server.address().port}/`;
     }
     await checkPauseControls(browser, url);
+    await checkTouchSizeComfort(browser, url);
     await checkLandscapeGameTip(browser, url);
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errors = [];

@@ -9,7 +9,9 @@ const server = require("../game-server.js");
 const { collectorRoute, installReplayClock, startCollectionReplay } = require("./lib/summit-collection-replay.cjs");
 
 async function checkPauseControls(browser, url) {
-  const page = await browser.newPage({ viewport: { width: 320, height: 480 }, isMobile: true, hasTouch: true });
+  const page = await browser.newPage({ viewport: { width: 320, height: 480 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
   try {
     await page.goto(url);
     await page.locator("#accountEntryButton").tap();
@@ -83,6 +85,27 @@ async function checkPauseControls(browser, url) {
     await page.locator("#settingsClose").tap();
     await page.locator("#settingsPanel").waitFor({ state: "hidden", timeout: 3000 });
     assert.equal(await page.locator("#deathCount").textContent(), "失 2");
+    await page.locator("#practiceButton").tap();
+    const roomGroup = page.locator(".settings-group-room");
+    if (!await roomGroup.evaluate(group => group.open)) await roomGroup.locator(":scope > summary").tap();
+    await page.locator("#roomSelect").selectOption("7");
+    await page.locator("#focusRoomButton").tap();
+    await page.locator("#settingsPanel").waitFor({ state: "hidden" });
+    await page.locator(".stage.training-active #deathCount").waitFor();
+    const practiceHint = await page.locator("#portraitRoomGoal").evaluate(goal => ({
+      cue: goal.textContent,
+      fits: goal.scrollWidth <= goal.clientWidth + 1
+    }));
+    assert.match(practiceHint.cue, /棱镜.*实岩/);
+    assert.ok(practiceHint.fits, "R8 practice must show the safe landing cue in full on a compact phone");
+    const clippedMeters = await page.locator(".meters > :visible").evaluateAll(items => items.filter(item => {
+      const box = item.getBoundingClientRect();
+      const bar = item.parentElement.getBoundingClientRect();
+      return box.left < Math.max(0, bar.left) || box.right > Math.min(innerWidth, bar.right) ||
+        (item.classList.contains("counter") && item.scrollWidth > item.clientWidth + 1);
+    }).map(item => item.id || item.className));
+    assert.deepEqual(clippedMeters, [], "Every practice meter and counter must fit on a compact phone");
+    assert.deepEqual(errors, [], "Portrait entry, rotation and practice should run without page errors");
   } finally {
     await page.close();
   }

@@ -3,9 +3,71 @@
 // Playwright's inspector can override headless launch. Disable it before loading the driver.
 process.env.PWDEBUG = "";
 const { webkit } = require("playwright-core");
+const assert = require("node:assert/strict");
 const { once } = require("node:events");
 const server = require("../game-server.js");
 const { collectorRoute, installReplayClock, startCollectionReplay } = require("./lib/summit-collection-replay.cjs");
+
+async function checkPauseControls(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 320, height: 480 }, isMobile: true, hasTouch: true });
+  try {
+    await page.goto(url);
+    await page.locator("#accountEntryButton").tap();
+    const email = page.locator("#accountEmail");
+    await email.focus();
+    const imeKeysReserved = await email.evaluate(field => {
+      for (const flags of [{ isComposing: true }, { keyCode: 229 }]) {
+        for (const key of ["Enter", "Escape"]) {
+          const event = new KeyboardEvent("keydown", { key, code: key, bubbles: true, cancelable: true, ...flags });
+          if (!field.dispatchEvent(event) || document.querySelector("#settingsPanel").inert) return false;
+        }
+      }
+      return true;
+    });
+    assert.ok(imeKeysReserved, "The input method must keep its commit and cancel keys");
+    await page.keyboard.press("Escape");
+    await page.locator("#guestEntryButton").tap();
+    await page.setViewportSize({ width: 932, height: 430 });
+    await page.locator(".stage #openingGuide").waitFor();
+    const guideBelowHud = await page.evaluate(() =>
+      document.querySelector("#openingGuide").getBoundingClientRect().top >=
+      document.querySelector("#gameHud .meters").getBoundingClientRect().bottom
+    );
+    assert.ok(guideBelowHud, "The first-jump hint must leave the landscape HUD visible");
+    await page.setViewportSize({ width: 320, height: 480 });
+    const pause = page.locator("#settingsButton");
+    await pause.focus();
+    await page.keyboard.press("Space");
+    await page.locator("#settingsClose").waitFor();
+    await page.keyboard.press("Space");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "game", "Resume must return the keyboard to the climb");
+    const terrain = page.locator("#pauseTerrain");
+    const retry = page.locator("#pauseRetries [data-pause-retry]");
+    for (let faults = 0; faults <= 2; faults++) {
+      await pause.tap();
+      await retry.waitFor();
+      assert.equal(await terrain.isVisible(), faults === 2, `Terrain action after ${faults} faults`);
+      if (faults < 2) await retry.tap();
+    }
+    const buttonsFit = await page.locator("#pauseRetries button").evaluateAll(buttons => buttons.every(button => {
+      const box = button.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(button);
+      const label = range.getBoundingClientRect();
+      return box.width >= 44 && box.height >= 44 && label.top >= box.top && label.bottom <= box.bottom &&
+        label.left >= box.left && label.right <= box.right;
+    }));
+    assert.ok(buttonsFit, "Every pause action must contain its label and retain a full touch target");
+    await terrain.tap();
+    await page.locator("#roomTerrainMap").waitFor();
+    assert.equal(await page.locator("#roomTerrainMap").getAttribute("data-room"), "0");
+    await page.locator("#settingsClose").tap();
+    await page.locator("#settingsPanel").waitFor({ state: "hidden", timeout: 3000 });
+    assert.equal(await page.locator("#deathCount").textContent(), "失 2");
+  } finally {
+    await page.close();
+  }
+}
 
 async function run() {
   const browser = await webkit.launch({ headless: true });
@@ -16,6 +78,7 @@ async function run() {
       await once(server, "listening");
       url = `http://127.0.0.1:${server.address().port}/`;
     }
+    await checkPauseControls(browser, url);
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));

@@ -306,7 +306,16 @@ canvas:focus {
   flex-wrap: wrap;
   gap: 8px;
 }
-.pause-retries .mini-button { min-height: 44px; flex: 1 1 auto; }
+.settings-panel .pause-retries .mini-button {
+  flex: 1 1 max-content;
+  width: auto;
+  height: auto;
+  min-height: 44px;
+  padding: 7px 8px;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+.pause-retries .mini-button[hidden] { display: none; }
 
 .game-tip {
   --tip-progress: 100%;
@@ -4512,6 +4521,7 @@ body {
 
 /* P53/P61: portrait keeps the playfield coupled to thumb controls while using
    the otherwise empty upper field for a quiet, readable room brief. */
+#portraitGuideDock:empty,
 .portrait-brief {
   display: none;
 }
@@ -4563,6 +4573,7 @@ body {
   }
 
   .stage.settings-open ~ .portrait-brief {
+    visibility: hidden;
     opacity: 0;
   }
 
@@ -7474,6 +7485,7 @@ textarea,
 }
 
 .stage .hud-actions .icon-button {
+  touch-action: manipulation;
   width: 34px;
   height: 34px;
   border: 0;
@@ -7482,6 +7494,15 @@ textarea,
   color: rgba(238, 246, 242, 0.78);
   box-shadow: none;
   transition: color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.stage .hud,
+.shell .touch button,
+.stage .pause-retries button,
+.stage #settingsClose {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .stage .hud-actions .icon-button:hover {
@@ -8846,7 +8867,7 @@ textarea,
   padding: 0 2px;
   line-height: 1.15;
 }
-.touch-system button span { font-size: 10px; font-weight: 500; }
+.touch-system button span { font-size: 11px; font-weight: 500; }
 .profile-reward-note {
   display: block;
   padding: 0 2px;
@@ -8867,13 +8888,16 @@ textarea,
   .touch-actions {
     gap: var(--portrait-touch-gap);
   }
+}
 
+@media (orientation: portrait) {
   .touch button,
   .stage.low-performance + .touch button {
     background: linear-gradient(180deg, #48616b, #405b65);
     color: #f6faf7;
   }
 
+  .touch .touch-system { align-self: start; }
   .touch .touch-system button {
     border-color: #7d9192;
     background: #d7e1dc;
@@ -8895,11 +8919,16 @@ textarea,
 
 @media (max-height: 520px) and (orientation: landscape) {
   .stage .opening-guide:not([hidden]) {
-    top: max(48px, calc(env(safe-area-inset-top, 0px) + 38px));
+    top: max(68px, calc(env(safe-area-inset-top, 0px) + 56px));
     bottom: auto;
-    width: max-content;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
     max-width: 84%;
-    padding: 4px 12px;
-    gap: 6px;
+    padding: 5px 12px;
+    gap: 4px 12px;
   }
+
+  #openingGuideControls { margin: 0; }
 }

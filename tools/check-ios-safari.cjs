@@ -1,6 +1,8 @@
 "use strict";
 
-const { execFile } = require("node:child_process");
+const { execFile, spawn } = require("node:child_process");
+const { once } = require("node:events");
+const { createInterface } = require("node:readline");
 const { promisify } = require("node:util");
 const { setTimeout: delay } = require("node:timers/promises");
 const run = promisify(execFile);
@@ -38,13 +40,14 @@ function observePage() {
     const field = document.getElementById("accountEmail");
     const accountOpen = account.classList.contains("account-focused");
     const playing = document.querySelector(".stage").classList.contains("run-started");
-    const target = scene === "keyboard"
-      ? (accountOpen ? field : document.getElementById("accountEntryButton"))
-      : document.getElementById("guestEntryButton");
+    const paused = playing && !account.inert;
+    let target = document.getElementById("guestEntryButton");
+    if (scene === "keyboard") target = accountOpen ? field : document.getElementById("accountEntryButton");
+    if (scene === "play" && playing) target = document.getElementById(paused ? "settingsClose" : "settingsButton");
     const box = target.getBoundingClientRect();
     const x = box.left + box.width / 2, y = box.top + box.height / 2;
     const state = {
-      screen: { width: screen.width, height: screen.height }, touch, tapped, playing, height: viewport.height,
+      screen: { width: screen.width, height: screen.height }, touch, tapped, playing, paused, height: viewport.height,
       target: { x: (x - viewport.offsetLeft) * viewport.scale, y: (y - viewport.offsetTop) * viewport.scale,
         visible: box.width > 0 && box.height > 0 && target.contains(document.elementFromPoint(x, y)) }
     };
@@ -114,8 +117,29 @@ async function checkIOSSafari(fixture, udid) {
     response.writeHead(204, { "Cache-Control": "no-store" }).end();
   });
   fixture.scripts.set("ios", "(" + observePage.toString() + ")();");
-  // Submit a single native simulator tap. Separate down/up delivery under load can select button text.
-  const tap = (x, y) => run("axe", ["tap", "-x", String(x), "-y", String(y), "--tap-style", "simulator", "--udid", udid], { timeout: 45000 });
+  // Load the simulator frameworks once so a tap during play only needs to deliver input.
+  const input = spawn("axe", ["serve", "--udid", udid], { stdio: ["pipe", "pipe", "inherit"] });
+  const replies = createInterface({ input: input.stdout })[Symbol.asyncIterator]();
+  input.stdin.on("error", error => console.error("Simulator input stream:", error.message));
+  async function readReply(command) {
+    let timer;
+    try {
+      const line = await Promise.race([replies.next(), new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Simulator input timed out: " + command)), 60000);
+      })]);
+      if (line.done) throw new Error("Simulator input closed during " + command);
+      const reply = JSON.parse(line.value);
+      if (reply.command !== command || reply.didError !== false) {
+        throw new Error("Unexpected simulator reply: " + line.value);
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  async function tap(x, y) {
+    input.stdin.write(`tap -x ${x} -y ${y} --tap-style simulator\n`);
+    await readReply("tap");
+  }
   async function waitFor(label, predicate, timeout = 25000) {
     const until = Date.now() + timeout;
     while (!state || !predicate(state)) {
@@ -141,6 +165,8 @@ async function checkIOSSafari(fixture, udid) {
   }
   const tapTarget = origin => tap(origin.x + state.target.x, origin.y + state.target.y);
   try {
+    await once(input, "spawn");
+    await readReply("serve");
     for (const scene of ["entry", "notch"]) {
       const notch = scene === "notch" ? { top: 47, right: 0, bottom: 34, left: 0 } : undefined;
       fixture.setSafeAreaFixture(notch);
@@ -172,12 +198,21 @@ async function checkIOSSafari(fixture, udid) {
       r.controls?.some(b => b.action === "up") && r.controls.some(b => b.action === "grab") &&
       r.controls.every(b => b.width >= 44 && b.height >= 44 && b.gap >= 4 && b.left >= -1 && b.right >= -1 && b.below >= 33));
     console.log("Native Safari passed entry, notch and portrait playfield checks", state.controls);
+    await tapTarget(playOrigin);
+    await waitFor("A native tap pauses the run", r => r.tapped === "settingsButton" && r.paused && r.target.visible);
+    await tapTarget(playOrigin);
+    await waitFor("A native tap resumes without activating the HUD beneath the sheet",
+      r => r.tapped === "settingsClose" && r.playing && !r.paused && r.target.visible);
   } catch (error) {
+    console.error("Last Mobile Safari observation:", currentScene, state);
     if (process.env.RUNNER_TEMP) {
-      await run("xcrun", ["simctl", "io", udid, "screenshot", process.env.RUNNER_TEMP + "/ios-safari-screen.png"]).catch(() => {});
+      await run("xcrun", ["simctl", "io", udid, "screenshot", process.env.RUNNER_TEMP + "/ios-safari-screen.png"],
+        { timeout: 20000, killSignal: "SIGKILL" }).catch(() => {});
     }
     throw error;
   } finally {
+    input.stdin.end();
+    input.kill();
     fixture.setSafeAreaFixture(undefined);
     fixture.scripts.delete("ios");
     fixture.routes.delete("/__ios_state");

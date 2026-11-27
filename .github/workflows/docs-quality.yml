@@ -126,6 +126,7 @@ jobs:
           retention-days: 3
       - name: Report simulator state if Safari fails
         if: failure()
+        timeout-minutes: 2
         run: |
           xcodebuild -version
           xcrun simctl list devices booted

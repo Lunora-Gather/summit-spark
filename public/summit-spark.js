@@ -206,21 +206,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261125-p329"),
-    import("./modules/core/math.mjs?v=20261125-p329"),
-    import("./modules/game/room-data.mjs?v=20261125-p329"),
-    import("./modules/game/world-model.mjs?v=20261125-p329"),
-    import("./modules/game/terrain-art.mjs?v=20261125-p329"),
-    import("./modules/game/effect-budget.mjs?v=20261125-p329"),
-    import("./modules/game/landmark-progress.mjs?v=20261125-p329"),
-    import("./modules/game/audio-cues.mjs?v=20261125-p329"),
-    import("./modules/game/lumen-progress.mjs?v=20261125-p329"),
-    import("./modules/systems/storage.mjs?v=20261125-p329"),
-    import("./modules/systems/cloud-save.mjs?v=20261125-p329"),
-    import("./modules/systems/input.mjs?v=20261125-p329"),
-    import("./modules/training/state.mjs?v=20261125-p329"),
-    import("./modules/training/replay.mjs?v=20261125-p329"),
-    import("./modules/ui/presentation.mjs?v=20261125-p329")
+    import("./modules/core/format.mjs?v=20261127-p330"),
+    import("./modules/core/math.mjs?v=20261127-p330"),
+    import("./modules/game/room-data.mjs?v=20261127-p330"),
+    import("./modules/game/world-model.mjs?v=20261127-p330"),
+    import("./modules/game/terrain-art.mjs?v=20261127-p330"),
+    import("./modules/game/effect-budget.mjs?v=20261127-p330"),
+    import("./modules/game/landmark-progress.mjs?v=20261127-p330"),
+    import("./modules/game/audio-cues.mjs?v=20261127-p330"),
+    import("./modules/game/lumen-progress.mjs?v=20261127-p330"),
+    import("./modules/systems/storage.mjs?v=20261127-p330"),
+    import("./modules/systems/cloud-save.mjs?v=20261127-p330"),
+    import("./modules/systems/input.mjs?v=20261127-p330"),
+    import("./modules/training/state.mjs?v=20261127-p330"),
+    import("./modules/training/replay.mjs?v=20261127-p330"),
+    import("./modules/ui/presentation.mjs?v=20261127-p330")
   ]);
 
   const canvas = document.getElementById("game");
@@ -513,6 +513,7 @@
   const TOUCH_SIZE_MIN = 44;
   const TOUCH_SIZE_MAX = 64;
   const CANVAS_BUFFER_SCALE_MAX = 2.6;
+  const PANEL_PAINT_INTERVAL_MS = 50;
   const CANVAS_BUFFER_SCALE_STEP = 0.05;
 
   const SOLID = new Set(["#", "C"]);
@@ -679,6 +680,7 @@
   let lastSceneryCamera = 0;
   let outgoingScenery = null;
   let menuScenePainted = false;
+  let lastPanelPaintSlot = -1;
   let mountainRoom = -1;
   let mountainLayers;
   const terrainImages = new Map();
@@ -906,6 +908,7 @@
   let audioContext = null;
   let audioMaster = null;
   let ambientBus = null;
+  let ambientAudible = false;
   let ambientNextTime = 0;
   let ambientStep = 0;
   const ambientVoices = new Map();
@@ -997,6 +1000,7 @@
   refreshStartOverlay();
 
   window.addEventListener("keydown", (event) => {
+    if (isComposingKey(event)) return;
     const uiControl = isSettingsInputTarget(event.target);
     const textEntry = isSettingsTextEntryTarget(event.target);
     if (pendingBindingAction) {
@@ -1015,7 +1019,7 @@
     }
     if (!settingsVisible && event.code === "Escape" && started && !won) {
       event.preventDefault();
-      if (!event.repeat && !event.isComposing) openSettingsPanel();
+      if (!event.repeat) openSettingsPanel();
       return;
     }
     if (settingsVisible && event.code === "Escape") {
@@ -1025,7 +1029,7 @@
       return;
     }
     if (textEntry) return;
-    if ((!started || won) && event.target instanceof HTMLButtonElement
+    if (event.target instanceof HTMLButtonElement && !event.target.hasAttribute("data-touch")
       && (event.code === "Enter" || event.code === "Space")) return;
     if (settingsVisible && event.code !== "KeyO" && event.code !== "KeyP" && event.code !== "F3") {
       return;
@@ -1160,6 +1164,11 @@
 
   window.addEventListener("pagehide", flushPendingCloudSave);
 
+  function isComposingKey(event) {
+    // WebKit can end composition before dispatching its final keydown (key code 229).
+    return event.isComposing || event.keyCode === 229;
+  }
+
   function isSettingsInputTarget(target) {
     return settingsVisible
       && typeof Element !== "undefined"
@@ -1247,6 +1256,7 @@
   function configureCanvasBuffer({ allowContextLost = false } = {}) {
     if (canvasContextLost && !allowContextLost) return;
     menuScenePainted = false;
+    lastPanelPaintSlot = -1;
     const scale = canvasBufferScale();
     const width = Math.round(W * scale);
     const height = Math.round(H * scale);
@@ -1376,8 +1386,6 @@
   document.addEventListener("pointerdown", closeSettingsFromOutside, true);
   settingsBackdrop?.addEventListener("click", closeSettingsFromBackdrop);
   settingsCloseButton?.addEventListener("click", closeSettings);
-  settingsCloseButton?.addEventListener("pointerup", closeSettingsFromTouch);
-  settingsCloseButton?.addEventListener("touchend", closeSettingsFromTouch);
   shakeSlider?.addEventListener("input", () => {
     settings.shake = Number(shakeSlider.value);
     writeSettings();
@@ -1572,15 +1580,15 @@
   accountSendCodeButton?.addEventListener("click", sendAccountCode);
   accountSubmitButton?.addEventListener("click", submitAccountLogin);
   accountRecoveryButton?.addEventListener("click", sendPasswordRecovery);
-  accountCodeInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") submitAccountLogin();
-  });
-  accountEmailInput?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" || recoverySecret) return;
-    event.preventDefault();
-    if (authMode === "password" || (accountCodeInput?.value || "").trim()) submitAccountLogin();
-    else sendAccountCode();
-  });
+  for (const field of [accountEmailInput, accountCodeInput, accountPasswordInput]) {
+    field?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.repeat || isComposingKey(event)) return;
+      if (field === accountEmailInput && recoverySecret) return;
+      event.preventDefault();
+      if (field === accountEmailInput && authMode === "code" && !(accountCodeInput?.value || "").trim()) sendAccountCode();
+      else submitAccountLogin();
+    });
+  }
   accountEmailInput?.addEventListener("input", () => {
     const tokenEmail = accountTokenEmail || readSessionValue(ACCOUNT_OTP_EMAIL_SESSION_KEY);
     if (!tokenEmail) return;
@@ -1588,9 +1596,6 @@
     if (currentEmail === tokenEmail) return;
     clearAccountOtpState();
     setAccountStatus("邮箱已更改，请重新获取验证码", "error");
-  });
-  accountPasswordInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") submitAccountLogin();
   });
   accountSetPasswordButton?.addEventListener("click", setAccountPassword);
   accountLogoutButton?.addEventListener("click", logoutAccount);
@@ -2716,7 +2721,10 @@
     }
 
     syncOpeningGuide();
-    render(now / 1000);
+    // Keep inputs at display cadence while the pause sheet covers the moving scenery.
+    const panelPaintSlot = settingsVisible ? Math.floor(now / PANEL_PAINT_INTERVAL_MS) : -1;
+    if (!settingsVisible || panelPaintSlot !== lastPanelPaintSlot) render(now / 1000);
+    lastPanelPaintSlot = panelPaintSlot;
     if (inputEdgesConsumed) clearInputEdges(pressed, touchPressed, gamepadPressed);
     scheduleFrame();
   }
@@ -7844,19 +7852,15 @@
     resumeGameplayFromInput();
     setGameStatus(closingPractice ? "练习面板已关闭" : "设置已关闭");
     if (!restoreFocus) return;
+    if (overlay.hidden) {
+      focusGame();
+      return;
+    }
     if (returnTarget instanceof HTMLElement && returnTarget.isConnected && !returnTarget.hasAttribute("disabled") && returnTarget.getClientRects().length) {
       returnTarget.focus({ preventScroll: true });
       if (document.activeElement === returnTarget) return;
     }
-    if (!overlay.classList.contains("hidden")) focusVisibleOverlaySurface();
-    else focusGame();
-  }
-
-  function closeSettingsFromTouch(event) {
-    if (!settingsVisible) return;
-    if (event.type === "pointerup" && event.pointerType !== "touch" && event.pointerType !== "pen") return;
-    event.preventDefault();
-    closeSettings();
+    focusVisibleOverlaySurface();
   }
 
   function pointHitsVisibleElement(element, x, y) {
@@ -8211,6 +8215,7 @@
       audioMaster.connect(audioContext.destination);
       ambientBus = audioContext.createGain();
       ambientBus.gain.value = 0.0001;
+      ambientAudible = false;
       ambientBus.connect(audioMaster);
       ambientNextTime = audioContext.currentTime;
     } catch {
@@ -8228,7 +8233,10 @@
       }
       const now = audioContext.currentTime;
       const audible = settings.audioEnabled && settings.audioVolume > 0 && started && !won && !paused;
-      ambientBus.gain.setTargetAtTime(audible ? 1 : 0.0001, now, 0.35);
+      if (audible !== ambientAudible) {
+        ambientBus.gain.setTargetAtTime(audible ? 1 : 0.0001, now, 0.35);
+        ambientAudible = audible;
+      }
       if (!audible || audioContext.state !== "running") {
         clearAmbientVoices();
         ambientNextTime = now;

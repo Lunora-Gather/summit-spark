@@ -8263,6 +8263,7 @@ textarea,
     bottom: auto;
     left: 50%;
     width: max-content;
+    max-width: calc(100vw - 2 * max(4px, env(safe-area-inset-left), env(safe-area-inset-right)));
     min-height: 0;
     padding: 1px 5px;
     transform: translateX(-50%);
@@ -8272,6 +8273,7 @@ textarea,
   }
 
   .stage.run-started .meters .counter {
+    min-width: max-content;
     min-height: 0;
     padding: 0 3px;
     line-height: 15px;

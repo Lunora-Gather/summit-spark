@@ -122,6 +122,18 @@ async function checkLandscapeGameTip(browser, url) {
     await page.evaluate(() => window.stepGameFrame());
     await page.locator("#guestEntryButton").click({ force: true });
     await page.evaluate(startCollectionReplay, collectorRoute);
+    const touchDock = await page.evaluate(() => {
+      const touch = document.querySelector("#touchControls").getBoundingClientRect();
+      const stage = document.querySelector(".stage").getBoundingClientRect();
+      return {
+        touchBottom: touch.bottom,
+        stageBottom: stage.bottom,
+        viewportBottom: innerHeight
+      };
+    });
+    assert.ok(touchDock.touchBottom >= touchDock.stageBottom - 8 &&
+      touchDock.touchBottom <= touchDock.viewportBottom - 4,
+    `Landscape touch controls should sit at the lower safe edge: ${JSON.stringify(touchDock)}`);
     let tip = null;
     for (let frame = 0; frame < 6000 && !tip; frame += 8) {
       await page.evaluate(() => window.runCollectionBatch(8));

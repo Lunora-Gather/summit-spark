@@ -5145,7 +5145,8 @@ async function runMobileSmoke(browser, baseUrl) {
   await sleep(100);
   const shortPortrait = await browser.evaluate(`(() => {
     const brief = document.querySelector("#portraitBrief").getBoundingClientRect();
-    const hud = document.querySelector(".hud").getBoundingClientRect();
+    const actions = document.querySelector(".hud-actions").getBoundingClientRect();
+    const goal = document.querySelector("#portraitRoomGoal").getBoundingClientRect();
     const stage = document.querySelector(".stage");
     const touch = document.querySelector("#touchControls").getBoundingClientRect();
     const shell = document.querySelector(".shell");
@@ -5169,17 +5170,18 @@ async function runMobileSmoke(browser, baseUrl) {
     if (previousSize) shell.style.setProperty("--touch-size", previousSize);
     else shell.style.removeProperty("--touch-size");
     return {
-      briefAboveHud: brief.bottom <= hud.top - 6,
+      briefClear: brief.top >= 0 && brief.bottom <= stage.getBoundingClientRect().top - 6 &&
+        goal.right <= actions.left && actions.top >= brief.top && actions.bottom <= brief.bottom,
       briefTop: Math.round(brief.top),
       briefBottom: Math.round(brief.bottom),
-      hudTop: Math.round(hud.top),
+      actionsTop: Math.round(actions.top),
       normal,
       large,
       touchBottom: Math.round(touch.bottom),
       viewport: { width: window.innerWidth, height: window.innerHeight }
     };
   })()`);
-  if (!shortPortrait.briefAboveHud || [shortPortrait.normal, shortPortrait.large].some((controls) =>
+  if (!shortPortrait.briefClear || [shortPortrait.normal, shortPortrait.large].some((controls) =>
     !controls.detached || !controls.fits || !controls.clear || controls.minSize < 44
   )) {
     errors.push("320x480 portrait should keep the room brief clear of the HUD and all touch controls separate, reachable and on-screen: " + JSON.stringify(shortPortrait));

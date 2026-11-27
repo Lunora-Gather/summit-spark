@@ -206,21 +206,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261127-p331"),
-    import("./modules/core/math.mjs?v=20261127-p331"),
-    import("./modules/game/room-data.mjs?v=20261127-p331"),
-    import("./modules/game/world-model.mjs?v=20261127-p331"),
-    import("./modules/game/terrain-art.mjs?v=20261127-p331"),
-    import("./modules/game/effect-budget.mjs?v=20261127-p331"),
-    import("./modules/game/landmark-progress.mjs?v=20261127-p331"),
-    import("./modules/game/audio-cues.mjs?v=20261127-p331"),
-    import("./modules/game/lumen-progress.mjs?v=20261127-p331"),
-    import("./modules/systems/storage.mjs?v=20261127-p331"),
-    import("./modules/systems/cloud-save.mjs?v=20261127-p331"),
-    import("./modules/systems/input.mjs?v=20261127-p331"),
-    import("./modules/training/state.mjs?v=20261127-p331"),
-    import("./modules/training/replay.mjs?v=20261127-p331"),
-    import("./modules/ui/presentation.mjs?v=20261127-p331")
+    import("./modules/core/format.mjs?v=20261127-p332"),
+    import("./modules/core/math.mjs?v=20261127-p332"),
+    import("./modules/game/room-data.mjs?v=20261127-p332"),
+    import("./modules/game/world-model.mjs?v=20261127-p332"),
+    import("./modules/game/terrain-art.mjs?v=20261127-p332"),
+    import("./modules/game/effect-budget.mjs?v=20261127-p332"),
+    import("./modules/game/landmark-progress.mjs?v=20261127-p332"),
+    import("./modules/game/audio-cues.mjs?v=20261127-p332"),
+    import("./modules/game/lumen-progress.mjs?v=20261127-p332"),
+    import("./modules/systems/storage.mjs?v=20261127-p332"),
+    import("./modules/systems/cloud-save.mjs?v=20261127-p332"),
+    import("./modules/systems/input.mjs?v=20261127-p332"),
+    import("./modules/training/state.mjs?v=20261127-p332"),
+    import("./modules/training/replay.mjs?v=20261127-p332"),
+    import("./modules/ui/presentation.mjs?v=20261127-p332")
   ]);
 
   const canvas = document.getElementById("game");
@@ -8005,7 +8005,7 @@
 
   function roomActionHint() {
     if (!roomStartedAtEntry) return "已回到出口，可向左探索。";
-    if (roomIndex === 5 && room.entities.waypoints.some(isActiveCamp)) return "从营灯向右，跃起冲刺破门，再落上相位台。";
+    if (roomIndex === 5 && room.entities.waypoints.some(isActiveCamp)) return "向右跃起，冲刺破门落上相位台。";
     return ROOM_WHISPERS[roomIndex];
   }
 
@@ -12918,8 +12918,7 @@
       : `R${target + 1} · ${ROOM_NAMES[target] || "Summit"}`);
     const firstTouchClimb = openingGuideActive && !startContext && target === 0
       && gameplayInputSource() === "touch";
-    let goal = startContext ? ROOM_PURPOSES[target] : ROOM_GUIDES[target];
-    if (started && !won && campaignRoomIntro()) goal = roomActionHint();
+    let goal = startContext ? ROOM_PURPOSES[target] : roomActionHint();
     if (firstTouchClimb) goal = "向右走，到第一道山隙按「跳」";
     setElementText(portraitRoomGoal, `${hasProgress ? `${drillModeLabel(resolveDrillMode(target))} · ` : ""}${goal}`);
   }

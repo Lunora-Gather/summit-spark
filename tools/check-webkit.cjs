@@ -83,6 +83,18 @@ async function checkPauseControls(browser, url) {
     await page.locator("#settingsClose").tap();
     await page.locator("#settingsPanel").waitFor({ state: "hidden", timeout: 3000 });
     assert.equal(await page.locator("#deathCount").textContent(), "失 2");
+    await page.locator("#practiceButton").tap();
+    const roomGroup = page.locator(".settings-group-room");
+    if (!await roomGroup.evaluate(group => group.open)) await roomGroup.locator(":scope > summary").tap();
+    await page.locator("#roomSelect").selectOption("7");
+    await page.locator("#focusRoomButton").tap();
+    await page.locator("#settingsPanel").waitFor({ state: "hidden" });
+    const practiceHint = await page.locator("#portraitRoomGoal").evaluate(goal => ({
+      cue: goal.textContent,
+      fits: goal.scrollWidth <= goal.clientWidth + 1
+    }));
+    assert.match(practiceHint.cue, /棱镜.*实岩/);
+    assert.ok(practiceHint.fits, "R8 practice must show the safe landing cue in full on a compact phone");
   } finally {
     await page.close();
   }

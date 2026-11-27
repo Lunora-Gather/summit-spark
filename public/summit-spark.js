@@ -513,6 +513,7 @@
   const TOUCH_SIZE_MIN = 44;
   const TOUCH_SIZE_MAX = 64;
   const CANVAS_BUFFER_SCALE_MAX = 2.6;
+  const PANEL_PAINT_INTERVAL_MS = 50;
   const CANVAS_BUFFER_SCALE_STEP = 0.05;
 
   const SOLID = new Set(["#", "C"]);
@@ -679,6 +680,7 @@
   let lastSceneryCamera = 0;
   let outgoingScenery = null;
   let menuScenePainted = false;
+  let lastPanelPaintSlot = -1;
   let mountainRoom = -1;
   let mountainLayers;
   const terrainImages = new Map();
@@ -906,6 +908,7 @@
   let audioContext = null;
   let audioMaster = null;
   let ambientBus = null;
+  let ambientAudible = false;
   let ambientNextTime = 0;
   let ambientStep = 0;
   const ambientVoices = new Map();
@@ -1253,6 +1256,7 @@
   function configureCanvasBuffer({ allowContextLost = false } = {}) {
     if (canvasContextLost && !allowContextLost) return;
     menuScenePainted = false;
+    lastPanelPaintSlot = -1;
     const scale = canvasBufferScale();
     const width = Math.round(W * scale);
     const height = Math.round(H * scale);
@@ -2717,7 +2721,10 @@
     }
 
     syncOpeningGuide();
-    render(now / 1000);
+    // Keep inputs at display cadence while the pause sheet covers the moving scenery.
+    const panelPaintSlot = settingsVisible ? Math.floor(now / PANEL_PAINT_INTERVAL_MS) : -1;
+    if (!settingsVisible || panelPaintSlot !== lastPanelPaintSlot) render(now / 1000);
+    lastPanelPaintSlot = panelPaintSlot;
     if (inputEdgesConsumed) clearInputEdges(pressed, touchPressed, gamepadPressed);
     scheduleFrame();
   }
@@ -8208,6 +8215,7 @@
       audioMaster.connect(audioContext.destination);
       ambientBus = audioContext.createGain();
       ambientBus.gain.value = 0.0001;
+      ambientAudible = false;
       ambientBus.connect(audioMaster);
       ambientNextTime = audioContext.currentTime;
     } catch {
@@ -8225,7 +8233,10 @@
       }
       const now = audioContext.currentTime;
       const audible = settings.audioEnabled && settings.audioVolume > 0 && started && !won && !paused;
-      ambientBus.gain.setTargetAtTime(audible ? 1 : 0.0001, now, 0.35);
+      if (audible !== ambientAudible) {
+        ambientBus.gain.setTargetAtTime(audible ? 1 : 0.0001, now, 0.35);
+        ambientAudible = audible;
+      }
       if (!audible || audioContext.state !== "running") {
         clearAmbientVoices();
         ambientNextTime = now;

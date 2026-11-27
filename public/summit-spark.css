@@ -7485,6 +7485,7 @@ textarea,
 }
 
 .stage .hud-actions .icon-button {
+  touch-action: manipulation;
   width: 34px;
   height: 34px;
   border: 0;
@@ -7493,6 +7494,15 @@ textarea,
   color: rgba(238, 246, 242, 0.78);
   box-shadow: none;
   transition: color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.stage .hud,
+.shell .touch button,
+.stage .pause-retries button,
+.stage #settingsClose {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .stage .hud-actions .icon-button:hover {

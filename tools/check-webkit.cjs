@@ -27,6 +27,14 @@ async function checkPauseControls(browser, url) {
     assert.ok(imeKeysReserved, "The input method must keep its commit and cancel keys");
     await page.keyboard.press("Escape");
     await page.locator("#guestEntryButton").tap();
+    await page.setViewportSize({ width: 932, height: 430 });
+    await page.locator(".stage #openingGuide").waitFor();
+    const guideBelowHud = await page.evaluate(() =>
+      document.querySelector("#openingGuide").getBoundingClientRect().top >=
+      document.querySelector("#gameHud .meters").getBoundingClientRect().bottom
+    );
+    assert.ok(guideBelowHud, "The first-jump hint must leave the landscape HUD visible");
+    await page.setViewportSize({ width: 320, height: 480 });
     const pause = page.locator("#settingsButton");
     await pause.focus();
     await page.keyboard.press("Space");

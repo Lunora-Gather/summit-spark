@@ -9,7 +9,9 @@ const server = require("../game-server.js");
 const { collectorRoute, installReplayClock, startCollectionReplay } = require("./lib/summit-collection-replay.cjs");
 
 async function checkPauseControls(browser, url) {
-  const page = await browser.newPage({ viewport: { width: 320, height: 480 }, isMobile: true, hasTouch: true });
+  const page = await browser.newPage({ viewport: { width: 320, height: 480 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
   try {
     await page.goto(url);
     await page.locator("#accountEntryButton").tap();
@@ -95,6 +97,7 @@ async function checkPauseControls(browser, url) {
     }));
     assert.match(practiceHint.cue, /棱镜.*实岩/);
     assert.ok(practiceHint.fits, "R8 practice must show the safe landing cue in full on a compact phone");
+    assert.deepEqual(errors, [], "Portrait entry, rotation and practice should run without page errors");
   } finally {
     await page.close();
   }

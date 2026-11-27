@@ -8219,6 +8219,8 @@ textarea,
     top: 0;
     left: 50%;
     width: auto;
+    /* The backing buffer rounds to whole pixels at each display scale. */
+    aspect-ratio: 960 / 544;
     max-width: none;
     height: 100%;
     transform: translateX(-50%);

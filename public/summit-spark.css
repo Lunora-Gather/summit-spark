@@ -6332,6 +6332,7 @@ textarea {
 /* Routine coaching must never cover the playable route. */
 .game-tip {
   top: 14px;
+  bottom: auto;
   left: 50%;
   display: flex;
   width: auto;

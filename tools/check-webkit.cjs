@@ -111,6 +111,44 @@ async function checkPauseControls(browser, url) {
   }
 }
 
+async function checkLandscapeGameTip(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 480, height: 320 }, isMobile: true, hasTouch: true });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await page.addInitScript(installReplayClock);
+    await page.goto(url);
+    await page.locator("html.app-ready").waitFor({ state: "attached" });
+    await page.evaluate(() => window.stepGameFrame());
+    await page.locator("#guestEntryButton").click({ force: true });
+    await page.evaluate(startCollectionReplay, collectorRoute);
+    let tip = null;
+    for (let frame = 0; frame < 6000 && !tip; frame += 8) {
+      await page.evaluate(() => window.runCollectionBatch(8));
+      if (await page.locator("#gameTip:not(.hidden)").count()) {
+        tip = await page.locator("#gameTip:not(.hidden)").evaluate(element => {
+          const box = element.getBoundingClientRect();
+          const stage = document.querySelector(".stage").getBoundingClientRect();
+          const controls = document.querySelector("#touchControls").getBoundingClientRect();
+          return {
+            height: box.height,
+            top: box.top,
+            bottom: box.bottom,
+            stageTop: stage.top,
+            controlsTop: controls.top
+          };
+        });
+      }
+    }
+    assert.ok(tip, "A real collection cue should appear in the landscape route");
+    assert.ok(tip.height <= 72 && tip.bottom <= tip.stageTop + 86 && tip.bottom <= tip.controlsTop - 8,
+      `Landscape collection cue must stay compact and above touch controls: ${JSON.stringify(tip)}`);
+    assert.deepEqual(errors, [], "Landscape collection cue should run without page errors");
+  } finally {
+    await page.close();
+  }
+}
+
 async function run() {
   const browser = await webkit.launch({ headless: true });
   try {
@@ -121,6 +159,7 @@ async function run() {
       url = `http://127.0.0.1:${server.address().port}/`;
     }
     await checkPauseControls(browser, url);
+    await checkLandscapeGameTip(browser, url);
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));

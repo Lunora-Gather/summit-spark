@@ -4647,11 +4647,11 @@ body {
   .touch {
     position: fixed;
     inset: auto max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
-    /* Keep the low trail visible between the thumb controls and the screen edge. */
+    /* Keep the thumb controls at the lower edge so they cover less route. */
     --trail-gutter: max(0px, calc((100vw - 100dvh * 960 / 544) / 2));
     --safe-center-offset: calc((env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / 2);
     left: max(env(safe-area-inset-left, 0px), clamp(min(14px, 2vw), calc(var(--trail-gutter) * 1.5 + var(--safe-center-offset)), 156px));
-    bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 14dvh);
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
     padding-bottom: 0;
   }
 

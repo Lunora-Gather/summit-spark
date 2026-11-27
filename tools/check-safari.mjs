@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { once } from "node:events";
 import { By, Key, until } from "selenium-webdriver";
 import { checkStorageRecovery } from "./check-storage-recovery.cjs";
-import { createSafariSession } from "./safari-smoke-transport.cjs";
+import { createSafariSession, requireSafariPermission } from "./safari-smoke-transport.cjs";
 import { maps } from "../public/modules/game/room-data.mjs";
 import { roomEntrySpawnData } from "../public/modules/game/world-model.mjs";
 
@@ -58,6 +58,7 @@ async function terrainPixel(driver, tileX, tileY, columns, expected) {
   return JSON.parse(execFileSync("/usr/bin/swift", ["-e", reader, ...point.map(String)], { input: png }));
 }
 
+requireSafariPermission();
 const probe = net.createServer().listen(0, "127.0.0.1");
 await once(probe, "listening");
 const port = probe.address().port;

@@ -7,8 +7,10 @@
 | 命令 | 作用 |
 | --- | --- |
 | `npm run check` | 默认发布门，组合语法、文档、公开面、Appwrite、数据、地图、训练状态和 HTTP 冒烟检查 |
-| `npm run browser-smoke` | macOS 系统 Safari 回归，覆盖主菜单、练习推荐、存档恢复、账号流程与手柄输入等场景 |
-| `npm run browser-smoke -- --extended` | 在系统 Safari 试跑尚在调整的扩展用例，包括精确按键时序与部分关卡场景 |
+| `npm run test:webkit` | 日常后台无窗口 WebKit，回放游客十房全收集；默认使用临时本地服务，也可用 `SUMMIT_SPARK_URL` 指定部署地址 |
+| `npm run test:safari` | PR 的远程 Mac 原生 Safari 检查，包含练习地图像素与存档恢复 |
+| `npm run browser-smoke` | 原生 Safari 发布回归，覆盖主菜单、练习推荐、存档恢复、账号流程与手柄输入等场景 |
+| `npm run browser-smoke -- --extended` | 原生 Safari 扩展用例，包括精确按键时序与部分关卡场景 |
 | `npm run live-check` | 部署后逐文件比较线上 Pages 与本地 `public/`，并核对构建号、CSP、固定 Appwrite SDK 与固定发色约束；不加入离线默认门 |
 | `npm run cloud-live-smoke` | 显式联网集成测试，创建并清理临时无邮箱用户，验证多会话并发、事务回滚与跨用户隔离；需要已登录管理 CLI |
 | `npm run appwrite-check` | 使用已登录 Appwrite CLI，只读比较线上服务、认证、安全策略、Web 域名、数据库和私有表字段/权限；不读取用户存档，不加入离线默认门 |
@@ -18,6 +20,8 @@
 | `npm run smoke` | 本地服务器、安全响应头、公开文件白名单和关键资源检查 |
 
 `check-core-format.mjs`、`check-core-math.mjs`、`check-room-data.mjs`、`check-effect-budget.mjs`、`check-landmark-progress.mjs`、`check-audio-cues.mjs`、`check-lumen-progress.mjs`、`check-storage.mjs`、`check-input.mjs`、`check-training.mjs`、`check-training-replay.mjs` 和 `check-ui-presentation.mjs` 直接导入公开模块，固定有限计时/差值、本地云时间、安全文本、数学、十房只读边界、长局视觉效果预算、山门/旧峰当前尝试地标进度、四幕声纹与转场节拍、本房微光重试回滚、存档精确同步/云冲突保护规则、输入映射、训练状态、五类房间推荐与三步计划目标、PB 路线动作语义，以及章节完成度/收束文案、Drill/合约/路线槽标签、五类 Drill 目标/实际练习句/悬停简报、房间训练/进度摘要、练习优先级、练习档案/长期挑战/手柄状态摘要、存档导入/备份摘要、安全反馈备注/模板、四幕汇总和本轮报告展示模型；它们由 `npm run check` 自动执行。
+
+原生 Safari 可在远程 Mac 或经用户当次同意的本机运行。操作本机前须先询问并等待同意，单次命令的参数见[质量检查](../README.md#质量检查)。
 
 浏览器回归会构造一份因果合法的十房训练档案，同时验证开始页、三步计划、四类队列、四张长期挑战和实际“继续训练”启动均消费同一组综合/Clean/Pace/Style/Expert 推荐结果。
 

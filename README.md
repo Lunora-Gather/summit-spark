@@ -54,15 +54,19 @@ npm run check
 
 默认检查会核对关卡快照、地图与路线、输入和存档规则，并启动临时本地服务检查游戏资源。
 
-在 Mac 上验证实际游玩时，先在系统 Safari 的开发者设置开启「允许远程自动化」。下面的安装命令用于浏览器测试。
+日常浏览器调试使用后台无窗口 WebKit，可以在测试期间继续使用 GPT 桌面应用。首次使用或锁定依赖更新后安装项目指定的 WebKit。之后只需运行最后一条命令，脚本会自行启动临时游戏服务，从游客入口走完十关并验证零失误收齐 12 枚微光。
 
 ```sh
 npm ci
-npm run test:safari
-npm run browser-smoke
+PLAYWRIGHT_SKIP_BROWSER_GC=1 npx --no-install playwright-core install webkit
+npm run test:webkit
 ```
 
-Safari 回归会用方向键在 R4 和 R3 之间折返，检查回到已进入的章节能否立即操作，也会连续走完十关、收齐 12 枚微光。实体设备的拇指触达、手柄手感和音量平衡由人工试玩核验。[质量检查说明](docs/QUALITY_GATES.md) · [试玩清单](PLAYTEST_CHECKLIST.md) · [已知限制](KNOWN_ISSUES.md)
+**发布前须用原生 Safari 验证。** 可以在远程 Mac 上运行，也可以在用户当次同意后在本机运行。启动、激活或操作用户本机 Safari 前，必须先询问并等用户明确同意，再在该次原生测试命令末尾加 `-- --allow-local-safari`。两处均未完成时，向用户报告「原生 Safari 验证仍待完成」。
+
+PR 会在 GitHub 托管的 Mac 上运行 `npm run test:safari` 和 `npm run browser-smoke`，覆盖练习地图、存档与账号、R4 和 R3 的往返操作等场景。
+
+实体设备的拇指触达、手柄手感和音量平衡由人工试玩核验。[质量检查说明](docs/QUALITY_GATES.md) · [试玩清单](PLAYTEST_CHECKLIST.md) · [已知限制](KNOWN_ISSUES.md)
 
 ## 发布
 

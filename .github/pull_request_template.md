@@ -27,7 +27,8 @@ Explanation:
 ## Checks
 
 - [ ] `npm run check`
-- [ ] `npm run browser-smoke`
+- [ ] Background headless WebKit (`npm run test:webkit`)
+- [ ] Native Safari (`npm run browser-smoke`, link the remote run or record the locally approved run)
 - [ ] `git diff --check`
 - [ ] Manual `npm start`
 - [ ] Relevant room or R1–R10 playtest

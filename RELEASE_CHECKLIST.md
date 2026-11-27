@@ -5,7 +5,9 @@ Use this before publishing a public demo update. Deterministic behavior belongs 
 ## Automated Gate
 
 1. Run `npm run check`.
-2. Enable Safari’s Allow Remote Automation on macOS and run `npm run browser-smoke`.
+2. For daily debugging, use background, headless WebKit with `npm run test:webkit`. See the [README](README.md#质量检查) for the first-time install.
+   Verify the candidate commit in native Safari on a remote Mac or on the user's Mac with their consent for this run. Before launching, activating or controlling their Safari, ask and wait for explicit consent. Then append `-- --allow-local-safari` to the local native test command. Record the commit, host and result. If neither host has completed verification, report “原生 Safari 验证仍待完成”.
+   The PR runs `npm run test:safari` and `npm run browser-smoke` on GitHub-hosted macOS. The Pages workflow also requires its own remote `npm run browser-smoke` to pass before packaging.
 3. Run `git diff --check`.
 4. Confirm `public/index.html` is the only HTML entry and its build meta, CSS query, main-script query and all runtime module queries use the intended release version.
 5. If Appwrite configuration changed, verify the live project and private save table against `appwrite.config.json` before pushing.
@@ -28,7 +30,7 @@ The two automated gates already own deterministic coverage for controls, hidden-
 1. Update `README.md`, `PLAYTEST_CHECKLIST.md`, `KNOWN_ISSUES.md` and `CHANGELOG.md` when their user-facing facts changed.
 2. Push `main` and wait for the Pages workflow to succeed without Node compatibility warnings.
 3. Run `npm run live-check`. It must match every canonical file in local `public/`, the build version, CSP, pinned Appwrite SDK and fixed `#294657` hair invariant.
-4. Open the public URL once and confirm the start action and Canvas render. Repeat the real Appwrite email flow only when auth or deployment configuration changed.
+4. Set `SUMMIT_SPARK_URL` to the deployed Pages URL and run `npm run test:webkit` to exercise the public guest entry and summit route in the background. Repeat the real Appwrite email flow only when auth or deployment configuration changed.
 5. Run the relevant parts of `PLAYTEST_CHECKLIST.md` for a public demo release and move reproducible unresolved friction to `KNOWN_ISSUES.md`.
 
 Do not bypass a failed gate by weakening assertions, deleting coverage or silently accepting an older online build.

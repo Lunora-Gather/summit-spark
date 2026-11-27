@@ -3,7 +3,7 @@
 
 const childProcess = require("child_process");
 const http = require("http");
-const { launchSafari, startFixture } = require("./safari-smoke-transport.cjs");
+const { launchSafari, requireSafariPermission, startFixture } = require("./safari-smoke-transport.cjs");
 const net = require("net");
 const { once } = require("node:events");
 const path = require("path");
@@ -5613,6 +5613,7 @@ async function installRuntimeFixture(browser) {
 }
 
 async function runNativeSafari({ motionOnly = false, mobile = false, extended = false } = {}) {
+  requireSafariPermission();
   const port = await findFreePort();
   const upstream = "http://127.0.0.1:" + port;
   const server = childProcess.spawn(process.execPath, ["game-server.js"], {
@@ -5729,10 +5730,11 @@ async function runNativeSafari({ motionOnly = false, mobile = false, extended = 
   if (errors.length) throw new Error(errors.join("\n- "));
 }
 
-const mode = process.argv[2];
+const args = process.argv.slice(2).filter(arg => arg !== "--allow-local-safari");
+const [mode] = args;
 const modes = [undefined, "--native-safari", "--native-safari-reduced-motion", "--native-safari-ios", "--extended"];
-if (!modes.includes(mode) || process.argv.length > 3) {
-  console.error("Usage: node tools/check-browser-smoke.js [--extended|--native-safari-ios|--native-safari-reduced-motion]");
+if (!modes.includes(mode) || args.length > 1) {
+  console.error("Usage: node tools/check-browser-smoke.js [--extended|--native-safari|--native-safari-ios|--native-safari-reduced-motion] [--allow-local-safari]");
   process.exit(1);
 }
 const run = () => runNativeSafari({

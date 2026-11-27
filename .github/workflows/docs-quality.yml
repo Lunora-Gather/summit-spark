@@ -25,6 +25,13 @@ jobs:
       - name: Run default quality gate
         run: npm run check
 
+      - name: Verify the headless WebKit guest route
+        timeout-minutes: 20
+        run: |
+          npm ci
+          npx --no-install playwright-core install --with-deps webkit
+          npm run test:webkit
+
   safari:
     runs-on: ${{ github.run_attempt == 1 && 'macos-15-intel' || 'macos-latest' }}
     timeout-minutes: 25
@@ -45,6 +52,7 @@ jobs:
           defaults write com.apple.Safari WebKitPreferences.acceleratedDrawingEnabled -bool false
           defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2AcceleratedDrawingEnabled -bool false
       - run: npm run test:safari
+        timeout-minutes: 10
       - name: Preserve the practice map on failure
         if: failure()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0

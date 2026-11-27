@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://fra.cloud.appwrite.io; font-src 'self' data:; form-action 'self'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; worker-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <meta name="build-version" content="20261128-p334">
+  <meta name="build-version" content="20261128-p335">
   <title>山巅微光</title>
   <meta name="theme-color" content="#193b4a">
   <link rel="icon" type="image/svg+xml" href="assets/trail-mark.svg">
-  <link rel="stylesheet" href="summit-spark.css?v=20261128-p334">
+  <link rel="stylesheet" href="summit-spark.css?v=20261128-p335">
 </head>
 <body>
   <main class="shell" aria-label="山巅微光游戏">
@@ -210,10 +210,10 @@
                 </div>
                 <label class="control-row">
                   <span>触控大小</span>
-                  <input id="touchSizeSlider" type="range" min="44" max="64" step="2" value="48">
+                  <input id="touchSizeSlider" type="range" min="44" max="64" step="2" value="48" aria-describedby="touchAimHelp">
                   <span class="range-value" aria-hidden="true">48px</span>
                 </label>
-                <p id="touchAimHelp">拇指从左键滑到右键即可转身。按住方向键上下滑动，再按「冲」可斜向冲刺。</p>
+                <p id="touchAimHelp">拇指从左键滑到右键即可转身。按住方向键上下滑动，再按「冲」可斜向冲刺。窄屏会按可用宽度自动收窄按键，避免两组按键互相挤压。</p>
               </div>
             </details>
             <details class="settings-group settings-group-audio settings-only">
@@ -460,6 +460,6 @@
     </aside>
   </main>
 
-  <script src="summit-spark.js?v=20261128-p334"></script>
+  <script src="summit-spark.js?v=20261128-p335"></script>
 </body>
 </html>

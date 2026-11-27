@@ -27,6 +27,25 @@ async function checkPauseControls(browser, url) {
     assert.ok(imeKeysReserved, "The input method must keep its commit and cancel keys");
     await page.keyboard.press("Escape");
     await page.locator("#guestEntryButton").tap();
+    for (const viewport of [{ width: 320, height: 480 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      const layout = await page.evaluate(() => {
+        const rect = selector => document.querySelector(selector).getBoundingClientRect();
+        const actions = rect(".hud-actions");
+        const brief = rect("#portraitBrief");
+        const meters = rect(".meters");
+        const canvas = rect("#game");
+        const goal = document.querySelector("#portraitRoomGoal");
+        return {
+          buttonsFit: actions.left >= goal.getBoundingClientRect().right &&
+            actions.top >= brief.top && actions.bottom <= brief.bottom && actions.bottom <= canvas.top,
+          metersFit: meters.top >= canvas.bottom && meters.bottom + 4 <= rect('[data-touch="up"]').top,
+          briefFits: brief.top >= 0 && goal.scrollWidth <= goal.clientWidth + 1
+        };
+      });
+      assert.deepEqual(layout, { buttonsFit: true, metersFit: true, briefFits: true },
+        `Portrait HUD at ${viewport.width}×${viewport.height}`);
+    }
     await page.setViewportSize({ width: 932, height: 430 });
     await page.locator(".stage #openingGuide").waitFor();
     const guideBelowHud = await page.evaluate(() =>

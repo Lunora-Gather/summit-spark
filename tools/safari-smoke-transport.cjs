@@ -95,8 +95,20 @@ function safariKey({code, key}) {
   return aliases[code] ?? aliases[key] ?? key;
 }
 
+function isHostedMac() {
+  return process.platform === "darwin" && process.env.GITHUB_ACTIONS === "true" &&
+    process.env.RUNNER_ENVIRONMENT === "github-hosted" && process.env.RUNNER_OS === "macOS";
+}
+
+function requireSafariPermission() {
+  if (isHostedMac() || process.argv.slice(2).includes("--allow-local-safari")) return;
+  throw new Error("Use npm run test:webkit for background debugging. For release verification, use the remote Mac " +
+    "or ask the user before operating their Safari. Add --allow-local-safari only after they agree to this run.");
+}
+
 async function createSafariSession(deviceUDID) {
-  const hostedDesktop = !deviceUDID && process.env.GITHUB_ACTIONS === "true" && process.env.RUNNER_ENVIRONMENT === "github-hosted";
+  requireSafariPermission();
+  const hostedDesktop = !deviceUDID && isHostedMac();
   const attempts = hostedDesktop ? 2 : 1;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const service = new safari.ServiceBuilder("/usr/bin/safaridriver").build();
@@ -196,4 +208,4 @@ async function launchSafari(fixture, deviceUDID) {
     }
   };
 }
-module.exports = { createSafariSession, launchSafari, startFixture };
+module.exports = { createSafariSession, launchSafari, requireSafariPermission, startFixture };

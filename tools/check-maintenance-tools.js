@@ -11,6 +11,7 @@ const requiredTools = [
   "tools/check-appwrite-contract.js",
   "tools/check-appwrite-live.js",
   "tools/check-browser-smoke.js",
+  "tools/check-webkit.cjs",
   "tools/check-css-cascade.js",
   "tools/check-core-format.mjs",
   "tools/check-core-math.mjs",

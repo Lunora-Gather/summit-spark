@@ -25,6 +25,12 @@ jobs:
       - name: Run default quality gate
         run: npm run check
 
+      - name: Verify the headless WebKit guest route
+        run: |
+          npm ci
+          npx --no-install playwright-core install --with-deps webkit
+          npm run test:webkit
+
   safari:
     runs-on: ${{ github.run_attempt == 1 && 'macos-15-intel' || 'macos-latest' }}
     timeout-minutes: 25

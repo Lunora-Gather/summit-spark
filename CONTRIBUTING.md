@@ -23,11 +23,7 @@ npm run check
 git diff --check
 ```
 
-高风险改动还需要：
-
-```bash
-npm run browser-smoke
-```
+日常浏览器调试运行 `npm run test:webkit`，首次安装见 [README](README.md#质量检查)。对于输入、存档或移动端改动，请在 PR 中核对远程 Mac 上的 `npm run browser-smoke` 结果。
 
 ## 改动类型
 

@@ -121,6 +121,10 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`山巅微光: http://127.0.0.1:${port}/`);
-});
+if (require.main === module) {
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`山巅微光: http://127.0.0.1:${server.address().port}/`);
+  });
+}
+
+module.exports = server;

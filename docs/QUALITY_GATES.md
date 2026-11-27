@@ -38,13 +38,17 @@ npm run check
 
 ## 浏览器门
 
+日常在后台运行无窗口 WebKit，安装步骤见 [README](../README.md#质量检查)。`npm run test:webkit` 使用临时浏览器数据，从新游客入口回放十房全收集路线。
+
+发布前可在远程 Mac 或经用户当次同意的本机运行原生 Safari。启动、激活或操作本机 Safari 前，须先询问并等用户明确同意。两处均未完成时，报告「原生 Safari 验证仍待完成」。下列命令可直接在 GitHub 托管的 macOS 作业中运行；本机经同意的单次调用需追加 `-- --allow-local-safari`。
+
 ```bash
 npm run browser-smoke
 ```
 
 桌面 Safari 从全新游客入口以正常按键走完十关，逐枚核对 12 枚微光，并从结算页确认零失误、完整登顶和本轮最长连锁。
 
-桌面回归使用系统 Safari 和 safaridriver，覆盖点击、键盘、Canvas 位移、模拟账号流程、云冲突、1MB 存档、原子回滚和手柄死区。练习地图检查从 Safari 截图读取起点和终点的实际颜色。iPhone 模拟器先通过 SafariDriver 验证安全区，再由 AXe 在普通 Safari 标签页点按账号入口和邮箱，检查系统软键盘弹出后的可见区域。CI 会安装固定版本的 AXe。系统减少动态效果设置由独立的 macOS 任务验证。
+桌面回归使用系统 Safari 和 safaridriver，覆盖点击、键盘、Canvas 位移、模拟账号流程、云冲突、1MB 存档、原子回滚和手柄死区。练习地图检查从 Safari 截图读取起点和终点的实际颜色。iPhone 模拟器通过 simctl 打开移动 Safari 标签页，检查实际与模拟刘海安全区，并用固定版本的 AXe 点按账号入口和邮箱，检查系统软键盘弹出后的可见区域。系统减少动态效果设置由独立的 macOS 任务验证。
 
 UI 还校验首次选择与主菜单的标题/主按钮同源、账号表单左右留白、空分栏隔离、移动面板尾部空白、错误/成功颜色及密码模式文案。门禁通过不等于画面精美：按 [UI_DESIGN.md](UI_DESIGN.md) 单独检查桌面和窄屏截图。
 
@@ -82,13 +86,13 @@ node tools/report-room-data.js
 发布前至少完成：
 
 1. `npm run check`
-2. `npm run browser-smoke`
+2. 记录原生 Safari 的 `npm run browser-smoke` 结果以及验证使用的 Mac
 3. `git diff --check`
 4. 确认 `public/index.html` 版本号与 CSS/JS query 一致
 5. 确认 Pages workflow 只复制 `public/`
 6. 确认 Pages workflow 的外部 Action 固定到完整 SHA，并原生使用 Node 24，不依赖旧版 Node 20 兼容覆盖
 7. 推送后等待 GitHub Pages workflow 成功，且不出现 Node 20 Action 弃用警告
 8. 运行 `npm run live-check`，逐文件核对线上构建号、CSP、版本化资源、账号 SDK 与本地 `public/` 内容
-9. 打开线上版本一次，确认开始按钮与 Canvas；只有账号或部署配置变化时才重复真实邮件流程
+9. 将 `SUMMIT_SPARK_URL` 设为发布地址，运行 `npm run test:webkit` 验证线上游客入口和通关；只有账号或部署配置变化时才重复真实邮件流程
 
 失败时保留日志和最小复现，不通过跳过检查或删除断言来“修复”。

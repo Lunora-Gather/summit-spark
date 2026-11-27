@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node game-server.js",
     "smoke": "node tools/check-smoke.js",
+    "test:webkit": "node tools/check-webkit.cjs",
     "browser-smoke": "node tools/check-browser-smoke.js",
     "live-check": "node tools/check-live-deployment.js",
     "css-audit": "node tools/check-css-cascade.js",
@@ -17,6 +18,7 @@
     "test:safari": "node tools/check-safari.mjs"
   },
   "devDependencies": {
+    "playwright-core": "1.65.1",
     "selenium-webdriver": "4.35.0"
   }
 }

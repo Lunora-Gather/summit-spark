@@ -1,6 +1,6 @@
 # Playtest Checklist
 
-This checklist begins only after `npm run check` and `npm run browser-smoke` pass. Those commands already prove deterministic UI, save, input, map and state behavior. The human pass answers what scripts cannot: whether the route reads clearly, inputs feel trustworthy, audio remains comfortable and the ten-room difficulty curve teaches before it tests.
+Begin this checklist after `npm run check` and the native Safari `npm run browser-smoke` pass. Use headless WebKit for daily debugging and follow the [browser testing rules](README.md#质量检查) before using the user's Safari. The human pass covers route readability, input feel, listening comfort and how the ten rooms teach each skill.
 
 ## Setup
 

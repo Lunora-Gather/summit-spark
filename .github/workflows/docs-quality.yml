@@ -55,7 +55,7 @@ jobs:
         timeout-minutes: 10
       - name: Preserve the practice map on failure
         if: failure()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: safari-practice-map
           path: ${{ runner.temp }}/practice-map.png
@@ -118,7 +118,7 @@ jobs:
       - run: node tools/check-browser-smoke.js --native-safari-ios
       - name: Preserve the iPhone screen on failure
         if: failure()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ios-safari-screen
           path: ${{ runner.temp }}/ios-safari-screen.png

@@ -8,15 +8,35 @@ const { once } = require("node:events");
 const server = require("../game-server.js");
 const { collectorRoute, installReplayClock, startCollectionReplay } = require("./lib/summit-collection-replay.cjs");
 
-async function checkTouchPause(browser, url) {
+async function checkPauseControls(browser, url) {
   const page = await browser.newPage({ viewport: { width: 320, height: 480 }, isMobile: true, hasTouch: true });
   try {
     await page.goto(url);
+    await page.locator("#accountEntryButton").tap();
+    const email = page.locator("#accountEmail");
+    await email.focus();
+    const imeKeysReserved = await email.evaluate(field => {
+      for (const flags of [{ isComposing: true }, { keyCode: 229 }]) {
+        for (const key of ["Enter", "Escape"]) {
+          const event = new KeyboardEvent("keydown", { key, code: key, bubbles: true, cancelable: true, ...flags });
+          if (!field.dispatchEvent(event) || document.querySelector("#settingsPanel").inert) return false;
+        }
+      }
+      return true;
+    });
+    assert.ok(imeKeysReserved, "The input method must keep its commit and cancel keys");
+    await page.keyboard.press("Escape");
     await page.locator("#guestEntryButton").tap();
+    const pause = page.locator("#settingsButton");
+    await pause.focus();
+    await page.keyboard.press("Space");
+    await page.locator("#settingsClose").waitFor();
+    await page.keyboard.press("Space");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "game", "Resume must return the keyboard to the climb");
     const terrain = page.locator("#pauseTerrain");
     const retry = page.locator("#pauseRetries [data-pause-retry]");
     for (let faults = 0; faults <= 2; faults++) {
-      await page.locator("#settingsButton").tap();
+      await pause.tap();
       await retry.waitFor();
       assert.equal(await terrain.isVisible(), faults === 2, `Terrain action after ${faults} faults`);
       if (faults < 2) await retry.tap();
@@ -50,7 +70,7 @@ async function run() {
       await once(server, "listening");
       url = `http://127.0.0.1:${server.address().port}/`;
     }
-    await checkTouchPause(browser, url);
+    await checkPauseControls(browser, url);
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));

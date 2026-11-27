@@ -997,6 +997,7 @@
   refreshStartOverlay();
 
   window.addEventListener("keydown", (event) => {
+    if (isComposingKey(event)) return;
     const uiControl = isSettingsInputTarget(event.target);
     const textEntry = isSettingsTextEntryTarget(event.target);
     if (pendingBindingAction) {
@@ -1015,7 +1016,7 @@
     }
     if (!settingsVisible && event.code === "Escape" && started && !won) {
       event.preventDefault();
-      if (!event.repeat && !event.isComposing) openSettingsPanel();
+      if (!event.repeat) openSettingsPanel();
       return;
     }
     if (settingsVisible && event.code === "Escape") {
@@ -1025,7 +1026,7 @@
       return;
     }
     if (textEntry) return;
-    if ((!started || won) && event.target instanceof HTMLButtonElement
+    if (event.target instanceof HTMLButtonElement && !event.target.hasAttribute("data-touch")
       && (event.code === "Enter" || event.code === "Space")) return;
     if (settingsVisible && event.code !== "KeyO" && event.code !== "KeyP" && event.code !== "F3") {
       return;
@@ -1159,6 +1160,11 @@
   });
 
   window.addEventListener("pagehide", flushPendingCloudSave);
+
+  function isComposingKey(event) {
+    // WebKit can end composition before dispatching its final keydown (key code 229).
+    return event.isComposing || event.keyCode === 229;
+  }
 
   function isSettingsInputTarget(target) {
     return settingsVisible
@@ -1570,15 +1576,15 @@
   accountSendCodeButton?.addEventListener("click", sendAccountCode);
   accountSubmitButton?.addEventListener("click", submitAccountLogin);
   accountRecoveryButton?.addEventListener("click", sendPasswordRecovery);
-  accountCodeInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") submitAccountLogin();
-  });
-  accountEmailInput?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" || recoverySecret) return;
-    event.preventDefault();
-    if (authMode === "password" || (accountCodeInput?.value || "").trim()) submitAccountLogin();
-    else sendAccountCode();
-  });
+  for (const field of [accountEmailInput, accountCodeInput, accountPasswordInput]) {
+    field?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.repeat || isComposingKey(event)) return;
+      if (field === accountEmailInput && recoverySecret) return;
+      event.preventDefault();
+      if (field === accountEmailInput && authMode === "code" && !(accountCodeInput?.value || "").trim()) sendAccountCode();
+      else submitAccountLogin();
+    });
+  }
   accountEmailInput?.addEventListener("input", () => {
     const tokenEmail = accountTokenEmail || readSessionValue(ACCOUNT_OTP_EMAIL_SESSION_KEY);
     if (!tokenEmail) return;
@@ -1586,9 +1592,6 @@
     if (currentEmail === tokenEmail) return;
     clearAccountOtpState();
     setAccountStatus("邮箱已更改，请重新获取验证码", "error");
-  });
-  accountPasswordInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") submitAccountLogin();
   });
   accountSetPasswordButton?.addEventListener("click", setAccountPassword);
   accountLogoutButton?.addEventListener("click", logoutAccount);
@@ -7842,12 +7845,15 @@
     resumeGameplayFromInput();
     setGameStatus(closingPractice ? "练习面板已关闭" : "设置已关闭");
     if (!restoreFocus) return;
+    if (overlay.hidden) {
+      focusGame();
+      return;
+    }
     if (returnTarget instanceof HTMLElement && returnTarget.isConnected && !returnTarget.hasAttribute("disabled") && returnTarget.getClientRects().length) {
       returnTarget.focus({ preventScroll: true });
       if (document.activeElement === returnTarget) return;
     }
-    if (!overlay.classList.contains("hidden")) focusVisibleOverlaySurface();
-    else focusGame();
+    focusVisibleOverlaySurface();
   }
 
   function pointHitsVisibleElement(element, x, y) {

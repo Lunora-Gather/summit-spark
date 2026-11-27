@@ -213,6 +213,44 @@ async function checkTouchSizeComfort(browser, url) {
   }
 }
 
+async function checkNarrowPortraitExperience(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await page.addInitScript(installReplayClock);
+    await page.goto(url);
+    await page.locator("html.app-ready").waitFor({ state: "attached" });
+    await page.evaluate(() => window.stepGameFrame());
+    await page.locator("#guestEntryButton").click({ force: true });
+    await page.evaluate(startCollectionReplay, collectorRoute);
+    let result = null;
+    for (let frames = 0; frames < 6000 && !result; frames += 48) {
+      result = await page.evaluate(() => window.runCollectionBatch(48));
+    }
+    assert.ok(result, "The narrow portrait route should reach the summit");
+    await page.setViewportSize({ width: 320, height: 480 });
+    const finish = await page.evaluate(() => {
+      const sheet = document.querySelector(".finish-sheet").getBoundingClientRect();
+      const restart = document.querySelector("#restartButton").getBoundingClientRect();
+      return {
+        sheet,
+        restart,
+        bodyWidth: document.body.scrollWidth,
+        viewportWidth: innerWidth,
+        restartVisible: restart.top >= 0 && restart.bottom <= innerHeight
+      };
+    });
+    assert.ok(finish.restartVisible && finish.sheet.bottom <= 472,
+      `Short portrait summit review should keep the restart action in view: ${JSON.stringify(finish)}`);
+    assert.ok(finish.bodyWidth <= finish.viewportWidth,
+      `Short portrait summit review should not create horizontal overflow: ${JSON.stringify(finish)}`);
+    assert.deepEqual(errors, [], "Narrow portrait route and summit review should run without page errors");
+  } finally {
+    await page.close();
+  }
+}
+
 async function run() {
   const browser = await webkit.launch({ headless: true });
   try {
@@ -224,6 +262,7 @@ async function run() {
     }
     await checkPauseControls(browser, url);
     await checkTouchSizeComfort(browser, url);
+    await checkNarrowPortraitExperience(browser, url);
     await checkLandscapeGameTip(browser, url);
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errors = [];

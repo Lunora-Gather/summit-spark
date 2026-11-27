@@ -38,13 +38,14 @@ function observePage() {
     const field = document.getElementById("accountEmail");
     const accountOpen = account.classList.contains("account-focused");
     const playing = document.querySelector(".stage").classList.contains("run-started");
-    const target = scene === "keyboard"
-      ? (accountOpen ? field : document.getElementById("accountEntryButton"))
-      : document.getElementById("guestEntryButton");
+    const paused = playing && !account.inert;
+    let target = document.getElementById("guestEntryButton");
+    if (scene === "keyboard") target = accountOpen ? field : document.getElementById("accountEntryButton");
+    if (scene === "play" && playing) target = document.getElementById(paused ? "settingsClose" : "settingsButton");
     const box = target.getBoundingClientRect();
     const x = box.left + box.width / 2, y = box.top + box.height / 2;
     const state = {
-      screen: { width: screen.width, height: screen.height }, touch, tapped, playing, height: viewport.height,
+      screen: { width: screen.width, height: screen.height }, touch, tapped, playing, paused, height: viewport.height,
       target: { x: (x - viewport.offsetLeft) * viewport.scale, y: (y - viewport.offsetTop) * viewport.scale,
         visible: box.width > 0 && box.height > 0 && target.contains(document.elementFromPoint(x, y)) }
     };
@@ -172,6 +173,11 @@ async function checkIOSSafari(fixture, udid) {
       r.controls?.some(b => b.action === "up") && r.controls.some(b => b.action === "grab") &&
       r.controls.every(b => b.width >= 44 && b.height >= 44 && b.gap >= 4 && b.left >= -1 && b.right >= -1 && b.below >= 33));
     console.log("Native Safari passed entry, notch and portrait playfield checks", state.controls);
+    await tapTarget(playOrigin);
+    await waitFor("A native tap pauses the run", r => r.tapped === "settingsButton" && r.paused && r.target.visible);
+    await tapTarget(playOrigin);
+    await waitFor("A native tap resumes without activating the HUD beneath the sheet",
+      r => r.tapped === "settingsClose" && r.playing && !r.paused && r.target.visible);
   } catch (error) {
     if (process.env.RUNNER_TEMP) {
       await run("xcrun", ["simctl", "io", udid, "screenshot", process.env.RUNNER_TEMP + "/ios-safari-screen.png"]).catch(() => {});

@@ -206,21 +206,21 @@
       routeSlotShort
     }
   ] = await Promise.all([
-    import("./modules/core/format.mjs?v=20261125-p329"),
-    import("./modules/core/math.mjs?v=20261125-p329"),
-    import("./modules/game/room-data.mjs?v=20261125-p329"),
-    import("./modules/game/world-model.mjs?v=20261125-p329"),
-    import("./modules/game/terrain-art.mjs?v=20261125-p329"),
-    import("./modules/game/effect-budget.mjs?v=20261125-p329"),
-    import("./modules/game/landmark-progress.mjs?v=20261125-p329"),
-    import("./modules/game/audio-cues.mjs?v=20261125-p329"),
-    import("./modules/game/lumen-progress.mjs?v=20261125-p329"),
-    import("./modules/systems/storage.mjs?v=20261125-p329"),
-    import("./modules/systems/cloud-save.mjs?v=20261125-p329"),
-    import("./modules/systems/input.mjs?v=20261125-p329"),
-    import("./modules/training/state.mjs?v=20261125-p329"),
-    import("./modules/training/replay.mjs?v=20261125-p329"),
-    import("./modules/ui/presentation.mjs?v=20261125-p329")
+    import("./modules/core/format.mjs?v=20261127-p330"),
+    import("./modules/core/math.mjs?v=20261127-p330"),
+    import("./modules/game/room-data.mjs?v=20261127-p330"),
+    import("./modules/game/world-model.mjs?v=20261127-p330"),
+    import("./modules/game/terrain-art.mjs?v=20261127-p330"),
+    import("./modules/game/effect-budget.mjs?v=20261127-p330"),
+    import("./modules/game/landmark-progress.mjs?v=20261127-p330"),
+    import("./modules/game/audio-cues.mjs?v=20261127-p330"),
+    import("./modules/game/lumen-progress.mjs?v=20261127-p330"),
+    import("./modules/systems/storage.mjs?v=20261127-p330"),
+    import("./modules/systems/cloud-save.mjs?v=20261127-p330"),
+    import("./modules/systems/input.mjs?v=20261127-p330"),
+    import("./modules/training/state.mjs?v=20261127-p330"),
+    import("./modules/training/replay.mjs?v=20261127-p330"),
+    import("./modules/ui/presentation.mjs?v=20261127-p330")
   ]);
 
   const canvas = document.getElementById("game");
@@ -1376,8 +1376,6 @@
   document.addEventListener("pointerdown", closeSettingsFromOutside, true);
   settingsBackdrop?.addEventListener("click", closeSettingsFromBackdrop);
   settingsCloseButton?.addEventListener("click", closeSettings);
-  settingsCloseButton?.addEventListener("pointerup", closeSettingsFromTouch);
-  settingsCloseButton?.addEventListener("touchend", closeSettingsFromTouch);
   shakeSlider?.addEventListener("input", () => {
     settings.shake = Number(shakeSlider.value);
     writeSettings();
@@ -7850,13 +7848,6 @@
     }
     if (!overlay.classList.contains("hidden")) focusVisibleOverlaySurface();
     else focusGame();
-  }
-
-  function closeSettingsFromTouch(event) {
-    if (!settingsVisible) return;
-    if (event.type === "pointerup" && event.pointerType !== "touch" && event.pointerType !== "pen") return;
-    event.preventDefault();
-    closeSettings();
   }
 
   function pointHitsVisibleElement(element, x, y) {

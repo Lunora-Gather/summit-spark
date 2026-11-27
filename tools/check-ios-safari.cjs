@@ -86,7 +86,9 @@ function observePage() {
     // Keep one request in flight and repeat the snapshot if Mobile Safari briefly drops the connection.
     reporting = true;
     try {
-      const response = await fetch("/__ios_state?scene=" + scene + "&state=" + encodeURIComponent(JSON.stringify(state)), {cache: "no-store"});
+      const response = await fetch("/__ios_state?scene=" + scene + "&state=" + encodeURIComponent(JSON.stringify(state)), {
+        cache: "no-store", signal: AbortSignal.timeout(5000)
+      });
       if (response.status === 200) {
         const nextScene = await response.text();
         navigating = true;
@@ -112,7 +114,8 @@ async function checkIOSSafari(fixture, udid) {
     response.writeHead(204, { "Cache-Control": "no-store" }).end();
   });
   fixture.scripts.set("ios", "(" + observePage.toString() + ")();");
-  const tap = (x, y) => run("axe", ["tap", "-x", String(x), "-y", String(y), "--tap-style", "physical", "--udid", udid], { timeout: 45000 });
+  // Submit a single native simulator tap. Separate down/up delivery under load can select button text.
+  const tap = (x, y) => run("axe", ["tap", "-x", String(x), "-y", String(y), "--tap-style", "simulator", "--udid", udid], { timeout: 45000 });
   async function waitFor(label, predicate, timeout = 25000) {
     const until = Date.now() + timeout;
     while (!state || !predicate(state)) {
@@ -126,7 +129,8 @@ async function checkIOSSafari(fixture, udid) {
     state = undefined;
     // Use the same tab for the whole run, including the transition away from the open keyboard.
     if (firstPage) await run("xcrun", ["simctl", "openurl", udid, fixture.url + "/?native-ios=" + scene]);
-    await waitFor("Load " + scene + " in Mobile Safari", report => report.target.visible, 60000);
+    await waitFor("Load " + scene + " in Mobile Safari", report => report.target.visible, firstPage ? 120000 : 60000);
+    console.log("Mobile Safari ready for " + scene);
   }
   async function locateViewport() {
     // Measure the native toolbar offset with a touch in a clear part of the entry artwork.

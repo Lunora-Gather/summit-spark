@@ -213,6 +213,39 @@ async function checkTouchSizeComfort(browser, url) {
   }
 }
 
+async function checkNarrowPortraitExperience(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await page.goto(url);
+    await page.locator("#guestEntryButton").tap();
+    await page.locator("#practiceButton").tap();
+    const rooms = page.locator(".settings-group-room");
+    await rooms.evaluate(group => { group.open = true; });
+    await page.locator("#roomSelect").selectOption("1");
+    await page.locator("#focusRoomButton").tap();
+    await page.locator(".stage.training-active #deathCount").waitFor();
+    const goal = await page.locator("#portraitRoomGoal").evaluate(element => ({
+      room: document.querySelector("#roomCount")?.textContent,
+      cue: element.textContent,
+      width: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      bodyWidth: document.body.scrollWidth,
+      viewportWidth: innerWidth
+    }));
+    assert.equal(goal.room, "R2/10", "The compact practice check should enter R2");
+    assert.match(goal.cue, /青环.*光阶/, `R2 should expose its full relay cue: ${JSON.stringify(goal)}`);
+    assert.ok(goal.scrollWidth <= goal.width + 1,
+      `R2 practice instruction should fit in a 320px portrait viewport: ${JSON.stringify(goal)}`);
+    assert.ok(goal.bodyWidth <= goal.viewportWidth,
+      `Narrow portrait practice should not create horizontal overflow: ${JSON.stringify(goal)}`);
+    assert.deepEqual(errors, [], "Narrow portrait practice should run without page errors");
+  } finally {
+    await page.close();
+  }
+}
+
 async function run() {
   const browser = await webkit.launch({ headless: true });
   try {
@@ -224,6 +257,7 @@ async function run() {
     }
     await checkPauseControls(browser, url);
     await checkTouchSizeComfort(browser, url);
+    await checkNarrowPortraitExperience(browser, url);
     await checkLandscapeGameTip(browser, url);
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errors = [];
@@ -239,6 +273,22 @@ async function run() {
       const result = await page.evaluate(() => window.runCollectionBatch(48));
       if (errors.length) throw new Error(errors.join("\n"));
       if (result) {
+        await page.setViewportSize({ width: 320, height: 480 });
+        const finish = await page.evaluate(() => {
+          const sheet = document.querySelector(".finish-sheet").getBoundingClientRect();
+          const restart = document.querySelector("#restartButton").getBoundingClientRect();
+          return {
+            sheet,
+            restart,
+            bodyWidth: document.body.scrollWidth,
+            viewportWidth: innerWidth,
+            restartVisible: restart.top >= 0 && restart.bottom <= innerHeight
+          };
+        });
+        assert.ok(finish.restartVisible && finish.sheet.bottom <= 472,
+          `Short portrait summit review should keep the restart action in view: ${JSON.stringify(finish)}`);
+        assert.ok(finish.bodyWidth <= finish.viewportWidth,
+          `Short portrait summit review should not create horizontal overflow: ${JSON.stringify(finish)}`);
         console.log("Headless WebKit summit collection", result);
         return;
       }

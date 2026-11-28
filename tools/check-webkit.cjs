@@ -214,7 +214,9 @@ async function checkTouchSizeComfort(browser, url) {
 }
 
 async function checkNarrowPortraitExperience(browser, url) {
-  const page = await browser.newPage({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  // CSS viewport dimensions are the contract here. Keep the pixel ratio at 1
+  // so the full replay stays stable on slower CI WebKit runners.
+  const page = await browser.newPage({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   try {
